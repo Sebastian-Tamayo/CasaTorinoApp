@@ -1,26 +1,82 @@
 @import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+/* =============================================================================
+   Casa Torino — Design Tokens (identidad visual heredada)
+   ============================================================================= */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Paleta base */
+  --cream: #faf6f0;
+  --ink: #1c2541;
+  --card: #ffffff;
+
+  /* Colores de marca */
+  --amarillo-colombia: #ffcd00;
+  --azul-colombia: #003087;
+  --rojo-colombia: #c8102e;
+  --azul-asturias: #0055a5;
+  --rojo-espana: #aa151b;
+  --esmeralda: #1b4d3e;
+  --oro: #e5a93c;
+
+  /* Semánticos */
+  --background: var(--cream);
+  --foreground: var(--ink);
+  --primary: var(--azul-colombia);
+  --accent: var(--amarillo-colombia);
+  --danger: var(--rojo-colombia);
+  --success: var(--esmeralda);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-cream: var(--cream);
+  --color-ink: var(--ink);
+  --color-card: var(--card);
+  --color-amarillo-colombia: var(--amarillo-colombia);
+  --color-azul-colombia: var(--azul-colombia);
+  --color-rojo-colombia: var(--rojo-colombia);
+  --color-azul-asturias: var(--azul-asturias);
+  --color-rojo-espana: var(--rojo-espana);
+  --color-esmeralda: var(--esmeralda);
+  --color-oro: var(--oro);
+
+  --font-sans: var(--font-montserrat), "Montserrat", sans-serif;
+  --font-display: var(--font-playfair), "Playfair Display", serif;
+  --font-accent: var(--font-caveat), "Caveat", cursive;
+
+  --shadow-tpv: 0 2px 8px rgba(28, 37, 65, 0.08);
+  --shadow-tpv-lg: 0 8px 24px rgba(28, 37, 65, 0.12);
+
+  --radius-tpv: 1rem;
+  --radius-tpv-lg: 1.25rem;
+
+  --spacing-nav: 4.5rem;
+  --spacing-header: 3.75rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    min-height: 100dvh;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Zona táctil mínima TPV */
+@layer utilities {
+  .min-h-touch {
+    min-height: 3.5rem;
+  }
 }
