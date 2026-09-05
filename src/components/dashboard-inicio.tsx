@@ -2,7 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Banknote, CreditCard } from "lucide-react";
+import { MonthSelector } from "@/components/month-selector";
 import { createClient } from "@/lib/supabase/client";
+import {
+  esMesActual,
+  labelMes,
+  mesActualKey,
+  rangoMes,
+  type MesKey,
+} from "@/lib/meses";
 import type { CategoriaGasto, Gasto, Ingreso, MetodoPago } from "@/types/database";
 
 function formatImporte(importe: number) {
@@ -14,10 +22,6 @@ function formatImporte(importe: number) {
 
 function startOfLocalDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
-function startOfLocalMonth(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), 1);
 }
 
 type CategoriaTotal = {
@@ -193,6 +197,7 @@ function DesgloseCategoriasGasto({ items }: { items: CategoriaTotal[] }) {
 }
 
 export function DashboardInicio() {
+  const [mesKey, setMesKey] = useState<MesKey>(() => mesActualKey());
   const [gastosMes, setGastosMes] = useState<
     Pick<Gasto, "importe" | "categoria" | "created_at">[]
   >([]);
@@ -202,14 +207,8 @@ export function DashboardInicio() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const mesLabel = useMemo(
-    () =>
-      new Date().toLocaleDateString("es-ES", {
-        month: "long",
-        year: "numeric",
-      }),
-    [],
-  );
+  const mesLabel = useMemo(() => labelMes(mesKey), [mesKey]);
+  const mesEsActual = esMesActual(mesKey);
 
   useEffect(() => {
     let cancelled = false;
@@ -218,19 +217,21 @@ export function DashboardInicio() {
       setLoading(true);
       setError(null);
 
-      const desde = startOfLocalMonth(new Date()).toISOString();
+      const { inicioISO, finISO } = rangoMes(mesKey);
       const supabase = createClient();
 
       const [gastosRes, ingresosRes] = await Promise.all([
         supabase
           .from("gastos")
           .select("importe, categoria, created_at")
-          .gte("created_at", desde)
+          .gte("created_at", inicioISO)
+          .lte("created_at", finISO)
           .order("created_at", { ascending: false }),
         supabase
           .from("ingresos")
           .select("importe, metodo_pago, created_at")
-          .gte("created_at", desde)
+          .gte("created_at", inicioISO)
+          .lte("created_at", finISO)
           .order("created_at", { ascending: false }),
       ]);
 
@@ -256,7 +257,7 @@ export function DashboardInicio() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [mesKey]);
 
   const stats = useMemo(() => {
     const inicioHoy = startOfLocalDay(new Date()).getTime();
@@ -269,7 +270,7 @@ export function DashboardInicio() {
     for (const i of ingresosMes) {
       const importe = Number(i.importe);
       ingresosMesTotal += importe;
-      if (new Date(i.created_at).getTime() >= inicioHoy) {
+      if (mesEsActual && new Date(i.created_at).getTime() >= inicioHoy) {
         ingresosHoy += importe;
       }
       const metodo = i.metodo_pago as MetodoPago;
@@ -303,32 +304,22 @@ export function DashboardInicio() {
       tarjeta,
       porCategoria,
     };
-  }, [gastosMes, ingresosMes]);
-
-  if (loading) {
-    return (
-      <div className="flex flex-col gap-5">
-        <header>
-          <h1 className="font-display text-2xl text-ink">Inicio</h1>
-          <p className="mt-1 font-sans text-sm capitalize text-ink/55">
-            {mesLabel}
-          </p>
-        </header>
-        <DashboardSkeleton />
-      </div>
-    );
-  }
+  }, [gastosMes, ingresosMes, mesEsActual]);
 
   return (
     <div className="flex flex-col gap-5">
       <header>
         <h1 className="font-display text-2xl text-ink">Inicio</h1>
-        <p className="mt-1 font-sans text-sm capitalize text-ink/55">
+        <p className="mt-1 font-sans text-sm text-ink/55">
           Control de cajas · {mesLabel}
         </p>
       </header>
 
-      {error ? (
+      <MonthSelector value={mesKey} onChange={setMesKey} id="dashboard-mes" />
+
+      {loading ? <DashboardSkeleton /> : null}
+
+      {!loading && error ? (
         <p
           role="alert"
           className="rounded-tpv bg-rojo-colombia/10 px-4 py-3 text-sm text-rojo-colombia"
@@ -337,13 +328,17 @@ export function DashboardInicio() {
         </p>
       ) : null}
 
-      {!error ? (
+      {!loading && !error ? (
         <>
           <section className="flex flex-col gap-3" aria-label="KPIs del mes">
             <KpiCard
               label="Total ingresos del mes"
               importe={stats.ingresosMesTotal}
-              hint={`Hoy: ${formatImporte(stats.ingresosHoy)}`}
+              hint={
+                mesEsActual
+                  ? `Hoy: ${formatImporte(stats.ingresosHoy)}`
+                  : undefined
+              }
               accent="ingreso"
             />
             <KpiCard

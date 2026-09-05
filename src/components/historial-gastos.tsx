@@ -10,7 +10,14 @@ import {
   CreditCard,
   Receipt,
 } from "lucide-react";
+import { MonthSelector } from "@/components/month-selector";
 import { createClient } from "@/lib/supabase/client";
+import {
+  labelMes,
+  mesActualKey,
+  rangoMes,
+  type MesKey,
+} from "@/lib/meses";
 import type { Gasto, Ingreso } from "@/types/database";
 import { CATEGORIAS_INGRESO } from "@/types/database";
 
@@ -185,6 +192,7 @@ function EmptyState() {
 }
 
 export function HistorialGastos() {
+  const [mesKey, setMesKey] = useState<MesKey>(() => mesActualKey());
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -196,15 +204,20 @@ export function HistorialGastos() {
       setLoading(true);
       setError(null);
 
+      const { inicioISO, finISO } = rangoMes(mesKey);
       const supabase = createClient();
       const [gastosRes, ingresosRes] = await Promise.all([
         supabase
           .from("gastos")
           .select("*")
+          .gte("created_at", inicioISO)
+          .lte("created_at", finISO)
           .order("created_at", { ascending: false }),
         supabase
           .from("ingresos")
           .select("*")
+          .gte("created_at", inicioISO)
+          .lte("created_at", finISO)
           .order("created_at", { ascending: false }),
       ]);
 
@@ -241,15 +254,13 @@ export function HistorialGastos() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [mesKey]);
 
-  const titulo = useMemo(
-    () =>
-      movimientos.length > 0
-        ? `${movimientos.length} movimientos`
-        : "Movimientos más recientes primero",
-    [movimientos.length],
-  );
+  const titulo = useMemo(() => {
+    const mes = labelMes(mesKey);
+    if (movimientos.length === 0) return `Sin movimientos en ${mes}`;
+    return `${movimientos.length} movimientos · ${mes}`;
+  }, [movimientos.length, mesKey]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -257,6 +268,8 @@ export function HistorialGastos() {
         <h1 className="font-display text-2xl text-ink">Historial</h1>
         <p className="mt-1 font-sans text-sm text-ink/55">{titulo}</p>
       </header>
+
+      <MonthSelector value={mesKey} onChange={setMesKey} id="historial-mes" />
 
       {loading ? <HistorialSkeleton /> : null}
 
