@@ -6,7 +6,7 @@ import { Clock, Home, PlusCircle, User } from "lucide-react";
 
 const items = [
   { href: "/gestion", label: "Inicio", icon: Home, exact: true },
-  { href: "/gestion/nuevo", label: "Nuevo Gasto", icon: PlusCircle, exact: false },
+  { href: "/gestion/nuevo", label: "Registrar", icon: PlusCircle, exact: false },
   { href: "/gestion/historial", label: "Historial", icon: Clock, exact: false },
   { href: "/gestion/perfil", label: "Perfil", icon: User, exact: false },
 ] as const;

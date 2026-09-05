@@ -1,10 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Banknote, Building2, Receipt } from "lucide-react";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  Banknote,
+  Building2,
+  CreditCard,
+  Receipt,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import type { Gasto } from "@/types/database";
+import type { Gasto, Ingreso } from "@/types/database";
+import { CATEGORIAS_INGRESO } from "@/types/database";
+
+type Movimiento =
+  | ({ tipo: "gasto" } & Gasto)
+  | ({ tipo: "ingreso" } & Ingreso);
 
 function formatFecha(iso: string) {
   const d = new Date(iso);
@@ -26,24 +38,9 @@ function formatImporte(importe: number) {
   });
 }
 
-function OrigenBadge({ origen }: { origen: Gasto["origen_fondos"] }) {
-  const esCaja = origen === "Efectivo_Caja";
-
+function labelCategoriaIngreso(categoria: Ingreso["categoria"]) {
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-        esCaja
-          ? "bg-oro/20 text-ink"
-          : "bg-azul-asturias/15 text-azul-asturias"
-      }`}
-    >
-      {esCaja ? (
-        <Banknote className="size-3.5 shrink-0" aria-hidden />
-      ) : (
-        <Building2 className="size-3.5 shrink-0" aria-hidden />
-      )}
-      {esCaja ? "Efectivo" : "Banco"}
-    </span>
+    CATEGORIAS_INGRESO.find((c) => c.value === categoria)?.label ?? categoria
   );
 }
 
@@ -72,12 +69,20 @@ function HistorialSkeleton() {
 }
 
 function GastoCard({ gasto }: { gasto: Gasto }) {
+  const esCaja = gasto.origen_fondos === "Efectivo_Caja";
+
   return (
-    <article className="rounded-tpv-lg bg-card p-4 shadow-tpv">
+    <article className="rounded-tpv-lg border-l-4 border-rojo-colombia bg-card p-4 shadow-tpv">
       <div className="flex items-start justify-between gap-3">
-        <p className="font-display text-2xl font-bold leading-none text-ink">
-          {formatImporte(gasto.importe)}
-        </p>
+        <div>
+          <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-rojo-colombia">
+            <ArrowUpRight className="size-3.5" aria-hidden />
+            Gasto
+          </span>
+          <p className="mt-1 font-display text-2xl font-bold leading-none text-rojo-colombia">
+            −{formatImporte(gasto.importe)}
+          </p>
+        </div>
         <time
           dateTime={gasto.created_at}
           className="shrink-0 text-xs font-medium capitalize text-ink/50"
@@ -91,10 +96,69 @@ function GastoCard({ gasto }: { gasto: Gasto }) {
       </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center rounded-full bg-esmeralda/10 px-2.5 py-1 text-xs font-semibold text-esmeralda">
+        <span className="inline-flex items-center rounded-full bg-rojo-colombia/10 px-2.5 py-1 text-xs font-semibold text-rojo-colombia">
           {gasto.categoria}
         </span>
-        <OrigenBadge origen={gasto.origen_fondos} />
+        <span
+          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+            esCaja
+              ? "bg-oro/20 text-ink"
+              : "bg-azul-asturias/15 text-azul-asturias"
+          }`}
+        >
+          {esCaja ? (
+            <Banknote className="size-3.5" aria-hidden />
+          ) : (
+            <Building2 className="size-3.5" aria-hidden />
+          )}
+          {esCaja ? "Efectivo" : "Banco"}
+        </span>
+      </div>
+    </article>
+  );
+}
+
+function IngresoCard({ ingreso }: { ingreso: Ingreso }) {
+  const esEfectivo = ingreso.metodo_pago === "efectivo";
+
+  return (
+    <article className="rounded-tpv-lg border-l-4 border-esmeralda bg-card p-4 shadow-tpv">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-esmeralda">
+            <ArrowDownLeft className="size-3.5" aria-hidden />
+            Ingreso
+          </span>
+          <p className="mt-1 font-display text-2xl font-bold leading-none text-esmeralda">
+            +{formatImporte(ingreso.importe)}
+          </p>
+        </div>
+        <time
+          dateTime={ingreso.created_at}
+          className="shrink-0 text-xs font-medium capitalize text-ink/50"
+        >
+          {formatFecha(ingreso.created_at)}
+        </time>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center rounded-full bg-esmeralda/10 px-2.5 py-1 text-xs font-semibold text-esmeralda">
+          {labelCategoriaIngreso(ingreso.categoria)}
+        </span>
+        <span
+          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+            esEfectivo
+              ? "bg-oro/20 text-ink"
+              : "bg-azul-asturias/15 text-azul-asturias"
+          }`}
+        >
+          {esEfectivo ? (
+            <Banknote className="size-3.5" aria-hidden />
+          ) : (
+            <CreditCard className="size-3.5" aria-hidden />
+          )}
+          {esEfectivo ? "Efectivo" : "Tarjeta"}
+        </span>
       </div>
     </article>
   );
@@ -108,21 +172,20 @@ function EmptyState() {
       </div>
       <p className="font-display text-xl text-ink">Sin movimientos aún</p>
       <p className="mt-2 max-w-xs text-sm text-ink/55">
-        Cuando registres un gasto, aparecerá aquí al instante. La caja y el
-        banco quedarán trazados.
+        Registra ingresos y gastos para ver aquí el control de caja unificado.
       </p>
       <Link
         href="/gestion/nuevo"
         className="mt-6 inline-flex min-h-touch items-center justify-center rounded-tpv bg-amarillo-colombia px-6 text-sm font-bold text-ink shadow-tpv transition active:scale-[0.98]"
       >
-        Registrar primer gasto
+        Registrar movimiento
       </Link>
     </div>
   );
 }
 
 export function HistorialGastos() {
-  const [gastos, setGastos] = useState<Gasto[]>([]);
+  const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -134,18 +197,41 @@ export function HistorialGastos() {
       setError(null);
 
       const supabase = createClient();
-      const { data, error: queryError } = await supabase
-        .from("gastos")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const [gastosRes, ingresosRes] = await Promise.all([
+        supabase
+          .from("gastos")
+          .select("*")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("ingresos")
+          .select("*")
+          .order("created_at", { ascending: false }),
+      ]);
 
       if (cancelled) return;
 
-      if (queryError) {
-        setError(queryError.message);
-        setGastos([]);
+      if (gastosRes.error || ingresosRes.error) {
+        setError(
+          gastosRes.error?.message ??
+            ingresosRes.error?.message ??
+            "Error al cargar historial",
+        );
+        setMovimientos([]);
       } else {
-        setGastos((data as Gasto[]) ?? []);
+        const gastos: Movimiento[] = (gastosRes.data ?? []).map((g) => ({
+          tipo: "gasto" as const,
+          ...(g as Gasto),
+        }));
+        const ingresos: Movimiento[] = (ingresosRes.data ?? []).map((i) => ({
+          tipo: "ingreso" as const,
+          ...(i as Ingreso),
+        }));
+
+        const merged = [...gastos, ...ingresos].sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        );
+        setMovimientos(merged);
       }
 
       setLoading(false);
@@ -157,13 +243,19 @@ export function HistorialGastos() {
     };
   }, []);
 
+  const titulo = useMemo(
+    () =>
+      movimientos.length > 0
+        ? `${movimientos.length} movimientos`
+        : "Movimientos más recientes primero",
+    [movimientos.length],
+  );
+
   return (
     <div className="flex flex-col gap-5">
       <header>
         <h1 className="font-display text-2xl text-ink">Historial</h1>
-        <p className="mt-1 font-sans text-sm text-ink/55">
-          Movimientos más recientes primero
-        </p>
+        <p className="mt-1 font-sans text-sm text-ink/55">{titulo}</p>
       </header>
 
       {loading ? <HistorialSkeleton /> : null}
@@ -177,13 +269,17 @@ export function HistorialGastos() {
         </p>
       ) : null}
 
-      {!loading && !error && gastos.length === 0 ? <EmptyState /> : null}
+      {!loading && !error && movimientos.length === 0 ? <EmptyState /> : null}
 
-      {!loading && !error && gastos.length > 0 ? (
+      {!loading && !error && movimientos.length > 0 ? (
         <ul className="flex flex-col gap-3">
-          {gastos.map((gasto) => (
-            <li key={gasto.id}>
-              <GastoCard gasto={gasto} />
+          {movimientos.map((m) => (
+            <li key={`${m.tipo}-${m.id}`}>
+              {m.tipo === "gasto" ? (
+                <GastoCard gasto={m} />
+              ) : (
+                <IngresoCard ingreso={m} />
+              )}
             </li>
           ))}
         </ul>

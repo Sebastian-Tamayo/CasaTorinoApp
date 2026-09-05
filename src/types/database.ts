@@ -1,5 +1,5 @@
 export type CategoriaGasto =
-  | "Ingredientes"
+  | "Proveedores"
   | "Personal"
   | "Servicios"
   | "Alquiler"
@@ -11,6 +11,10 @@ export type CategoriaGasto =
 
 export type OrigenFondos = "Efectivo_Caja" | "Banco";
 
+export type CategoriaIngreso = "venta_local" | "domicilios";
+
+export type MetodoPago = "tarjeta" | "efectivo";
+
 export type Gasto = {
   id: string;
   importe: number;
@@ -21,8 +25,17 @@ export type Gasto = {
   created_at: string;
 };
 
+export type Ingreso = {
+  id: string;
+  importe: number;
+  categoria: CategoriaIngreso;
+  metodo_pago: MetodoPago;
+  user_id: string;
+  created_at: string;
+};
+
 export const CATEGORIAS: CategoriaGasto[] = [
-  "Ingredientes",
+  "Proveedores",
   "Personal",
   "Servicios",
   "Alquiler",
@@ -31,6 +44,22 @@ export const CATEGORIAS: CategoriaGasto[] = [
   "Impuestos",
   "Transporte",
   "Otros",
+];
+
+export const CATEGORIAS_INGRESO: {
+  value: CategoriaIngreso;
+  label: string;
+}[] = [
+  { value: "venta_local", label: "Venta en Local" },
+  { value: "domicilios", label: "Domicilios" },
+];
+
+export const METODOS_PAGO: {
+  value: MetodoPago;
+  label: string;
+}[] = [
+  { value: "efectivo", label: "Efectivo" },
+  { value: "tarjeta", label: "Tarjeta" },
 ];
 
 export type Json =
@@ -67,6 +96,34 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "gastos_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ingresos: {
+        Row: Ingreso;
+        Insert: {
+          id?: string;
+          importe: number;
+          categoria: CategoriaIngreso;
+          metodo_pago: MetodoPago;
+          user_id?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          importe?: number;
+          categoria?: CategoriaIngreso;
+          metodo_pago?: MetodoPago;
+          user_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ingresos_user_id_fkey";
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "users";
