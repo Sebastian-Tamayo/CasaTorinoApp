@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🍷 Casa Torino - Financial Back-Office
 
-## Getting Started
+![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)
+![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E?style=for-the-badge&logo=supabase)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38B2AC?style=for-the-badge&logo=tailwind-css)
+![Vercel](https://img.shields.io/badge/Vercel-Deployed-black?style=for-the-badge&logo=vercel)
 
-First, run the development server:
+Aplicación web Fullstack orientada a la gestión financiera interna de un negocio de hostelería. Diseñada bajo un enfoque **Mobile-First** para ser utilizada en pantallas táctiles y dispositivos móviles, operando de forma paralela e independiente al TPV principal del local.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🚀 Características Principales
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Autenticación y Autorización (IAM):** Sistema de login seguro exclusivo para las 4 socias administradoras mediante Supabase Auth.
+- **Auditoría y Trazabilidad:** Registro automático de la identidad de la usuaria (`user_id`) en cada transacción mediante Triggers de PostgreSQL.
+- **Seguridad a Nivel de Fila (RLS):** Políticas implementadas en la base de datos para garantizar que solo usuarios autenticados puedan leer o escribir información.
+- **Dashboard Financiero en Tiempo Real:** Cálculo automático del gasto acumulado mensual y diario, con desglose visual por categorías.
+- **Interfaz Táctil Optimizada:** UI construida con Tailwind CSS, evitando tablas complejas y priorizando tarjetas independientes (Cards) de alta legibilidad.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Learn More
+## 🏗️ Arquitectura y Stack Tecnológico
 
-To learn more about Next.js, take a look at the following resources:
+El proyecto está construido utilizando una arquitectura moderna orientada a componentes y servicios Serverless:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Frontend:** [Next.js (App Router)](https://nextjs.org/) y React.
+- **Estilos:** [Tailwind CSS](https://tailwindcss.com/) con identidad visual corporativa personalizada (fuentes: Montserrat, Playfair Display).
+- **Backend & Base de Datos:** [Supabase](https://supabase.com/) (PostgreSQL relacional).
+- **Infraestructura CI/CD:** Despliegue automatizado en [Vercel](https://vercel.com/) conectado directamente a la rama `main` de GitHub.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## ## 📸 Pantallas de la Aplicación
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `Login`: Interfaz de acceso seguro. ![Login](./docs/Captura1.png)
+- `Dashboard (Inicio)`: KPIs de gastos en tiempo real y barras de progreso por categoría. ![Dashboard](./docs/Captura2.png)
+- * `Nuevo Gasto`: Formulario optimizado para entrada rápida de datos. ![Nuevo Gasto](./docs/Captura3.png)
+- `Historial`: Timeline de movimientos financieros ordenados cronológicamente. ![Historial](./docs/Captura4.png)](./docs/Captura3.png)
+- `Login`: Interfaz de acceso seguro.
+- `Dashboard (Inicio)`: KPIs de gastos en tiempo real y barras de progreso por categoría.
+- `Nuevo Gasto`: Formulario optimizado para entrada rápida de datos.
+- `Historial`: Timeline de movimientos financieros ordenados cronológicamente.
+
