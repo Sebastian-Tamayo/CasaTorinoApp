@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Banknote, CreditCard } from "lucide-react";
 import { MonthSelector } from "@/components/month-selector";
 import { createClient } from "@/lib/supabase/client";
+import { onMovimientosChanged } from "@/lib/movimientos-events";
 import {
   esMesActual,
   labelMes,
@@ -198,6 +199,7 @@ function DesgloseCategoriasGasto({ items }: { items: CategoriaTotal[] }) {
 
 export function DashboardInicio() {
   const [mesKey, setMesKey] = useState<MesKey>(() => mesActualKey());
+  const [refreshTick, setRefreshTick] = useState(0);
   const [gastosMes, setGastosMes] = useState<
     Pick<Gasto, "importe" | "categoria" | "created_at">[]
   >([]);
@@ -209,6 +211,8 @@ export function DashboardInicio() {
 
   const mesLabel = useMemo(() => labelMes(mesKey), [mesKey]);
   const mesEsActual = esMesActual(mesKey);
+
+  useEffect(() => onMovimientosChanged(() => setRefreshTick((t) => t + 1)), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -257,7 +261,7 @@ export function DashboardInicio() {
     return () => {
       cancelled = true;
     };
-  }, [mesKey]);
+  }, [mesKey, refreshTick]);
 
   const stats = useMemo(() => {
     const inicioHoy = startOfLocalDay(new Date()).getTime();

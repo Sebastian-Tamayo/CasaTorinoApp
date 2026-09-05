@@ -9,9 +9,13 @@ import {
   Building2,
   CreditCard,
   Receipt,
+  Trash2,
 } from "lucide-react";
+import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { MonthSelector } from "@/components/month-selector";
+import { showToast } from "@/components/toast";
 import { createClient } from "@/lib/supabase/client";
+import { notifyMovimientosChanged } from "@/lib/movimientos-events";
 import {
   labelMes,
   mesActualKey,
@@ -24,6 +28,12 @@ import { CATEGORIAS_INGRESO } from "@/types/database";
 type Movimiento =
   | ({ tipo: "gasto" } & Gasto)
   | ({ tipo: "ingreso" } & Ingreso);
+
+type PendingDelete = {
+  tipo: "gasto" | "ingreso";
+  id: string;
+  importe: number;
+} | null;
 
 function formatFecha(iso: string) {
   const d = new Date(iso);
@@ -75,7 +85,26 @@ function HistorialSkeleton() {
   );
 }
 
-function GastoCard({ gasto }: { gasto: Gasto }) {
+function DeleteButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Eliminar"
+      className="flex size-10 shrink-0 items-center justify-center rounded-tpv border border-rojo-colombia/25 bg-rojo-colombia/10 text-rojo-colombia transition active:scale-[0.96]"
+    >
+      <Trash2 className="size-5" aria-hidden />
+    </button>
+  );
+}
+
+function GastoCard({
+  gasto,
+  onDelete,
+}: {
+  gasto: Gasto;
+  onDelete: () => void;
+}) {
   const esCaja = gasto.origen_fondos === "Efectivo_Caja";
 
   return (
@@ -90,12 +119,15 @@ function GastoCard({ gasto }: { gasto: Gasto }) {
             −{formatImporte(gasto.importe)}
           </p>
         </div>
-        <time
-          dateTime={gasto.created_at}
-          className="shrink-0 text-xs font-medium capitalize text-ink/50"
-        >
-          {formatFecha(gasto.created_at)}
-        </time>
+        <div className="flex shrink-0 items-start gap-2">
+          <time
+            dateTime={gasto.created_at}
+            className="text-xs font-medium capitalize text-ink/50"
+          >
+            {formatFecha(gasto.created_at)}
+          </time>
+          <DeleteButton onClick={onDelete} />
+        </div>
       </div>
 
       <p className="mt-2 truncate font-sans text-sm font-medium text-ink/80">
@@ -125,7 +157,13 @@ function GastoCard({ gasto }: { gasto: Gasto }) {
   );
 }
 
-function IngresoCard({ ingreso }: { ingreso: Ingreso }) {
+function IngresoCard({
+  ingreso,
+  onDelete,
+}: {
+  ingreso: Ingreso;
+  onDelete: () => void;
+}) {
   const esEfectivo = ingreso.metodo_pago === "efectivo";
 
   return (
@@ -140,12 +178,15 @@ function IngresoCard({ ingreso }: { ingreso: Ingreso }) {
             +{formatImporte(ingreso.importe)}
           </p>
         </div>
-        <time
-          dateTime={ingreso.created_at}
-          className="shrink-0 text-xs font-medium capitalize text-ink/50"
-        >
-          {formatFecha(ingreso.created_at)}
-        </time>
+        <div className="flex shrink-0 items-start gap-2">
+          <time
+            dateTime={ingreso.created_at}
+            className="text-xs font-medium capitalize text-ink/50"
+          >
+            {formatFecha(ingreso.created_at)}
+          </time>
+          <DeleteButton onClick={onDelete} />
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -196,6 +237,8 @@ export function HistorialGastos() {
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -262,6 +305,36 @@ export function HistorialGastos() {
     return `${movimientos.length} movimientos · ${mes}`;
   }, [movimientos.length, mesKey]);
 
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+
+    setDeleting(true);
+    const { tipo, id } = pendingDelete;
+    const tabla = tipo === "gasto" ? "gastos" : "ingresos";
+
+    const supabase = createClient();
+    const { error: deleteError } = await supabase
+      .from(tabla)
+      .delete()
+      .eq("id", id);
+
+    setDeleting(false);
+
+    if (deleteError) {
+      showToast(`No se pudo eliminar: ${deleteError.message}`, "error");
+      return;
+    }
+
+    setMovimientos((prev) =>
+      prev.filter((m) => !(m.tipo === tipo && m.id === id)),
+    );
+    setPendingDelete(null);
+    notifyMovimientosChanged();
+    showToast(
+      tipo === "gasto" ? "Gasto eliminado correctamente" : "Ingreso eliminado correctamente",
+    );
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <header>
@@ -289,14 +362,45 @@ export function HistorialGastos() {
           {movimientos.map((m) => (
             <li key={`${m.tipo}-${m.id}`}>
               {m.tipo === "gasto" ? (
-                <GastoCard gasto={m} />
+                <GastoCard
+                  gasto={m}
+                  onDelete={() =>
+                    setPendingDelete({
+                      tipo: "gasto",
+                      id: m.id,
+                      importe: Number(m.importe),
+                    })
+                  }
+                />
               ) : (
-                <IngresoCard ingreso={m} />
+                <IngresoCard
+                  ingreso={m}
+                  onDelete={() =>
+                    setPendingDelete({
+                      tipo: "ingreso",
+                      id: m.id,
+                      importe: Number(m.importe),
+                    })
+                  }
+                />
               )}
             </li>
           ))}
         </ul>
       ) : null}
+
+      <ConfirmDeleteDialog
+        open={Boolean(pendingDelete)}
+        tipo={pendingDelete?.tipo ?? "gasto"}
+        importeLabel={
+          pendingDelete ? formatImporte(pendingDelete.importe) : ""
+        }
+        pending={deleting}
+        onCancel={() => {
+          if (!deleting) setPendingDelete(null);
+        }}
+        onConfirm={() => void confirmDelete()}
+      />
     </div>
   );
 }

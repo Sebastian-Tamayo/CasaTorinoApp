@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/app-header";
 import { BottomNav } from "@/components/bottom-nav";
+import { ToastHost } from "@/components/toast";
 
 export default function GestionLayout({
   children,
@@ -13,6 +14,7 @@ export default function GestionLayout({
         {children}
       </main>
       <BottomNav />
+      <ToastHost />
     </div>
   );
 }
