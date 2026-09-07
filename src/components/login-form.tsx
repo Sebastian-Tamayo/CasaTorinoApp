@@ -1,33 +1,13 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-/**
- * DEBUG TEMPORAL — login en cliente con console.log del error Supabase
- * y de las variables NEXT_PUBLIC_* leídas por la app.
- * Quitar cuando se confirme la causa del rechazo.
- */
 export function LoginForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-
-  useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    console.log("[Casa Torino DEBUG] NEXT_PUBLIC_SUPABASE_URL =", url);
-    console.log("[Casa Torino DEBUG] NEXT_PUBLIC_SUPABASE_ANON_KEY =", anonKey);
-    console.log("[Casa Torino DEBUG] URL definida:", Boolean(url));
-    console.log(
-      "[Casa Torino DEBUG] Anon key definida:",
-      Boolean(anonKey),
-      "| longitud:",
-      anonKey?.length ?? 0,
-    );
-  }, []);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -38,39 +18,21 @@ export function LoginForm() {
     const email = String(formData.get("email") ?? "").trim();
     const password = String(formData.get("password") ?? "");
 
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    console.log("[Casa Torino DEBUG] Intento de login con email:", email);
-    console.log("[Casa Torino DEBUG] URL usada en este intento:", url);
-    console.log("[Casa Torino DEBUG] Anon Key usada en este intento:", anonKey);
-
     try {
       const supabase = createClient();
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
+      const { error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (authError) {
-        // Error exacto de Supabase (message, status, code, name, …)
-        console.error("[Casa Torino DEBUG] Error Supabase Auth:", authError);
-        console.error("[Casa Torino DEBUG] error.message =", authError.message);
-        console.error("[Casa Torino DEBUG] error.status =", authError.status);
-        console.error("[Casa Torino DEBUG] error.code =", authError.code);
-        console.error(
-          "[Casa Torino DEBUG] error (JSON) =",
-          JSON.stringify(authError, null, 2),
-        );
         setError(authError.message);
         return;
       }
 
-      console.log("[Casa Torino DEBUG] Login OK. user.id =", data.user?.id);
       router.push("/gestion");
       router.refresh();
     } catch (err) {
-      console.error("[Casa Torino DEBUG] Excepción inesperada:", err);
       setError(err instanceof Error ? err.message : "Error inesperado");
     } finally {
       setPending(false);

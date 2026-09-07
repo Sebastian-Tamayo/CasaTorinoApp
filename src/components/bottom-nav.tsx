@@ -2,14 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Clock, Home, PlusCircle, User } from "lucide-react";
+import { Home, LayoutGrid, PlusCircle, User } from "lucide-react";
 
 const items = [
   { href: "/gestion", label: "Inicio", icon: Home, exact: true },
   { href: "/gestion/nuevo", label: "Registrar", icon: PlusCircle, exact: false },
-  { href: "/gestion/historial", label: "Historial", icon: Clock, exact: false },
+  { href: "/gestion/mas", label: "Módulos", icon: LayoutGrid, exact: false },
   { href: "/gestion/perfil", label: "Perfil", icon: User, exact: false },
 ] as const;
+
+const erpPaths = [
+  "/gestion/mas",
+  "/gestion/historial",
+  "/gestion/proveedores",
+  "/gestion/rrhh",
+  "/gestion/fiscal",
+];
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -23,7 +31,11 @@ export function BottomNav() {
         {items.map(({ href, label, icon: Icon, exact }) => {
           const active = exact
             ? pathname === href
-            : pathname === href || pathname.startsWith(`${href}/`);
+            : href === "/gestion/mas"
+              ? erpPaths.some(
+                  (p) => pathname === p || pathname.startsWith(`${p}/`),
+                )
+              : pathname === href || pathname.startsWith(`${href}/`);
 
           return (
             <li key={href} className="flex-1">

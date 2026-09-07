@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Banknote, CreditCard } from "lucide-react";
+import Link from "next/link";
+import {
+  Banknote,
+  Briefcase,
+  Calculator,
+  CreditCard,
+  Truck,
+} from "lucide-react";
 import { MonthSelector } from "@/components/month-selector";
 import { createClient } from "@/lib/supabase/client";
 import { onMovimientosChanged } from "@/lib/movimientos-events";
@@ -12,7 +19,7 @@ import {
   rangoMes,
   type MesKey,
 } from "@/lib/meses";
-import type { CategoriaGasto, Gasto, Ingreso, MetodoPago } from "@/types/database";
+import type { Gasto, Ingreso, MetodoPago } from "@/types/database";
 
 function formatImporte(importe: number) {
   return Number(importe).toLocaleString("es-ES", {
@@ -25,186 +32,17 @@ function startOfLocalDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-type CategoriaTotal = {
-  categoria: CategoriaGasto;
-  total: number;
-  porcentaje: number;
-};
-
-function DashboardSkeleton() {
-  return (
-    <div className="flex flex-col gap-5" aria-busy="true" aria-live="polite">
-      <p className="text-sm font-medium text-ink/50">Cargando…</p>
-      <div className="flex flex-col gap-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className="animate-pulse rounded-tpv-lg bg-card p-5 shadow-tpv"
-          >
-            <div className="h-3 w-40 rounded bg-ink/10" />
-            <div className="mt-4 h-10 w-36 rounded bg-ink/10" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function KpiCard({
-  label,
-  importe,
-  hint,
-  accent = "default",
-}: {
-  label: string;
-  importe: number;
-  hint?: string;
-  accent?: "default" | "ingreso" | "gasto" | "neto";
-}) {
-  const amountClass =
-    accent === "ingreso"
-      ? "text-esmeralda"
-      : accent === "gasto"
-        ? "text-rojo-colombia"
-        : accent === "neto"
-          ? importe >= 0
-            ? "text-azul-colombia"
-            : "text-rojo-colombia"
-          : "text-ink";
-
-  return (
-    <article className="rounded-tpv-lg bg-card p-5 shadow-tpv">
-      <p className="font-sans text-xs font-semibold uppercase tracking-wide text-ink/50">
-        {label}
-      </p>
-      <p
-        className={`mt-3 font-display text-4xl font-bold leading-none tracking-tight ${amountClass}`}
-      >
-        {formatImporte(importe)}
-      </p>
-      {hint ? (
-        <p className="mt-2 font-sans text-xs text-ink/50">{hint}</p>
-      ) : null}
-    </article>
-  );
-}
-
-function MetodoPagoDesglose({
-  efectivo,
-  tarjeta,
-  total,
-}: {
-  efectivo: number;
-  tarjeta: number;
-  total: number;
-}) {
-  const pctEfectivo = total > 0 ? (efectivo / total) * 100 : 0;
-  const pctTarjeta = total > 0 ? (tarjeta / total) * 100 : 0;
-
-  return (
-    <section className="rounded-tpv-lg bg-card p-4 shadow-tpv">
-      <h2 className="font-display text-lg text-ink">Ingresos por método</h2>
-      <p className="mt-0.5 font-sans text-xs text-ink/50">
-        Mes en curso · efectivo vs tarjeta
-      </p>
-
-      <div className="mt-4 flex flex-col gap-4">
-        <div>
-          <div className="mb-1.5 flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-1.5 font-sans text-sm font-medium text-ink">
-              <Banknote className="size-4 text-oro" aria-hidden />
-              Efectivo
-            </span>
-            <span className="font-display text-base font-bold text-ink">
-              {formatImporte(efectivo)}
-            </span>
-          </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-cream">
-            <div
-              className="h-full rounded-full bg-oro transition-[width] duration-500"
-              style={{
-                width: `${Math.max(pctEfectivo, pctEfectivo > 0 ? 4 : 0)}%`,
-              }}
-            />
-          </div>
-        </div>
-
-        <div>
-          <div className="mb-1.5 flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-1.5 font-sans text-sm font-medium text-ink">
-              <CreditCard className="size-4 text-azul-asturias" aria-hidden />
-              Tarjeta
-            </span>
-            <span className="font-display text-base font-bold text-ink">
-              {formatImporte(tarjeta)}
-            </span>
-          </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-cream">
-            <div
-              className="h-full rounded-full bg-azul-asturias transition-[width] duration-500"
-              style={{
-                width: `${Math.max(pctTarjeta, pctTarjeta > 0 ? 4 : 0)}%`,
-              }}
-            />
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function DesgloseCategoriasGasto({ items }: { items: CategoriaTotal[] }) {
-  if (items.length === 0) {
-    return (
-      <section className="rounded-tpv-lg bg-card px-6 py-8 text-center shadow-tpv">
-        <p className="font-display text-lg text-ink">Sin gastos este mes</p>
-        <p className="mt-1 text-sm text-ink/55">
-          El desglose por categoría aparecerá al registrar salidas.
-        </p>
-      </section>
-    );
-  }
-
-  return (
-    <section className="rounded-tpv-lg bg-card p-4 shadow-tpv">
-      <h2 className="font-display text-lg text-ink">Gastos por categoría</h2>
-      <p className="mt-0.5 font-sans text-xs text-ink/50">
-        Mes en curso · % sobre gastos
-      </p>
-      <ul className="mt-4 flex flex-col gap-4">
-        {items.map(({ categoria, total, porcentaje }) => (
-          <li key={categoria}>
-            <div className="mb-1.5 flex items-baseline justify-between gap-3">
-              <span className="font-sans text-sm font-medium text-ink">
-                {categoria}
-              </span>
-              <span className="shrink-0 font-display text-base font-bold text-ink">
-                {formatImporte(total)}
-              </span>
-            </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-cream">
-              <div
-                className="h-full rounded-full bg-rojo-colombia/80 transition-[width] duration-500"
-                style={{
-                  width: `${Math.max(porcentaje, porcentaje > 0 ? 4 : 0)}%`,
-                }}
-              />
-            </div>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 export function DashboardInicio() {
   const [mesKey, setMesKey] = useState<MesKey>(() => mesActualKey());
   const [refreshTick, setRefreshTick] = useState(0);
   const [gastosMes, setGastosMes] = useState<
-    Pick<Gasto, "importe" | "categoria" | "created_at">[]
+    Pick<
+      Gasto,
+      "importe" | "categoria" | "created_at" | "base_imponible"
+    >[]
   >([]);
   const [ingresosMes, setIngresosMes] = useState<
-    Pick<Ingreso, "importe" | "metodo_pago" | "created_at">[]
+    Pick<Ingreso, "importe" | "metodo_pago" | "created_at" | "base_imponible">[]
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -227,13 +65,13 @@ export function DashboardInicio() {
       const [gastosRes, ingresosRes] = await Promise.all([
         supabase
           .from("gastos")
-          .select("importe, categoria, created_at")
+          .select("importe, categoria, created_at, base_imponible")
           .gte("created_at", inicioISO)
           .lte("created_at", finISO)
           .order("created_at", { ascending: false }),
         supabase
           .from("ingresos")
-          .select("importe, metodo_pago, created_at")
+          .select("importe, metodo_pago, created_at, base_imponible")
           .gte("created_at", inicioISO)
           .lte("created_at", finISO)
           .order("created_at", { ascending: false }),
@@ -266,107 +104,202 @@ export function DashboardInicio() {
   const stats = useMemo(() => {
     const inicioHoy = startOfLocalDay(new Date()).getTime();
 
-    let ingresosMesTotal = 0;
-    let ingresosHoy = 0;
+    let ingresosBase = 0;
+    let ingresosHoyBase = 0;
     let efectivo = 0;
     let tarjeta = 0;
 
     for (const i of ingresosMes) {
-      const importe = Number(i.importe);
-      ingresosMesTotal += importe;
+      const base = Number(i.base_imponible ?? i.importe);
+      ingresosBase += base;
       if (mesEsActual && new Date(i.created_at).getTime() >= inicioHoy) {
-        ingresosHoy += importe;
+        ingresosHoyBase += base;
       }
       const metodo = i.metodo_pago as MetodoPago;
-      if (metodo === "efectivo") efectivo += importe;
-      else tarjeta += importe;
+      if (metodo === "efectivo") efectivo += Number(i.importe);
+      else tarjeta += Number(i.importe);
     }
 
-    let gastosMesTotal = 0;
-    const mapa = new Map<CategoriaGasto, number>();
+    let operativos = 0;
+    let laborales = 0;
 
     for (const g of gastosMes) {
-      const importe = Number(g.importe);
-      gastosMesTotal += importe;
-      mapa.set(g.categoria, (mapa.get(g.categoria) ?? 0) + importe);
+      const base = Number(g.base_imponible ?? g.importe);
+      if (g.categoria === "Nóminas y SS") laborales += base;
+      else operativos += base;
     }
 
-    const porCategoria: CategoriaTotal[] = [...mapa.entries()]
-      .map(([categoria, total]) => ({
-        categoria,
-        total,
-        porcentaje: gastosMesTotal > 0 ? (total / gastosMesTotal) * 100 : 0,
-      }))
-      .sort((a, b) => b.total - a.total);
+    const ebitda = ingresosBase - operativos - laborales;
 
     return {
-      ingresosMesTotal,
-      ingresosHoy,
-      gastosMesTotal,
-      balance: ingresosMesTotal - gastosMesTotal,
+      ingresosBase,
+      ingresosHoyBase,
+      operativos,
+      laborales,
+      ebitda,
       efectivo,
       tarjeta,
-      porCategoria,
+      ingresosCobrado: efectivo + tarjeta,
     };
   }, [gastosMes, ingresosMes, mesEsActual]);
 
   return (
     <div className="flex flex-col gap-5">
       <header>
-        <h1 className="font-display text-2xl text-ink">Inicio</h1>
+        <p className="text-xs font-semibold uppercase tracking-wide text-azul-colombia">
+          ERP · Pérdidas y ganancias
+        </p>
+        <h1 className="mt-1 font-display text-2xl text-ink">Inicio</h1>
         <p className="mt-1 font-sans text-sm text-ink/55">
-          Control de cajas · {mesLabel}
+          Balance general · {mesLabel}
         </p>
       </header>
 
       <MonthSelector value={mesKey} onChange={setMesKey} id="dashboard-mes" />
 
-      {loading ? <DashboardSkeleton /> : null}
+      <nav aria-label="Módulos ERP" className="grid grid-cols-3 gap-2">
+        <ModuleLink href="/gestion/proveedores" label="Proveedores" icon={Truck} />
+        <ModuleLink href="/gestion/rrhh" label="RRHH" icon={Briefcase} />
+        <ModuleLink href="/gestion/fiscal" label="Fiscal" icon={Calculator} />
+      </nav>
 
-      {!loading && error ? (
+      <Link
+        href="/gestion/mas"
+        className="rounded-tpv border border-dashed border-azul-colombia/40 bg-azul-colombia/5 px-4 py-3 text-center text-sm font-semibold text-azul-colombia"
+      >
+        Ver todos los módulos ERP →
+      </Link>
+
+      {loading ? (
+        <p className="text-sm text-ink/50">Cargando…</p>
+      ) : error ? (
         <p
           role="alert"
           className="rounded-tpv bg-rojo-colombia/10 px-4 py-3 text-sm text-rojo-colombia"
         >
           No se pudo cargar el resumen: {error}
         </p>
-      ) : null}
-
-      {!loading && !error ? (
+      ) : (
         <>
-          <section className="flex flex-col gap-3" aria-label="KPIs del mes">
-            <KpiCard
-              label="Total ingresos del mes"
-              importe={stats.ingresosMesTotal}
+          <section
+            className="flex flex-col gap-3"
+            aria-label="Pérdidas y ganancias"
+          >
+            <PgRow
+              label="1. Ingresos totales (base imponible)"
+              importe={stats.ingresosBase}
+              tone="ingreso"
               hint={
                 mesEsActual
-                  ? `Hoy: ${formatImporte(stats.ingresosHoy)}`
+                  ? `Hoy: ${formatImporte(stats.ingresosHoyBase)}`
                   : undefined
               }
-              accent="ingreso"
             />
-            <KpiCard
-              label="Total gastos del mes"
-              importe={stats.gastosMesTotal}
-              accent="gasto"
+            <PgRow
+              label="2. Gastos operativos"
+              importe={stats.operativos}
+              tone="gasto"
+              hint="Proveedores y suministros"
             />
-            <KpiCard
-              label="Balance / Neto"
-              importe={stats.balance}
-              hint="Ingresos − Gastos"
-              accent="neto"
+            <PgRow
+              label="3. Gastos laborales"
+              importe={stats.laborales}
+              tone="gasto"
+              hint="Nóminas y SS"
             />
+            <article className="rounded-tpv-lg border-2 border-azul-colombia/30 bg-card p-5 shadow-tpv">
+              <p className="font-sans text-xs font-semibold uppercase tracking-wide text-ink/50">
+                4. Beneficio neto (EBITDA)
+              </p>
+              <p
+                className={`mt-3 font-display text-4xl font-bold leading-none tracking-tight ${
+                  stats.ebitda >= 0 ? "text-azul-colombia" : "text-rojo-colombia"
+                }`}
+              >
+                {formatImporte(stats.ebitda)}
+              </p>
+              <p className="mt-2 text-xs text-ink/50">
+                Ingresos − Operativos − Laborales
+              </p>
+            </article>
           </section>
 
-          <MetodoPagoDesglose
-            efectivo={stats.efectivo}
-            tarjeta={stats.tarjeta}
-            total={stats.ingresosMesTotal}
-          />
-
-          <DesgloseCategoriasGasto items={stats.porCategoria} />
+          <section className="rounded-tpv-lg bg-card p-4 shadow-tpv">
+            <h2 className="font-display text-lg text-ink">Caja cobrada</h2>
+            <p className="mt-0.5 text-xs text-ink/50">
+              Totales con IVA · método de pago
+            </p>
+            <div className="mt-4 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 text-sm">
+                  <Banknote className="size-4 text-oro" aria-hidden />
+                  Efectivo
+                </span>
+                <span className="font-display font-bold">
+                  {formatImporte(stats.efectivo)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 text-sm">
+                  <CreditCard className="size-4 text-azul-asturias" aria-hidden />
+                  Tarjeta
+                </span>
+                <span className="font-display font-bold">
+                  {formatImporte(stats.tarjeta)}
+                </span>
+              </div>
+            </div>
+          </section>
         </>
-      ) : null}
+      )}
     </div>
+  );
+}
+
+function PgRow({
+  label,
+  importe,
+  tone,
+  hint,
+}: {
+  label: string;
+  importe: number;
+  tone: "ingreso" | "gasto";
+  hint?: string;
+}) {
+  return (
+    <article className="rounded-tpv-lg bg-card p-4 shadow-tpv">
+      <p className="font-sans text-xs font-semibold uppercase tracking-wide text-ink/50">
+        {label}
+      </p>
+      <p
+        className={`mt-2 font-display text-3xl font-bold leading-none ${
+          tone === "ingreso" ? "text-esmeralda" : "text-rojo-colombia"
+        }`}
+      >
+        {formatImporte(importe)}
+      </p>
+      {hint ? <p className="mt-1 text-xs text-ink/50">{hint}</p> : null}
+    </article>
+  );
+}
+
+function ModuleLink({
+  href,
+  label,
+  icon: Icon,
+}: {
+  href: string;
+  label: string;
+  icon: typeof Truck;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-tpv bg-card text-center shadow-tpv transition active:scale-[0.98]"
+    >
+      <Icon className="size-5 text-azul-colombia" aria-hidden />
+      <span className="text-[11px] font-semibold text-ink">{label}</span>
+    </Link>
   );
 }

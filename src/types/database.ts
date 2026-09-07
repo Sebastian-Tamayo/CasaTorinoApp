@@ -7,7 +7,8 @@ export type CategoriaGasto =
   | "Marketing"
   | "Impuestos"
   | "Transporte"
-  | "Otros";
+  | "Otros"
+  | "Nóminas y SS";
 
 export type OrigenFondos = "Efectivo_Caja" | "Banco";
 
@@ -23,6 +24,9 @@ export type Gasto = {
   origen_fondos: OrigenFondos;
   user_id: string;
   created_at: string;
+  proveedor_nombre: string | null;
+  base_imponible: number;
+  porcentaje_iva: number;
 };
 
 export type Ingreso = {
@@ -32,6 +36,28 @@ export type Ingreso = {
   metodo_pago: MetodoPago;
   user_id: string;
   created_at: string;
+  base_imponible: number;
+  porcentaje_iva: number;
+};
+
+export type Empleado = {
+  id: string;
+  created_at: string;
+  nombre: string;
+  puesto: string;
+  salario_bruto: number;
+  coste_seguridad_social: number;
+  porcentaje_retencion_irpf: number;
+  activo: boolean;
+};
+
+export type NominaPagada = {
+  id: string;
+  created_at: string;
+  empleado_id: string;
+  mes_anio: string;
+  importe_neto: number;
+  importe_irpf: number;
 };
 
 export const CATEGORIAS: CategoriaGasto[] = [
@@ -44,7 +70,23 @@ export const CATEGORIAS: CategoriaGasto[] = [
   "Impuestos",
   "Transporte",
   "Otros",
+  "Nóminas y SS",
 ];
+
+/** Categorías que cuentan como gasto operativo (no laboral) en P&G */
+export const CATEGORIAS_OPERATIVAS: CategoriaGasto[] = [
+  "Proveedores",
+  "Personal",
+  "Servicios",
+  "Alquiler",
+  "Mantenimiento",
+  "Marketing",
+  "Impuestos",
+  "Transporte",
+  "Otros",
+];
+
+export const IVA_OPCIONES = [0, 4, 10, 21] as const;
 
 export const CATEGORIAS_INGRESO: {
   value: CategoriaIngreso;
@@ -83,16 +125,11 @@ export type Database = {
           origen_fondos: OrigenFondos;
           user_id?: string;
           created_at?: string;
+          proveedor_nombre?: string | null;
+          base_imponible: number;
+          porcentaje_iva?: number;
         };
-        Update: {
-          id?: string;
-          importe?: number;
-          concepto?: string;
-          categoria?: CategoriaGasto;
-          origen_fondos?: OrigenFondos;
-          user_id?: string;
-          created_at?: string;
-        };
+        Update: Partial<Gasto>;
         Relationships: [
           {
             foreignKeyName: "gastos_user_id_fkey";
@@ -112,21 +149,52 @@ export type Database = {
           metodo_pago: MetodoPago;
           user_id?: string;
           created_at?: string;
+          base_imponible: number;
+          porcentaje_iva?: number;
         };
-        Update: {
-          id?: string;
-          importe?: number;
-          categoria?: CategoriaIngreso;
-          metodo_pago?: MetodoPago;
-          user_id?: string;
-          created_at?: string;
-        };
+        Update: Partial<Ingreso>;
         Relationships: [
           {
             foreignKeyName: "ingresos_user_id_fkey";
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      empleados: {
+        Row: Empleado;
+        Insert: {
+          id?: string;
+          created_at?: string;
+          nombre: string;
+          puesto: string;
+          salario_bruto: number;
+          coste_seguridad_social?: number;
+          porcentaje_retencion_irpf?: number;
+          activo?: boolean;
+        };
+        Update: Partial<Empleado>;
+        Relationships: [];
+      };
+      nominas_pagadas: {
+        Row: NominaPagada;
+        Insert: {
+          id?: string;
+          created_at?: string;
+          empleado_id: string;
+          mes_anio: string;
+          importe_neto: number;
+          importe_irpf: number;
+        };
+        Update: Partial<NominaPagada>;
+        Relationships: [
+          {
+            foreignKeyName: "nominas_pagadas_empleado_id_fkey";
+            columns: ["empleado_id"];
+            isOneToOne: false;
+            referencedRelation: "empleados";
             referencedColumns: ["id"];
           },
         ];

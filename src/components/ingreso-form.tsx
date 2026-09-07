@@ -1,10 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createIngreso, type IngresoFormState } from "@/app/actions/ingresos";
+import { totalConIva } from "@/lib/fiscal";
 import {
   CATEGORIAS_INGRESO,
+  IVA_OPCIONES,
   METODOS_PAGO,
   type CategoriaIngreso,
   type MetodoPago,
@@ -17,6 +19,11 @@ export function IngresoForm() {
   const [state, formAction, pending] = useActionState(createIngreso, initial);
   const [categoria, setCategoria] = useState<CategoriaIngreso | "">("");
   const [metodo, setMetodo] = useState<MetodoPago | "">("");
+  const [base, setBase] = useState("");
+  const [iva, setIva] = useState(10);
+
+  const baseNum = Number.parseFloat(base.replace(",", ".")) || 0;
+  const total = useMemo(() => totalConIva(baseNum, iva), [baseNum, iva]);
 
   useEffect(() => {
     if (state.success) {
@@ -29,17 +36,51 @@ export function IngresoForm() {
     <form action={formAction} className="flex flex-col gap-6">
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-semibold uppercase tracking-wide text-ink/60">
-          Importe (€)
+          Base imponible (€)
         </span>
         <input
-          name="importe"
+          name="base_imponible"
           type="text"
           inputMode="decimal"
           required
+          value={base}
+          onChange={(e) => setBase(e.target.value)}
           placeholder="0,00"
           className="min-h-14 rounded-tpv border border-ink/10 bg-card px-4 font-display text-3xl text-ink outline-none ring-esmeralda/30 focus:ring-2"
         />
       </label>
+
+      <fieldset>
+        <legend className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink/60">
+          IVA %
+        </legend>
+        <div className="grid grid-cols-4 gap-2">
+          {IVA_OPCIONES.map((pct) => (
+            <button
+              key={pct}
+              type="button"
+              onClick={() => setIva(pct)}
+              className={`min-h-touch rounded-tpv border text-sm font-bold transition active:scale-[0.98] ${
+                iva === pct
+                  ? "border-esmeralda bg-esmeralda text-white"
+                  : "border-ink/10 bg-card text-ink"
+              }`}
+            >
+              {pct}%
+            </button>
+          ))}
+        </div>
+        <input type="hidden" name="porcentaje_iva" value={iva} />
+        <p className="mt-2 text-sm text-ink/55">
+          Total cobrado:{" "}
+          <span className="font-display font-bold text-ink">
+            {total.toLocaleString("es-ES", {
+              style: "currency",
+              currency: "EUR",
+            })}
+          </span>
+        </p>
+      </fieldset>
 
       <fieldset>
         <legend className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink/60">
@@ -105,18 +146,9 @@ export function IngresoForm() {
         </p>
       ) : null}
 
-      {state.success ? (
-        <p
-          role="status"
-          className="rounded-tpv bg-esmeralda/10 px-3 py-2 text-sm text-esmeralda"
-        >
-          Ingreso registrado correctamente.
-        </p>
-      ) : null}
-
       <button
         type="submit"
-        disabled={pending || !categoria || !metodo}
+        disabled={pending || !categoria || !metodo || baseNum <= 0}
         className="min-h-14 rounded-tpv bg-esmeralda text-lg font-bold text-white shadow-tpv transition active:scale-[0.98] disabled:opacity-50"
       >
         {pending ? "Guardando…" : "Registrar ingreso"}
