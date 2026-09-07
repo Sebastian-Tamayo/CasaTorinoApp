@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createGasto, type GastoFormState } from "@/app/actions/gastos";
+import { archiveDocumento } from "@/lib/documentos";
 import { totalConIva } from "@/lib/fiscal";
 import {
   CATEGORIAS,
@@ -19,16 +20,49 @@ export function GastoForm() {
   const [categoria, setCategoria] = useState("");
   const [base, setBase] = useState("");
   const [iva, setIva] = useState(0);
+  const [proveedor, setProveedor] = useState("");
+  const [adjunto, setAdjunto] = useState<File | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
   const baseNum = Number.parseFloat(base.replace(",", ".")) || 0;
   const total = useMemo(() => totalConIva(baseNum, iva), [baseNum, iva]);
 
   useEffect(() => {
-    if (state.success) {
+    if (!state.success || !state.gastoId) return;
+
+    let cancelled = false;
+
+    async function afterSave() {
+      if (adjunto) {
+        setUploadingDoc(true);
+        const res = await archiveDocumento({
+          file: adjunto,
+          nombre: adjunto.name,
+          categoria: "factura_proveedor",
+          proveedor_nombre: state.proveedor_nombre ?? proveedor,
+          gasto_id: state.gastoId,
+        });
+        if (cancelled) return;
+        setUploadingDoc(false);
+        if (res.error) {
+          setUploadError(
+            `Gasto guardado, pero el adjunto falló: ${res.error}`,
+          );
+          return;
+        }
+      }
+      if (cancelled) return;
       router.push("/gestion/historial");
       router.refresh();
     }
-  }, [state.success, router]);
+
+    void afterSave();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al éxito del gasto
+  }, [state.success, state.gastoId]);
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
@@ -113,6 +147,8 @@ export function GastoForm() {
           name="proveedor_nombre"
           type="text"
           maxLength={120}
+          value={proveedor}
+          onChange={(e) => setProveedor(e.target.value)}
           placeholder="Ej. Makro, Coca-Cola…"
           className="min-h-touch rounded-tpv border border-ink/10 bg-card px-4 text-base text-ink outline-none ring-azul-colombia/30 focus:ring-2"
         />
@@ -158,6 +194,21 @@ export function GastoForm() {
         <input type="hidden" name="categoria" value={categoria} required />
       </fieldset>
 
+      <label className="flex flex-col gap-1.5">
+        <span className="text-sm font-semibold uppercase tracking-wide text-ink/60">
+          Adjuntar documento (opcional)
+        </span>
+        <input
+          type="file"
+          accept="application/pdf,image/jpeg,image/png,image/webp"
+          onChange={(e) => setAdjunto(e.target.files?.[0] ?? null)}
+          className="min-h-touch rounded-tpv border border-dashed border-ink/20 bg-card px-3 py-2 text-sm text-ink file:mr-3 file:rounded-lg file:border-0 file:bg-azul-colombia/10 file:px-3 file:py-1 file:text-sm file:font-semibold file:text-azul-colombia"
+        />
+        <span className="text-xs text-ink/45">
+          PDF / JPG / PNG · máx. 10 MB · se archiva como factura de proveedor
+        </span>
+      </label>
+
       {state.error ? (
         <p
           role="alert"
@@ -167,12 +218,24 @@ export function GastoForm() {
         </p>
       ) : null}
 
+      {uploadError ? (
+        <p role="alert" className="rounded-tpv bg-oro/20 px-3 py-2 text-sm text-ink">
+          {uploadError}
+        </p>
+      ) : null}
+
       <button
         type="submit"
-        disabled={pending || !origen || !categoria || baseNum <= 0}
+        disabled={
+          pending || uploadingDoc || !origen || !categoria || baseNum <= 0
+        }
         className="min-h-14 rounded-tpv bg-amarillo-colombia text-lg font-bold text-ink shadow-tpv transition active:scale-[0.98] disabled:opacity-50"
       >
-        {pending ? "Guardando…" : "Registrar gasto"}
+        {pending || uploadingDoc
+          ? uploadingDoc
+            ? "Archivando adjunto…"
+            : "Guardando…"
+          : "Registrar gasto"}
       </button>
     </form>
   );

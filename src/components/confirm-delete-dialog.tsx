@@ -2,7 +2,7 @@
 
 type ConfirmDeleteDialogProps = {
   open: boolean;
-  tipo: "gasto" | "ingreso";
+  tipo: "gasto" | "ingreso" | "documento";
   importeLabel: string;
   pending?: boolean;
   onCancel: () => void;
@@ -18,6 +18,23 @@ export function ConfirmDeleteDialog({
   onConfirm,
 }: ConfirmDeleteDialogProps) {
   if (!open) return null;
+
+  const titulo =
+    tipo === "documento" ? "Eliminar documento" : `Eliminar ${tipo}`;
+  const descripcion =
+    tipo === "documento" ? (
+      <>
+        ¿Estás segura de eliminar el documento{" "}
+        <span className="font-semibold text-ink">{importeLabel}</span>? Se
+        borrará también del archivo en Storage.
+      </>
+    ) : (
+      <>
+        ¿Estás segura de eliminar este {tipo} de{" "}
+        <span className="font-semibold text-ink">{importeLabel}</span>? Esta
+        acción no se puede deshacer.
+      </>
+    );
 
   return (
     <div
@@ -37,12 +54,10 @@ export function ConfirmDeleteDialog({
           id="confirm-delete-title"
           className="font-display text-xl text-ink"
         >
-          Eliminar {tipo}
+          {titulo}
         </h2>
         <p id="confirm-delete-desc" className="mt-2 text-sm text-ink/65">
-          ¿Estás segura de eliminar este {tipo} de{" "}
-          <span className="font-semibold text-ink">{importeLabel}</span>?
-          Esta acción no se puede deshacer.
+          {descripcion}
         </p>
 
         <div className="mt-5 grid grid-cols-2 gap-3">

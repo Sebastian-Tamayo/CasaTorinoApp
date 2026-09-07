@@ -14,6 +14,7 @@ const items = [
 const erpPaths = [
   "/gestion/mas",
   "/gestion/historial",
+  "/gestion/documentos",
   "/gestion/proveedores",
   "/gestion/rrhh",
   "/gestion/fiscal",

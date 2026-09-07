@@ -9,6 +9,8 @@ import { CATEGORIAS } from "@/types/database";
 export type GastoFormState = {
   error?: string;
   success?: boolean;
+  gastoId?: string;
+  proveedor_nombre?: string | null;
 };
 
 const ORIGENES: OrigenFondos[] = ["Efectivo_Caja", "Banco"];
@@ -54,16 +56,20 @@ export async function createGasto(
     return { error: "Sesión caducada. Vuelve a iniciar sesión." };
   }
 
-  const { error } = await supabase.from("gastos").insert({
-    importe,
-    concepto,
-    categoria,
-    origen_fondos,
-    proveedor_nombre,
-    base_imponible,
-    porcentaje_iva,
-    user_id: user.id,
-  });
+  const { data, error } = await supabase
+    .from("gastos")
+    .insert({
+      importe,
+      concepto,
+      categoria,
+      origen_fondos,
+      proveedor_nombre,
+      base_imponible,
+      porcentaje_iva,
+      user_id: user.id,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     return { error: `No se pudo guardar el gasto: ${error.message}` };
@@ -73,5 +79,10 @@ export async function createGasto(
   revalidatePath("/gestion/historial");
   revalidatePath("/gestion/proveedores");
   revalidatePath("/gestion/fiscal");
-  return { success: true };
+  revalidatePath("/gestion/documentos");
+  return {
+    success: true,
+    gastoId: data.id,
+    proveedor_nombre,
+  };
 }

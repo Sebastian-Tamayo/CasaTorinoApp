@@ -5,6 +5,7 @@ import {
   Briefcase,
   Calculator,
   Clock,
+  FolderOpen,
   LayoutGrid,
   Truck,
 } from "lucide-react";
@@ -15,6 +16,12 @@ const modules = [
     label: "Historial",
     desc: "Ingresos y gastos del mes",
     icon: Clock,
+  },
+  {
+    href: "/gestion/documentos",
+    label: "Documentos",
+    desc: "Facturas, albaranes y gestoría",
+    icon: FolderOpen,
   },
   {
     href: "/gestion/proveedores",

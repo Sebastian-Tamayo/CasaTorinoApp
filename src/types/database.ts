@@ -60,6 +60,38 @@ export type NominaPagada = {
   importe_irpf: number;
 };
 
+export type CategoriaDocumento =
+  | "factura_proveedor"
+  | "albaran"
+  | "contrato_empleado"
+  | "impuesto"
+  | "otro";
+
+export type Documento = {
+  id: string;
+  created_at: string;
+  nombre: string;
+  url_archivo: string;
+  storage_path: string;
+  categoria: CategoriaDocumento;
+  gasto_id: string | null;
+  proveedor_nombre: string | null;
+  user_id: string;
+};
+
+export const CATEGORIAS_DOCUMENTO: {
+  value: CategoriaDocumento;
+  label: string;
+}[] = [
+  { value: "factura_proveedor", label: "Factura proveedor" },
+  { value: "albaran", label: "Albarán" },
+  { value: "contrato_empleado", label: "Contrato empleado" },
+  { value: "impuesto", label: "Impuesto" },
+  { value: "otro", label: "Otro" },
+];
+
+export const DOCUMENTOS_BUCKET = "documentos_adjuntos";
+
 export const CATEGORIAS: CategoriaGasto[] = [
   "Proveedores",
   "Personal",
@@ -195,6 +227,37 @@ export type Database = {
             columns: ["empleado_id"];
             isOneToOne: false;
             referencedRelation: "empleados";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      documentos: {
+        Row: Documento;
+        Insert: {
+          id?: string;
+          created_at?: string;
+          nombre: string;
+          url_archivo: string;
+          storage_path: string;
+          categoria: CategoriaDocumento;
+          gasto_id?: string | null;
+          proveedor_nombre?: string | null;
+          user_id?: string;
+        };
+        Update: Partial<Documento>;
+        Relationships: [
+          {
+            foreignKeyName: "documentos_gasto_id_fkey";
+            columns: ["gasto_id"];
+            isOneToOne: false;
+            referencedRelation: "gastos";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "documentos_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];
