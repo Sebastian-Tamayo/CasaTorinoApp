@@ -1,3 +1,4 @@
+<img width="1280" height="611" alt="ezgif-2036697837407d4e" src="https://github.com/user-attachments/assets/aa7ae5a9-b135-45b9-bcd8-2b968d339b51" />
 # 🍷 Casa Torino - Hospitality ERP & Management Back-Office
 
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)
@@ -26,6 +27,7 @@ A diferencia de un simple contador de gastos, **Casa Torino** centraliza la gest
 *(Enlaza un GIF animado o un video corto recorriendo la aplicación)*
 
 ![Video Demo](./docs/demo-navegacion.gif)
+<img width="1280" height="611" alt="ezgif-2036697837407d4e" src="https://github.com/user-attachments/assets/4bb46f6d-705b-4d40-bc6a-c1308b99b45e" />
 
 ---
 
