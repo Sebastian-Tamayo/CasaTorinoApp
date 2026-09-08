@@ -75,17 +75,12 @@ El sistema estructura la información a través de las siguientes tablas protegi
 ---
 
 ## 📸 Pantallas de la Aplicación
-
-* `Dashboard (P&L)`: Balance general, ingresos, gastos y EBITDA del mes.
 ![Dashboard](./docs/Captura1.png)
 
-* `Documentos Escaneados`: Archivo digital de facturas y contratos con vista previa.
 ![Documentos](./docs/Captura2.png)
 
-* `Módulo Fiscal`: Estimación trimestral de IVA e IRPF.
 ![Fiscal](./docs/Captura3.png)
 
-* `Recursos Humanos`: Control de personal y liquidación de nóminas.
 ![RRHH](./docs/Captura4.png)
 
 ---
