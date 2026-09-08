@@ -8,7 +8,6 @@
 
 Aplicación web Fullstack concebida como un **ERP (Enterprise Resource Planning)** a medida para la gestión operativa, fiscal, laboral y documental de un negocio de hostelería. Diseñada bajo un enfoque **Mobile-First** para funcionar en tiempo real desde smartphones o tablets en el propio local.
 
-<img width="1280" height="611" alt="ezgif-2036697837407d4e" src="https://github.com/user-attachments/assets/aa7ae5a9-b135-45b9-bcd8-2b968d339b51" />
 ---
 
 ## 💡 ¿Por qué es un ERP de Hostelería?
@@ -26,9 +25,9 @@ A diferencia de un simple contador de gastos, **Casa Torino** centraliza la gest
 ## 🎥 Demostración en Video
 
 *(Enlaza un GIF animado o un video corto recorriendo la aplicación)*
+<img width="1280" height="611" alt="torino" src="https://github.com/user-attachments/assets/3133b669-2bdd-4c29-ac39-c574e24f33c5" />
 
-![Video Demo](./docs/demo-navegacion.gif)
-<img width="1280" height="611" alt="ezgif-2036697837407d4e" src="https://github.com/user-attachments/assets/4bb46f6d-705b-4d40-bc6a-c1308b99b45e" />
+<img width="1280" height="611" alt="ezgif-2036697837407d4e" src="https://github.com/user-attachments/assets/90d1f6e7-e8b2-45ba-916b-a6959f7b08c3" />
 
 ---
 
