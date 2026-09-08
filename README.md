@@ -1,4 +1,4 @@
-<img width="1280" height="611" alt="ezgif-2036697837407d4e" src="https://github.com/user-attachments/assets/aa7ae5a9-b135-45b9-bcd8-2b968d339b51" />
+
 # 🍷 Casa Torino - Hospitality ERP & Management Back-Office
 
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)
@@ -8,6 +8,7 @@
 
 Aplicación web Fullstack concebida como un **ERP (Enterprise Resource Planning)** a medida para la gestión operativa, fiscal, laboral y documental de un negocio de hostelería. Diseñada bajo un enfoque **Mobile-First** para funcionar en tiempo real desde smartphones o tablets en el propio local.
 
+<img width="1280" height="611" alt="ezgif-2036697837407d4e" src="https://github.com/user-attachments/assets/aa7ae5a9-b135-45b9-bcd8-2b968d339b51" />
 ---
 
 ## 💡 ¿Por qué es un ERP de Hostelería?
