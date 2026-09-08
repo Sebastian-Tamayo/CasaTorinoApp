@@ -24,7 +24,6 @@ A diferencia de un simple contador de gastos, **Casa Torino** centraliza la gest
 
 ## 🎥 Demostración en Video
 
-<img width="1280" height="611" alt="torino" src="https://github.com/user-attachments/assets/3133b669-2bdd-4c29-ac39-c574e24f33c5" />
 
 <img width="1280" height="611" alt="ezgif-2036697837407d4e" src="https://github.com/user-attachments/assets/90d1f6e7-e8b2-45ba-916b-a6959f7b08c3" />
 
