@@ -1,120 +1,140 @@
+# Casa Torino App — Ecosistema digital del negocio familiar
 
-# 🍷 Casa Torino - Hospitality ERP & Management Back-Office
+> **Un solo proyecto · Web + ERP + Reservas**  
+> Bar-restaurante familiar de fusión **Colombo-Asturiana** en Gijón (`Ctra. Ceares, 67`).
 
-![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)
-![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E?style=for-the-badge&logo=supabase)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38B2AC?style=for-the-badge&logo=tailwind-css)
-![Vercel](https://img.shields.io/badge/Vercel-Deployed-black?style=for-the-badge&logo=vercel)
+[![GitHub](https://img.shields.io/badge/repo-CasaTorinoApp-181717?logo=github)](https://github.com/Sebastian-Tamayo/CasaTorinoApp)
+[![Web](https://img.shields.io/badge/web-casatorino.netlify.app-00C7B7?logo=netlify)](https://casatorino.netlify.app)
+[![Reservas](https://img.shields.io/badge/reservas-reservas--casatorino.vercel.app-000000?logo=vercel)](https://reservas-casatorino.vercel.app)
+[![Stack](https://img.shields.io/badge/stack-Next.js%20%7C%20React%20%7C%20Supabase%20%7C%20Vercel-111827)](#módulos-del-ecosistema)
 
-Aplicación web Fullstack concebida como un **ERP (Enterprise Resource Planning)** a medida para la gestión operativa, fiscal, laboral y documental de un negocio de hostelería. Diseñada bajo un enfoque **Mobile-First** para funcionar en tiempo real desde smartphones o tablets en el propio local.
+Este repositorio **unifica** lo que antes estaba repartido en varios sitios:
 
----
+| Antes (separado) | Ahora (aquí) |
+|------------------|--------------|
+| `casa-torino-web` | [`web/`](web/) |
+| ERP / back-office (`CasaTorinoApp`) | [`erp/`](erp/) |
+| App de reservas (en `Proyeccion`) | [`reservas/`](reservas/) |
 
-## 💡 ¿Por qué es un ERP de Hostelería?
-
-A diferencia de un simple contador de gastos, **Casa Torino** centraliza la gestión integral del restaurante/bar en un único sistema interconectado:
-
-1. **Gestión Documental y Digitalización:** Archivo en la nube de facturas, albaranes y contratos escaneados mediante Supabase Storage.
-2. **Recursos Humanos (RRHH):** Control de plantilla y automatización de costes laborales (salarios netos, IRPF y Seguridad Social).
-3. **Fiscalidad (IVA e IRPF):** Desglose automático de bases imponibles, IVA soportado vs. repercutido y modelo trimestral ($Q1, Q2, Q3, Q4$).
-4. **Control de Proveedores:** Trazabilidad de compras por distribuidor (alimentación, bebida, suministros) para análisis de coste de ventas.
-5. **Cuenta de Resultados (P&L / EBITDA):** Balance en tiempo real que refleja el beneficio operativo neto del negocio.
+Forman **el mismo negocio**: la web atrae, el ERP controla la operativa y las reservas gestionan la sala.
 
 ---
 
-## 🎥 Demostración en Video
+## Visión del ecosistema
 
-
-<img width="1280" height="611" alt="ezgif-2036697837407d4e" src="https://github.com/user-attachments/assets/90d1f6e7-e8b2-45ba-916b-a6959f7b08c3" />
-
----
-
-## 🚀 Módulos y Funcionalidades
-
-* **Balance General (P&L / EBITDA):**
-  * Cálculo del beneficio neto: $\text{Ingresos (Base)} - \text{Coste Mercancía} - \text{Costes Laborales} = \text{EBITDA}$.
-  * Cierres mensuales con selector de histórico.
-* **Gestión Documental (Gestoría):**
-  * Subida de facturas, tickets, albaranes y contratos (PDF/Imágenes).
-  * Visor integrado y filtrado por categoría o proveedor.
-  * Almacenamiento seguro en **Supabase Storage** (`documentos_adjuntos`).
-* **Recursos Humanos (RRHH):**
-  * Fichas de empleados con sueldos, Seguridad Social y retenciones IRPF.
-  * Generación automática de gastos de nómina con un clic ("Liquidar Mes").
-* **Módulo Fiscal Trimestral:**
-  * Estimación del IVA a pagar/devolver por trimestres.
-  * Acumulado de retenciones de IRPF para la declaración de la gestoría.
-* **Analítica de Proveedores:**
-  * Ranking mensual de compras por proveedor y volumen consumido.
-* **Control de Caja y Entradas/Salidas:**
-  * Registro unificado de ingresos (Local vs. Domicilio) y formas de pago (Tarjeta vs. Efectivo).
-  * Eliminación individual de registros con confirmación en interfaz y RLS.
-
----
-
-## 🏗️ Arquitectura y Stack Tecnológico
-
-* **Frontend:** [Next.js 15 (App Router)](https://nextjs.org/) y React.
-* **Estilos:** [Tailwind CSS](https://tailwindcss.com/) optimizado para dispositivos móviles y pantallas táctiles.
-* **Backend & Storage:** [Supabase](https://supabase.com/) (PostgreSQL relacional + Supabase Storage).
-* **Despliegue & CI/CD:** [Vercel](https://vercel.com/) conectado a la rama `main` de GitHub.
-
----
-
-## 🗄️ Modelo de Datos (PostgreSQL en Supabase)
-
-El sistema estructura la información a través de las siguientes tablas protegidas por **Row Level Security (RLS)**:
-
-* **`gastos`:** Registro de compras y gastos operativos (importe, categoría, origen de fondos, proveedor, base imponible, % IVA).
-* **`ingresos`:** Registro de ventas diarias (importe, canal local/domicilio, medio de pago tarjeta/efectivo, base imponible, % IVA).
-* **`empleados`:** Ficha de trabajadores (puesto, salario bruto, coste Seguridad Social, % retención IRPF).
-* **`nominas_pagadas`:** Histórico de nóminas liquidadas por mes y trabajador.
-* **`documentos`:** Metadatos de archivos subidos (nombre, URL de Supabase Storage, categoría, proveedor asociado).
-* **Bucket de Storage:** `documentos_adjuntos` (almacenamiento físico de PDF/JPG/PNG).
-
----
-
-## 📸 Pantallas de la Aplicación
-![Dashboard](./docs/Captura1.png)
-
-![Documentos](./docs/Captura2.png)
-
-![Fiscal](./docs/Captura3.png)
-
-![RRHH](./docs/Captura4.png)
-
----
-
-## 🛠️ Instalación y Configuración Local
-
-1. **Clonar el repositorio:**
-```bash
-git clone [https://github.com/Sebastian-Tamayo/CasaTorinoApp.git](https://github.com/Sebastian-Tamayo/CasaTorinoApp.git)
+```text
+                         CLIENTES
+                            │
+                            ▼
+              ┌─────────────────────────┐
+              │  web/  · Marca pública  │  Historia, fusión, inauguración
+              │  casatorino.netlify.app │  Contacto / WhatsApp
+              └────────────┬────────────┘
+                           │ demanda / canal
+                           ▼
+              ┌─────────────────────────┐
+              │  reservas/ · Sala       │  Alta rápida, edición, estados
+              │  reservas-casatorino…   │  4 personas del equipo + PIN
+              └────────────┬────────────┘
+                           │ ocupación / servicio
+                           ▼
+              ┌─────────────────────────┐
+              │  erp/ · Back-office     │  Gastos, ingresos, fiscal,
+              │  Next.js + Supabase     │  RRHH, documentos, proveedores
+              └─────────────────────────┘
 ```
 
-2. **Instalar dependencias:**
+**Para reclutadores:** no son tres demos sueltas. Es un **producto conjunto** de un negocio familiar real: front de marca + operativa de sala + ERP mobile-first.
+
+---
+
+## Módulos del ecosistema
+
+### 1. [`web/`](web/) — Página pública
+Landing HTML/CSS/JS hecha a mano para la marca Casa Torino.  
+**Live:** https://casatorino.netlify.app  
+
+![Web Casa Torino](docs/media/web/web-demo.gif)
+
+### 2. [`reservas/`](reservas/) — Gestión de mesas (personal)
+App React + TypeScript + Vite + API serverless en Vercel.  
+Uso interno del equipo (Lorena, Yuli, Dayana, Claribel — PIN demo `1234`).  
+**Live:** https://reservas-casatorino.vercel.app  
+
+### 3. [`erp/`](erp/) — ERP / back-office de hostelería
+Next.js 15 + Supabase (PostgreSQL, Storage, RLS) + Tailwind.  
+Gastos, ingresos, P&L, fiscal trimestral, RRHH, documentos y proveedores.
+
+![Demo ERP](docs/media/erp/demo-video.gif)
+
+| Pantalla | Captura |
+|----------|---------|
+| Dashboard | ![Dashboard](docs/media/erp/Captura1.png) |
+| Documentos | ![Documentos](docs/media/erp/Captura2.png) |
+| Más vistas | [`docs/media/erp/`](docs/media/erp/) (`Captura3`–`Captura5`, GIFs) |
+
+---
+
+## Estructura del monorepo
+
+```text
+CasaTorinoApp/
+├── README.md                 ← este documento (visión conjunta)
+├── docs/
+│   ├── ECOSISTEMA.md         ← mapa de negocio y deploys
+│   └── media/                ← capturas y vídeos/GIF conservados
+│       ├── erp/
+│       ├── web/
+│       └── reservas/
+├── web/                      ← landing pública
+├── reservas/                 ← app de reservas (staff)
+└── erp/                      ← ERP Next.js + Supabase
+```
+
+Todas las **capturas y demos animadas** del ERP y de la web están guardadas en `docs/media/` para que no se pierdan al unificar repos.
+
+---
+
+## Cómo arrancar en local
+
+### Web
 ```bash
+cd web
+# abrir index.html en el navegador, o:
+npx serve .
+```
+
+### Reservas
+```bash
+cd reservas
 npm install
-```
-
-3. **Variables de Entorno:**
-Crea un archivo `.env.local` en la raíz con las credenciales de tu proyecto de Supabase:
-```env
-NEXT_PUBLIC_SUPABASE_URL=[https://tu-proyecto.supabase.co](https://tu-proyecto.supabase.co)
-NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-clave-anonima
-```
-
-4. **Servidor de Desarrollo:**
-```bash
 npm run dev
 ```
 
-5. Abre `http://localhost:3000` en el navegador.
+### ERP
+```bash
+cd erp
+cp .env.example .env.local   # completar URL y anon key de Supabase
+npm install
+npm run dev
+```
+
+Detalle de cada módulo: sus propios `README.md`.
 
 ---
 
-## 👨‍💻 Autor
+## Deploys
 
-Desarrollado por **Sebastián Tamayo**.
+| Módulo | Hosting | URL |
+|--------|---------|-----|
+| Web | Netlify | https://casatorino.netlify.app |
+| Reservas | Vercel | https://reservas-casatorino.vercel.app |
+| ERP | Vercel + Supabase | (proyecto Next en `erp/`) |
 
-* **GitHub:** [@Sebastian-Tamayo](https://github.com/Sebastian-Tamayo)
+---
+
+## Autor
+
+**Sebastián Olaya Tamayo** — [@Sebastian-Tamayo](https://github.com/Sebastian-Tamayo)
+
+Proyecto de portfolio y uso real del negocio familiar **Casa Torino** (Gijón).
