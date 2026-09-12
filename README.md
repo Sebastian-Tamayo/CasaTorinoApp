@@ -57,6 +57,10 @@ Landing HTML/CSS/JS hecha a mano para la marca Casa Torino.
 ![Web Casa Torino](docs/media/web/web-demo.gif)
 
 ### 2. [`reservas/`](reservas/) — Gestión de mesas (personal)
+<img width="701" height="556" alt="image" src="https://github.com/user-attachments/assets/606e7989-1f7d-4ef8-b5aa-3bcc5c5888ea" />ç
+<img width="709" height="915" alt="image" src="https://github.com/user-attachments/assets/47501a6c-28cf-4140-93aa-15f61d7e765f" />
+
+
 App React + TypeScript + Vite + API serverless en Vercel.  
 Uso interno del equipo (Lorena, Yuli, Dayana, Claribel — PIN demo `1234`).  
 **Live:** https://reservas-casatorino.vercel.app  
