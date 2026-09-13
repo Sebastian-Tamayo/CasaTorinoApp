@@ -1,6 +1,6 @@
 # Deploy — Casa Torino Reservas (Vercel)
 
-Producción permanente en Vercel (migrado desde Netlify por límite de créditos).
+Producción permanente en Vercel. La web pública principal también está en Vercel (`casa-torino-web`).
 
 ## URL de producción
 

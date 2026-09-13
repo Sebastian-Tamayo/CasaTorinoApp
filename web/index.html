@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Casa Torino · Restaurante Bar · Gijón</title>
+  <meta name="description" content="Casa Torino en Gijón: fusión Colombo-Asturiana. Carta, menú del día, cocina tradicional y sabor que deja huella." />
+  <meta name="theme-color" content="#0a1224" />
+  <link rel="icon" type="image/jpeg" href="assets/logo.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="nav-wrap">
+      <a class="brand" href="#inicio">
+        <img src="assets/logo.jpg" alt="Casa Torino" />
+        <span>Casa <em>Torino</em></span>
+      </a>
+      <button class="nav-toggle" id="navToggle" aria-label="Menú"><i class="fa-solid fa-bars"></i></button>
+      <nav class="nav" id="nav">
+        <a href="#nosotros">Nosotros</a>
+        <a href="#menu-dia">Menú del día</a>
+        <a href="#carta">Carta</a>
+        <a href="#equipo">Equipo</a>
+        <a href="#contacto">Contacto</a>
+        <a class="nav-staff" href="interno.html">Gestión interna</a>
+        <a class="nav-cta" href="https://wa.me/34612254719?text=Hola%2C%20quiero%20reservar%20mesa%20en%20Casa%20Torino" target="_blank" rel="noopener">Reservar</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="inicio">
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <img class="hero-logo" src="assets/logo.jpg" alt="Logo Casa Torino" />
+        <p class="eyebrow">Restaurante · Bar · Gijón</p>
+        <h1>Sabor que <span>deja huella</span></h1>
+        <p class="hero-lead">
+          Fusión Colombo-Asturiana en el corazón de Gijón.
+          Cocina de casa, platos generosos y un equipo que te recibe como en familia.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-gold" href="#carta"><i class="fa-solid fa-utensils"></i> Ver la carta</a>
+          <a class="btn btn-outline" href="https://wa.me/34612254719" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>
+        </div>
+        <div class="hero-meta">
+          <span><i class="fa-solid fa-location-dot"></i> Ctra. Ceares, 67</span>
+          <span><i class="fa-solid fa-phone"></i> 612 254 719</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section about" id="nosotros">
+      <div class="container split">
+        <div class="about-copy">
+          <p class="eyebrow gold">Casa Torino</p>
+          <h2>Dos tierras, una mesa</h2>
+          <p>
+            En Casa Torino unimos el alma de Colombia con el sabor de Asturias:
+            arepas, patacones y bandeja paisa conviven con pixín, sidra, cachopo y cocina de siempre.
+          </p>
+          <p>
+            Ven a comer en familia, a compartir un picoteo o a disfrutar del menú del día
+            en un ambiente cercano, con cocina tradicional hecha con mimo.
+          </p>
+          <ul class="pills">
+            <li>🇨🇴 Colombia</li>
+            <li>🇪🇸 Asturias</li>
+            <li>Cocina tradicional</li>
+          </ul>
+        </div>
+        <div class="about-media">
+          <img src="assets/bar-exterior.jpg" alt="Exterior de Casa Torino y terraza" />
+          <p class="caption">Nuestra casa en Ceares · Gijón</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section menu-dia" id="menu-dia">
+      <div class="container split reverse">
+        <div class="menu-dia-copy">
+          <p class="eyebrow gold">Cada día en sala</p>
+          <h2>Menú del día</h2>
+          <p>
+            Dos propuestas para elegir: <strong>menú español</strong> o <strong>menú colombiano</strong>.
+          </p>
+          <ul class="menu-precios">
+            <li>
+              <span class="mp-label">Entre semana</span>
+              <span class="mp-detail">Los <strong>2 menús</strong> a <em>13&nbsp;€</em></span>
+            </li>
+            <li>
+              <span class="mp-label">Fin de semana</span>
+              <span class="mp-detail">Español <em>18&nbsp;€</em> · Colombiano <em>15&nbsp;€</em></span>
+            </li>
+          </ul>
+          <p class="hint">
+            Pregunta en barra o por WhatsApp el menú de hoy: cambia según el mercado y la temporada.
+          </p>
+          <a class="btn btn-gold" href="https://wa.me/34612254719?text=Hola%2C%20%C2%BFqu%C3%A9%20men%C3%BA%20del%20d%C3%ADa%20ten%C3%A9is%20hoy%3F" target="_blank" rel="noopener">
+            Consultar menú de hoy
+          </a>
+        </div>
+        <div class="menu-dia-media">
+          <img src="assets/menu-diario.jpg" alt="Menú del día en Casa Torino" />
+        </div>
+      </div>
+    </section>
+
+    <section class="section carta" id="carta">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow gold">Nuestra cocina</p>
+          <h2>La carta</h2>
+          <p>Elige una categoría. Dentro de cada sección los platos van en dos columnas y, si hay muchos, puedes hacer scroll sin alargar toda la página.</p>
+        </div>
+
+        <div class="carta-nav" id="cartaNav">
+          <button data-target="picoteo" class="active">Picoteo</button>
+          <button data-target="colombia">Colombia</button>
+          <button data-target="espana">España</button>
+          <button data-target="combinados">Combinados</button>
+          <button data-target="infantil">Infantil</button>
+          <button data-target="postres">Postres</button>
+          <button data-target="bebidas">Bebidas</button>
+        </div>
+
+        <div class="carta-grid">
+          <article class="carta-block is-active" id="picoteo">
+            <h3><i class="fa-solid fa-bowl-food"></i> Picoteo y entrantes</h3>
+            <div class="carta-scroll">
+            <ul class="dish-list">
+              <li><div class="dish-top"><strong>Empanada</strong><b class="price">2,00&nbsp;€</b></div><span>Carne de vacuno desmechada, cebolla y patata</span></li>
+              <li><div class="dish-top"><strong>Papa rellena</strong><b class="price">3,00&nbsp;€</b></div><span>Patata rellena de carne desmechada de vacuno y huevo cocido</span></li>
+              <li><div class="dish-top"><strong>Yuca frita</strong><b class="price">8,00&nbsp;€</b></div><span>Acompañada de guacamole o pico de gallo</span></li>
+              <li><div class="dish-top"><strong>Patacón</strong><b class="price">8,00&nbsp;€</b></div><span>Acompañado de pico de gallo o guacamole</span></li>
+              <li><div class="dish-top"><strong>Pimientos del Padrón</strong><b class="price">5,00&nbsp;€</b></div><span>Pimientos fritos con sal gorda</span></li>
+              <li><div class="dish-top"><strong>Champiñones</strong><b class="price">5,00&nbsp;€</b></div><span>Champiñones salteados</span></li>
+              <li><div class="dish-top"><strong>Patatas Casa Torino</strong><b class="price">10,00&nbsp;€</b></div><span>Patatas especialidad de la casa</span></li>
+              <li><div class="dish-top"><strong>Croquetas</strong><b class="price">8,00&nbsp;€</b></div><span>Ración de croquetas caseras</span></li>
+              <li><div class="dish-top"><strong>Aborrajado</strong><b class="price">4,00&nbsp;€</b></div><span>Plátano maduro frito relleno de queso</span></li>
+              <li><div class="dish-top"><strong>Plato jamón Casa Torino</strong><b class="price">14,00&nbsp;€</b></div><span>Jamón ibérico, pan tostado, aceitunas y aceite de oliva</span></li>
+            </ul>
+            </div>
+          </article>
+
+          <article class="carta-block featured" id="colombia">
+            <h3><i class="fa-solid fa-pepper-hot"></i> Especialidades colombianas</h3>
+            
+            <div class="carta-scroll">
+<ul class="dish-list">
+              <li><div class="dish-top"><strong>Lechona</strong><b class="price">14,00&nbsp;€</b></div><span>Cerdo, guisantes secos, cebolla, ajo y especias</span></li>
+              <li><div class="dish-top"><strong>Tamal valluno</strong><b class="price">11,00&nbsp;€</b></div><span>Arroz, guisantes, zanahoria, patata, huevo, cerdo, pollo, chocolate y arepa · Llevar 9,00&nbsp;€</span></li>
+              <li><div class="dish-top"><strong>Arepa rellena</strong><b class="price">8,00&nbsp;€</b></div><span>Mixta o solo carne: maíz, carnes desmechadas, beicon, queso, huevo y salsa</span></li>
+              <li><div class="dish-top"><strong>Patacón mixto</strong><b class="price">10,00&nbsp;€</b></div><span>Plátano macho, carne y pollo desmechados, beicon, huevo, queso, cebolla crujiente y aguacate</span></li>
+              <li><div class="dish-top"><strong>Salchipapa</strong><b class="price">8,50&nbsp;€</b></div><span>Patatas, salchicha, queso, pollo desmechado y maíz</span></li>
+              <li><div class="dish-top"><strong>Choripapa</strong><b class="price">9,00&nbsp;€</b></div><span>Patata, chorizo, queso, pollo desmechado y maíz</span></li>
+              <li><div class="dish-top"><strong>Hamburguesa completa</strong><b class="price">8,00&nbsp;€</b></div><span>Vacuno, lechuga, tomate, cebolla, queso, salsa y patatas</span></li>
+              <li><div class="dish-top"><strong>Hamburguesa súper</strong><b class="price">12,00&nbsp;€</b></div><span>Vacuno, beicon, huevo, lechuga, tomate, cebolla, salsa, queso y patatas</span></li>
+              <li><div class="dish-top"><strong>Alitas de pollo doradas</strong><b class="price">6,00&nbsp;€</b></div><span>Alitas de pollo con salsa y patatas</span></li>
+              <li><div class="dish-top"><strong>Picadas</strong><b class="price">S 10 · M 14 · L 18&nbsp;€</b></div><span>Vacuno, cerdo, pollo, chorizo, morcilla, panceta, criolla, arepa y yuca</span></li>
+              <li><div class="dish-top"><strong>Bandeja paisa</strong><b class="price">14,00&nbsp;€</b></div><span>Frijoles, arroz, chorizo, carne molida, huevo, panceta, aguacate, plátano maduro y arepa</span></li>
+              <li><div class="dish-top"><strong>Costillas a la BBQ</strong><b class="price">10,00&nbsp;€</b></div><span>Costillas de cerdo en salsa BBQ con patatas</span></li>
+              <li><div class="dish-top"><strong>Churrasco</strong><b class="price">16,00&nbsp;€</b></div><span>Vacuno a la parrilla, ensalada y patatas</span></li>
+              <li><div class="dish-top"><strong>Arroz oriental</strong><b class="price">10,00&nbsp;€</b></div><span>Cerdo, pollo, verduras, maíz, brotes, jamón y salsas</span></li>
+              <li><div class="dish-top"><strong>Mojarra</strong><b class="price">18,00&nbsp;€</b></div><span>Mojarra roja frita, arroz, plátano macho y ensalada</span></li>
+              <li><div class="dish-top"><strong>Cazuela de mariscos</strong><b class="price">16,00&nbsp;€</b></div><span>Calamares, mejillones, palitos de cangrejo, gambas y patacón</span></li>
+            </ul>
+            </div>
+          </article>
+
+          <article class="carta-block" id="espana">
+            <h3><i class="fa-solid fa-fish"></i> España y platos variados</h3>
+            
+            <div class="carta-scroll">
+<ul class="dish-list">
+              <li><div class="dish-top"><strong>Cachopo de ternera</strong><b class="price">25,00&nbsp;€</b></div><span>Filete de vacuno rebozado, jamón serrano, queso y patatas</span></li>
+              <li><div class="dish-top"><strong>Ensalada mixta</strong><b class="price">12,00&nbsp;€</b></div><span>Lechuga, cebolla, tomate, zanahoria, espárrago, aceituna, huevo y atún</span></li>
+              <li><div class="dish-top"><strong>Ensalada Caprese</strong><b class="price">14,00&nbsp;€</b></div><span>Mozzarella, tomate y aliño de pesto</span></li>
+              <li><div class="dish-top"><strong>Ensalada César</strong><b class="price">14,00&nbsp;€</b></div><span>Lechuga, tomate, cebolla, pollo, tostones, frutos secos y salsa César</span></li>
+              <li><div class="dish-top"><strong>Rabo de vaca en salsa</strong><b class="price">20,00&nbsp;€</b></div><span>Guisado en salsa con patatas y tostones</span></li>
+              <li><div class="dish-top"><strong>Cordero en su salsa</strong><b class="price">23,00&nbsp;€</b></div><span>Cordero guisado en salsa con patatas</span></li>
+              <li><div class="dish-top"><strong>Escalopines al gorgonzola</strong><b class="price">15,00&nbsp;€</b></div><span>Filetes de vacuno rebozados con salsa gorgonzola y patatas</span></li>
+              <li><div class="dish-top"><strong>Chorizo a la sidra</strong><b class="price">12,00&nbsp;€</b></div><span>Chorizo cocinado en sidra</span></li>
+              <li><div class="dish-top"><strong>Lasaña boloñesa</strong><b class="price">14,00&nbsp;€</b></div><span>Pasta, vacuno molido, jamón, huevo, queso, tomate y bechamel</span></li>
+              <li><div class="dish-top"><strong>Rollito de berenjena</strong><b class="price">12,00&nbsp;€</b></div><span>Berenjena a la plancha, queso, pesto y tomate</span></li>
+              <li><div class="dish-top"><strong>Pixín a la plancha</strong><b class="price">25,00&nbsp;€</b></div><span>Rape a la plancha acompañado de patatas</span></li>
+              <li><div class="dish-top"><strong>Pulpo a la plancha</strong><b class="price">25,00&nbsp;€</b></div><span>Pulpo a la plancha con patatas</span></li>
+              <li><div class="dish-top"><strong>Mejillones al vapor</strong><b class="price">12,00&nbsp;€</b></div><span>Cocidos al vapor con limón</span></li>
+              <li><div class="dish-top"><strong>Mejillones a la marinera</strong><b class="price">14,00&nbsp;€</b></div><span>En salsa marinera verde</span></li>
+              <li><div class="dish-top"><strong>Calamares</strong><b class="price">12,00&nbsp;€</b></div><span>Aros de calamar rebozados con ensalada</span></li>
+              <li><div class="dish-top"><strong>Gambas al ajillo</strong><b class="price">10,00&nbsp;€</b></div><span>Gambas salteadas con ajo y guindilla</span></li>
+              <li><div class="dish-top"><strong>Entrecot</strong><b class="price">19,00&nbsp;€</b></div><span>Entrecot de ternera, ensalada y patatas</span></li>
+            </ul>
+            </div>
+          </article>
+
+          <article class="carta-block" id="combinados">
+            <h3><i class="fa-solid fa-plate-wheat"></i> Platos combinados</h3>
+            
+            <div class="carta-scroll">
+<ul class="dish-list single-col">
+              <li><div class="dish-top"><strong>Nº 1</strong><b class="price">10,00&nbsp;€</b></div><span>Jamón serrano, huevos fritos y patatas</span></li>
+              <li><div class="dish-top"><strong>Nº 2</strong><b class="price">10,00&nbsp;€</b></div><span>Pollo a la plancha, ensalada y patatas</span></li>
+              <li><div class="dish-top"><strong>Nº 3</strong><b class="price">10,00&nbsp;€</b></div><span>Lomo fiambre, patatas y ensalada</span></li>
+              <li><div class="dish-top"><strong>Nº 4</strong><b class="price">12,00&nbsp;€</b></div><span>Filete de ternera, ensalada y patatas</span></li>
+            </ul>
+            </div>
+          </article>
+
+          <article class="carta-block" id="infantil">
+            <h3><i class="fa-solid fa-child-reaching"></i> Menú infantil</h3>
+            
+            <div class="carta-scroll">
+<ul class="dish-list single-col">
+              <li><div class="dish-top"><strong>Menú Nº 1</strong><b class="price">6,00&nbsp;€</b></div><span>Salchipapa y zumo</span></li>
+              <li><div class="dish-top"><strong>Menú Nº 2</strong><b class="price">6,00&nbsp;€</b></div><span>Perrito caliente y zumo</span></li>
+              <li><div class="dish-top"><strong>Menú Nº 3</strong><b class="price">6,00&nbsp;€</b></div><span>Mini hamburguesas y zumo</span></li>
+            </ul>
+            </div>
+          </article>
+
+          <article class="carta-block" id="postres">
+            <h3><i class="fa-solid fa-ice-cream"></i> Postres</h3>
+            
+            <div class="carta-scroll">
+<ul class="dish-list">
+              <li><div class="dish-top"><strong>Tiramisú</strong><b class="price">6,00&nbsp;€</b></div><span>Nata, mascarpone, bizcocho y fresa o café</span></li>
+              <li><div class="dish-top"><strong>Tarta de queso</strong><b class="price">5,00&nbsp;€</b></div><span>Nata, huevo, queso, naranja y leche condensada</span></li>
+              <li><div class="dish-top"><strong>Arroz con leche</strong><b class="price">5,00&nbsp;€</b></div><span>Arroz, leche, canela, leche condensada y vainilla</span></li>
+              <li><div class="dish-top"><strong>Michelada de mazamorra</strong><b class="price">6,00&nbsp;€</b></div><span>Maíz trillado, leche, canela, leche condensada y bocadillo</span></li>
+              <li><div class="dish-top"><strong>Ensalada de frutas</strong><b class="price">S 7 · M 10 · L 15&nbsp;€</b></div><span>Fruta de temporada, helado, queso, nata y yogur</span></li>
+              <li><div class="dish-top"><strong>Banana split</strong><b class="price">5,00&nbsp;€</b></div><span>Plátano con bolas de helado, fresa y nata</span></li>
+              <li><div class="dish-top"><strong>Bola de helado</strong><b class="price">2,50&nbsp;€</b></div><span>Chocolate, fresa o vainilla</span></li>
+            </ul>
+            </div>
+          </article>
+
+          <article class="carta-block wide" id="bebidas">
+            <h3><i class="fa-solid fa-wine-glass"></i> Bebidas</h3>
+            
+            <div class="carta-scroll">
+<div class="bebidas-grid">
+              <div>
+                <h4>Especiales</h4>
+                <ul class="dish-list compact single-col">
+                  <li><div class="dish-top"><strong>Batidos naturales</strong><b class="price">5,00&nbsp;€</b></div><span>En agua o leche: mora, mango, lulo, guanábana, maracuyá, fresa, guayaba o frutos del bosque</span></li>
+                  <li><div class="dish-top"><strong>Limonada de coco</strong><b class="price">5,00&nbsp;€</b></div><span>Leche de coco, limón, azúcar, coco y leche condensada</span></li>
+                  <li><div class="dish-top"><strong>Michelada de mango</strong><b class="price">7,00&nbsp;€</b></div><span>Mango, limón, sal, pimienta y gominolas</span></li>
+                  <li><div class="dish-top"><strong>Zumo de naranja natural</strong><b class="price">3,00&nbsp;€</b></div><span>Naranja recién exprimida</span></li>
+                  <li><div class="dish-top"><strong>Limonada natural</strong><b class="price">4,00&nbsp;€</b></div><span>Limón natural y azúcar</span></li>
+                  <li><div class="dish-top"><strong>Jarra de aguapanela</strong><b class="price">5,00&nbsp;€</b></div><span>Panela, limón y hielo</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4>Barra</h4>
+                <ul class="dish-list compact single-col">
+                  <li><div class="dish-top"><strong>Caña rubia</strong><b class="price">2,60&nbsp;€</b></div></li>
+                  <li><div class="dish-top"><strong>Caña tostada</strong><b class="price">2,80&nbsp;€</b></div></li>
+                  <li><div class="dish-top"><strong>Botella rubia</strong><b class="price">2,70&nbsp;€</b></div></li>
+                  <li><div class="dish-top"><strong>Botella tostada</strong><b class="price">2,90&nbsp;€</b></div></li>
+                  <li><div class="dish-top"><strong>Sidra</strong><b class="price">3,60&nbsp;€</b></div><span>Botella</span></li>
+                  <li><div class="dish-top"><strong>Radler</strong><b class="price">2,60&nbsp;€</b></div><span>Botella</span></li>
+                  <li><div class="dish-top"><strong>Tinto de verano</strong><b class="price">2,80&nbsp;€</b></div><span>Copa o vaso</span></li>
+                  <li><div class="dish-top"><strong>Refrescos</strong><b class="price">2,80&nbsp;€</b></div><span>Variados</span></li>
+                  <li><div class="dish-top"><strong>Zumos</strong><b class="price">1,90&nbsp;€</b></div><span>Botella</span></li>
+                  <li><div class="dish-top"><strong>Agua</strong><b class="price">1,50&nbsp;€</b></div><span>Botella</span></li>
+                  <li><div class="dish-top"><strong>Vino blanco</strong><b class="price">3,00 / 11,00&nbsp;€</b></div><span>Copa / botella</span></li>
+                  <li><div class="dish-top"><strong>Albariño</strong><b class="price">3,20 / 15,00&nbsp;€</b></div><span>Copa / botella</span></li>
+                  <li><div class="dish-top"><strong>Moscato</strong><b class="price">2,00 / 10,00&nbsp;€</b></div><span>Copa / botella</span></li>
+                  <li><div class="dish-top"><strong>Vino tinto</strong><b class="price">3,20 / 12,00&nbsp;€</b></div><span>Copa / botella</span></li>
+                  <li><div class="dish-top"><strong>Cava normal</strong><b class="price">15,00&nbsp;€</b></div><span>Botella</span></li>
+                  <li><div class="dish-top"><strong>Cava Juvé &amp; Camps</strong><b class="price">30,00&nbsp;€</b></div><span>Botella</span></li>
+                  <li><div class="dish-top"><strong>Vermut</strong><b class="price">4,00&nbsp;€</b></div><span>Copa</span></li>
+                  <li><div class="dish-top"><strong>Cóctel de la casa</strong><b class="price">7,00&nbsp;€</b></div><span>Copa</span></li>
+                  <li><div class="dish-top"><strong>Cerveza Corona</strong><b class="price">2,90&nbsp;€</b></div></li>
+                  <li><div class="dish-top"><strong>Café</strong><b class="price">1,50&nbsp;€</b></div></li>
+                  <li><div class="dish-top"><strong>Café con leche</strong><b class="price">1,70&nbsp;€</b></div></li>
+                  <li><div class="dish-top"><strong>Infusión</strong><b class="price">1,70&nbsp;€</b></div></li>
+                </ul>
+              </div>
+            </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section equipo" id="equipo">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow gold">Quiénes te reciben</p>
+          <h2>Nuestro equipo</h2>
+          <p>Cara amable, cocina de verdad y servicio de casa.</p>
+        </div>
+        <div class="equipo-grid">
+          <figure>
+            <img src="assets/equipo-frente.jpg" alt="Equipo de Casa Torino delante del local" />
+            <figcaption>El equipo Casa Torino</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/equipo-espalda.jpg" alt="Equipo Casa Torino frente al cartel de entrada" />
+            <figcaption>Sabor que deja huella</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="section contacto" id="contacto">
+      <div class="container contact-card">
+        <div>
+          <p class="eyebrow gold">Te esperamos</p>
+          <h2>Ven a Casa Torino</h2>
+          <ul class="contact-list">
+            <li><i class="fa-solid fa-location-dot"></i> Ctra. Ceares, 67 · Gijón</li>
+            <li><i class="fa-solid fa-phone"></i> <a href="tel:+34612254719">612 254 719</a></li>
+            <li><i class="fa-brands fa-whatsapp"></i> <a href="https://wa.me/34612254719" target="_blank" rel="noopener">WhatsApp</a></li>
+            <li><i class="fa-brands fa-instagram"></i> <a href="https://www.instagram.com/cafebartorino" target="_blank" rel="noopener noreferrer">Instagram</a></li>
+            <li><i class="fa-brands fa-facebook"></i> <a href="https://www.facebook.com/profile.php?id=61572881816775" target="_blank" rel="noopener noreferrer">Facebook</a></li>
+          </ul>
+          <div class="social-links" aria-label="Redes sociales">
+            <a class="social-btn" href="https://www.instagram.com/cafebartorino" target="_blank" rel="noopener noreferrer" aria-label="Instagram Casa Torino"><i class="fa-brands fa-instagram"></i></a>
+            <a class="social-btn" href="https://www.facebook.com/profile.php?id=61572881816775" target="_blank" rel="noopener noreferrer" aria-label="Facebook Casa Torino"><i class="fa-brands fa-facebook"></i></a>
+            <a class="social-btn" href="https://wa.me/34612254719" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp Casa Torino"><i class="fa-brands fa-whatsapp"></i></a>
+          </div>
+          <div class="hero-actions">
+            <a class="btn btn-gold" href="https://wa.me/34612254719?text=Hola%2C%20quiero%20reservar%20mesa%20en%20Casa%20Torino" target="_blank" rel="noopener">Reservar mesa</a>
+            <a class="btn btn-outline" href="https://maps.google.com/?q=Ctra.+Ceares+67+Gijon" target="_blank" rel="noopener">Cómo llegar</a>
+          </div>
+        </div>
+        <div class="contact-aside">
+          <img src="assets/logo.jpg" alt="Casa Torino" />
+          <p>Restaurante Bar · Cocina tradicional · Fusión Colombo-Asturiana</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-wrap">
+      <p>© <span id="year"></span> Casa Torino · Gijón</p>
+      <div class="footer-links">
+        <a href="https://www.instagram.com/cafebartorino" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><i class="fa-brands fa-instagram"></i> Instagram</a>
+        <a href="https://www.facebook.com/profile.php?id=61572881816775" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><i class="fa-brands fa-facebook"></i> Facebook</a>
+        <a href="https://wa.me/34612254719?text=Hola%2C%20quiero%20reservar%20mesa%20en%20Casa%20Torino" target="_blank" rel="noopener">Reservar por WhatsApp</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>

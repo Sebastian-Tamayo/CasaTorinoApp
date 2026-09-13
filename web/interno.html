@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Gestión interna · Casa Torino</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#0a1224" />
+  <link rel="icon" type="image/jpeg" href="assets/logo.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .interno-page {
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      padding: 2rem 1rem 3rem;
+    }
+    .interno-card {
+      width: min(440px, 100%);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.6rem 1.35rem 1.45rem;
+      text-align: center;
+    }
+    .interno-card img {
+      width: 88px; height: 88px; border-radius: 50%;
+      object-fit: cover; border: 2px solid var(--gold);
+      margin: 0 auto 1rem;
+    }
+    .interno-card h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.85rem; margin-bottom: .35rem;
+    }
+    .interno-card .lead {
+      color: var(--muted); font-size: .92rem; margin-bottom: 1.35rem;
+    }
+    .interno-actions { display: grid; gap: .75rem; }
+    .interno-link {
+      display: flex; align-items: center; gap: .85rem;
+      text-align: left; text-decoration: none;
+      padding: .95rem 1rem; border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      color: var(--text); transition: .15s ease;
+    }
+    .interno-link:hover {
+      border-color: var(--gold);
+      background: rgba(212,175,55,.08);
+      transform: translateY(-1px);
+    }
+    .interno-link i {
+      width: 42px; height: 42px; border-radius: 12px;
+      display: grid; place-items: center;
+      background: rgba(212,175,55,.14); color: var(--gold);
+      font-size: 1.1rem; flex: 0 0 auto;
+    }
+    .interno-link strong { display: block; font-size: 1rem; }
+    .interno-link span { display: block; color: var(--muted); font-size: .8rem; margin-top: .15rem; }
+    .interno-back {
+      display: inline-block; margin-top: 1.2rem;
+      color: var(--muted); text-decoration: none; font-size: .88rem; font-weight: 600;
+    }
+    .interno-back:hover { color: var(--gold); }
+  </style>
+</head>
+<body>
+  <main class="interno-page">
+    <div class="interno-card">
+      <img src="assets/logo.jpg" alt="Casa Torino" />
+      <p class="eyebrow gold">Personal</p>
+      <h1>Gestión interna</h1>
+      <p class="lead">Elige a dónde quieres entrar. Acceso solo para el equipo.</p>
+
+      <div class="interno-actions">
+        <a class="interno-link" href="https://reservas-casatorino.vercel.app" target="_blank" rel="noopener">
+          <i class="fa-solid fa-calendar-check" aria-hidden="true"></i>
+          <span>
+            <strong>Reservas staff</strong>
+            <span>Mesas del día · PIN del personal</span>
+          </span>
+        </a>
+
+        <a class="interno-link" href="https://casa-torino-app.vercel.app/login" target="_blank" rel="noopener">
+          <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
+          <span>
+            <strong>ERP</strong>
+            <span>Caja, gastos, ingresos y control</span>
+          </span>
+        </a>
+      </div>
+
+      <a class="interno-back" href="index.html"><i class="fa-solid fa-arrow-left"></i> Volver a la web</a>
+    </div>
+  </main>
+</body>
+</html>

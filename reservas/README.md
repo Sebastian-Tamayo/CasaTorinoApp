@@ -21,7 +21,7 @@ Ya existían:
 
 | Pieza | Rol |
 |--------|-----|
-| **Web pública** | Landing / marca / inauguración → [casatorino.netlify.app](https://casatorino.netlify.app) |
+| **Web pública** | Web principal (carta, menú, equipo) → [casa-torino-web.vercel.app](https://casa-torino-web.vercel.app) |
 | **ERP / operativa familiar** | Gestión interna del negocio (stock, caja, procesos del día a día) |
 
 Este proyecto **no sustituye** esas piezas: las **complementa**.
@@ -40,7 +40,7 @@ App web **mobile-first** para el personal:
 
 **Producción (Vercel):** https://reservas-casatorino.vercel.app  
 
-> PIN de demostración del equipo: `1234` (Lorena / Yuli / Dayana / Claribel). Cambiar en producción vía `src/config.ts`.  
+> Acceso del personal por nombre + PIN interno (no público).  
 > Guía de deploy: [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ---
@@ -52,8 +52,8 @@ App web **mobile-first** para el personal:
                        │
                        ▼
         ┌──────────────────────────┐
-        │  Web pública (Netlify)   │  Marca, carta, historia, contacto
-        │  casatorino.netlify.app  │
+        │  Web pública (Vercel)    │  Carta, menú del día, equipo, contacto
+        │  casa-torino-web…        │
         └────────────┬─────────────┘
                      │  canal / demanda
                      ▼
@@ -172,7 +172,7 @@ Opcional: variable de entorno `RESERVAS_STORE_URL` para el endpoint de persisten
 2. **PIN simple vs Google Auth** → prioridad a velocidad en barra/sala.  
 3. **Serverless + store remoto** → sin servidor que mantener para un negocio pequeño.  
 4. **Extensión, no monolito** → respeta web pública y ERP ya existentes.  
-5. **Migración Netlify → Vercel** → continuidad del servicio tras agotar créditos de Netlify.
+5. **Web principal en Vercel** → la inauguración Netlify queda solo como archivo histórico.
 
 ---
 

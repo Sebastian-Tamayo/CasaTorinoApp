@@ -4,7 +4,7 @@
  */
 export const STORE =
   process.env.RESERVAS_STORE_URL ||
-  'https://crudcrud.com/api/c0b4ee5b6c0745b4adf479e7b4a1d208/reservas'
+  'https://crudcrud.com/api/40b85177345746b789de76834b59f4ee/reservas'
 
 export function cors(res, methods = 'GET,POST,PUT,OPTIONS') {
   res.setHeader('Access-Control-Allow-Origin', '*')

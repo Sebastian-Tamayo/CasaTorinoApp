@@ -18,7 +18,7 @@ Personal de sala/cocina (4 perfiles configurables). No es un portal de cliente f
 - Menos reservas perdidas en papel/WhatsApp suelto  
 
 ## Relación con otros sistemas
-- **Web** ([casatorino.netlify.app](https://casatorino.netlify.app)): captación y marca.  
+- **Web principal** ([casa-torino-web.vercel.app](https://casa-torino-web.vercel.app)): captación, carta y marca. La landing de inauguración en Netlify queda solo como archivo.  
 - **App reservas (prod):** [reservas-casatorino.vercel.app](https://reservas-casatorino.vercel.app)  
 - **ERP familiar**: continuidad operativa; este módulo aporta la capa de **ocupación/reservas** de forma ligera.
 
