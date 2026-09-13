@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
+  <title>TPV · Casa Torino</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#0b0f14" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="icon" type="image/jpeg" href="assets/logo.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --bg2: #111820;
+      --panel: #151c26;
+      --card: #1a2330;
+      --card2: #202b3b;
+      --ink: #f5f7fb;
+      --muted: #8b98a8;
+      --line: rgba(255,255,255,.08);
+      --line2: rgba(255,255,255,.12);
+      --gold: #f5c518;
+      --gold-dim: rgba(245,197,24,.16);
+      --ok: #2dd46f;
+      --ok-dim: rgba(45,212,111,.16);
+      --danger: #ff6b6b;
+      --blue: #5b9dff;
+      --safe-b: env(safe-area-inset-bottom, 0px);
+      --safe-t: env(safe-area-inset-top, 0px);
+      --check-w: min(480px, 44vw);
+      --rail-w: 92px;
+      --radius: 18px;
+      --shadow: 0 18px 50px rgba(0,0,0,.45);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      overflow: hidden;
+      overflow-x: clip;
+      max-width: 100vw;
+    }
+    button, input { font: inherit; }
+    .app {
+      height: 100dvh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      padding-top: var(--safe-t);
+      background:
+        radial-gradient(900px 420px at 8% -10%, rgba(245,197,24,.09), transparent 55%),
+        radial-gradient(700px 380px at 100% 0%, rgba(91,157,255,.08), transparent 50%),
+        var(--bg);
+    }
+
+    /* —— Top bar —— */
+    .topbar {
+      display: flex; align-items: center; gap: .55rem;
+      padding: .65rem .7rem;
+      border-bottom: 1px solid var(--line);
+      background: rgba(11,15,20,.88);
+      backdrop-filter: blur(16px);
+      z-index: 30;
+      min-width: 0;
+      max-width: 100%;
+    }
+    .icon-btn {
+      width: 42px; height: 42px; border-radius: 14px;
+      border: 1px solid var(--line2); background: var(--card);
+      color: var(--ink); display: grid; place-items: center;
+      text-decoration: none; cursor: pointer; flex: 0 0 auto;
+      transition: transform .12s ease, background .12s ease;
+    }
+    .icon-btn:active { transform: scale(.96); background: var(--card2); }
+    .brand { display: flex; gap: .55rem; align-items: center; min-width: 0; flex: 1 1 auto; overflow: hidden; }
+    .brand img {
+      width: 38px; height: 38px; border-radius: 12px; object-fit: cover;
+      border: 1.5px solid rgba(245,197,24,.55);
+    }
+    .brand strong {
+      display: block; font-size: .92rem; letter-spacing: -.01em;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .brand em {
+      display: block; font-style: normal; color: var(--muted);
+      font-size: .7rem; font-weight: 600;
+    }
+    .top-tools {
+      margin-left: auto; display: flex; align-items: center; gap: .4rem;
+      flex: 0 1 auto; min-width: 0; max-width: 100%;
+    }
+    .clock {
+      color: var(--muted); font-weight: 700; font-size: .8rem;
+      font-variant-numeric: tabular-nums; white-space: nowrap;
+    }
+    .search {
+      position: relative; width: min(280px, 34vw);
+    }
+    .search i {
+      position: absolute; left: .8rem; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-size: .85rem; pointer-events: none;
+    }
+    .search input {
+      width: 100%; border: 1px solid var(--line2); background: var(--card);
+      color: var(--ink); border-radius: 999px; padding: .65rem .9rem .65rem 2.2rem;
+      font-weight: 600; outline: none;
+    }
+    .search input:focus { border-color: rgba(245,197,24,.55); box-shadow: 0 0 0 3px var(--gold-dim); }
+    .mesa-chip {
+      display: flex; align-items: center; gap: .4rem;
+      background: var(--card); border: 1px solid var(--line2);
+      border-radius: 999px; padding: .28rem .45rem .28rem .7rem;
+    }
+    .mesa-chip span {
+      font-size: .72rem; font-weight: 800; letter-spacing: .04em;
+      text-transform: uppercase; color: var(--gold); white-space: nowrap;
+    }
+    .mesa-chip input {
+      width: 3.4rem; border: 0; background: transparent; color: var(--ink);
+      font-weight: 800; font-size: 1.05rem; text-align: center; outline: none;
+    }
+    .mesa-chip input::placeholder { color: #5d6b7c; font-weight: 700; }
+
+    /* —— Workspace —— */
+    .workspace {
+      min-height: 0;
+      min-width: 0;
+      width: 100%;
+      overflow-x: clip;
+      display: grid;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+      padding-bottom: calc(84px + var(--safe-b));
+    }
+    .rail {
+      display: flex; gap: .45rem; overflow-x: auto; overflow-y: hidden;
+      padding: .7rem .8rem; scrollbar-width: none;
+      border-bottom: 1px solid var(--line);
+      background: rgba(17,24,32,.72);
+    }
+    .rail::-webkit-scrollbar { display: none; }
+    .cat {
+      flex: 0 0 auto; min-width: 76px; max-width: 110px;
+      border: 1px solid var(--line2); background: var(--card); color: var(--muted);
+      border-radius: 16px; padding: .65rem .55rem; cursor: pointer;
+      display: grid; gap: .35rem; justify-items: center; text-align: center;
+      transition: background .12s ease, border-color .12s ease, color .12s ease, transform .12s ease;
+    }
+    .cat i { font-size: 1rem; color: var(--accent, var(--gold)); }
+    .cat b { font-size: .68rem; font-weight: 800; line-height: 1.15; }
+    .cat:active { transform: scale(.97); }
+    .cat.active {
+      color: var(--ink);
+      border-color: color-mix(in srgb, var(--accent, var(--gold)) 55%, transparent);
+      background: color-mix(in srgb, var(--accent, var(--gold)) 18%, var(--card));
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent, var(--gold)) 25%, transparent);
+    }
+    .menu {
+      min-height: 0; overflow: auto; padding: .75rem .7rem 1rem;
+      -webkit-overflow-scrolling: touch;
+      min-width: 0;
+      max-width: 100%;
+    }
+    .menu-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: .75rem; margin: 0 0 .65rem .1rem;
+    }
+    .menu-head h1 {
+      margin: 0; font-size: 1.05rem; font-weight: 800; letter-spacing: -.02em;
+    }
+    .menu-head span { color: var(--muted); font-size: .75rem; font-weight: 600; }
+    .products {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: .7rem;
+      width: 100%;
+      min-width: 0;
+    }
+    .prod {
+      position: relative;
+      border: 1px solid var(--line2);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--accent, var(--gold)) 10%, var(--card)), var(--card));
+      color: var(--ink);
+      border-radius: var(--radius);
+      padding: .95rem .9rem .85rem 1rem;
+      text-align: left; cursor: pointer;
+      min-height: 96px;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      display: flex; flex-direction: column; justify-content: space-between; gap: .45rem;
+      box-shadow: 0 1px 0 rgba(255,255,255,.03) inset;
+      transition: transform .1s ease, border-color .12s ease, background .12s ease;
+      overflow: hidden;
+    }
+    .prod::before {
+      content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+      background: var(--accent, var(--gold));
+    }
+    .prod:active { transform: scale(.975); }
+    .prod.flash {
+      border-color: color-mix(in srgb, var(--accent, var(--gold)) 70%, white);
+      background: color-mix(in srgb, var(--accent, var(--gold)) 22%, var(--card));
+    }
+    .prod .name {
+      font-weight: 750; font-size: .95rem; line-height: 1.25;
+      display: flex; justify-content: space-between; gap: .5rem; padding-left: .25rem;
+      min-width: 0;
+    }
+    .prod .name > span:first-child {
+      min-width: 0; overflow-wrap: anywhere;
+    }
+    .prod .qty {
+      flex: 0 0 auto;
+      background: #0b0f14; color: var(--accent, var(--gold));
+      border: 1px solid color-mix(in srgb, var(--accent, var(--gold)) 40%, transparent);
+      border-radius: 999px; padding: .12rem .45rem; font-size: .72rem; font-weight: 800;
+    }
+    .prod .desc {
+      color: var(--muted); font-size: .7rem; line-height: 1.25; font-weight: 500;
+      padding-left: .25rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .prod .price {
+      padding-left: .25rem; margin-top: auto;
+      color: var(--ink); font-weight: 800; font-size: 1.02rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .prod .price small { color: var(--muted); font-size: .68rem; font-weight: 700; margin-left: .2rem; }
+    .empty {
+      color: var(--muted); text-align: center; padding: 2rem 1rem;
+      grid-column: 1 / -1; font-weight: 600;
+    }
+
+    /* —— Live check (Square-style) —— */
+    .check {
+      display: none; flex-direction: column; min-height: 0;
+      background: linear-gradient(180deg, #171e28, #121820);
+      border-left: 1px solid var(--line);
+    }
+    .check.open {
+      display: flex;
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      width: 100%;
+      max-width: 100vw;
+      height: min(88dvh, 780px);
+      border-radius: 22px 22px 0 0;
+      z-index: 50;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--line2);
+      border-bottom: 0;
+      padding-bottom: var(--safe-b);
+    }
+    .check-h {
+      padding: 1rem 1rem .85rem;
+      border-bottom: 1px solid var(--line);
+      display: grid; gap: .7rem;
+    }
+    .check-h-top {
+      display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+    }
+    .check-h-top h2 {
+      margin: 0; font-size: 1rem; font-weight: 800; letter-spacing: -.01em;
+      display: flex; align-items: center; gap: .45rem;
+    }
+    .grab {
+      width: 42px; height: 5px; border-radius: 999px; background: rgba(255,255,255,.18);
+      margin: .15rem auto .35rem; display: block;
+    }
+    .link {
+      border: 0; background: transparent; color: var(--blue);
+      font-weight: 700; cursor: pointer; padding: .35rem .45rem; border-radius: 10px;
+    }
+    .link:disabled { opacity: .35; }
+    .link:active { background: rgba(91,157,255,.12); }
+    .mesa-field {
+      display: grid; grid-template-columns: auto 1fr; gap: .55rem; align-items: center;
+      background: var(--card); border: 1px solid var(--line2); border-radius: 16px;
+      padding: .45rem .55rem .45rem .75rem;
+    }
+    .mesa-field label {
+      font-size: .72rem; font-weight: 800; letter-spacing: .05em;
+      text-transform: uppercase; color: var(--gold);
+    }
+    .mesa-field input {
+      width: 100%; border: 0; background: transparent; color: var(--ink);
+      font-weight: 800; font-size: 1.35rem; outline: none; text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .mesa-field input::placeholder { color: #556273; font-weight: 700; font-size: 1rem; }
+    .lines { flex: 1; overflow: auto; padding: .35rem .75rem .75rem; }
+    .line {
+      display: grid; grid-template-columns: 1fr auto; gap: .4rem .7rem;
+      padding: .75rem .55rem; border-radius: 14px;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .line:nth-child(odd) { background: rgba(255,255,255,.02); }
+    .line-name { font-weight: 700; font-size: .9rem; line-height: 1.25; }
+    .line-meta { color: var(--muted); font-size: .72rem; font-weight: 600; margin-top: .15rem; }
+    .line-right { text-align: right; display: grid; gap: .4rem; justify-items: end; align-content: start; }
+    .line-sum { font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
+    .q {
+      display: inline-flex; align-items: center; gap: .25rem;
+      background: var(--bg2); border: 1px solid var(--line2);
+      border-radius: 999px; padding: .12rem;
+    }
+    .q button {
+      width: 32px; height: 32px; border: 0; border-radius: 50%;
+      background: var(--card2); color: var(--ink); font-weight: 800; cursor: pointer;
+    }
+    .q button:active { background: #2a384c; }
+    .q span { min-width: 1.25rem; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+    .check-f {
+      border-top: 1px solid var(--line);
+      background: rgba(0,0,0,.22);
+      padding: .85rem 1rem 1rem;
+      display: grid; gap: .7rem;
+    }
+    .total-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+    }
+    .total-row span { color: var(--muted); font-weight: 700; font-size: .82rem; }
+    .total-row strong {
+      font-size: 2rem; font-weight: 800; color: var(--ink);
+      letter-spacing: -.03em; font-variant-numeric: tabular-nums;
+    }
+    .tender {
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .45rem;
+    }
+    .tender button {
+      border: 1px solid var(--line2); background: var(--card); color: var(--ink);
+      border-radius: 12px; padding: .7rem .35rem; font-weight: 800; font-size: .86rem; cursor: pointer;
+      min-width: 0;
+    }
+    .tender button:active { background: var(--card2); border-color: rgba(245,197,24,.4); }
+    .pay-row {
+      display: grid; grid-template-columns: 1fr; gap: .5rem;
+    }
+    .pay-box, .cambio {
+      border: 1px solid var(--line2); border-radius: 14px; background: var(--card);
+      padding: .45rem .7rem;
+    }
+    .pay-box label, .cambio span {
+      display: block; color: var(--muted); font-size: .68rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .04em; margin-bottom: .15rem;
+    }
+    .pay-box input {
+      width: 100%; border: 0; background: transparent; color: var(--ink);
+      font-weight: 800; font-size: 1.1rem; outline: none;
+    }
+    .cambio strong { color: var(--ok); font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+    .actions { display: grid; grid-template-columns: 1fr 1.35fr; gap: .5rem; }
+    .btn {
+      border: 0; border-radius: 16px; padding: 1rem .9rem;
+      font-weight: 800; cursor: pointer; letter-spacing: -.01em;
+    }
+    .btn.g { background: var(--card2); color: var(--ink); border: 1px solid var(--line2); }
+    .btn.p {
+      background: linear-gradient(135deg, #2dd46f, #16a34a);
+      color: #04140a; box-shadow: 0 10px 28px rgba(45,212,111,.28);
+    }
+    .btn:active { transform: scale(.985); }
+
+    .fab {
+      position: fixed; left: .85rem; right: .85rem; bottom: calc(.75rem + var(--safe-b));
+      z-index: 40; border: 0; border-radius: 18px;
+      background: linear-gradient(135deg, #f5c518, #e0a800);
+      color: #1a1200; display: flex; align-items: center; gap: .65rem;
+      padding: 1rem 1.1rem; font-weight: 800; box-shadow: var(--shadow); cursor: pointer;
+    }
+    .fab em {
+      font-style: normal; background: #1a1200; color: var(--gold);
+      border-radius: 999px; min-width: 1.7rem; height: 1.7rem;
+      display: grid; place-items: center; font-size: .8rem;
+    }
+    .fab-mesa { opacity: .95; }
+    .fab-mesa:empty { display: none; }
+    .fab strong { margin-left: auto; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+    .backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,.55);
+      backdrop-filter: blur(2px); z-index: 45;
+    }
+
+    /* Teléfonos grandes / landscape: 2 columnas ya legibles */
+    @media (min-width: 560px) and (max-width: 1023px) {
+      .products { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
+      .prod { min-height: 108px; padding: .9rem .8rem .8rem; }
+      .prod .name { font-size: .9rem; }
+      .tender { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .tender button { padding: .55rem .2rem; font-size: .78rem; }
+      .pay-row { grid-template-columns: 1.15fr .85fr; }
+    }
+
+    /* Tablet / desktop: Square Real-Time Check View */
+    @media (min-width: 1024px) {
+      :root { --check-w: min(480px, 44vw); }
+      .workspace {
+        grid-template-columns: var(--rail-w) minmax(0, 1fr) var(--check-w);
+        grid-template-rows: 1fr;
+        padding-bottom: 0;
+        height: 100%;
+      }
+      .rail {
+        flex-direction: column; overflow-x: hidden; overflow-y: auto;
+        padding: .7rem .55rem; border-bottom: 0; border-right: 1px solid var(--line);
+        gap: .4rem;
+      }
+      .cat { width: 100%; max-width: none; min-width: 0; padding: .7rem .35rem; border-radius: 14px; }
+      .menu { padding: .9rem 1rem 1.1rem; }
+      .products { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+      .check {
+        display: flex; position: static; height: auto; width: auto; max-width: none;
+        border-radius: 0; box-shadow: none; border: 0; border-left: 1px solid var(--line);
+        padding-bottom: 0;
+      }
+      .grab, .fab, .backdrop { display: none !important; }
+      .top-tools .mesa-chip { display: none; }
+      .mesa-field input { text-align: left; }
+      .tender { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .tender button { padding: .55rem .2rem; font-size: .78rem; }
+      .pay-row { grid-template-columns: 1.15fr .85fr; }
+    }
+    @media (min-width: 1100px) {
+      .products { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (min-width: 1280px) {
+      :root { --check-w: 480px; --rail-w: 100px; }
+      .products { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+    @media (max-width: 1023px) {
+      .search { display: none; }
+      .clock { display: none; }
+      .brand em { display: none; }
+      .brand strong { font-size: .86rem; }
+      .rail { padding: .65rem .55rem; }
+      .cat { min-width: 72px; }
+      .fab { left: .65rem; right: .65rem; }
+    }
+    @media (max-width: 380px) {
+      .brand strong { max-width: 7.5rem; }
+      .mesa-chip span { display: none; }
+      .mesa-chip { padding: .28rem .4rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <a class="icon-btn" href="interno.html" aria-label="Volver"><i class="fa-solid fa-arrow-left"></i></a>
+      <div class="brand">
+        <img src="assets/logo.jpg" alt="" />
+        <div>
+          <strong>Casa Torino</strong>
+          <em>TPV · cuenta rápida</em>
+        </div>
+      </div>
+      <div class="top-tools">
+        <div class="clock" id="clock">--:--</div>
+        <div class="search">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input id="search" type="search" placeholder="Buscar…" autocomplete="off" />
+        </div>
+        <label class="mesa-chip" for="mesaTop">
+          <span>Mesa</span>
+          <input id="mesaTop" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="nº" maxlength="4" autocomplete="off" />
+        </label>
+        <button class="icon-btn" id="btnClear" type="button" title="Vaciar"><i class="fa-solid fa-trash"></i></button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <nav class="rail" id="cats" aria-label="Categorías"></nav>
+
+      <section class="menu">
+        <div class="menu-head">
+          <h1 id="menuTitle">Todos</h1>
+          <span id="menuCount">0 productos</span>
+        </div>
+        <div class="products" id="products"></div>
+      </section>
+
+      <aside class="check" id="ticket">
+        <div class="check-h">
+          <span class="grab" aria-hidden="true"></span>
+          <div class="check-h-top">
+            <h2><i class="fa-solid fa-receipt"></i> Cuenta</h2>
+            <button class="link" id="btnUndo" type="button" disabled>Deshacer</button>
+          </div>
+          <div class="mesa-field">
+            <label for="mesa">Mesa</label>
+            <input id="mesa" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="nº de mesa" maxlength="4" autocomplete="off" />
+          </div>
+        </div>
+        <div class="lines" id="lines"><p class="empty">Pon el nº de mesa y toca productos.</p></div>
+        <div class="check-f">
+          <div class="total-row"><span>Total</span><strong id="total">0,00 €</strong></div>
+          <div class="tender" id="tender">
+            <button type="button" data-cash="10">10 €</button>
+            <button type="button" data-cash="20">20 €</button>
+            <button type="button" data-cash="50">50 €</button>
+            <button type="button" data-cash="exact">Exacto</button>
+          </div>
+          <div class="pay-row">
+            <div class="pay-box">
+              <label for="paid">Cliente entrega</label>
+              <input id="paid" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0,00" />
+            </div>
+            <div class="cambio"><span>Cambio</span><strong id="change">—</strong></div>
+          </div>
+          <div class="actions">
+            <button class="btn g" id="btnClear2" type="button">Vaciar</button>
+            <button class="btn p" id="btnDone" type="button">Cobrado</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <button class="fab" id="fab" type="button">
+      <i class="fa-solid fa-cart-shopping"></i>
+      <em id="fabCount">0</em>
+      <span id="fabMesa" class="fab-mesa"></span>
+      <strong id="fabTotal">0,00 €</strong>
+    </button>
+  </div>
+  <div class="backdrop" id="backdrop" hidden></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.min.js"></script>
+  <script src="tpv-data.js"></script>
+  <script src="printService.js"></script>
+  <script>
+    (() => {
+      const catalog = window.TPV_CATALOG || []
+      const money = (n) => (Math.round((+n + Number.EPSILON) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
+      const $ = (id) => document.getElementById(id)
+      const KEY = 'casa-torino-tpv-mesas-v1'
+
+      const CAT_META = {
+        all: { label: 'Todos', icon: 'fa-border-all', accent: '#f5c518' },
+        'menus-dia': { label: 'Menús', icon: 'fa-utensils', accent: '#f59e0b' },
+        picoteo: { label: 'Picoteo', icon: 'fa-bowl-food', accent: '#fb7185' },
+        colombia: { label: 'Colombia', icon: 'fa-pepper-hot', accent: '#facc15' },
+        espana: { label: 'España', icon: 'fa-fish', accent: '#f87171' },
+        combinados: { label: 'Combinados', icon: 'fa-layer-group', accent: '#60a5fa' },
+        infantil: { label: 'Infantil', icon: 'fa-child', accent: '#c084fc' },
+        postres: { label: 'Postres', icon: 'fa-ice-cream', accent: '#e879f9' },
+        bebidas: { label: 'Bebidas', icon: 'fa-glass-water', accent: '#2dd4bf' },
+      }
+
+      const state = {
+        cat: 'all',
+        q: '',
+        mesa: '',
+        cart: {},
+        hist: [],
+        tables: {},
+      }
+
+      const all = () => catalog.flatMap((c) => c.items.map((i) => ({ ...i, catId: c.id })))
+      const normalizeMesa = (v) => String(v || '').trim().replace(/\s+/g, '')
+      const accentFor = (catId) => (CAT_META[catId] || CAT_META.all).accent
+
+      function syncMesaInputs(v) {
+        const val = normalizeMesa(v)
+        if ($('mesa') && $('mesa').value !== val) $('mesa').value = val
+        if ($('mesaTop') && $('mesaTop').value !== val) $('mesaTop').value = val
+      }
+
+      function load() {
+        try {
+          const d = JSON.parse(sessionStorage.getItem(KEY) || '{}')
+          if (d.tables && typeof d.tables === 'object') state.tables = d.tables
+          if (d.mesa) {
+            state.mesa = normalizeMesa(d.mesa)
+            syncMesaInputs(state.mesa)
+            loadMesaIntoState(state.mesa)
+          }
+        } catch {}
+      }
+
+      function persist() {
+        const m = normalizeMesa(state.mesa)
+        if (m) {
+          state.tables[m] = {
+            cart: state.cart,
+            hist: state.hist,
+            paid: $('paid')?.value || '',
+          }
+        }
+        sessionStorage.setItem(KEY, JSON.stringify({ mesa: m, tables: state.tables }))
+      }
+
+      function loadMesaIntoState(mesa) {
+        const m = normalizeMesa(mesa)
+        const data = (m && state.tables[m]) || { cart: {}, hist: [], paid: '' }
+        state.cart = data.cart || {}
+        state.hist = data.hist || []
+        if ($('paid')) $('paid').value = data.paid || ''
+      }
+
+      function switchMesa(nextRaw) {
+        const next = normalizeMesa(nextRaw)
+        const prev = normalizeMesa(state.mesa)
+        if (prev && prev !== next) {
+          state.tables[prev] = {
+            cart: state.cart,
+            hist: state.hist,
+            paid: $('paid')?.value || '',
+          }
+        }
+        state.mesa = next
+        syncMesaInputs(next)
+        loadMesaIntoState(next)
+        persist()
+        render()
+      }
+
+      function requireMesa() {
+        const m = normalizeMesa($('mesa')?.value || $('mesaTop')?.value)
+        if (m) {
+          if (m !== state.mesa) switchMesa(m)
+          return true
+        }
+        alert('Pon primero el número de mesa.\nAsí la cuenta queda asociada a esa mesa.')
+        const focusEl = window.matchMedia('(min-width: 1024px)').matches ? $('mesa') : ($('mesaTop') || $('mesa'))
+        focusEl?.focus()
+        return false
+      }
+
+      const lines = () => Object.values(state.cart)
+      const totals = () => {
+        const ls = lines()
+        return {
+          ls,
+          count: ls.reduce((a, x) => a + x.qty, 0),
+          total: ls.reduce((a, x) => a + x.qty * x.price, 0),
+        }
+      }
+
+      function add(item) {
+        if (!requireMesa()) return
+        if (state.cart[item.id]) state.cart[item.id].qty += 1
+        else state.cart[item.id] = { id: item.id, name: item.name, price: item.price, qty: 1, catId: item.catId }
+        state.hist.push(item.id)
+        persist(); render(); flash(item.id)
+        try { navigator.vibrate?.(12) } catch {}
+      }
+
+      function setQty(id, qty) {
+        if (!state.cart[id]) return
+        if (qty <= 0) delete state.cart[id]
+        else state.cart[id].qty = qty
+        persist(); render()
+      }
+
+      function undo() {
+        const id = state.hist.pop()
+        if (!id || !state.cart[id]) return render()
+        setQty(id, state.cart[id].qty - 1)
+      }
+
+      function clearCart() {
+        if (!lines().length) return
+        const m = normalizeMesa(state.mesa)
+        const label = m ? ` de la mesa ${m}` : ''
+        if (!confirm(`¿Vaciar la cuenta${label}?`)) return
+        state.cart = {}; state.hist = []; $('paid').value = ''
+        persist(); render(); closeTicket()
+      }
+
+      async function done() {
+        const { ls, total, count } = totals()
+        if (!count) return
+        const m = normalizeMesa(state.mesa)
+        const mesaTxt = m ? `Mesa ${m}\n` : ''
+        if (!confirm(`${mesaTxt}Cobrado ${money(total)}\n\n¿Imprimir ticket, abrir cajón y cerrar esta cuenta?`)) return
+
+        // Snapshot antes de vaciar (para el ticket)
+        const cartItems = ls.map((l) => ({ name: l.name, qty: l.qty, price: l.price }))
+        const paidRaw = $('paid')?.value || ''
+        const paid = parseFloat(String(paidRaw).replace(',', '.'))
+        const meta = {
+          mesa: m || undefined,
+          paid: Number.isFinite(paid) ? paid : undefined,
+          change: Number.isFinite(paid) ? paid - total : undefined,
+        }
+
+        // Imprime + abre cajón (si QZ Tray no está, avisa y NO bloquea el cobro)
+        if (window.CasaTorinoPrint?.printReceipt) {
+          await window.CasaTorinoPrint.printReceipt(cartItems, total, meta)
+        }
+
+        state.cart = {}; state.hist = []; $('paid').value = ''
+        if (m) state.tables[m] = { cart: {}, hist: [], paid: '' }
+        persist(); render(); closeTicket()
+      }
+
+      function flash(id) {
+        const el = document.querySelector(`.prod[data-id="${CSS.escape(id)}"]`)
+        if (!el) return
+        el.classList.add('flash')
+        setTimeout(() => el.classList.remove('flash'), 220)
+      }
+
+      function renderCats() {
+        const cats = [
+          { id: 'all', name: 'Todos' },
+          ...catalog.map((c) => ({ id: c.id, name: c.name })),
+        ]
+        $('cats').innerHTML = cats.map((c) => {
+          const meta = CAT_META[c.id] || { label: c.name.split(' ')[0], icon: 'fa-circle', accent: '#f5c518' }
+          return `<button class="cat ${state.cat === c.id ? 'active' : ''}" data-cat="${c.id}" type="button" style="--accent:${meta.accent}">
+            <i class="fa-solid ${meta.icon}"></i>
+            <b>${meta.label}</b>
+          </button>`
+        }).join('')
+      }
+
+      function filtered() {
+        const q = state.q.trim().toLowerCase()
+        return all().filter((i) => {
+          if (state.cat !== 'all' && i.catId !== state.cat) return false
+          if (!q) return true
+          return i.name.toLowerCase().includes(q) || (i.desc || '').toLowerCase().includes(q)
+        })
+      }
+
+      function renderProducts() {
+        const items = filtered()
+        const meta = CAT_META[state.cat] || CAT_META.all
+        $('menuTitle').textContent = meta.label
+        $('menuCount').textContent = `${items.length} producto${items.length === 1 ? '' : 's'}`
+        $('products').innerHTML = items.length
+          ? items.map((i) => {
+              const q = state.cart[i.id]?.qty || 0
+              const accent = accentFor(i.catId)
+              return `<button class="prod" data-id="${i.id}" type="button" style="--accent:${accent}">
+                <div class="name"><span>${i.name}</span>${q ? `<span class="qty">×${q}</span>` : ''}</div>
+                ${i.desc ? `<div class="desc">${i.desc}</div>` : '<div></div>'}
+                <div class="price">${money(i.price)}</div>
+              </button>`
+            }).join('')
+          : `<p class="empty">Sin resultados.</p>`
+      }
+
+      function updateChange() {
+        const paid = parseFloat(String($('paid').value).replace(',', '.'))
+        const { total, count } = totals()
+        if (!count || !Number.isFinite(paid)) {
+          $('change').textContent = '—'
+          $('change').style.color = 'var(--ok)'
+          return
+        }
+        const d = paid - total
+        $('change').textContent = money(d)
+        $('change').style.color = d < 0 ? 'var(--danger)' : 'var(--ok)'
+      }
+
+      function renderTicket() {
+        const { ls, total, count } = totals()
+        const m = normalizeMesa(state.mesa || $('mesa')?.value)
+        $('btnUndo').disabled = !state.hist.length
+        $('fabCount').textContent = String(count)
+        $('fabTotal').textContent = money(total)
+        $('total').textContent = money(total)
+        if ($('fabMesa')) $('fabMesa').textContent = m ? `Mesa ${m}` : ''
+        $('lines').innerHTML = ls.length
+          ? ls.map((l) => `<div class="line">
+              <div>
+                <div class="line-name">${l.name}</div>
+                <div class="line-meta">${money(l.price)} · ud.</div>
+              </div>
+              <div class="line-right">
+                <div class="line-sum">${money(l.price * l.qty)}</div>
+                <div class="q">
+                  <button type="button" data-act="-" data-id="${l.id}" aria-label="Quitar">−</button>
+                  <span>${l.qty}</span>
+                  <button type="button" data-act="+" data-id="${l.id}" aria-label="Añadir">+</button>
+                </div>
+              </div>
+            </div>`).join('')
+          : `<p class="empty">${m ? `Cuenta de la mesa ${m} vacía.` : 'Pon el nº de mesa y toca productos.'}</p>`
+        updateChange()
+      }
+
+      function render() { renderCats(); renderProducts(); renderTicket() }
+      function openTicket() { $('ticket').classList.add('open'); $('backdrop').hidden = false }
+      function closeTicket() { $('ticket').classList.remove('open'); $('backdrop').hidden = true }
+
+      function tickClock() {
+        const now = new Date()
+        $('clock').textContent = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+      }
+
+      function bindMesa(el) {
+        if (!el) return
+        el.addEventListener('input', () => {
+          const cleaned = el.value.replace(/\D+/g, '').slice(0, 4)
+          if (el.value !== cleaned) el.value = cleaned
+          syncMesaInputs(cleaned)
+        })
+        el.addEventListener('change', () => switchMesa(el.value))
+        el.addEventListener('blur', () => switchMesa(el.value))
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); switchMesa(el.value); el.blur() }
+        })
+      }
+
+      $('cats').addEventListener('click', (e) => {
+        const b = e.target.closest('[data-cat]'); if (!b) return
+        state.cat = b.dataset.cat; render()
+      })
+      $('products').addEventListener('click', (e) => {
+        const b = e.target.closest('.prod'); if (!b) return
+        const item = all().find((x) => x.id === b.dataset.id); if (item) add(item)
+      })
+      $('lines').addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-act]'); if (!b) return
+        const line = state.cart[b.dataset.id]; if (!line) return
+        setQty(b.dataset.id, b.dataset.act === '+' ? line.qty + 1 : line.qty - 1)
+      })
+      $('search').addEventListener('input', () => { state.q = $('search').value; renderProducts() })
+      $('paid').addEventListener('input', () => { persist(); updateChange() })
+      $('tender').addEventListener('click', (e) => {
+        const b = e.target.closest('[data-cash]'); if (!b) return
+        const { total } = totals()
+        if (b.dataset.cash === 'exact') $('paid').value = String(Math.round(total * 100) / 100)
+        else $('paid').value = b.dataset.cash
+        persist(); updateChange()
+      })
+      bindMesa($('mesa'))
+      bindMesa($('mesaTop'))
+      $('btnClear').onclick = clearCart
+      $('btnClear2').onclick = clearCart
+      $('btnDone').onclick = done
+      $('btnUndo').onclick = undo
+      $('fab').onclick = openTicket
+      $('backdrop').onclick = closeTicket
+
+      load(); render(); tickClock()
+      setInterval(tickClock, 30000)
+      setTimeout(() => {
+        if (!$('mesa').value) {
+          const focusEl = window.matchMedia('(min-width: 1024px)').matches ? $('mesa') : ($('mesaTop') || $('mesa'))
+          focusEl?.focus()
+        }
+      }, 120)
+    })()
+  </script>
+</body>
+</html>
