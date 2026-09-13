@@ -476,9 +476,105 @@
       .mesa-chip span { display: none; }
       .mesa-chip { padding: .28rem .4rem; }
     }
+
+    /* Pantalla PIN */
+    .gate {
+      position: fixed; inset: 0; z-index: 100;
+      display: grid; place-items: center;
+      padding: 1.25rem;
+      background:
+        radial-gradient(900px 420px at 50% -10%, rgba(245,197,24,.16), transparent 55%),
+        var(--bg);
+    }
+    .gate[hidden] { display: none !important; }
+    .gate-card {
+      width: min(360px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line2);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 1.35rem 1.2rem 1.25rem;
+      text-align: center;
+    }
+    .gate-card img {
+      width: 72px; height: 72px; border-radius: 50%;
+      object-fit: cover; border: 2px solid var(--gold);
+      margin: 0 auto .85rem;
+    }
+    .gate-card h1 {
+      margin: 0 0 .25rem; font-size: 1.25rem; font-weight: 800; letter-spacing: -.02em;
+    }
+    .gate-card p {
+      margin: 0 0 1rem; color: var(--muted); font-size: .9rem; font-weight: 600;
+    }
+    .gate-dots {
+      display: flex; justify-content: center; gap: .55rem;
+      margin: 0 0 1rem;
+    }
+    .gate-dots i {
+      width: 12px; height: 12px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.28);
+      background: transparent; display: block;
+      transition: .12s ease;
+    }
+    .gate-dots i.on {
+      background: var(--gold); border-color: var(--gold);
+      box-shadow: 0 0 0 3px var(--gold-dim);
+    }
+    .gate-pad {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: .55rem;
+    }
+    .gate-pad button {
+      height: 58px; border-radius: 16px; border: 1px solid var(--line2);
+      background: var(--card); color: var(--ink);
+      font: inherit; font-size: 1.35rem; font-weight: 800;
+      cursor: pointer; transition: .12s ease;
+    }
+    .gate-pad button:active { transform: scale(.97); background: var(--card2); }
+    .gate-pad button.ghost { color: var(--muted); font-size: .95rem; }
+    .gate-err {
+      min-height: 1.2rem; margin: .75rem 0 0;
+      color: var(--danger); font-size: .82rem; font-weight: 700;
+    }
+    .gate-back {
+      display: inline-block; margin-top: .9rem;
+      color: var(--muted); text-decoration: none; font-size: .85rem; font-weight: 700;
+    }
+    .gate-back:hover { color: var(--gold); }
+    body.tpv-locked .app,
+    body.tpv-locked .backdrop,
+    body.tpv-locked .fab { visibility: hidden; pointer-events: none; }
   </style>
 </head>
-<body>
+<body class="tpv-locked">
+
+  <div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+    <div class="gate-card">
+      <img src="assets/logo.jpg" alt="Casa Torino" />
+      <h1 id="gateTitle">Acceso TPV</h1>
+      <p>Introduce el PIN del personal</p>
+      <div class="gate-dots" id="gateDots" aria-hidden="true">
+        <i></i><i></i><i></i><i></i>
+      </div>
+      <div class="gate-pad" id="gatePad">
+        <button type="button" data-k="1">1</button>
+        <button type="button" data-k="2">2</button>
+        <button type="button" data-k="3">3</button>
+        <button type="button" data-k="4">4</button>
+        <button type="button" data-k="5">5</button>
+        <button type="button" data-k="6">6</button>
+        <button type="button" data-k="7">7</button>
+        <button type="button" data-k="8">8</button>
+        <button type="button" data-k="9">9</button>
+        <button type="button" class="ghost" data-k="clear">Borrar</button>
+        <button type="button" data-k="0">0</button>
+        <button type="button" class="ghost" data-k="ok">Entrar</button>
+      </div>
+      <div class="gate-err" id="gateErr" aria-live="polite"></div>
+      <a class="gate-back" href="interno.html"><i class="fa-solid fa-arrow-left"></i> Volver</a>
+    </div>
+  </div>
+
   <div class="app">
     <header class="topbar">
       <a class="icon-btn" href="interno.html" aria-label="Volver"><i class="fa-solid fa-arrow-left"></i></a>
@@ -486,7 +582,7 @@
         <img src="assets/logo.jpg" alt="" />
         <div>
           <strong>Casa Torino</strong>
-          <em>TPV · cuenta rápida</em>
+          <em>TPV · pedidos por mesa</em>
         </div>
       </div>
       <div class="top-tools">
@@ -562,8 +658,110 @@
   <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.min.js"></script>
   <script src="tpv-data.js"></script>
   <script src="printService.js"></script>
+  <script src="tpvSync.js"></script>
   <script>
     (() => {
+      const AUTH_KEY = 'casa-torino-tpv-auth-v1'
+      const $ = (id) => document.getElementById(id)
+
+      let pinBuf = ''
+      let tpvStarted = false
+
+      function paintPinDots() {
+        const dots = $('gateDots')?.querySelectorAll('i') || []
+        dots.forEach((d, i) => d.classList.toggle('on', i < pinBuf.length))
+      }
+
+      function unlockTpv() {
+        try { sessionStorage.setItem(AUTH_KEY, '1') } catch {}
+        document.body.classList.remove('tpv-locked')
+        const gate = $('gate')
+        if (gate) gate.hidden = true
+        if (!tpvStarted) {
+          tpvStarted = true
+          startTpv()
+        }
+      }
+
+      function failPin(msg) {
+        pinBuf = ''
+        paintPinDots()
+        if ($('gateErr')) $('gateErr').textContent = msg || 'PIN incorrecto'
+        $('gate')?.animate?.(
+          [{ transform: 'translateX(0)' }, { transform: 'translateX(-8px)' }, { transform: 'translateX(8px)' }, { transform: 'translateX(0)' }],
+          { duration: 280 }
+        )
+      }
+
+      async function tryPin() {
+        if (pinBuf.length < 4) return
+        try {
+          const r = await fetch('/api/tpv-auth', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pin: pinBuf }),
+          })
+          const data = await r.json().catch(() => ({}))
+          if (r.ok && data.ok) {
+            if ($('gateErr')) $('gateErr').textContent = ''
+            unlockTpv()
+            return
+          }
+          failPin((data && data.error) || 'PIN incorrecto')
+        } catch (err) {
+          console.warn('[tpv-auth]', err)
+          failPin('No se pudo validar el PIN')
+        }
+      }
+
+      function onPinKey(k) {
+        if ($('gateErr')) $('gateErr').textContent = ''
+        if (k === 'clear') {
+          pinBuf = pinBuf.slice(0, -1)
+          paintPinDots()
+          return
+        }
+        if (k === 'ok') {
+          tryPin()
+          return
+        }
+        if (!/^\d$/.test(k) || pinBuf.length >= 4) return
+        pinBuf += k
+        paintPinDots()
+        if (pinBuf.length === 4) setTimeout(tryPin, 80)
+      }
+
+      $('gatePad')?.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-k]')
+        if (!b) return
+        onPinKey(b.dataset.k)
+      })
+
+      window.addEventListener('keydown', (e) => {
+        if (!$('gate') || $('gate').hidden) return
+        if (e.key === 'Backspace') { e.preventDefault(); onPinKey('clear'); return }
+        if (e.key === 'Enter') { e.preventDefault(); onPinKey('ok'); return }
+        if (/^\d$/.test(e.key)) onPinKey(e.key)
+      })
+
+      paintPinDots()
+      ;(async () => {
+        try {
+          if (sessionStorage.getItem(AUTH_KEY) === '1') {
+            const r = await fetch('/api/tpv-auth', { credentials: 'same-origin', cache: 'no-store' })
+            const data = await r.json().catch(() => ({}))
+            if (r.ok && data.ok) {
+              unlockTpv()
+              return
+            }
+            try { sessionStorage.removeItem(AUTH_KEY) } catch {}
+          }
+        } catch {}
+        paintPinDots()
+      })()
+
+      function startTpv() {
       const catalog = window.TPV_CATALOG || []
       const money = (n) => (Math.round((+n + Number.EPSILON) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
       const $ = (id) => document.getElementById(id)
@@ -622,6 +820,12 @@
           }
         }
         sessionStorage.setItem(KEY, JSON.stringify({ mesa: m, tables: state.tables }))
+        // Sync entre móvil y PC (misma cuenta por nº de mesa)
+        try {
+          window.CasaTorinoTpvSync?.push(state.tables, m)
+        } catch (err) {
+          console.warn('sync push', err)
+        }
       }
 
       function loadMesaIntoState(mesa) {
@@ -873,12 +1077,28 @@
 
       load(); render(); tickClock()
       setInterval(tickClock, 30000)
+
+      // Actualización en vivo entre dispositivos
+      window.CasaTorinoTpvSync?.start((remote) => {
+        const prevJson = JSON.stringify(state.tables)
+        const nextJson = JSON.stringify(remote.tables || {})
+        if (prevJson === nextJson) return
+        state.tables = remote.tables || {}
+        const m = normalizeMesa(state.mesa)
+        if (m) {
+          loadMesaIntoState(m)
+        }
+        // No re-push inmediato: solo pintar lo recibido
+        sessionStorage.setItem(KEY, JSON.stringify({ mesa: m, tables: state.tables }))
+        render()
+      })
       setTimeout(() => {
         if (!$('mesa').value) {
           const focusEl = window.matchMedia('(min-width: 1024px)').matches ? $('mesa') : ($('mesaTop') || $('mesa'))
           focusEl?.focus()
         }
       }, 120)
+      }
     })()
   </script>
 </body>

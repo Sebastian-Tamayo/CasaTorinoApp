@@ -4,7 +4,7 @@
  */
 export const STORE =
   process.env.RESERVAS_STORE_URL ||
-  'https://crudcrud.com/api/40b85177345746b789de76834b59f4ee/reservas'
+  '' // Obligatorio en Vercel / .env — no subir la URL secreta al repo
 
 export function cors(res, methods = 'GET,POST,PUT,OPTIONS') {
   res.setHeader('Access-Control-Allow-Origin', '*')

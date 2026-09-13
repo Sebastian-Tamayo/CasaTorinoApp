@@ -16,10 +16,10 @@ export const ONLINE_API_BASE = '/api/reservas'
 
 /** 4 personas del equipo. PIN interno (no público). */
 export const STAFF = [
-  { id: 'lorena', name: 'Lorena', pin: '3212' },
-  { id: 'yuli', name: 'Yuli', pin: '3212' },
-  { id: 'dayana', name: 'Dayana', pin: '3212' },
-  { id: 'claribel', name: 'Claribel', pin: '3212' },
+  { id: 'lorena', name: 'Lorena', pin: 'CHANGEME' },
+  { id: 'yuli', name: 'Yuli', pin: 'CHANGEME' },
+  { id: 'dayana', name: 'Dayana', pin: 'CHANGEME' },
+  { id: 'claribel', name: 'Claribel', pin: 'CHANGEME' },
 ] as const
 
 export const STATUS_LABELS: Record<import('./types').ReservationStatus, string> = {

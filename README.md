@@ -49,6 +49,22 @@ Forman **el mismo negocio**: la web atrae, el ERP controla la operativa y las re
 
 ---
 
+
+## Recuperación y secretos
+
+- Guía: [`docs/RECUPERACION.md`](docs/RECUPERACION.md)
+- Por módulo: `./scripts/restaurar-modulo.sh web|reservas|erp|all`
+- Publicar backup en GitHub (desde tu PC con permiso de push):
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/Sebastian-Tamayo/Proyeccion/main/docs/publicar-en-casatorinoapp.sh | bash
+  ```
+- **El PIN del TPV, tokens y URLs de store no están en el código.** Solo en variables de entorno de Vercel.
+
+### TPV (dentro de `web/`)
+- Acceso con PIN del personal (validado en servidor)
+- Sync en vivo móvil ↔ PC por número de mesa
+- Impresión QZ Tray + apertura de cajón al cobrar
+
 ## Módulos del ecosistema
 
 ### 1. [`web/`](web/) — Página pública (principal)
