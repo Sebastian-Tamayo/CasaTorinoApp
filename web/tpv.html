@@ -2320,8 +2320,15 @@
         })
       })
       window.addEventListener('keydown', (e) => {
-        if ($('courseModal')?.hidden) return
-        if (e.key === 'Escape') { e.preventDefault(); closeCoursePick() }
+        if ($('courseModal')?.hidden === false && e.key === 'Escape') {
+          e.preventDefault(); closeCoursePick(); return
+        }
+        if ($('jornadaModal')?.hidden === false && e.key === 'Escape') {
+          e.preventDefault(); closeJornadaModal(); return
+        }
+        if (document.body.classList.contains('check-open') && e.key === 'Escape') {
+          e.preventDefault(); closeTicket()
+        }
       })
       $('paid').addEventListener('input', () => { persist(); updateChange() })
       $('tender').addEventListener('click', (e) => {
