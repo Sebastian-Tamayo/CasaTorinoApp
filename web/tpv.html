@@ -712,6 +712,49 @@
     }
     .jornada-row:last-child { border-bottom: 0; }
     .jornada-row em { color: var(--muted); font-style: normal; font-weight: 600; font-size: .78rem; }
+    .jornada-hint {
+      margin: 0 0 .65rem; padding: .55rem .7rem;
+      border-radius: 12px; font-size: .78rem; font-weight: 650; line-height: 1.35;
+      color: #fde68a; background: rgba(245,197,24,.1); border: 1px solid rgba(245,197,24,.28);
+    }
+    .jornada-ticket {
+      border: 1px solid var(--line2); border-radius: 14px;
+      background: var(--card); margin: 0 0 .55rem; overflow: hidden;
+    }
+    .jornada-ticket-h {
+      display: flex; align-items: center; gap: .5rem; width: 100%;
+      padding: .65rem .7rem; border: 0; background: transparent; color: var(--ink);
+      font: inherit; font-weight: 750; cursor: pointer; text-align: left;
+    }
+    .jornada-ticket-h span { flex: 1 1 auto; min-width: 0; }
+    .jornada-ticket-h em { color: var(--muted); font-style: normal; font-size: .75rem; font-weight: 650; }
+    .jornada-ticket-h strong { font-variant-numeric: tabular-nums; }
+    .jornada-ticket-b { display: none; padding: 0 .7rem .7rem; border-top: 1px solid var(--line); }
+    .jornada-ticket.open .jornada-ticket-b { display: block; }
+    .jornada-line-edit {
+      display: grid; grid-template-columns: 1fr auto; gap: .35rem .55rem;
+      align-items: center; padding: .55rem 0; border-bottom: 1px solid var(--line);
+    }
+    .jornada-line-edit:last-of-type { border-bottom: 0; }
+    .jornada-line-edit .meta { color: var(--muted); font-size: .72rem; font-weight: 650; }
+    .jornada-line-edit .ctrls { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; justify-content: flex-end; }
+    .jornada-line-edit .ctrls button {
+      width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line2);
+      background: #0b0f14; color: var(--ink); font: inherit; font-weight: 800; cursor: pointer;
+    }
+    .jornada-line-edit .ctrls .qty {
+      min-width: 1.6rem; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums;
+    }
+    .jornada-line-edit .ctrls .price {
+      width: 4.6rem; height: 34px; border-radius: 10px; border: 1px solid var(--line2);
+      background: #0b0f14; color: var(--ink); font: inherit; font-weight: 700;
+      text-align: right; padding: 0 .4rem;
+    }
+    .jornada-ticket-actions { display: flex; justify-content: flex-end; gap: .4rem; margin-top: .45rem; }
+    .jornada-ticket-actions button {
+      border: 1px solid rgba(251,113,133,.4); background: transparent; color: #fda4af;
+      border-radius: 10px; padding: .4rem .7rem; font: inherit; font-size: .75rem; font-weight: 800; cursor: pointer;
+    }
     .jornada-card .close-row { display: flex; justify-content: flex-end; margin-top: .5rem; }
     .jornada-card .close-row button {
       border: 1px solid var(--line2); background: var(--card); color: var(--ink);
@@ -869,6 +912,11 @@
       <div class="jornada-sec">
         <h4>Por producto</h4>
         <div id="jornadaByProd"></div>
+      </div>
+      <div class="jornada-sec">
+        <h4>Corregir tickets</h4>
+        <p class="jornada-hint">Si hay un error al final del día, abre un ticket y cambia cantidad o precio, o bórralo. También funciona con la jornada ya cerrada.</p>
+        <div id="jornadaTickets"></div>
       </div>
       <div class="close-row">
         <button type="button" id="btnJornadaClose">Cerrar</button>
@@ -1060,7 +1108,8 @@
         }
       }
 
-      function openJornadaModal() {
+      function openJornadaModal(opts) {
+        const keepOpenId = opts && opts.keepOpenId
         const j = state.jornada || window.CasaTorinoTpvJornada?.last
         const totals = j?.totals || {
           tickets: 0,
@@ -1069,6 +1118,7 @@
           byCategory: [],
           byProduct: [],
         }
+        const canEdit = j?.status === 'open' || j?.status === 'ended'
         const statusLabel =
           j?.status === 'open'
             ? `Abierta desde ${fmtHm(j.startedAt)}`
@@ -1118,7 +1168,77 @@
             : '<div class="jornada-row">Sin ventas</div>'
         }
 
+        const sales = Array.isArray(j?.sales) ? j.sales.slice().reverse() : []
+        if ($('jornadaTickets')) {
+          if (!sales.length) {
+            $('jornadaTickets').innerHTML = '<div class="jornada-row">Sin tickets todavía.</div>'
+          } else if (!canEdit) {
+            $('jornadaTickets').innerHTML =
+              '<div class="jornada-row">Inicia o cierra una jornada para poder corregir.</div>'
+          } else {
+            $('jornadaTickets').innerHTML = sales
+              .map((s) => {
+                const open = keepOpenId && keepOpenId === s.id ? ' open' : ''
+                const mesa = s.mesa ? `Mesa ${s.mesa}` : 'Sin mesa'
+                const lines = (s.lines || [])
+                  .map((l) => {
+                    const ctype = l.categoryType === 'bebida' ? 'bebida' : 'comida'
+                    return `<div class="jornada-line-edit" data-sale="${s.id}" data-line="${l.id}">
+                      <div>
+                        <div>${l.name}</div>
+                        <div class="meta">${ctype} · ud. ${money(l.price)}</div>
+                      </div>
+                      <div class="ctrls">
+                        <button type="button" data-jact="dec" title="Quitar una">−</button>
+                        <span class="qty">${l.qty}</span>
+                        <button type="button" data-jact="inc" title="Añadir una">+</button>
+                        <input class="price" type="number" inputmode="decimal" min="0" step="0.1" value="${Number(l.price).toFixed(2)}" data-jact="price" aria-label="Precio" />
+                        <button type="button" data-jact="del-line" title="Quitar producto">🗑</button>
+                      </div>
+                    </div>`
+                  })
+                  .join('')
+                return `<div class="jornada-ticket${open}" data-sale-id="${s.id}">
+                  <button type="button" class="jornada-ticket-h" data-jact="toggle">
+                    <span>${mesa} <em>· ${fmtHm(s.at)}</em></span>
+                    <strong>${money(s.total)}</strong>
+                  </button>
+                  <div class="jornada-ticket-b">
+                    ${lines}
+                    <div class="jornada-ticket-actions">
+                      <button type="button" data-jact="del-sale">Borrar ticket</button>
+                    </div>
+                  </div>
+                </div>`
+              })
+              .join('')
+          }
+        }
+
         if ($('jornadaModal')) $('jornadaModal').hidden = false
+      }
+
+      async function applyJornadaLine(saleId, lineId, patch, keepOpenId) {
+        try {
+          const j = await window.CasaTorinoTpvJornada.updateLine(saleId, lineId, patch)
+          paintJornadaStatus(j)
+          openJornadaModal({ keepOpenId: keepOpenId || saleId })
+        } catch (err) {
+          console.warn('jornada updateLine', err)
+          alert(err.message || 'No se pudo corregir el producto')
+        }
+      }
+
+      async function deleteJornadaSale(saleId) {
+        if (!confirm('¿Borrar este ticket de la jornada?\nSe restará del total.')) return
+        try {
+          const j = await window.CasaTorinoTpvJornada.deleteSale(saleId)
+          paintJornadaStatus(j)
+          openJornadaModal()
+        } catch (err) {
+          console.warn('jornada deleteSale', err)
+          alert(err.message || 'No se pudo borrar el ticket')
+        }
       }
 
       function closeJornadaModal() {
@@ -1650,6 +1770,46 @@
       $('btnJornadaClose').onclick = closeJornadaModal
       $('jornadaModal')?.addEventListener('click', (e) => {
         if (e.target === $('jornadaModal')) closeJornadaModal()
+      })
+      $('jornadaTickets')?.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-jact]')
+        if (!btn) return
+        const act = btn.dataset.jact
+        const ticket = btn.closest('.jornada-ticket')
+        const lineBox = btn.closest('.jornada-line-edit')
+        if (act === 'toggle' && ticket) {
+          ticket.classList.toggle('open')
+          return
+        }
+        if (act === 'del-sale' && ticket) {
+          await deleteJornadaSale(ticket.dataset.saleId)
+          return
+        }
+        if (!lineBox) return
+        const saleId = lineBox.dataset.sale
+        const lineId = lineBox.dataset.line
+        const qtyEl = lineBox.querySelector('.qty')
+        const curQty = Number(qtyEl?.textContent || 0)
+        if (act === 'inc') {
+          await applyJornadaLine(saleId, lineId, { qty: curQty + 1 })
+        } else if (act === 'dec') {
+          await applyJornadaLine(saleId, lineId, { qty: Math.max(0, curQty - 1) })
+        } else if (act === 'del-line') {
+          if (!confirm('¿Quitar este producto del ticket?')) return
+          await applyJornadaLine(saleId, lineId, { qty: 0 })
+        }
+      })
+      $('jornadaTickets')?.addEventListener('change', async (e) => {
+        const input = e.target.closest('input.price')
+        if (!input) return
+        const lineBox = input.closest('.jornada-line-edit')
+        if (!lineBox) return
+        const price = parseFloat(String(input.value).replace(',', '.'))
+        if (!Number.isFinite(price) || price < 0) {
+          alert('Precio no válido')
+          return
+        }
+        await applyJornadaLine(lineBox.dataset.sale, lineBox.dataset.line, { price })
       })
 
       load(); render(); tickClock()

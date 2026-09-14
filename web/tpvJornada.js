@@ -49,6 +49,18 @@
     return post('sale', { sale })
   }
 
+  async function updateSale(sale) {
+    return post('updateSale', { sale })
+  }
+
+  async function deleteSale(saleId) {
+    return post('deleteSale', { saleId })
+  }
+
+  async function updateLine(saleId, lineId, patch) {
+    return post('updateLine', { saleId, lineId, ...(patch || {}) })
+  }
+
   async function reset() {
     return post('reset')
   }
@@ -80,6 +92,9 @@
     start,
     end,
     addSale,
+    updateSale,
+    deleteSale,
+    updateLine,
     reset,
     startPolling,
     stopPolling,

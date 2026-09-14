@@ -3,11 +3,12 @@
  * Persistencia: Vercel Edge Config (misma que TPV), clave `jornada`.
  *
  * GET  /api/tpv-jornada → estado actual + totales
- * POST /api/tpv-jornada → { action: 'start'|'end'|'sale'|'reset' }
+ * POST /api/tpv-jornada → { action: 'start'|'end'|'sale'|'updateSale'|'updateLine'|'deleteSale'|'reset' }
  *
  * - start: abre jornada (limpia ventas previas)
  * - end: cierra sesión y congela totales
  * - sale: registra un cobro (solo si status === 'open')
+ * - updateSale / updateLine / deleteSale: corregir errores (open u ended)
  * - reset: borra jornada (tras confirmación en cliente)
  */
 const EDGE_ID = process.env.TPV_EDGE_CONFIG_ID
@@ -314,6 +315,120 @@ module.exports = async function handler(req, res) {
           sales,
           updatedAt: now,
         }
+      } else if (action === 'updatesale' || action === 'update_sale') {
+        // Corrección al final del día: permitir editar con jornada abierta O cerrada
+        if (state.status !== 'open' && state.status !== 'ended') {
+          res.statusCode = 409
+          res.setHeader('Content-Type', 'application/json')
+          return res.end(
+            JSON.stringify({
+              error: 'No hay jornada para corregir',
+              ...withTotals(state),
+            }),
+          )
+        }
+        const sale = normalizeSale(body.sale)
+        if (!sale || !sale.id) {
+          res.statusCode = 400
+          res.setHeader('Content-Type', 'application/json')
+          return res.end(JSON.stringify({ error: 'sale inválida' }))
+        }
+        const sales = Array.isArray(state.sales) ? state.sales.slice() : []
+        const idx = sales.findIndex((s) => s && s.id === sale.id)
+        if (idx < 0) {
+          res.statusCode = 404
+          res.setHeader('Content-Type', 'application/json')
+          return res.end(
+            JSON.stringify({ error: 'Ticket no encontrado', ...withTotals(state) }),
+          )
+        }
+        // Conservar hora original del ticket si no viene
+        sale.at = Number(body.sale?.at) || sales[idx].at || sale.at
+        sales[idx] = sale
+        state = { ...state, sales, updatedAt: now }
+      } else if (action === 'deletesale' || action === 'delete_sale') {
+        if (state.status !== 'open' && state.status !== 'ended') {
+          res.statusCode = 409
+          res.setHeader('Content-Type', 'application/json')
+          return res.end(
+            JSON.stringify({
+              error: 'No hay jornada para corregir',
+              ...withTotals(state),
+            }),
+          )
+        }
+        const saleId = String(body.saleId || body.id || '').slice(0, 64)
+        if (!saleId) {
+          res.statusCode = 400
+          res.setHeader('Content-Type', 'application/json')
+          return res.end(JSON.stringify({ error: 'saleId requerido' }))
+        }
+        const sales = (Array.isArray(state.sales) ? state.sales : []).filter(
+          (s) => s && s.id !== saleId,
+        )
+        state = { ...state, sales, updatedAt: now }
+      } else if (action === 'updateline' || action === 'update_line') {
+        // Cambiar cantidad/precio de un producto dentro de un ticket
+        if (state.status !== 'open' && state.status !== 'ended') {
+          res.statusCode = 409
+          res.setHeader('Content-Type', 'application/json')
+          return res.end(
+            JSON.stringify({
+              error: 'No hay jornada para corregir',
+              ...withTotals(state),
+            }),
+          )
+        }
+        const saleId = String(body.saleId || '').slice(0, 64)
+        const lineId = String(body.lineId || body.productId || '').slice(0, 80)
+        if (!saleId || !lineId) {
+          res.statusCode = 400
+          res.setHeader('Content-Type', 'application/json')
+          return res.end(JSON.stringify({ error: 'saleId y lineId requeridos' }))
+        }
+        const sales = Array.isArray(state.sales) ? state.sales.slice() : []
+        const idx = sales.findIndex((s) => s && s.id === saleId)
+        if (idx < 0) {
+          res.statusCode = 404
+          res.setHeader('Content-Type', 'application/json')
+          return res.end(
+            JSON.stringify({ error: 'Ticket no encontrado', ...withTotals(state) }),
+          )
+        }
+        const sale = { ...sales[idx], lines: (sales[idx].lines || []).slice() }
+        const li = sale.lines.findIndex((l) => l && l.id === lineId)
+        if (li < 0) {
+          res.statusCode = 404
+          res.setHeader('Content-Type', 'application/json')
+          return res.end(
+            JSON.stringify({ error: 'Producto no encontrado en el ticket', ...withTotals(state) }),
+          )
+        }
+        const hasQty = body.qty !== undefined && body.qty !== null && body.qty !== ''
+        const hasPrice = body.price !== undefined && body.price !== null && body.price !== ''
+        let qty = hasQty ? Number(body.qty) : Number(sale.lines[li].qty)
+        let price = hasPrice ? Number(body.price) : Number(sale.lines[li].price)
+        if (!Number.isFinite(qty) || qty < 0) qty = 0
+        if (!Number.isFinite(price) || price < 0) price = 0
+        if (qty <= 0) {
+          sale.lines.splice(li, 1)
+        } else {
+          sale.lines[li] = {
+            ...sale.lines[li],
+            qty: Math.round(qty),
+            price: round2(price),
+          }
+        }
+        if (!sale.lines.length) {
+          sales.splice(idx, 1)
+        } else {
+          sale.total = round2(sale.lines.reduce((a, l) => a + l.qty * l.price, 0))
+          // Recalcular base/IVA 10% hostelería
+          sale.base = round2(sale.total / 1.1)
+          sale.iva = round2(sale.total - sale.base)
+          sales[idx] = sale
+        }
+        state = { ...state, sales, updatedAt: now }
       } else if (action === 'reset') {
         state = { ...emptyState(), updatedAt: now }
       } else {
