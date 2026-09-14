@@ -299,18 +299,39 @@
       padding: 1rem 1rem .85rem;
       border-bottom: 1px solid var(--line);
       display: grid; gap: .7rem;
+      position: sticky; top: 0; z-index: 3;
+      background: linear-gradient(180deg, #171e28, #151c26);
     }
     .check-h-top {
-      display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+      display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+    }
+    .check-h-left {
+      display: flex; align-items: center; gap: .35rem; min-width: 0;
     }
     .check-h-top h2 {
       margin: 0; font-size: 1rem; font-weight: 800; letter-spacing: -.01em;
       display: flex; align-items: center; gap: .45rem;
     }
+    .btn-back-check {
+      display: inline-flex; align-items: center; gap: .35rem;
+      border: 1px solid var(--line2);
+      background: #1a2430;
+      color: var(--ink);
+      font: inherit; font-weight: 800; font-size: .82rem;
+      height: 40px; padding: 0 .75rem 0 .6rem;
+      border-radius: 12px; cursor: pointer; flex-shrink: 0;
+    }
+    .btn-back-check:active { transform: scale(.97); background: #243041; }
+    .btn-back-check i { font-size: .9rem; color: var(--gold); }
     .grab {
       width: 42px; height: 5px; border-radius: 999px; background: rgba(255,255,255,.18);
       margin: .15rem auto .35rem; display: block;
     }
+    .grab-btn {
+      display: block; width: 100%; border: 0; background: transparent;
+      padding: .15rem 0 .2rem; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .grab-btn:active .grab { background: rgba(255,255,255,.35); }
     .link {
       border: 0; background: transparent; color: var(--blue);
       font-weight: 700; cursor: pointer; padding: .35rem .45rem; border-radius: 10px;
@@ -492,8 +513,11 @@
       box-shadow: var(--shadow);
       padding: 1.1rem 1rem 1rem;
     }
-    .course-card h3 {
-      margin: 0 0 .35rem; font-size: 1.1rem; font-weight: 800;
+    .course-card-h {
+      display: flex; align-items: center; gap: .55rem; margin-bottom: .35rem;
+    }
+    .course-card-h h3 {
+      margin: 0; flex: 1 1 auto; font-size: 1.1rem; font-weight: 800;
     }
     .course-card .sub {
       margin: 0 0 1rem; color: var(--muted); font-size: .82rem; font-weight: 600; line-height: 1.35;
@@ -655,7 +679,7 @@
       .tender button { padding: .45rem .15rem; font-size: .72rem; }
       body.check-open { overflow: hidden !important; touch-action: auto; }
       body.check-open .app { pointer-events: auto; }
-      .grab, .fab, .backdrop { display: none !important; }
+      .grab, .fab, .backdrop, .btn-back-check, .grab-btn { display: none !important; }
       .top-tools .mesa-chip { display: none; }
       .mesa-field input { text-align: left; }
       .tender { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -856,7 +880,20 @@
       border-radius: 20px;
       box-shadow: var(--shadow);
       padding: 1.1rem 1rem 1rem;
+      position: relative;
     }
+    .jornada-card-h {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem;
+      margin-bottom: .35rem;
+    }
+    .jornada-card-h h3 { margin: 0; }
+    .btn-modal-back {
+      display: inline-flex; align-items: center; gap: .35rem;
+      border: 1px solid var(--line2); background: #1a2430; color: var(--ink);
+      font: inherit; font-weight: 800; font-size: .8rem;
+      height: 38px; padding: 0 .7rem 0 .55rem; border-radius: 12px; cursor: pointer; flex-shrink: 0;
+    }
+    .btn-modal-back i { color: var(--gold); }
     .jornada-card h3 {
       margin: 0 0 .35rem; font-size: 1.15rem; font-weight: 800;
     }
@@ -1012,9 +1049,16 @@
 
       <aside class="check" id="ticket">
         <div class="check-h">
-          <span class="grab" aria-hidden="true"></span>
+          <button type="button" class="grab-btn" id="btnCloseCheckGrab" aria-label="Volver a la carta">
+            <span class="grab" aria-hidden="true"></span>
+          </button>
           <div class="check-h-top">
-            <h2><i class="fa-solid fa-receipt"></i> Cuenta</h2>
+            <div class="check-h-left">
+              <button type="button" class="btn-back-check" id="btnCloseCheck" aria-label="Volver a la carta">
+                <i class="fa-solid fa-arrow-left"></i> Volver
+              </button>
+              <h2><i class="fa-solid fa-receipt"></i> Cuenta</h2>
+            </div>
             <button class="link" id="btnUndo" type="button" disabled>Deshacer</button>
           </div>
           <div class="mesa-field">
@@ -1068,7 +1112,12 @@
 
   <div class="course-modal" id="courseModal" hidden role="dialog" aria-modal="true" aria-labelledby="courseModalTitle">
     <div class="course-card">
-      <h3 id="courseModalTitle">Menú español</h3>
+      <div class="course-card-h">
+        <button type="button" class="btn-modal-back" id="courseBack" aria-label="Volver">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </button>
+        <h3 id="courseModalTitle">Menú español</h3>
+      </div>
       <p class="sub" id="courseModalSub">Elige qué opción comerá el cliente. Cocina lo verá en el ticket.</p>
       <div class="course-block">
         <h4>Primero</h4>
@@ -1093,7 +1142,12 @@
 
   <div class="jornada-modal" id="jornadaModal" hidden role="dialog" aria-modal="true" aria-labelledby="jornadaModalTitle">
     <div class="jornada-card">
-      <h3 id="jornadaModalTitle">Total de jornada</h3>
+      <div class="jornada-card-h">
+        <button type="button" class="btn-modal-back" id="jornadaBack" aria-label="Volver">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </button>
+        <h3 id="jornadaModalTitle">Total de jornada</h3>
+      </div>
       <p class="sub" id="jornadaModalSub">—</p>
       <div class="jornada-grand">
         <span>Total vendido</span>
@@ -1311,6 +1365,7 @@
         if ($('gateErr')) $('gateErr').textContent = msg || 'Sesión caducada — introduce el PIN'
         try { window.CasaTorinoTpvSync?.stop?.() } catch {}
         try { window.CasaTorinoTpvJornada?.stopPolling?.() } catch {}
+        try { window.CasaTorinoKitchenSync?.stop?.() } catch {}
         tpvStarted = false
       }
 
@@ -1929,6 +1984,8 @@
           persist()
           render()
           try { navigator.vibrate?.([20, 30, 20]) } catch {}
+          // En móvil volver a la carta tras enviar (no quedarse atrapado en Cuenta)
+          if (window.matchMedia('(max-width: 1023px)').matches) closeTicket()
         } catch (err) {
           console.warn('sendToKitchen', err)
           if (err && err.status === 401) {
@@ -2086,6 +2143,7 @@
           })
           try { navigator.vibrate?.([30, 40, 30]) } catch {}
           alert('Aviso enviado a cocina: Siguiente plato')
+          if (window.matchMedia('(max-width: 1023px)').matches) closeTicket()
         } catch (err) {
           console.warn('sendNextCourse', err)
           if (err && err.status === 401) {
@@ -2248,6 +2306,7 @@
       })
       // Modal menú español: Primero/Segundo N1|N2
       $('courseCancel')?.addEventListener('click', () => closeCoursePick())
+      $('courseBack')?.addEventListener('click', () => closeCoursePick())
       $('courseOk')?.addEventListener('click', () => commitCoursePick())
       $('courseModal')?.addEventListener('click', (e) => {
         if (e.target === $('courseModal')) closeCoursePick()
@@ -2288,6 +2347,9 @@
       $('btnUndo').onclick = undo
       $('fab').onclick = openTicket
       $('backdrop').onclick = closeTicket
+      $('btnCloseCheck')?.addEventListener('click', closeTicket)
+      $('btnCloseCheckGrab')?.addEventListener('click', closeTicket)
+      $('jornadaBack')?.addEventListener('click', closeJornadaModal)
       $('search').addEventListener('input', () => {
         state.q = $('search').value
         if (state.q.trim() && state.cat !== 'all') {
