@@ -626,8 +626,12 @@
         if (histBtn) {
           histBtn.classList.toggle('on', showHistory)
           histBtn.innerHTML = showHistory
-            ? `<i class="fa-solid fa-fire-burner"></i> En vivo (${orders.length})`
-            : `<i class="fa-solid fa-clock-rotate-left"></i> Histórico (${history.length})`
+            ? `<i class="fa-solid fa-fire-burner"></i>
+               <span class="btn-label-full">En vivo (${orders.length})</span>
+               <span class="btn-label-short">Vivo (${orders.length})</span>`
+            : `<i class="fa-solid fa-clock-rotate-left"></i>
+               <span class="btn-label-full">Histórico (${history.length})</span>
+               <span class="btn-label-short">Hist. (${history.length})</span>`
         }
         document.body.classList.toggle('show-history', showHistory)
         if (showHistory) return renderHistory()
