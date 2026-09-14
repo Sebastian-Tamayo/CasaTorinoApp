@@ -72,12 +72,16 @@
       display: flex; align-items: center; gap: .55rem;
       padding: .65rem .7rem;
       border-bottom: 1px solid var(--line);
-      background: rgba(11,15,20,.88);
+      background: rgba(11,15,20,.92);
       backdrop-filter: blur(16px);
-      z-index: 30;
+      z-index: 60; /* por encima de avisos antiguos; mesa siempre usable */
       min-width: 0;
       max-width: 100%;
       position: sticky; top: 0;
+    }
+    .mesa-chip {
+      position: relative;
+      z-index: 61;
     }
     .icon-btn {
       width: 42px; height: 42px; border-radius: 14px;
@@ -125,6 +129,8 @@
       display: flex; align-items: center; gap: .4rem;
       background: var(--card); border: 1px solid var(--line2);
       border-radius: 999px; padding: .28rem .45rem .28rem .7rem;
+      position: relative;
+      z-index: 61; /* por si un aviso se solapa, Mesa sigue usable */
     }
     .mesa-chip span {
       font-size: .72rem; font-weight: 800; letter-spacing: .04em;
@@ -574,19 +580,27 @@
       backdrop-filter: blur(2px); z-index: 45;
     }
 
-    /* Aviso cocina → TPV: pedido listo para recoger */
+    /* Aviso cocina → TPV: abajo, para NO tapar Mesa arriba */
     .pickup-alert {
-      position: fixed; left: 50%; top: max(.75rem, env(safe-area-inset-top, 0px));
+      position: fixed;
+      left: 50%;
+      right: auto;
+      top: auto;
+      /* Encima del FAB / zona inferior; deja libre barra de mesa */
+      bottom: calc(5.35rem + env(safe-area-inset-bottom, 0px));
       transform: translateX(-50%);
-      z-index: 95; width: min(520px, calc(100% - 1.2rem));
-      display: none; flex-direction: column; gap: .45rem;
-      pointer-events: none;
+      z-index: 96;
+      width: min(520px, calc(100% - 1.2rem));
+      display: none;
+      flex-direction: column;
+      gap: .4rem;
+      pointer-events: none; /* solo las tarjetas capturan toques */
     }
     .pickup-alert.show { display: flex; }
     .pickup-card {
       pointer-events: auto;
-      display: flex; align-items: center; gap: .75rem;
-      padding: .85rem 1rem;
+      display: flex; align-items: center; gap: .65rem;
+      padding: .7rem .85rem;
       border-radius: 16px;
       border: 2px solid #fbbf24;
       background: linear-gradient(135deg, #7c2d12, #b45309 55%, #ca8a04);
@@ -596,12 +610,12 @@
       cursor: pointer;
       font-weight: 800;
     }
-    .pickup-card i { font-size: 1.35rem; color: #fde68a; }
-    .pickup-card strong { display: block; font-size: 1.15rem; letter-spacing: .01em; }
-    .pickup-card span { display: block; font-size: .78rem; font-weight: 700; opacity: .92; }
+    .pickup-card i { font-size: 1.2rem; color: #fde68a; flex: 0 0 auto; }
+    .pickup-card strong { display: block; font-size: 1.05rem; letter-spacing: .01em; }
+    .pickup-card span { display: block; font-size: .74rem; font-weight: 700; opacity: .92; }
     .pickup-card .x {
       margin-left: auto; border: 0; background: rgba(0,0,0,.25);
-      color: #fff; width: 36px; height: 36px; border-radius: 50%;
+      color: #fff; width: 38px; height: 38px; border-radius: 50%;
       font-size: 1rem; cursor: pointer; flex: 0 0 auto;
     }
     @keyframes pickupBlink {
@@ -609,6 +623,21 @@
       50% { filter: brightness(1.18); box-shadow: 0 14px 40px rgba(0,0,0,.45), 0 0 0 6px rgba(251,191,36,.35); }
     }
     body.tpv-locked .pickup-alert { display: none !important; }
+    /* Con Cuenta abierta: aviso más arriba del teclado/acciones */
+    body.check-open .pickup-alert {
+      bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    }
+    @media (min-width: 1024px) {
+      /* En PC: esquina inferior derecha, sin tapar mesa del ticket */
+      .pickup-alert {
+        left: auto;
+        right: 1rem;
+        transform: none;
+        width: min(360px, calc(var(--check-w, 400px) - 1.5rem));
+        bottom: 1rem;
+      }
+      body.check-open .pickup-alert { bottom: 1rem; }
+    }
 
     /* Teléfonos grandes / landscape: 2 columnas ya legibles */
     @media (min-width: 560px) and (max-width: 1023px) {
