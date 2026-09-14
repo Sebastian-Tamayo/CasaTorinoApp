@@ -14,16 +14,16 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        cream: "#FAF6F0",
+        cream: "#FFF8E8",
         ink: "#1C2541",
         card: "#FFFFFF",
-        "amarillo-colombia": "#FFCD00",
+        "amarillo-colombia": "#F5C518",
         "azul-colombia": "#003087",
         "rojo-colombia": "#C8102E",
         "azul-asturias": "#0055A5",
         "rojo-espana": "#AA151B",
         esmeralda: "#1B4D3E",
-        oro: "#E5A93C",
+        oro: "#F5C518",
       },
       fontFamily: {
         sans: ["var(--font-montserrat)", "Montserrat", "sans-serif"],

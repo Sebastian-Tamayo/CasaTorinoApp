@@ -39,12 +39,20 @@ export function FiscalView() {
       const { inicioISO, finISO } = rangoTrimestre(year, q);
       const supabase = createClient();
 
-      const [ingresosRes, gastosRes, nominasRes] = await Promise.all([
-        supabase
-          .from("ingresos")
-          .select("base_imponible, porcentaje_iva")
-          .gte("created_at", inicioISO)
-          .lte("created_at", finISO),
+      const startMonth = (q - 1) * 3;
+      const [cierresPack, gastosRes, nominasRes] = await Promise.all([
+        Promise.all(
+          [0, 1, 2].map(async (offset) => {
+            const m = startMonth + offset;
+            const monthKey = `${year}-${String(m + 1).padStart(2, "0")}`;
+            try {
+              const { fetchCierres } = await import("@/lib/cierres");
+              return await fetchCierres(monthKey);
+            } catch {
+              return null;
+            }
+          }),
+        ),
         supabase
           .from("gastos")
           .select("base_imponible, porcentaje_iva")
@@ -59,10 +67,9 @@ export function FiscalView() {
 
       if (cancelled) return;
 
-      if (ingresosRes.error || gastosRes.error || nominasRes.error) {
+      if (gastosRes.error || nominasRes.error) {
         setError(
-          ingresosRes.error?.message ??
-            gastosRes.error?.message ??
+          gastosRes.error?.message ??
             nominasRes.error?.message ??
             "Error fiscal",
         );
@@ -70,9 +77,12 @@ export function FiscalView() {
         return;
       }
 
+      // IVA repercutido ≈ 10% sobre cierres TPV del trimestre
       let ventas = 0;
-      for (const i of ingresosRes.data ?? []) {
-        ventas += cuotaIva(Number(i.base_imponible), Number(i.porcentaje_iva));
+      for (const pack of cierresPack) {
+        const total = Number(pack?.monthTotals?.total) || 0;
+        const base = total / 1.1;
+        ventas += total - base;
       }
 
       let compras = 0;
@@ -116,7 +126,7 @@ export function FiscalView() {
             onClick={() => setQ(t)}
             className={`min-h-touch rounded-tpv text-sm font-bold transition active:scale-[0.98] ${
               q === t
-                ? "bg-azul-colombia text-white"
+                ? "bg-oro text-ink"
                 : "bg-card text-ink shadow-tpv"
             }`}
           >

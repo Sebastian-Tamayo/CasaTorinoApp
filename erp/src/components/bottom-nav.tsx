@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, LayoutGrid, PlusCircle, User } from "lucide-react";
+import { Home, LayoutGrid, PlusCircle, Receipt, User } from "lucide-react";
 
 const items = [
   { href: "/gestion", label: "Inicio", icon: Home, exact: true },
-  { href: "/gestion/nuevo", label: "Registrar", icon: PlusCircle, exact: false },
-  { href: "/gestion/mas", label: "Módulos", icon: LayoutGrid, exact: false },
+  { href: "/gestion/caja", label: "Caja", icon: Receipt, exact: false },
+  { href: "/gestion/nuevo", label: "Gasto", icon: PlusCircle, exact: false },
+  { href: "/gestion/mas", label: "Más", icon: LayoutGrid, exact: false },
   { href: "/gestion/perfil", label: "Perfil", icon: User, exact: false },
 ] as const;
 
-const erpPaths = [
+const masPaths = [
   "/gestion/mas",
   "/gestion/historial",
   "/gestion/documentos",
@@ -33,7 +34,7 @@ export function BottomNav() {
           const active = exact
             ? pathname === href
             : href === "/gestion/mas"
-              ? erpPaths.some(
+              ? masPaths.some(
                   (p) => pathname === p || pathname.startsWith(`${p}/`),
                 )
               : pathname === href || pathname.startsWith(`${href}/`);
@@ -43,9 +44,7 @@ export function BottomNav() {
               <Link
                 href={href}
                 className={`flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition ${
-                  active
-                    ? "text-azul-colombia"
-                    : "text-ink/45 active:text-ink/70"
+                  active ? "text-oro" : "text-ink/45 active:text-ink/70"
                 }`}
               >
                 <Icon

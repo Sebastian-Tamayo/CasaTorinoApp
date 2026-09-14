@@ -1,87 +1,111 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
   const router = useRouter();
+  const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
+  useEffect(() => {
+    // Siempre pedir PIN al abrir (como TPV / cocina)
+    void fetch("/api/erp-auth", {
+      method: "DELETE",
+      credentials: "same-origin",
+      cache: "no-store",
+    }).catch(() => {});
+  }, []);
+
+  async function tryPin(nextPin: string) {
+    if (nextPin.length < 4 || pending) return;
     setPending(true);
-
-    const formData = new FormData(e.currentTarget);
-    const email = String(formData.get("email") ?? "").trim();
-    const password = String(formData.get("password") ?? "");
-
+    setError(null);
     try {
-      const supabase = createClient();
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const r = await fetch("/api/erp-auth", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: nextPin }),
       });
-
-      if (authError) {
-        setError(authError.message);
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data.ok) {
+        setPin("");
+        setError(data.error || "PIN incorrecto");
         return;
       }
-
       router.push("/gestion");
       router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error inesperado");
+    } catch {
+      setError("No se pudo validar el PIN");
+      setPin("");
     } finally {
       setPending(false);
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit} className="flex w-full flex-col gap-4">
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium text-ink/70">Email</span>
-        <input
-          name="email"
-          type="email"
-          autoComplete="username"
-          required
-          inputMode="email"
-          className="min-h-touch rounded-tpv border border-ink/10 bg-card px-4 text-base text-ink outline-none ring-azul-colombia/30 focus:ring-2"
-          placeholder="tu@email.com"
-        />
-      </label>
+  function onDigit(d: string) {
+    if (pending) return;
+    setError(null);
+    if (d === "clear") {
+      setPin((p) => p.slice(0, -1));
+      return;
+    }
+    if (d === "ok") {
+      void tryPin(pin);
+      return;
+    }
+    if (!/^\d$/.test(d) || pin.length >= 4) return;
+    const next = pin + d;
+    setPin(next);
+    if (next.length === 4) setTimeout(() => void tryPin(next), 80);
+  }
 
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium text-ink/70">Contraseña</span>
-        <input
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          className="min-h-touch rounded-tpv border border-ink/10 bg-card px-4 text-base text-ink outline-none ring-azul-colombia/30 focus:ring-2"
-          placeholder="••••••••"
-        />
-      </label>
+  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "ok"];
+
+  return (
+    <div className="flex w-full flex-col items-center gap-4">
+      <p className="text-sm font-semibold text-ink/60">PIN del personal</p>
+      <div className="flex gap-3" aria-hidden>
+        {[0, 1, 2, 3].map((i) => (
+          <span
+            key={i}
+            className={`size-3 rounded-full border-2 ${
+              i < pin.length
+                ? "border-oro bg-oro"
+                : "border-ink/25 bg-transparent"
+            }`}
+          />
+        ))}
+      </div>
+
+      <div className="grid w-full grid-cols-3 gap-2">
+        {keys.map((k) => (
+          <button
+            key={k}
+            type="button"
+            disabled={pending}
+            onClick={() => onDigit(k)}
+            className="min-h-14 rounded-tpv border border-ink/10 bg-card text-xl font-extrabold text-ink shadow-tpv transition active:scale-[0.97] disabled:opacity-60"
+          >
+            {k === "clear" ? "Borrar" : k === "ok" ? "Entrar" : k}
+          </button>
+        ))}
+      </div>
 
       {error ? (
         <p
           role="alert"
-          className="rounded-tpv bg-rojo-colombia/10 px-3 py-2 text-sm text-rojo-colombia"
+          className="w-full rounded-tpv bg-rojo-colombia/10 px-3 py-2 text-center text-sm text-rojo-colombia"
         >
           {error}
         </p>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="min-h-touch mt-2 rounded-tpv bg-azul-colombia text-base font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
-      >
-        {pending ? "Entrando…" : "Entrar"}
-      </button>
-    </form>
+      <p className="text-center text-xs text-ink/45">
+        Mismo acceso que TPV / cocina · oficina del negocio
+      </p>
+    </div>
   );
 }

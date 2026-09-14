@@ -6,25 +6,25 @@
    ============================================================================= */
 
 :root {
-  /* Paleta base */
-  --cream: #faf6f0;
+  /* Paleta alineada con web / TPV / reservas */
+  --cream: #fff8e8;
   --ink: #1c2541;
   --card: #ffffff;
 
   /* Colores de marca */
-  --amarillo-colombia: #ffcd00;
+  --amarillo-colombia: #f5c518;
   --azul-colombia: #003087;
   --rojo-colombia: #c8102e;
   --azul-asturias: #0055a5;
   --rojo-espana: #aa151b;
   --esmeralda: #1b4d3e;
-  --oro: #e5a93c;
+  --oro: #f5c518;
 
   /* Semánticos */
   --background: var(--cream);
   --foreground: var(--ink);
-  --primary: var(--azul-colombia);
-  --accent: var(--amarillo-colombia);
+  --primary: var(--ink);
+  --accent: var(--oro);
   --danger: var(--rojo-colombia);
   --success: var(--esmeralda);
 }

@@ -1261,11 +1261,14 @@
       async function endJornada() {
         const t = state.jornada?.totals?.total
         const extra = Number.isFinite(t) ? `\nTotal actual: ${money(t)}` : ''
-        if (!confirm(`¿Fin de sesión / cerrar jornada?${extra}\n\nDespués podrás ver el Total de jornada.`)) return
+        if (!confirm(`¿Fin de sesión / cerrar jornada?${extra}\n\nEl total se enviará al ERP (Caja TPV) y podrás seguir consultándolo.`)) return
         try {
           const j = await window.CasaTorinoTpvJornada.end()
           paintJornadaStatus(j)
           openJornadaModal()
+          if (j?.cierre) {
+            alert('Sesión cerrada.\nTotal enviado al ERP → Caja TPV.')
+          }
         } catch (err) {
           console.warn('endJornada', err)
           if (err.data) paintJornadaStatus(err.data)

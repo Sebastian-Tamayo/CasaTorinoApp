@@ -97,6 +97,110 @@ async function writeEdge(state) {
   }
 }
 
+function madridMonthDay(ts) {
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Madrid',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+  const parts = Object.fromEntries(
+    fmt
+      .formatToParts(new Date(ts))
+      .filter((p) => p.type !== 'literal')
+      .map((p) => [p.type, p.value]),
+  )
+  return {
+    dayKey: `${parts.year}-${parts.month}-${parts.day}`,
+    monthKey: `${parts.year}-${parts.month}`,
+  }
+}
+
+/** Archiva / actualiza el cierre en Edge Config `cierres` para el ERP. */
+async function archiveToCierres(stateWithTotals) {
+  if (!EDGE_ID || !VERCEL_TOKEN) return null
+  const startedAt = Number(stateWithTotals.startedAt) || null
+  const endedAt = Number(stateWithTotals.endedAt) || Date.now()
+  const { dayKey, monthKey } = madridMonthDay(endedAt)
+  const totals = stateWithTotals.totals || buildTotals(stateWithTotals)
+  const cierre = {
+    id: `cierre-${startedAt || endedAt}`,
+    source: 'tpv',
+    startedAt,
+    endedAt,
+    dayKey,
+    monthKey,
+    totals,
+    salesCount: Array.isArray(stateWithTotals.sales)
+      ? stateWithTotals.sales.length
+      : 0,
+    salesPreview: Array.isArray(stateWithTotals.sales)
+      ? stateWithTotals.sales.slice(-30).map((s) => ({
+          id: s.id,
+          at: s.at,
+          mesa: s.mesa,
+          total: s.total,
+        }))
+      : [],
+    updatedAt: Date.now(),
+  }
+
+  const urlGet =
+    `https://api.vercel.com/v1/edge-config/${EDGE_ID}/item/cierres` +
+    (TEAM_ID ? `?teamId=${TEAM_ID}` : '')
+  let items = []
+  try {
+    const r = await fetch(urlGet, {
+      headers: { Authorization: `Bearer ${VERCEL_TOKEN}` },
+      cache: 'no-store',
+    })
+    if (r.ok) {
+      const data = await r.json()
+      const value =
+        data && typeof data === 'object' && 'value' in data ? data.value : data
+      items = Array.isArray(value?.items) ? value.items.slice() : []
+    }
+  } catch (err) {
+    console.warn('[tpv-jornada] read cierres', err)
+  }
+
+  const idx = items.findIndex((c) => c && c.id === cierre.id)
+  if (idx >= 0) items[idx] = cierre
+  else items.push(cierre)
+  items.sort((a, b) => (Number(b.endedAt) || 0) - (Number(a.endedAt) || 0))
+  while (items.length > 400) items.pop()
+
+  const urlPatch =
+    `https://api.vercel.com/v1/edge-config/${EDGE_ID}/items` +
+    (TEAM_ID ? `?teamId=${TEAM_ID}` : '')
+  const patch = await fetch(urlPatch, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${VERCEL_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      items: [
+        {
+          operation: 'upsert',
+          key: 'cierres',
+          value: {
+            kind: 'casa-torino-cierres',
+            items,
+            updatedAt: Date.now(),
+          },
+        },
+      ],
+    }),
+  })
+  if (!patch.ok) {
+    const text = await patch.text().catch(() => '')
+    console.warn('[tpv-jornada] archive cierres', patch.status, text.slice(0, 160))
+    return null
+  }
+  return cierre
+}
+
 async function getState() {
   if (memory && memory.updatedAt) return memory
   try {
@@ -439,9 +543,21 @@ module.exports = async function handler(req, res) {
 
       memory = state
       await writeEdge(state)
+
+      // Si la jornada está cerrada (fin de sesión o corrección), sincronizar al historial ERP
+      let cierre = null
+      if (state.status === 'ended') {
+        try {
+          const full = withTotals(state)
+          cierre = await archiveToCierres(full)
+        } catch (err) {
+          console.warn('[tpv-jornada] archive', err)
+        }
+      }
+
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify(withTotals(state)))
+      return res.end(JSON.stringify({ ...withTotals(state), cierre }))
     }
 
     res.statusCode = 405

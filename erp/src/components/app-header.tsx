@@ -21,7 +21,7 @@ export function AppHeader({ title }: AppHeaderProps) {
           {title ? (
             <p className="truncate text-xs font-medium text-ink/50">{title}</p>
           ) : (
-            <p className="font-accent text-lg leading-none text-esmeralda">
+            <p className="font-accent text-lg leading-none text-oro">
               ERP
             </p>
           )}
