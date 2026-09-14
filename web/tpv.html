@@ -1019,15 +1019,32 @@
       })
 
       paintPinDots()
-      // Siempre pedir PIN al abrir (no reutilizar cookie/sesión previa)
+      function lockTpvForPin(msg) {
+        document.body.classList.add('tpv-locked')
+        const gate = $('gate')
+        if (gate) gate.hidden = false
+        pinBuf = ''
+        paintPinDots()
+        if ($('gateErr')) $('gateErr').textContent = msg || 'Sesión caducada — introduce el PIN'
+        try { window.CasaTorinoTpvSync?.stop?.() } catch {}
+        try { window.CasaTorinoTpvJornada?.stopPolling?.() } catch {}
+        tpvStarted = false
+      }
+
+      // Reutilizar sesión si sigue viva (jornada 24h / varias pestañas).
+      // NUNCA borrar cookie al abrir: eso tumbaba cocina/TPV en paralelo.
       ;(async () => {
         try {
-          sessionStorage.removeItem(AUTH_KEY)
-          await fetch('/api/tpv-auth', {
-            method: 'DELETE',
+          const r = await fetch('/api/tpv-auth', {
+            method: 'GET',
             credentials: 'same-origin',
             cache: 'no-store',
           })
+          const data = await r.json().catch(() => ({}))
+          if (r.ok && data.ok) {
+            unlockTpv()
+            return
+          }
         } catch {}
         document.body.classList.add('tpv-locked')
         const gate = $('gate')
@@ -1525,6 +1542,10 @@
           try { navigator.vibrate?.([20, 30, 20]) } catch {}
         } catch (err) {
           console.warn('sendToKitchen', err)
+          if (err && err.status === 401) {
+            lockTpvForPin('Sesión caducada — introduce el PIN')
+            return
+          }
           alert('No se pudo enviar a cocina.\n' + (err.message || err))
         } finally {
           if (btn) btn.disabled = false
@@ -1678,6 +1699,10 @@
           alert('Aviso enviado a cocina: Siguiente plato')
         } catch (err) {
           console.warn('sendNextCourse', err)
+          if (err && err.status === 401) {
+            lockTpvForPin('Sesión caducada — introduce el PIN')
+            return
+          }
           alert('No se pudo avisar a cocina.\n' + (err.message || err))
         } finally {
           if (btn) btn.disabled = false
@@ -1903,18 +1928,24 @@
       load(); render(); tickClock()
       setInterval(tickClock, 30000)
 
-      window.CasaTorinoTpvJornada?.startPolling((j) => paintJornadaStatus(j))
+      window.CasaTorinoTpvJornada?.startPolling(
+        (j) => paintJornadaStatus(j),
+        () => lockTpvForPin('Sesión caducada — introduce el PIN'),
+      )
 
-      window.CasaTorinoTpvSync?.start((remote) => {
-        const prevJson = JSON.stringify(state.tables)
-        const nextJson = JSON.stringify(remote.tables || {})
-        if (prevJson === nextJson) return
-        state.tables = remote.tables || {}
-        const m = normalizeMesa(state.mesa)
-        if (m) loadMesaIntoState(m)
-        sessionStorage.setItem(KEY, JSON.stringify({ mesa: m, tables: state.tables }))
-        render()
-      })
+      window.CasaTorinoTpvSync?.start(
+        (remote) => {
+          const prevJson = JSON.stringify(state.tables)
+          const nextJson = JSON.stringify(remote.tables || {})
+          if (prevJson === nextJson) return
+          state.tables = remote.tables || {}
+          const m = normalizeMesa(state.mesa)
+          if (m) loadMesaIntoState(m)
+          sessionStorage.setItem(KEY, JSON.stringify({ mesa: m, tables: state.tables }))
+          render()
+        },
+        () => lockTpvForPin('Sesión caducada — introduce el PIN'),
+      )
       setTimeout(() => {
         if (!$('mesa').value) {
           const focusEl = window.matchMedia('(min-width: 1024px)').matches ? $('mesa') : ($('mesaTop') || $('mesa'))

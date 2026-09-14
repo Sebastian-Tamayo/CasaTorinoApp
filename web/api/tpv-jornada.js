@@ -17,10 +17,7 @@ const VERCEL_TOKEN = process.env.TPV_VERCEL_TOKEN
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'jornada'
 const SALES_MAX = 500
-const { getJson, setJson } = require('./_opsStore')
-
-/** @type {null | object} */
-let memory = null
+const { getJson, setJson, updateJson } = require('./_opsStore')
 
 function cors(req, res) {
   const origin = req.headers.origin || '*'
@@ -58,11 +55,10 @@ function authorized(req) {
 }
 
 async function readEdge() {
-  return getJson(ITEM_KEY, emptyState)
+  return getJson(ITEM_KEY, emptyState, { fresh: true })
 }
 
 async function writeEdge(state) {
-  memory = state
   await setJson(ITEM_KEY, state)
 }
 
@@ -113,75 +109,80 @@ async function archiveToCierres(stateWithTotals) {
     updatedAt: Date.now(),
   }
 
-  const store =
-    (await getJson('cierres', () => ({
-      kind: 'casa-torino-cierres',
-      items: [],
-      updatedAt: 0,
-    }))) || { items: [] }
-  let items = Array.isArray(store.items) ? store.items.slice() : []
-  const idx = items.findIndex((c) => c && c.id === cierre.id)
-  if (idx >= 0) items[idx] = cierre
-  else items.push(cierre)
-  items.sort((a, b) => (Number(b.endedAt) || 0) - (Number(a.endedAt) || 0))
-  while (items.length > 400) items.pop()
-  await setJson('cierres', {
-    kind: 'casa-torino-cierres',
-    items,
-    updatedAt: Date.now(),
-  })
+  await updateJson(
+    'cierres',
+    () => ({ kind: 'casa-torino-cierres', items: [], updatedAt: 0 }),
+    (store) => {
+      let items = Array.isArray(store.items) ? store.items.slice() : []
+      const idx = items.findIndex((c) => c && c.id === cierre.id)
+      if (idx >= 0) items[idx] = cierre
+      else items.push(cierre)
+      items.sort((a, b) => (Number(b.endedAt) || 0) - (Number(a.endedAt) || 0))
+      while (items.length > 400) items.pop()
+      return {
+        kind: 'casa-torino-cierres',
+        items,
+        updatedAt: Date.now(),
+      }
+    },
+  )
   return cierre
 }
 
-/** Alinea histórico KDS con inicio/fin de jornada. */
+/** Alinea histórico KDS con inicio/fin de jornada (RMW, no pisa pedidos vivos). */
 async function syncKitchenJornada(phase, state) {
   try {
-    const kitchen = await getJson('kitchen', () => ({
-      orders: [],
-      lastCompleted: null,
-      history: [],
-      historyDay: null,
-      jornadaId: null,
-      jornadaStartedAt: null,
-      updatedAt: 0,
-    }))
     const jId = `j-${state.startedAt || Date.now()}`
-    if (phase === 'start') {
-      kitchen.history = []
-      kitchen.lastCompleted = null
-      kitchen.historyDay = new Date(state.startedAt || Date.now())
-        .toISOString()
-        .slice(0, 10)
-      kitchen.jornadaId = jId
-      kitchen.jornadaStartedAt = Number(state.startedAt) || Date.now()
-    } else if (phase === 'end') {
-      kitchen.jornadaId = jId
-      kitchen.historyDay =
-        kitchen.historyDay || new Date().toISOString().slice(0, 10)
-    }
-    kitchen.updatedAt = Date.now()
-    await setJson('kitchen', kitchen)
+    await updateJson(
+      'kitchen',
+      () => ({
+        orders: [],
+        lastCompleted: null,
+        history: [],
+        historyDay: null,
+        jornadaId: null,
+        jornadaStartedAt: null,
+        updatedAt: 0,
+      }),
+      (kitchen) => {
+        if (!Array.isArray(kitchen.orders)) kitchen.orders = []
+        if (!Array.isArray(kitchen.history)) kitchen.history = []
+        if (phase === 'start') {
+          kitchen.history = []
+          kitchen.lastCompleted = null
+          kitchen.historyDay = new Date(state.startedAt || Date.now())
+            .toISOString()
+            .slice(0, 10)
+          kitchen.jornadaId = jId
+          kitchen.jornadaStartedAt = Number(state.startedAt) || Date.now()
+        } else if (phase === 'end') {
+          kitchen.jornadaId = jId
+          kitchen.historyDay =
+            kitchen.historyDay || new Date().toISOString().slice(0, 10)
+        }
+        kitchen.updatedAt = Date.now()
+        return kitchen
+      },
+    )
   } catch (err) {
     console.warn('[tpv-jornada] syncKitchen', err)
   }
 }
 
 async function getState() {
-  if (memory && memory.updatedAt) return memory
   try {
     const remote = await readEdge()
     if (remote && typeof remote === 'object') {
-      memory = {
+      return {
         ...emptyState(),
         ...remote,
         sales: Array.isArray(remote.sales) ? remote.sales : [],
       }
-      return memory
     }
   } catch (err) {
     console.warn('[tpv-jornada] readEdge', err)
   }
-  return memory || emptyState()
+  return emptyState()
 }
 
 function round2(n) {
@@ -508,7 +509,6 @@ module.exports = async function handler(req, res) {
         return res.end(JSON.stringify({ error: 'action inválida' }))
       }
 
-      memory = state
       await writeEdge(state)
 
       // Si la jornada está cerrada (fin de sesión o corrección), sincronizar al historial ERP

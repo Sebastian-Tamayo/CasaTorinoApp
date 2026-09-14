@@ -2,27 +2,21 @@
  * Casa Torino TPV — login por PIN (sin exponer el PIN en el frontend).
  *
  * POST /api/tpv-auth  { "pin": "...." }
- * Compara con process.env.TPV_PIN y, si es correcto, deja cookie de sesión.
- *
- * GET  /api/tpv-auth  → { ok: true/false } según cookie
+ * GET  /api/tpv-auth  → { ok }  (además renueva cookie si hay sesión = sliding)
  * DELETE /api/tpv-auth → cierra sesión
+ * POST /api/tpv-auth  { "refresh": true } → renueva si cookie válida
  */
 
 const PIN = process.env.TPV_PIN || ''
 const COOKIE = 'ct_tpv_session'
-// Sesión corta: solo para API tras introducir PIN en esta visita.
-// Las pantallas siempre vuelven a pedir PIN al abrirse.
-const MAX_AGE = 60 * 60 * 2 // 2 h
-
+// Cookie 24h + sliding renewal (heartbeat cliente cada 15 min)
+const MAX_AGE = 60 * 60 * 24 // 24 h
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', res.req?.headers?.origin || '*')
   res.setHeader('Access-Control-Allow-Credentials', 'true')
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS')
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'Content-Type, Cache-Control'
-  )
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Cache-Control')
   res.setHeader('Cache-Control', 'no-store')
 }
 
@@ -47,18 +41,17 @@ function setSession(res, on) {
   if (on) {
     res.setHeader(
       'Set-Cookie',
-      `${COOKIE}=1; Path=/; Max-Age=${MAX_AGE}; HttpOnly; SameSite=Lax; Secure`
+      `${COOKIE}=1; Path=/; Max-Age=${MAX_AGE}; HttpOnly; SameSite=Lax; Secure`,
     )
   } else {
     res.setHeader(
       'Set-Cookie',
-      `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure`
+      `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure`,
     )
   }
 }
 
 module.exports = async function handler(req, res) {
-  // Attach req for cors helper
   res.req = req
   cors(res)
   if (req.method === 'OPTIONS') {
@@ -68,9 +61,11 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
+      const ok = hasSession(req)
+      if (ok) setSession(res, true) // sliding renewal
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify({ ok: hasSession(req) }))
+      return res.end(JSON.stringify({ ok, maxAgeHours: 24 }))
     }
 
     if (req.method === 'DELETE') {
@@ -81,6 +76,21 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
+      const body = parseBody(req)
+
+      // Renovar sesión existente (heartbeat 24h)
+      if (body.refresh) {
+        if (!hasSession(req)) {
+          res.statusCode = 401
+          res.setHeader('Content-Type', 'application/json')
+          return res.end(JSON.stringify({ ok: false, error: 'Sesión caducada' }))
+        }
+        setSession(res, true)
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json')
+        return res.end(JSON.stringify({ ok: true, refreshed: true }))
+      }
+
       if (!PIN) {
         res.statusCode = 500
         res.setHeader('Content-Type', 'application/json')
@@ -88,10 +98,9 @@ module.exports = async function handler(req, res) {
           JSON.stringify({
             ok: false,
             error: 'TPV_PIN no configurado en el servidor',
-          })
+          }),
         )
       }
-      const body = parseBody(req)
       const pin = String(body.pin || '').trim()
       if (pin && pin === PIN) {
         setSession(res, true)

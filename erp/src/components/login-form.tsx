@@ -10,13 +10,22 @@ export function LoginForm() {
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    // Siempre pedir PIN al abrir (como TPV / cocina)
-    void fetch("/api/erp-auth", {
-      method: "DELETE",
-      credentials: "same-origin",
-      cache: "no-store",
-    }).catch(() => {});
-  }, []);
+    // Si la sesión sigue viva (24h sliding), entrar directo
+    void (async () => {
+      try {
+        const r = await fetch("/api/erp-auth", {
+          method: "GET",
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.ok) {
+          router.push("/gestion");
+          router.refresh();
+        }
+      } catch {}
+    })();
+  }, [router]);
 
   async function tryPin(nextPin: string) {
     if (nextPin.length < 4 || pending) return;

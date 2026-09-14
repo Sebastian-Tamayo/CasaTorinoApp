@@ -48,7 +48,7 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const state = await getJson(ITEM_KEY, emptyState)
+      const state = (await getJson(ITEM_KEY, emptyState, { fresh: true })) || emptyState()
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
       return res.end(JSON.stringify(state || emptyState()))
@@ -60,7 +60,7 @@ module.exports = async function handler(req, res) {
           ? JSON.parse(req.body || '{}')
           : req.body || {}
       const incomingAt = Number(body.updatedAt || Date.now())
-      const current = (await getJson(ITEM_KEY, emptyState)) || emptyState()
+      const current = (await getJson(ITEM_KEY, emptyState, { fresh: true })) || emptyState()
       if (Number(current.updatedAt || 0) > incomingAt) {
         res.statusCode = 200
         res.setHeader('Content-Type', 'application/json')

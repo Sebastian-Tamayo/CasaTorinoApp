@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { ERP_PIN_COOKIE } from "@/lib/erp-auth";
+import { ERP_PIN_COOKIE, ERP_PIN_MAX_AGE } from "@/lib/erp-auth";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -52,6 +52,17 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/gestion";
     return NextResponse.redirect(url);
+  }
+
+  // Sliding renewal PIN 24h mientras se navega el ERP
+  if (allowed) {
+    supabaseResponse.cookies.set(ERP_PIN_COOKIE, "1", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+      path: "/",
+      maxAge: ERP_PIN_MAX_AGE,
+    });
   }
 
   // user se consulta para refrescar cookies de sesión Supabase si existe

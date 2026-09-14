@@ -352,18 +352,34 @@
       }
 
       async function bootAuth() {
-        // Siempre pedir PIN al abrir (no reutilizar cookie/sesión previa)
+        // Reutilizar sesión si sigue viva (TPV + cocina a la vez, jornada 24h).
+        // Solo pedir PIN si no hay cookie válida — NUNCA borrar la sesión al abrir.
         try {
-          sessionStorage.removeItem(AUTH_KEY)
-          await fetch('/api/tpv-auth', {
-            method: 'DELETE',
+          const r = await fetch('/api/tpv-auth', {
+            method: 'GET',
             credentials: 'same-origin',
             cache: 'no-store',
           })
+          const data = await r.json().catch(() => ({}))
+          if (r.ok && data.ok) {
+            unlock()
+            return
+          }
         } catch {}
         document.body.classList.add('kds-locked')
         const gate = $('gate')
         if (gate) gate.hidden = false
+      }
+
+      function lockForPin(msg) {
+        document.body.classList.add('kds-locked')
+        const gate = $('gate')
+        if (gate) gate.hidden = false
+        pinBuf = ''
+        paintPinDots()
+        if ($('gateErr')) $('gateErr').textContent = msg || 'Sesión caducada — introduce el PIN'
+        try { window.CasaTorinoKitchenSync?.stop?.() } catch {}
+        started = false
       }
 
       $('gatePad')?.addEventListener('click', (e) => {
@@ -493,7 +509,7 @@
           <span>·</span>
           <span>Día: <strong>${escapeHtml(dayLabel(historyDay))}</strong></span>
           <span>·</span>
-          <span>Se borra a las <strong>09:00</strong></span>`
+          <span>Se renueva con el <strong>Inicio de jornada</strong> del TPV</span>`
         if (!history.length) {
           list.innerHTML = `<div class="hist-empty"><div>
             <i class="fa-solid fa-clipboard-list"></i>
@@ -605,6 +621,10 @@
           toast(`Mesa ${data.order?.mesa || ''} marcada como lista`)
           render()
         } catch (err) {
+          if (err && err.status === 401) {
+            lockForPin('Sesión caducada — introduce el PIN')
+            return
+          }
           toast('No se pudo completar: ' + (err.message || err))
           console.warn(err)
         } finally {
@@ -641,20 +661,23 @@
           const btn = e.target.closest('[data-complete]')
           if (btn) complete(btn.dataset.complete)
         })
-        window.CasaTorinoKitchenSync.start((payload) => {
-          orders = payload.orders || []
-          canUndo = Boolean(payload.canUndo)
-          applyHistory(payload)
-          if (payload.newOrders?.length) {
-            payload.newOrders.forEach((o) => flashIds.add(o.id))
-            beep()
-            setTimeout(() => {
-              payload.newOrders.forEach((o) => flashIds.delete(o.id))
-              render()
-            }, 1800)
-          }
-          render()
-        })
+        window.CasaTorinoKitchenSync.start(
+          (payload) => {
+            orders = payload.orders || []
+            canUndo = Boolean(payload.canUndo)
+            applyHistory(payload)
+            if (payload.newOrders?.length) {
+              payload.newOrders.forEach((o) => flashIds.add(o.id))
+              beep()
+              setTimeout(() => {
+                payload.newOrders.forEach((o) => flashIds.delete(o.id))
+                render()
+              }, 1800)
+            }
+            render()
+          },
+          () => lockForPin('Sesión caducada — introduce el PIN'),
+        )
         tickClocks()
         setInterval(tickClocks, 1000)
       }

@@ -1,12 +1,11 @@
 /**
- * Casa Torino TPV — sync de mesas entre dispositivos (móvil ↔ PC).
- * Usa /api/tpv-sync (Vercel + Edge Config) para que el pedido
- * de una mesa aparezca al momento en todos los dispositivos.
+ * Casa Torino TPV — sync mesas móvil ↔ PC (endurecido 24/7)
  */
 (() => {
   const API_URL = '/api/tpv-sync'
-  const POLL_MS = 1500
-  const PUSH_DEBOUNCE_MS = 400
+  const AUTH_URL = '/api/tpv-auth'
+  const POLL_MS = 1600
+  const PUSH_DEBOUNCE_MS = 450
   const CLIENT_ID =
     typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID()
@@ -18,16 +17,42 @@
   let pushTimer = null
   let pending = null
   let timer = null
+  let heartbeat = null
   let onRemote = null
+  let onAuthLost = null
+
+  function sleep(ms) {
+    return new Promise((r) => setTimeout(r, ms))
+  }
+
+  async function refreshSession() {
+    try {
+      await fetch(AUTH_URL, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh: true }),
+      })
+    } catch {}
+  }
 
   async function pull() {
-    const r = await fetch(API_URL, {
-      cache: 'no-store',
-      credentials: 'same-origin',
-      headers: { 'Cache-Control': 'no-store' },
-    })
-    if (!r.ok) throw new Error('sync GET ' + r.status)
-    return r.json()
+    let lastErr = null
+    for (let i = 1; i <= 3; i++) {
+      try {
+        const r = await fetch(API_URL, {
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: { 'Cache-Control': 'no-store' },
+        })
+        if (!r.ok) throw new Error('sync GET ' + r.status)
+        return await r.json()
+      } catch (err) {
+        lastErr = err
+        await sleep(200 * i)
+      }
+    }
+    throw lastErr || new Error('sync GET failed')
   }
 
   async function pushNow(tables, mesa) {
@@ -40,18 +65,33 @@
       updatedAt,
       clientId: CLIENT_ID,
     }
-    const r = await fetch(API_URL, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    })
-    if (!r.ok) throw new Error('sync POST ' + r.status)
-    const saved = await r.json().catch(() => body)
-    lastRemoteUpdatedAt = Number(saved.updatedAt || updatedAt)
-    return saved
+    let lastErr = null
+    for (let i = 1; i <= 3; i++) {
+      try {
+        const r = await fetch(API_URL, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        if (r.status === 401) {
+          if (typeof onAuthLost === 'function') onAuthLost()
+          const err = new Error('Sesión caducada — vuelve a poner el PIN')
+          err.status = 401
+          throw err
+        }
+        if (!r.ok) throw new Error('sync POST ' + r.status)
+        const saved = await r.json().catch(() => body)
+        lastRemoteUpdatedAt = Number(saved.updatedAt || updatedAt)
+        refreshSession()
+        return saved
+      } catch (err) {
+        lastErr = err
+        if (err.status === 401) throw err
+        await sleep(250 * i * i)
+      }
+    }
+    throw lastErr || new Error('sync POST failed')
   }
 
   function push(tables, mesa) {
@@ -102,11 +142,15 @@
     }
   }
 
-  function start(handler) {
+  function start(handler, authLostHandler) {
     onRemote = handler
+    onAuthLost = authLostHandler || null
     tick()
     if (timer) clearInterval(timer)
     timer = setInterval(tick, POLL_MS)
+    if (heartbeat) clearInterval(heartbeat)
+    heartbeat = setInterval(refreshSession, 15 * 60 * 1000)
+    refreshSession()
   }
 
   function stop() {
@@ -114,7 +158,9 @@
     timer = null
     if (pushTimer) clearTimeout(pushTimer)
     pushTimer = null
+    if (heartbeat) clearInterval(heartbeat)
+    heartbeat = null
   }
 
-  window.CasaTorinoTpvSync = { pull, push, start, stop, tick }
+  window.CasaTorinoTpvSync = { pull, push, start, stop, tick, refreshSession }
 })()

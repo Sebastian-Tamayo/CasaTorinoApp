@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 
 export const ERP_PIN_COOKIE = "ct_erp_session";
-export const ERP_PIN_MAX_AGE = 60 * 60 * 8; // 8 h jornada oficina
+export const ERP_PIN_MAX_AGE = 60 * 60 * 24; // 24 h ecosistema
 
 export function expectedErpPin() {
   return (

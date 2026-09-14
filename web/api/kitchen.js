@@ -5,14 +5,10 @@
  * GET  /api/kitchen
  * POST /api/kitchen  { action: create|complete|undo|resetHistory|syncJornada }
  *
- * Histórico:
- *   - Se limpia al «Inicio de jornada» del TPV (syncJornada / resetHistory)
- *   - También se puede alinear al Fin de sesión
+ * Escrituras con updateJson (RMW + reintento) para no perder Listo/comandas
+ * concurrentes en jornada 24/7.
  */
-const {
-  getJson,
-  setJson,
-} = require('./_opsStore')
+const { getJson, updateJson } = require('./_opsStore')
 
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'kitchen'
@@ -67,8 +63,7 @@ function parseBody(req) {
   return req.body
 }
 
-async function loadState() {
-  const value = await getJson(ITEM_KEY, emptyState)
+function normalizeState(value) {
   return {
     ...emptyState(),
     ...(value && typeof value === 'object' ? value : {}),
@@ -78,18 +73,9 @@ async function loadState() {
   }
 }
 
-async function saveState(state) {
-  const payload = {
-    orders: state.orders || [],
-    lastCompleted: state.lastCompleted || null,
-    history: state.history || [],
-    historyDay: state.historyDay || null,
-    jornadaId: state.jornadaId || null,
-    jornadaStartedAt: state.jornadaStartedAt || null,
-    updatedAt: state.updatedAt || Date.now(),
-  }
-  await setJson(ITEM_KEY, payload)
-  return payload
+async function loadState() {
+  const value = await getJson(ITEM_KEY, emptyState, { fresh: true })
+  return normalizeState(value)
 }
 
 function sanitizeItems(raw) {
@@ -141,6 +127,26 @@ function removeFromHistory(history, id) {
   return (history || []).filter((h) => h && h.id !== id)
 }
 
+/**
+ * Mutación RMW. Si mutator lanza { httpStatus }, no escribe y se propaga.
+ */
+async function mutate(mutator) {
+  let resultMeta = null
+  const next = await updateJson(ITEM_KEY, emptyState, async (raw) => {
+    const state = normalizeState(raw)
+    const out = await mutator(state)
+    resultMeta = out.meta || null
+    return out.state
+  })
+  return { state: normalizeState(next), meta: resultMeta }
+}
+
+function bizError(status, message) {
+  const err = new Error(message)
+  err.httpStatus = status
+  return err
+}
+
 module.exports = async function handler(req, res) {
   cors(req, res)
   if (req.method === 'OPTIONS') {
@@ -164,13 +170,6 @@ module.exports = async function handler(req, res) {
     if (req.method === 'POST') {
       const body = parseBody(req)
       const action = String(body.action || '').trim()
-      const state = await loadState()
-      let orders = Array.isArray(state.orders) ? state.orders.slice() : []
-      let lastCompleted = state.lastCompleted || null
-      let history = Array.isArray(state.history) ? state.history.slice() : []
-      let historyDay = state.historyDay || null
-      let jornadaId = state.jornadaId || null
-      let jornadaStartedAt = state.jornadaStartedAt || null
 
       if (action === 'create') {
         const incoming = body.order || body
@@ -182,45 +181,37 @@ module.exports = async function handler(req, res) {
           return res.end(JSON.stringify({ error: 'Falta mesa' }))
         }
 
-        // Aviso especial: siguiente plato (solo menús)
         if (kind === 'siguiente_plato') {
-          const now = new Date().toISOString()
-          const order = {
-            id:
-              String(incoming.id || '').trim() ||
-              `sp-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-            mesa,
-            status: 'pending_kitchen',
-            kind: 'siguiente_plato',
-            createdAt: now,
-            completedAt: null,
-            notes: String(incoming.notes || '¡SIGUIENTE PLATO!').trim(),
-            items: [
-              {
-                id: 'siguiente-plato',
-                name: '➡️ SIGUIENTE PLATO (MENÚ)',
-                qty: 1,
-                categoryType: 'comida',
-                catId: 'menus-dia',
-                note: String(incoming.menuName || 'Menú').trim(),
-              },
-            ],
-          }
-          orders = [order, ...orders].slice(0, ORDERS_MAX)
-          const next = {
-            orders,
-            lastCompleted,
-            history,
-            historyDay,
-            jornadaId,
-            jornadaStartedAt,
-            updatedAt: Date.now(),
-          }
-          await saveState(next)
+          const { state, meta } = await mutate((state) => {
+            const now = new Date().toISOString()
+            const order = {
+              id:
+                String(incoming.id || '').trim() ||
+                `sp-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+              mesa,
+              status: 'pending_kitchen',
+              kind: 'siguiente_plato',
+              createdAt: now,
+              completedAt: null,
+              notes: String(incoming.notes || '¡SIGUIENTE PLATO!').trim(),
+              items: [
+                {
+                  id: 'siguiente-plato',
+                  name: '➡️ SIGUIENTE PLATO (MENÚ)',
+                  qty: 1,
+                  categoryType: 'comida',
+                  catId: 'menus-dia',
+                  note: String(incoming.menuName || 'Menú').trim(),
+                },
+              ],
+            }
+            state.orders = [order, ...(state.orders || [])].slice(0, ORDERS_MAX)
+            return { state, meta: { order } }
+          })
           res.statusCode = 201
           res.setHeader('Content-Type', 'application/json')
           return res.end(
-            JSON.stringify({ ok: true, order, ...publicPayload(next) }),
+            JSON.stringify({ ok: true, order: meta.order, ...publicPayload(state) }),
           )
         }
 
@@ -232,102 +223,107 @@ module.exports = async function handler(req, res) {
             JSON.stringify({ error: 'Sin productos de comida para cocina' }),
           )
         }
-        const now = new Date().toISOString()
-        const order = {
-          id:
-            String(incoming.id || '').trim() ||
-            `k-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-          mesa,
-          status: 'pending_kitchen',
-          kind: 'order',
-          createdAt: now,
-          completedAt: null,
-          notes: String(incoming.notes || '').trim(),
-          items,
-        }
-        orders = [order, ...orders].slice(0, ORDERS_MAX)
-        const next = {
-          orders,
-          lastCompleted,
-          history,
-          historyDay,
-          jornadaId,
-          jornadaStartedAt,
-          updatedAt: Date.now(),
-        }
-        await saveState(next)
+
+        const { state, meta } = await mutate((state) => {
+          const now = new Date().toISOString()
+          const order = {
+            id:
+              String(incoming.id || '').trim() ||
+              `k-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+            mesa,
+            status: 'pending_kitchen',
+            kind: 'order',
+            createdAt: now,
+            completedAt: null,
+            notes: String(incoming.notes || '').trim(),
+            items,
+          }
+          state.orders = [order, ...(state.orders || [])].slice(0, ORDERS_MAX)
+          return { state, meta: { order } }
+        })
         res.statusCode = 201
         res.setHeader('Content-Type', 'application/json')
-        return res.end(JSON.stringify({ ok: true, order, ...publicPayload(next) }))
+        return res.end(
+          JSON.stringify({ ok: true, order: meta.order, ...publicPayload(state) }),
+        )
       }
 
       if (action === 'complete') {
         const id = String(body.id || '').trim()
-        const idx = orders.findIndex((o) => o && o.id === id)
-        if (idx < 0) {
-          res.statusCode = 404
+        try {
+          const { state, meta } = await mutate((state) => {
+            const orders = Array.isArray(state.orders) ? state.orders.slice() : []
+            const idx = orders.findIndex((o) => o && o.id === id)
+            if (idx < 0) throw bizError(404, 'Pedido no encontrado')
+            const done = {
+              ...orders[idx],
+              status: 'ready',
+              completedAt: new Date().toISOString(),
+            }
+            orders.splice(idx, 1)
+            state.orders = orders
+            state.lastCompleted = done
+            state.history = pushHistory(state.history, done)
+            return { state, meta: { order: done } }
+          })
+          res.statusCode = 200
           res.setHeader('Content-Type', 'application/json')
-          return res.end(JSON.stringify({ error: 'Pedido no encontrado' }))
+          return res.end(
+            JSON.stringify({
+              ok: true,
+              order: meta.order,
+              ...publicPayload(state),
+            }),
+          )
+        } catch (err) {
+          if (err.httpStatus) {
+            res.statusCode = err.httpStatus
+            res.setHeader('Content-Type', 'application/json')
+            return res.end(JSON.stringify({ error: err.message }))
+          }
+          throw err
         }
-        const done = {
-          ...orders[idx],
-          status: 'ready',
-          completedAt: new Date().toISOString(),
-        }
-        orders.splice(idx, 1)
-        lastCompleted = done
-        history = pushHistory(history, done)
-        const next = {
-          orders,
-          lastCompleted,
-          history,
-          historyDay,
-          jornadaId,
-          jornadaStartedAt,
-          updatedAt: Date.now(),
-        }
-        await saveState(next)
-        res.statusCode = 200
-        res.setHeader('Content-Type', 'application/json')
-        return res.end(
-          JSON.stringify({ ok: true, order: done, ...publicPayload(next) }),
-        )
       }
 
       if (action === 'undo') {
-        if (!lastCompleted || lastCompleted.status !== 'ready') {
-          res.statusCode = 400
+        try {
+          const { state, meta } = await mutate((state) => {
+            const lastCompleted = state.lastCompleted
+            if (!lastCompleted || lastCompleted.status !== 'ready') {
+              throw bizError(400, 'Nada que deshacer')
+            }
+            const restored = {
+              ...lastCompleted,
+              status: 'pending_kitchen',
+              completedAt: null,
+              restoredAt: new Date().toISOString(),
+            }
+            let orders = (state.orders || []).filter((o) => o.id !== restored.id)
+            orders = [restored, ...orders]
+            state.orders = orders
+            state.history = removeFromHistory(state.history, restored.id)
+            state.lastCompleted = null
+            return { state, meta: { order: restored } }
+          })
+          res.statusCode = 200
           res.setHeader('Content-Type', 'application/json')
-          return res.end(JSON.stringify({ error: 'Nada que deshacer' }))
+          return res.end(
+            JSON.stringify({
+              ok: true,
+              order: meta.order,
+              ...publicPayload(state),
+            }),
+          )
+        } catch (err) {
+          if (err.httpStatus) {
+            res.statusCode = err.httpStatus
+            res.setHeader('Content-Type', 'application/json')
+            return res.end(JSON.stringify({ error: err.message }))
+          }
+          throw err
         }
-        const restored = {
-          ...lastCompleted,
-          status: 'pending_kitchen',
-          completedAt: null,
-          restoredAt: new Date().toISOString(),
-        }
-        orders = orders.filter((o) => o.id !== restored.id)
-        orders = [restored, ...orders]
-        history = removeFromHistory(history, restored.id)
-        lastCompleted = null
-        const next = {
-          orders,
-          lastCompleted,
-          history,
-          historyDay,
-          jornadaId,
-          jornadaStartedAt,
-          updatedAt: Date.now(),
-        }
-        await saveState(next)
-        res.statusCode = 200
-        res.setHeader('Content-Type', 'application/json')
-        return res.end(
-          JSON.stringify({ ok: true, order: restored, ...publicPayload(next) }),
-        )
       }
 
-      // Inicio de jornada TPV → nuevo histórico limpio
       if (action === 'resetHistory' || action === 'syncJornada') {
         const phase = String(body.phase || 'start').toLowerCase()
         const jId =
@@ -335,33 +331,23 @@ module.exports = async function handler(req, res) {
           `j-${body.startedAt || Date.now()}`
         const startedAt = Number(body.startedAt) || Date.now()
 
-        if (phase === 'start') {
-          history = []
-          lastCompleted = null
-          historyDay = new Date(startedAt).toISOString().slice(0, 10)
-          jornadaId = jId
-          jornadaStartedAt = startedAt
-          // Opcional: no vaciar pedidos pendientes en curso
-        } else if (phase === 'end') {
-          // Fin de sesión: conserva histórico hasta el próximo inicio,
-          // pero marca la jornada cerrada
-          historyDay = historyDay || new Date().toISOString().slice(0, 10)
-          jornadaId = jId || jornadaId
-        }
-
-        const next = {
-          orders,
-          lastCompleted,
-          history,
-          historyDay,
-          jornadaId,
-          jornadaStartedAt,
-          updatedAt: Date.now(),
-        }
-        await saveState(next)
+        const { state } = await mutate((state) => {
+          if (phase === 'start') {
+            state.history = []
+            state.lastCompleted = null
+            state.historyDay = new Date(startedAt).toISOString().slice(0, 10)
+            state.jornadaId = jId
+            state.jornadaStartedAt = startedAt
+          } else if (phase === 'end') {
+            state.historyDay =
+              state.historyDay || new Date().toISOString().slice(0, 10)
+            state.jornadaId = jId || state.jornadaId
+          }
+          return { state }
+        })
         res.statusCode = 200
         res.setHeader('Content-Type', 'application/json')
-        return res.end(JSON.stringify({ ok: true, ...publicPayload(next) }))
+        return res.end(JSON.stringify({ ok: true, ...publicPayload(state) }))
       }
 
       res.statusCode = 400
