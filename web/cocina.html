@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Cocina · Casa Torino</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#0b0f14" />
+  <link rel="icon" type="image/jpeg" href="assets/logo.jpg" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --card: #151b24;
+      --card2: #1c2430;
+      --line: #2a3545;
+      --ink: #f4f7fb;
+      --muted: #9aa8b8;
+      --accent: #f5c518;
+      --ok: #22c55e;
+      --danger: #ff4d4f;
+      --flash: #38bdf8;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: Montserrat, system-ui, -apple-system, Segoe UI, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      overflow: hidden;
+    }
+    body.kds-locked .app { display: none; }
+    body:not(.kds-locked) .gate { display: none; }
+
+    .gate {
+      min-height: 100dvh; display: grid; place-items: center;
+      padding: 1.5rem; background: radial-gradient(circle at 30% 20%, #1a2330, #0b0f14 60%);
+    }
+    .gate-card {
+      width: min(380px, 100%); background: var(--card);
+      border: 1px solid var(--line); border-radius: 18px; padding: 1.4rem;
+      text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,.45);
+    }
+    .gate-card img { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); }
+    .gate-card h1 { margin: .85rem 0 .25rem; font-size: 1.55rem; }
+    .gate-card p { margin: 0 0 1rem; color: var(--muted); }
+    .gate-dots { display: flex; gap: .55rem; justify-content: center; margin-bottom: 1rem; }
+    .gate-dots i {
+      width: 12px; height: 12px; border-radius: 50%;
+      border: 2px solid #4b5a6d; display: block;
+    }
+    .gate-dots i.on { background: var(--accent); border-color: var(--accent); }
+    .gate-pad {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: .55rem;
+    }
+    .gate-pad button {
+      height: 56px; border-radius: 12px; border: 1px solid var(--line);
+      background: var(--card2); color: var(--ink); font-size: 1.25rem; font-weight: 800;
+      cursor: pointer;
+    }
+    .gate-pad button.ghost { font-size: .85rem; color: var(--muted); }
+    .gate-pad button:active { transform: scale(.97); }
+    .gate-err { min-height: 1.2rem; margin-top: .7rem; color: var(--danger); font-weight: 700; font-size: .9rem; }
+    .gate-back { display: inline-block; margin-top: .9rem; color: var(--muted); text-decoration: none; font-weight: 600; }
+
+    .app { height: 100dvh; display: grid; grid-template-rows: auto 1fr; }
+    .top {
+      display: flex; align-items: center; gap: .85rem; flex-wrap: wrap;
+      padding: .7rem .9rem; border-bottom: 1px solid var(--line);
+      background: #10161f; position: sticky; top: 0; z-index: 5;
+    }
+    .brand { display: flex; align-items: center; gap: .65rem; min-width: 0; }
+    .brand img { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 1px solid var(--accent); }
+    .brand strong { display: block; font-size: 1.05rem; }
+    .brand em { display: block; color: var(--muted); font-style: normal; font-size: .8rem; font-weight: 600; }
+    .spacer { flex: 1; }
+    .pill {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .45rem .75rem; border-radius: 999px;
+      background: var(--card2); border: 1px solid var(--line);
+      font-weight: 800; font-size: .92rem;
+    }
+    .pill.live i { color: var(--ok); animation: pulse 1.4s infinite; }
+    @keyframes pulse { 50% { opacity: .35; } }
+    .btn-undo, .btn-icon {
+      display: inline-flex; align-items: center; gap: .45rem;
+      height: 48px; padding: 0 .95rem; border-radius: 12px;
+      border: 1px solid var(--line); background: var(--card2);
+      color: var(--ink); font-weight: 800; font-size: .95rem; cursor: pointer;
+    }
+    .btn-undo { background: #2a1f0f; border-color: #6b4e16; color: var(--accent); }
+    .btn-undo:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-icon { width: 48px; justify-content: center; padding: 0; text-decoration: none; }
+
+    .board {
+      overflow: auto; padding: .9rem;
+      background:
+        linear-gradient(180deg, rgba(245,197,24,.04), transparent 120px),
+        var(--bg);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: .9rem;
+      align-content: start;
+    }
+    .empty {
+      grid-column: 1 / -1;
+      min-height: 50dvh; display: grid; place-items: center;
+      color: var(--muted); text-align: center; gap: .5rem;
+    }
+    .empty i { font-size: 2.4rem; color: #3b4a5c; }
+    .empty strong { display: block; font-size: 1.35rem; color: #d7e0ea; }
+
+    .ticket {
+      display: flex; flex-direction: column;
+      background: var(--card);
+      border: 2px solid #334155;
+      border-radius: 16px;
+      min-height: 280px;
+      overflow: hidden;
+      box-shadow: 0 10px 28px rgba(0,0,0,.35);
+      transition: box-shadow .25s ease, border-color .25s ease, transform .25s ease;
+    }
+    .ticket.new {
+      animation: ticketIn .45s ease, glow 1.6s ease;
+      border-color: var(--flash);
+    }
+    @keyframes ticketIn {
+      from { opacity: 0; transform: translateY(10px) scale(.98); }
+      to { opacity: 1; transform: none; }
+    }
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 10px 28px rgba(0,0,0,.35); }
+      30% { box-shadow: 0 0 0 3px rgba(56,189,248,.55), 0 16px 40px rgba(56,189,248,.25); }
+    }
+    .ticket.late { border-color: #f59e0b; }
+    .ticket.urgent { border-color: var(--danger); }
+
+    .ticket-h {
+      display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+      padding: .85rem 1rem;
+      background: #0f1720;
+      border-bottom: 1px solid var(--line);
+    }
+    .mesa-num {
+      font-size: clamp(2rem, 5vw, 2.7rem);
+      font-weight: 900; letter-spacing: .02em; line-height: 1;
+    }
+    .mesa-num span { display: block; font-size: .72rem; color: var(--muted); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .elapsed {
+      text-align: right; font-weight: 800; font-size: 1.15rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .elapsed small { display: block; color: var(--muted); font-size: .72rem; font-weight: 700; }
+    .ticket.late .elapsed { color: #fbbf24; }
+    .ticket.urgent .elapsed { color: #ff6b6b; }
+
+    .ticket-b { flex: 1; padding: .85rem 1rem 1rem; display: grid; gap: .55rem; align-content: start; }
+    .line {
+      display: grid; grid-template-columns: auto 1fr; gap: .55rem .7rem;
+      padding: .55rem .65rem; border-radius: 10px; background: var(--card2);
+      border: 1px solid #243041;
+    }
+    .qty {
+      font-size: 1.45rem; font-weight: 900; color: var(--accent);
+      min-width: 1.6ch; text-align: center; align-self: start; line-height: 1.1;
+    }
+    .pname { font-size: 1.12rem; font-weight: 800; line-height: 1.25; }
+    .pnote {
+      margin-top: .25rem; color: var(--danger);
+      font-style: italic; font-weight: 700; font-size: .95rem;
+    }
+    .order-notes {
+      margin-top: .15rem; padding: .65rem .7rem;
+      border-radius: 10px; border: 1px dashed #7f1d1d;
+      background: rgba(255,77,79,.08);
+      color: #ffb4b4; font-style: italic; font-weight: 700;
+    }
+
+    .ticket-f { padding: .75rem .85rem .9rem; border-top: 1px solid var(--line); }
+    .btn-ready {
+      width: 100%; height: 58px; border: 0; border-radius: 12px;
+      background: linear-gradient(180deg, #34d399, #16a34a);
+      color: #04140a; font-size: 1.2rem; font-weight: 900;
+      cursor: pointer; letter-spacing: .02em;
+      box-shadow: 0 8px 18px rgba(22,163,74,.35);
+    }
+    .btn-ready:active { transform: scale(.985); }
+    .btn-ready:disabled { opacity: .55; cursor: wait; }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 1.1rem; transform: translateX(-50%);
+      background: #0f172a; border: 1px solid var(--line); color: var(--ink);
+      padding: .7rem 1rem; border-radius: 999px; font-weight: 700;
+      opacity: 0; pointer-events: none; transition: .2s ease; z-index: 20;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body class="kds-locked">
+  <div class="gate" id="gate" role="dialog" aria-modal="true">
+    <div class="gate-card">
+      <img src="assets/logo.jpg" alt="Casa Torino" />
+      <h1>Acceso Cocina</h1>
+      <p>Introduce el PIN del personal</p>
+      <div class="gate-dots" id="gateDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div class="gate-pad" id="gatePad">
+        <button type="button" data-k="1">1</button>
+        <button type="button" data-k="2">2</button>
+        <button type="button" data-k="3">3</button>
+        <button type="button" data-k="4">4</button>
+        <button type="button" data-k="5">5</button>
+        <button type="button" data-k="6">6</button>
+        <button type="button" data-k="7">7</button>
+        <button type="button" data-k="8">8</button>
+        <button type="button" data-k="9">9</button>
+        <button type="button" class="ghost" data-k="clear">Borrar</button>
+        <button type="button" data-k="0">0</button>
+        <button type="button" class="ghost" data-k="ok">Entrar</button>
+      </div>
+      <div class="gate-err" id="gateErr" aria-live="polite"></div>
+      <a class="gate-back" href="interno.html"><i class="fa-solid fa-arrow-left"></i> Volver</a>
+    </div>
+  </div>
+
+  <div class="app">
+    <header class="top">
+      <div class="brand">
+        <img src="assets/logo.jpg" alt="" />
+        <div>
+          <strong>Cocina</strong>
+          <em>Monitor de pedidos · solo comida</em>
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <div class="pill live" id="livePill"><i class="fa-solid fa-circle"></i> En vivo</div>
+      <div class="pill" id="clock">--:--</div>
+      <div class="pill" id="countPill">0 pedidos</div>
+      <button class="btn-undo" id="btnUndo" type="button" disabled title="Recuperar último completado">
+        <i class="fa-solid fa-rotate-left"></i> Deshacer
+      </button>
+      <a class="btn-icon" href="interno.html" aria-label="Volver"><i class="fa-solid fa-arrow-left"></i></a>
+    </header>
+    <main class="board">
+      <div class="grid" id="grid"></div>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="kitchenSync.js"></script>
+  <script>
+    (() => {
+      const AUTH_KEY = 'casa-torino-tpv-auth-v1'
+      const $ = (id) => document.getElementById(id)
+      let pinBuf = ''
+      let started = false
+      let orders = []
+      let canUndo = false
+      let flashIds = new Set()
+      let completing = new Set()
+
+      function paintPinDots() {
+        ;($('gateDots')?.querySelectorAll('i') || []).forEach((d, i) => {
+          d.classList.toggle('on', i < pinBuf.length)
+        })
+      }
+
+      async function tryPin() {
+        const err = $('gateErr')
+        if (pinBuf.length < 4) {
+          if (err) err.textContent = 'PIN incompleto'
+          return
+        }
+        try {
+          const r = await fetch('/api/tpv-auth', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pin: pinBuf }),
+          })
+          const data = await r.json().catch(() => ({}))
+          if (!r.ok || !data.ok) throw new Error('bad')
+          unlock()
+        } catch {
+          if (err) err.textContent = 'PIN incorrecto'
+          pinBuf = ''
+          paintPinDots()
+        }
+      }
+
+      function unlock() {
+        try { sessionStorage.setItem(AUTH_KEY, '1') } catch {}
+        document.body.classList.remove('kds-locked')
+        const gate = $('gate')
+        if (gate) gate.hidden = true
+        if (!started) {
+          started = true
+          startKds()
+        }
+      }
+
+      async function bootAuth() {
+        try {
+          if (sessionStorage.getItem(AUTH_KEY) === '1') {
+            const r = await fetch('/api/tpv-auth', { credentials: 'same-origin', cache: 'no-store' })
+            const data = await r.json().catch(() => ({}))
+            if (data.ok) return unlock()
+            try { sessionStorage.removeItem(AUTH_KEY) } catch {}
+          }
+        } catch {}
+        document.body.classList.add('kds-locked')
+      }
+
+      $('gatePad')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-k]')
+        if (!btn) return
+        const k = btn.dataset.k
+        const err = $('gateErr')
+        if (err) err.textContent = ''
+        if (k === 'clear') pinBuf = ''
+        else if (k === 'ok') return tryPin()
+        else if (pinBuf.length < 4) pinBuf += k
+        paintPinDots()
+        if (pinBuf.length === 4) tryPin()
+      })
+
+      function toast(msg) {
+        const el = $('toast')
+        if (!el) return
+        el.textContent = msg
+        el.classList.add('show')
+        clearTimeout(toast._t)
+        toast._t = setTimeout(() => el.classList.remove('show'), 2200)
+      }
+
+      function beep() {
+        try {
+          const Ctx = window.AudioContext || window.webkitAudioContext
+          if (!Ctx) return
+          const ctx = beep._ctx || (beep._ctx = new Ctx())
+          const o = ctx.createOscillator()
+          const g = ctx.createGain()
+          o.type = 'sine'
+          o.frequency.value = 880
+          g.gain.value = 0.0001
+          o.connect(g); g.connect(ctx.destination)
+          const t = ctx.currentTime
+          g.gain.exponentialRampToValueAtTime(0.18, t + 0.02)
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28)
+          o.start(t); o.stop(t + 0.3)
+          // second chirp
+          setTimeout(() => {
+            const o2 = ctx.createOscillator()
+            const g2 = ctx.createGain()
+            o2.type = 'sine'
+            o2.frequency.value = 1175
+            g2.gain.value = 0.0001
+            o2.connect(g2); g2.connect(ctx.destination)
+            const t2 = ctx.currentTime
+            g2.gain.exponentialRampToValueAtTime(0.16, t2 + 0.02)
+            g2.gain.exponentialRampToValueAtTime(0.0001, t2 + 0.22)
+            o2.start(t2); o2.stop(t2 + 0.24)
+          }, 140)
+        } catch {}
+      }
+
+      function elapsedLabel(iso) {
+        const ms = Date.now() - new Date(iso).getTime()
+        const sec = Math.max(0, Math.floor(ms / 1000))
+        const m = Math.floor(sec / 60)
+        const s = sec % 60
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+      }
+
+      function urgencyClass(iso) {
+        const min = (Date.now() - new Date(iso).getTime()) / 60000
+        if (min >= 15) return 'urgent'
+        if (min >= 8) return 'late'
+        return ''
+      }
+
+      function groupItems(items) {
+        const map = new Map()
+        for (const it of items || []) {
+          const key = `${it.name}||${it.note || ''}`
+          const prev = map.get(key)
+          if (prev) prev.qty += Number(it.qty) || 1
+          else map.set(key, { name: it.name, qty: Number(it.qty) || 1, note: it.note || '' })
+        }
+        return [...map.values()]
+      }
+
+      function render() {
+        const grid = $('grid')
+        const count = $('countPill')
+        if (count) count.textContent = `${orders.length} pedido${orders.length === 1 ? '' : 's'}`
+        $('btnUndo').disabled = !canUndo
+        if (!orders.length) {
+          grid.innerHTML = `<div class="empty"><div><i class="fa-solid fa-kitchen-set"></i><strong>Sin pedidos de cocina</strong><div>Esperando comandas de comida desde el TPV…</div></div></div>`
+          return
+        }
+        const sorted = orders.slice().sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
+        grid.innerHTML = sorted.map((o) => {
+          const lines = groupItems(o.items).map((l) => `
+            <div class="line">
+              <div class="qty">${l.qty}</div>
+              <div>
+                <div class="pname">${escapeHtml(l.name)}</div>
+                ${l.note ? `<div class="pnote">${escapeHtml(l.note)}</div>` : ''}
+              </div>
+            </div>`).join('')
+          const notes = o.notes
+            ? `<div class="order-notes"><i class="fa-solid fa-comment-dots"></i> ${escapeHtml(o.notes)}</div>`
+            : ''
+          const neo = flashIds.has(o.id) ? 'new' : ''
+          const urg = urgencyClass(o.createdAt)
+          return `<article class="ticket ${neo} ${urg}" data-id="${escapeHtml(o.id)}">
+            <div class="ticket-h">
+              <div class="mesa-num"><span>Mesa</span>${escapeHtml(o.mesa)}</div>
+              <div class="elapsed" data-created="${escapeHtml(o.createdAt)}">${elapsedLabel(o.createdAt)}<small>transcurrido</small></div>
+            </div>
+            <div class="ticket-b">${lines}${notes}</div>
+            <div class="ticket-f">
+              <button class="btn-ready" type="button" data-complete="${escapeHtml(o.id)}">
+                <i class="fa-solid fa-check"></i> Listo
+              </button>
+            </div>
+          </article>`
+        }).join('')
+      }
+
+      function escapeHtml(s) {
+        return String(s || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+      }
+
+      function tickClocks() {
+        const now = new Date()
+        $('clock').textContent = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        document.querySelectorAll('.elapsed[data-created]').forEach((el) => {
+          el.childNodes[0].textContent = elapsedLabel(el.dataset.created)
+          const card = el.closest('.ticket')
+          if (card) {
+            card.classList.remove('late', 'urgent')
+            const cls = urgencyClass(el.dataset.created)
+            if (cls) card.classList.add(cls)
+          }
+        })
+      }
+
+      async function complete(id) {
+        if (!id || completing.has(id)) return
+        completing.add(id)
+        render()
+        try {
+          const data = await window.CasaTorinoKitchenSync.complete(id)
+          orders = Array.isArray(data.orders) ? data.orders : orders.filter((o) => o.id !== id)
+          canUndo = Boolean(data.canUndo)
+          flashIds.delete(id)
+          toast(`Mesa ${data.order?.mesa || ''} marcada como lista`)
+          render()
+        } catch (err) {
+          toast('No se pudo completar')
+          console.warn(err)
+        } finally {
+          completing.delete(id)
+          render()
+        }
+      }
+
+      async function undoLast() {
+        try {
+          const data = await window.CasaTorinoKitchenSync.undo()
+          orders = Array.isArray(data.orders) ? data.orders : orders
+          canUndo = Boolean(data.canUndo)
+          if (data.order?.id) {
+            flashIds.add(data.order.id)
+            setTimeout(() => { flashIds.delete(data.order.id); render() }, 1800)
+          }
+          toast('Último pedido recuperado')
+          beep()
+          render()
+        } catch (err) {
+          toast(err.message || 'Nada que deshacer')
+        }
+      }
+
+      function startKds() {
+        $('btnUndo').onclick = undoLast
+        $('grid').addEventListener('click', (e) => {
+          const btn = e.target.closest('[data-complete]')
+          if (btn) complete(btn.dataset.complete)
+        })
+        window.CasaTorinoKitchenSync.start((payload) => {
+          orders = payload.orders || []
+          canUndo = Boolean(payload.canUndo)
+          if (payload.newOrders?.length) {
+            payload.newOrders.forEach((o) => flashIds.add(o.id))
+            beep()
+            try { navigator.vibrate?.([40, 40, 40]) } catch {}
+            setTimeout(() => {
+              payload.newOrders.forEach((o) => flashIds.delete(o.id))
+              render()
+            }, 1800)
+          }
+          render()
+        })
+        tickClocks()
+        setInterval(tickClocks, 1000)
+      }
+
+      bootAuth()
+    })()
+  </script>
+</body>
+</html>

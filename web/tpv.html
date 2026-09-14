@@ -334,6 +334,35 @@
       padding: .85rem 1rem 1rem;
       display: grid; gap: .7rem;
     }
+
+    .notes-field {
+      margin-top: .55rem;
+      display: grid; gap: .35rem;
+      background: var(--card); border: 1px solid var(--line2); border-radius: 16px;
+      padding: .55rem .7rem .65rem;
+    }
+    .notes-field label {
+      font-size: .72rem; font-weight: 800; letter-spacing: .05em;
+      text-transform: uppercase; color: var(--gold);
+    }
+    .notes-field textarea {
+      width: 100%; border: 0; background: transparent; color: var(--ink);
+      font: inherit; font-weight: 600; font-size: .88rem; line-height: 1.35;
+      outline: none; resize: vertical; min-height: 2.6rem; max-height: 6.5rem;
+    }
+    .notes-field textarea::placeholder { color: #556273; font-weight: 600; }
+    .tax-box {
+      display: grid; gap: .28rem;
+      padding: .15rem 0 .1rem;
+    }
+    .tax-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      color: var(--muted); font-size: .8rem; font-weight: 700;
+    }
+    .tax-row strong {
+      color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 800;
+    }
+    .total-row.main strong { color: var(--gold); }
     .total-row {
       display: flex; justify-content: space-between; align-items: baseline;
     }
@@ -377,7 +406,26 @@
       background: linear-gradient(135deg, #2dd46f, #16a34a);
       color: #04140a; box-shadow: 0 10px 28px rgba(45,212,111,.28);
     }
+    .btn.k {
+      grid-column: 1 / -1;
+      background: linear-gradient(135deg, #fb923c, #ea580c);
+      color: #1a0a00; box-shadow: 0 10px 28px rgba(234,88,12,.28);
+      display: inline-flex; align-items: center; justify-content: center; gap: .45rem;
+    }
     .btn:active { transform: scale(.985); }
+    .btn:disabled { opacity: .55; cursor: wait; }
+    .tag-sent, .tag-drink, .tag-food {
+      display: inline-block; margin-left: .35rem;
+      font-size: .68rem; font-weight: 800; letter-spacing: .02em;
+      padding: .1rem .4rem; border-radius: 999px; text-transform: uppercase;
+      vertical-align: middle;
+    }
+    .tag-sent { background: rgba(34,197,94,.18); color: #86efac; }
+    .tag-drink { background: rgba(45,212,191,.15); color: #5eead4; }
+    .tag-food { background: rgba(251,146,60,.16); color: #fdba74; }
+    .line-note {
+      margin-top: .2rem; color: #ff8e8e; font-style: italic; font-weight: 700; font-size: .82rem;
+    }
 
     .fab {
       position: fixed; left: .85rem; right: .85rem; bottom: calc(.75rem + var(--safe-b));
@@ -621,10 +669,18 @@
             <label for="mesa">Mesa</label>
             <input id="mesa" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="nº de mesa" maxlength="4" autocomplete="off" />
           </div>
+          <div class="notes-field">
+            <label for="notes">Notas del pedido</label>
+            <textarea id="notes" rows="2" maxlength="280" placeholder="Ej. sin tomate, poco hecho, alergias…" autocomplete="off"></textarea>
+          </div>
         </div>
         <div class="lines" id="lines"><p class="empty">Pon el nº de mesa y toca productos.</p></div>
         <div class="check-f">
-          <div class="total-row"><span>Total</span><strong id="total">0,00 €</strong></div>
+          <div class="tax-box" id="taxBox">
+            <div class="tax-row"><span>Base imponible</span><strong id="base">0,00 €</strong></div>
+            <div class="tax-row"><span>IVA 10%</span><strong id="iva">0,00 €</strong></div>
+          </div>
+          <div class="total-row main"><span>Total (IVA incl.)</span><strong id="total">0,00 €</strong></div>
           <div class="tender" id="tender">
             <button type="button" data-cash="10">10 €</button>
             <button type="button" data-cash="20">20 €</button>
@@ -639,6 +695,7 @@
             <div class="cambio"><span>Cambio</span><strong id="change">—</strong></div>
           </div>
           <div class="actions">
+            <button class="btn k" id="btnKitchen" type="button"><i class="fa-solid fa-fire-burner"></i> Enviar a Cocina</button>
             <button class="btn g" id="btnClear2" type="button">Vaciar</button>
             <button class="btn p" id="btnDone" type="button">Cobrado</button>
           </div>
@@ -659,6 +716,7 @@
   <script src="tpv-data.js"></script>
   <script src="printService.js"></script>
   <script src="tpvSync.js"></script>
+  <script src="kitchenSync.js"></script>
   <script>
     (() => {
       const AUTH_KEY = 'casa-torino-tpv-auth-v1'
@@ -783,10 +841,12 @@
         cat: 'all',
         q: '',
         mesa: '',
+        notes: '',
         cart: {},
         hist: [],
         tables: {},
       }
+      const IVA_RATE = 0.10 // hostelería: comidas y bebidas 10%
 
       const all = () => catalog.flatMap((c) => c.items.map((i) => ({ ...i, catId: c.id })))
       const normalizeMesa = (v) => String(v || '').trim().replace(/\s+/g, '')
@@ -816,6 +876,7 @@
           state.tables[m] = {
             cart: state.cart,
             hist: state.hist,
+            notes: ($('notes')?.value || state.notes || '').trim(),
             paid: $('paid')?.value || '',
           }
         }
@@ -830,9 +891,11 @@
 
       function loadMesaIntoState(mesa) {
         const m = normalizeMesa(mesa)
-        const data = (m && state.tables[m]) || { cart: {}, hist: [], paid: '' }
+        const data = (m && state.tables[m]) || { cart: {}, hist: [], notes: '', paid: '' }
         state.cart = data.cart || {}
         state.hist = data.hist || []
+        state.notes = data.notes || ''
+        if ($('notes')) $('notes').value = state.notes
         if ($('paid')) $('paid').value = data.paid || ''
       }
 
@@ -843,6 +906,7 @@
           state.tables[prev] = {
             cart: state.cart,
             hist: state.hist,
+            notes: ($('notes')?.value || state.notes || '').trim(),
             paid: $('paid')?.value || '',
           }
         }
@@ -866,19 +930,48 @@
       }
 
       const lines = () => Object.values(state.cart)
+      const round2 = (n) => Math.round((+n + Number.EPSILON) * 100) / 100
       const totals = () => {
         const ls = lines()
+        const total = round2(ls.reduce((a, x) => a + x.qty * x.price, 0))
+        // Precios de carta con IVA incluido → desglose fiscal
+        const base = round2(total / (1 + IVA_RATE))
+        const iva = round2(total - base)
         return {
           ls,
           count: ls.reduce((a, x) => a + x.qty, 0),
-          total: ls.reduce((a, x) => a + x.qty * x.price, 0),
+          total,
+          base,
+          iva,
+          ivaRate: IVA_RATE,
         }
+      }
+
+      function categoryTypeOf(itemOrLine) {
+        if (itemOrLine?.categoryType === 'bebida' || itemOrLine?.categoryType === 'comida') {
+          return itemOrLine.categoryType
+        }
+        if (itemOrLine?.catId === 'bebidas') return 'bebida'
+        return 'comida'
       }
 
       function add(item) {
         if (!requireMesa()) return
+        const ctype = categoryTypeOf(item)
         if (state.cart[item.id]) state.cart[item.id].qty += 1
-        else state.cart[item.id] = { id: item.id, name: item.name, price: item.price, qty: 1, catId: item.catId }
+        else {
+          state.cart[item.id] = {
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            qty: 1,
+            catId: item.catId,
+            categoryType: ctype,
+            sentQty: 0,
+            note: '',
+          }
+        }
+        if (!state.cart[item.id].categoryType) state.cart[item.id].categoryType = ctype
         state.hist.push(item.id)
         persist(); render(); flash(item.id)
         try { navigator.vibrate?.(12) } catch {}
@@ -887,7 +980,11 @@
       function setQty(id, qty) {
         if (!state.cart[id]) return
         if (qty <= 0) delete state.cart[id]
-        else state.cart[id].qty = qty
+        else {
+          state.cart[id].qty = qty
+          // Si bajan unidades ya enviadas, ajustar sentQty
+          if ((state.cart[id].sentQty || 0) > qty) state.cart[id].sentQty = qty
+        }
         persist(); render()
       }
 
@@ -902,16 +999,78 @@
         const m = normalizeMesa(state.mesa)
         const label = m ? ` de la mesa ${m}` : ''
         if (!confirm(`¿Vaciar la cuenta${label}?`)) return
-        state.cart = {}; state.hist = []; $('paid').value = ''
+        state.cart = {}; state.hist = []; state.notes = ''
+        if ($('notes')) $('notes').value = ''
+        if ($('paid')) $('paid').value = ''
         persist(); render(); closeTicket()
       }
 
+      async function sendToKitchen() {
+        if (!requireMesa()) return
+        const m = normalizeMesa(state.mesa)
+        const notes = ($('notes')?.value || state.notes || '').trim()
+        const foodPending = []
+        for (const l of lines()) {
+          const ctype = categoryTypeOf(l)
+          if (ctype !== 'comida') continue
+          const sent = Number(l.sentQty || 0)
+          const pending = Math.max(0, Number(l.qty || 0) - sent)
+          if (pending <= 0) continue
+          foodPending.push({
+            id: l.id,
+            name: l.name,
+            qty: pending,
+            catId: l.catId || '',
+            categoryType: 'comida',
+            note: String(l.note || '').trim(),
+          })
+        }
+        if (!foodPending.length) {
+          const hasFood = lines().some((l) => categoryTypeOf(l) === 'comida')
+          const hasDrink = lines().some((l) => categoryTypeOf(l) === 'bebida')
+          if (hasFood) alert('Toda la comida de esta mesa ya está enviada a cocina.\nAñade más platos o espera.')
+          else if (hasDrink) alert('Solo hay bebidas en la cuenta.\nLas bebidas se quedan en barra y no van a cocina.')
+          else alert('La cuenta está vacía.')
+          return
+        }
+        const resumen = foodPending.map((x) => `${x.qty} × ${x.name}`).join('\n')
+        if (!confirm(`Mesa ${m}\nEnviar a cocina:\n\n${resumen}\n\n(Las bebidas no se envían)`)) return
+
+        const btn = $('btnKitchen')
+        if (btn) btn.disabled = true
+        try {
+          if (!window.CasaTorinoKitchenSync?.create) throw new Error('Sync cocina no cargado')
+          await window.CasaTorinoKitchenSync.create({
+            mesa: m,
+            notes,
+            status: 'pending_kitchen',
+            items: foodPending,
+          })
+          // Marcar como enviadas (siguen en la cuenta del TPV para cobrar)
+          for (const l of foodPending) {
+            const line = state.cart[l.id]
+            if (!line) continue
+            line.sentQty = Number(line.qty || 0)
+            line.categoryType = 'comida'
+          }
+          persist()
+          render()
+          try { navigator.vibrate?.([20, 30, 20]) } catch {}
+        } catch (err) {
+          console.warn('sendToKitchen', err)
+          alert('No se pudo enviar a cocina.\n' + (err.message || err))
+        } finally {
+          if (btn) btn.disabled = false
+        }
+      }
+
       async function done() {
-        const { ls, total, count } = totals()
+        const { ls, total, count, base, iva } = totals()
         if (!count) return
         const m = normalizeMesa(state.mesa)
+        const notes = ($('notes')?.value || state.notes || '').trim()
         const mesaTxt = m ? `Mesa ${m}\n` : ''
-        if (!confirm(`${mesaTxt}Cobrado ${money(total)}\n\n¿Imprimir ticket, abrir cajón y cerrar esta cuenta?`)) return
+        if (!confirm(`${mesaTxt}Cobrado ${money(total)}\nIVA 10%: ${money(iva)}\n\n¿Imprimir ticket, abrir cajón y cerrar esta cuenta?`)) return
 
         // Snapshot antes de vaciar (para el ticket)
         const cartItems = ls.map((l) => ({ name: l.name, qty: l.qty, price: l.price }))
@@ -919,6 +1078,10 @@
         const paid = parseFloat(String(paidRaw).replace(',', '.'))
         const meta = {
           mesa: m || undefined,
+          notes: notes || undefined,
+          base,
+          iva,
+          ivaRate: IVA_RATE,
           paid: Number.isFinite(paid) ? paid : undefined,
           change: Number.isFinite(paid) ? paid - total : undefined,
         }
@@ -928,8 +1091,10 @@
           await window.CasaTorinoPrint.printReceipt(cartItems, total, meta)
         }
 
-        state.cart = {}; state.hist = []; $('paid').value = ''
-        if (m) state.tables[m] = { cart: {}, hist: [], paid: '' }
+        state.cart = {}; state.hist = []; state.notes = ''
+        if ($('notes')) $('notes').value = ''
+        if ($('paid')) $('paid').value = ''
+        if (m) state.tables[m] = { cart: {}, hist: [], notes: '', paid: '' }
         persist(); render(); closeTicket()
       }
 
@@ -995,18 +1160,35 @@
       }
 
       function renderTicket() {
-        const { ls, total, count } = totals()
+        const { ls, total, count, base, iva } = totals()
         const m = normalizeMesa(state.mesa || $('mesa')?.value)
         $('btnUndo').disabled = !state.hist.length
         $('fabCount').textContent = String(count)
         $('fabTotal').textContent = money(total)
+        if ($('base')) $('base').textContent = money(base)
+        if ($('iva')) $('iva').textContent = money(iva)
         $('total').textContent = money(total)
         if ($('fabMesa')) $('fabMesa').textContent = m ? `Mesa ${m}` : ''
         $('lines').innerHTML = ls.length
-          ? ls.map((l) => `<div class="line">
+          ? ls.map((l) => {
+              const ctype = categoryTypeOf(l)
+              const sent = Number(l.sentQty || 0)
+              const tags = [
+                ctype === 'bebida'
+                  ? '<span class="tag-drink">barra</span>'
+                  : '<span class="tag-food">cocina</span>',
+                ctype === 'comida' && sent > 0
+                  ? `<span class="tag-sent">enviado ${Math.min(sent, l.qty)}/${l.qty}</span>`
+                  : '',
+              ].join('')
+              const note = l.note
+                ? `<div class="line-note">${String(l.note).replace(/</g, '&lt;')}</div>`
+                : ''
+              return `<div class="line">
               <div>
-                <div class="line-name">${l.name}</div>
+                <div class="line-name">${l.name}${tags}</div>
                 <div class="line-meta">${money(l.price)} · ud.</div>
+                ${note}
               </div>
               <div class="line-right">
                 <div class="line-sum">${money(l.price * l.qty)}</div>
@@ -1016,7 +1198,8 @@
                   <button type="button" data-act="+" data-id="${l.id}" aria-label="Añadir">+</button>
                 </div>
               </div>
-            </div>`).join('')
+            </div>`
+            }).join('')
           : `<p class="empty">${m ? `Cuenta de la mesa ${m} vacía.` : 'Pon el nº de mesa y toca productos.'}</p>`
         updateChange()
       }
@@ -1068,8 +1251,15 @@
       })
       bindMesa($('mesa'))
       bindMesa($('mesaTop'))
+      if ($('notes')) {
+        $('notes').addEventListener('input', () => {
+          state.notes = $('notes').value
+          persist()
+        })
+      }
       $('btnClear').onclick = clearCart
       $('btnClear2').onclick = clearCart
+      $('btnKitchen').onclick = sendToKitchen
       $('btnDone').onclick = done
       $('btnUndo').onclick = undo
       $('fab').onclick = openTicket

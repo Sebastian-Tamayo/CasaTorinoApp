@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import { STORE, cors, mapItem } from '../server/reservas-store.js'
+import {
+  cors,
+  listReservas,
+  createReserva,
+} from '../server/reservas-store.js'
 
 export default async function handler(req, res) {
   cors(res)
@@ -7,16 +11,16 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const r = await fetch(STORE)
-      if (!r.ok) throw new Error(`Store GET ${r.status}`)
-      const data = await r.json()
-      const items = (Array.isArray(data) ? data : []).map(mapItem)
-      items.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+      const items = await listReservas()
+      items.sort((a, b) =>
+        String(b.createdAt || '').localeCompare(String(a.createdAt || '')),
+      )
       return res.status(200).json(items)
     }
 
     if (req.method === 'POST') {
-      const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {}
+      const body =
+        typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {}
       if (!body.nombre || !String(body.nombre).trim()) {
         return res.status(400).json({ error: 'Nombre obligatorio' })
       }
@@ -35,18 +39,16 @@ export default async function handler(req, res) {
         updatedAt: now,
         creadoPor: String(body.creadoPor || 'personal'),
       }
-      const r = await fetch(STORE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(item),
-      })
-      if (!r.ok) throw new Error(`Store POST ${r.status}`)
-      return res.status(201).json(mapItem(await r.json()))
+      const saved = await createReserva(item)
+      return res.status(201).json(saved)
     }
 
     return res.status(405).json({ error: 'Método no permitido' })
   } catch (err) {
-    console.error(err)
-    return res.status(500).json({ error: 'Error del servidor de reservas' })
+    console.error('[reservas]', err)
+    return res.status(500).json({
+      error: 'Error del servidor de reservas',
+      detail: String(err && err.message ? err.message : err),
+    })
   }
 }
