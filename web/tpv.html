@@ -1141,11 +1141,92 @@
         dots.forEach((d, i) => d.classList.toggle('on', i < pinBuf.length))
       }
 
+      // —— Audio TPV (móvil/TV: hay que desbloquear con un toque) ——
+      let tpvAudioCtx = null
+      let tpvAudioUnlocked = false
+      let tpvBeepUrl = null
+
+      function buildBeepUrl() {
+        if (tpvBeepUrl) return tpvBeepUrl
+        try {
+          const sampleRate = 22050
+          const duration = 0.22
+          const n = Math.floor(sampleRate * duration)
+          const dataSize = n * 2
+          const buf = new ArrayBuffer(44 + dataSize)
+          const v = new DataView(buf)
+          const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)) }
+          w(0, 'RIFF')
+          v.setUint32(4, 36 + dataSize, true)
+          w(8, 'WAVE')
+          w(12, 'fmt ')
+          v.setUint32(16, 16, true)
+          v.setUint16(20, 1, true)
+          v.setUint16(22, 1, true)
+          v.setUint32(24, sampleRate, true)
+          v.setUint32(28, sampleRate * 2, true)
+          v.setUint16(32, 2, true)
+          v.setUint16(34, 16, true)
+          w(36, 'data')
+          v.setUint32(40, dataSize, true)
+          for (let i = 0; i < n; i++) {
+            const t = i / sampleRate
+            const env = Math.min(1, i / 180) * Math.min(1, (n - i) / 500)
+            // doble tono (alarma corta)
+            const sample =
+              (Math.sin(2 * Math.PI * 880 * t) * 0.35 + Math.sin(2 * Math.PI * 1320 * t) * 0.28) * env
+            v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, sample)) * 32767, true)
+          }
+          tpvBeepUrl = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }))
+        } catch {
+          tpvBeepUrl = null
+        }
+        return tpvBeepUrl
+      }
+
+      async function unlockTpvAudio() {
+        try {
+          const Ctx = window.AudioContext || window.webkitAudioContext
+          if (Ctx) {
+            if (!tpvAudioCtx) tpvAudioCtx = new Ctx()
+            if (tpvAudioCtx.state === 'suspended') {
+              await tpvAudioCtx.resume()
+            }
+            // Buffer silencioso: fuerza el desbloqueo real en iOS/Android/TV
+            if (!tpvAudioUnlocked && tpvAudioCtx.state === 'running') {
+              const buf = tpvAudioCtx.createBuffer(1, 1, 22050)
+              const src = tpvAudioCtx.createBufferSource()
+              src.buffer = buf
+              src.connect(tpvAudioCtx.destination)
+              src.start(0)
+              tpvAudioUnlocked = true
+            }
+          }
+        } catch {}
+        try {
+          const url = buildBeepUrl()
+          if (url) {
+            const a = new Audio(url)
+            a.volume = 0.01
+            a.muted = true
+            const p = a.play()
+            if (p && typeof p.then === 'function') {
+              await p.catch(() => {})
+              a.pause()
+              a.currentTime = 0
+              a.muted = false
+            }
+          }
+        } catch {}
+      }
+
       function unlockTpv() {
         try { sessionStorage.removeItem(AUTH_KEY) } catch {}
         document.body.classList.remove('tpv-locked')
         const gate = $('gate')
         if (gate) gate.hidden = true
+        // Tras PIN: reintentar desbloqueo (el toque del pad ya lo armó)
+        unlockTpvAudio()
         if (!tpvStarted) {
           tpvStarted = true
           startTpv()
@@ -1201,18 +1282,24 @@
         if (pinBuf.length === 4) setTimeout(tryPin, 80)
       }
 
+      // Desbloquear audio en el gesto del usuario (antes del fetch async del PIN)
+      $('gatePad')?.addEventListener('pointerdown', () => { unlockTpvAudio() }, { passive: true })
       $('gatePad')?.addEventListener('click', (e) => {
+        unlockTpvAudio()
         const b = e.target.closest('[data-k]')
         if (!b) return
         onPinKey(b.dataset.k)
       })
 
       window.addEventListener('keydown', (e) => {
+        unlockTpvAudio()
         if (!$('gate') || $('gate').hidden) return
         if (e.key === 'Backspace') { e.preventDefault(); onPinKey('clear'); return }
         if (e.key === 'Enter') { e.preventDefault(); onPinKey('ok'); return }
         if (/^\d$/.test(e.key)) onPinKey(e.key)
       })
+      document.addEventListener('pointerdown', () => { unlockTpvAudio() }, { passive: true })
+      document.addEventListener('touchstart', () => { unlockTpvAudio() }, { passive: true })
 
       paintPinDots()
       function lockTpvForPin(msg) {
@@ -2292,35 +2379,85 @@
 
       // —— Avisos cocina Listo → recoger mesa (cualquier camarero) ——
       const activePickups = new Map() // id -> pickup
+      let pickupAlarmTimer = null
 
-      function playPickupSound() {
+      async function playPickupSound() {
+        try { await unlockTpvAudio() } catch {}
+
+        // 1) HTMLAudio (más fiable en Chrome móvil / Android TV)
+        try {
+          const url = buildBeepUrl()
+          if (url) {
+            const playOnce = (delay, vol) => {
+              setTimeout(() => {
+                try {
+                  const a = new Audio(url)
+                  a.volume = vol
+                  a.play().catch(() => {})
+                } catch {}
+              }, delay)
+            }
+            playOnce(0, 1)
+            playOnce(280, 1)
+            playOnce(560, 1)
+          }
+        } catch {}
+
+        // 2) WebAudio (alarma más marcada)
         try {
           const Ctx = window.AudioContext || window.webkitAudioContext
           if (!Ctx) return
-          const ctx = playPickupSound._ctx || (playPickupSound._ctx = new Ctx())
-          if (ctx.state === 'suspended') ctx.resume().catch(() => {})
-          const seq = [
-            { f: 880, d: 0.14 },
-            { f: 1175, d: 0.16 },
-            { f: 1397, d: 0.22 },
+          const ctx = tpvAudioCtx || (tpvAudioCtx = new Ctx())
+          if (ctx.state === 'suspended') {
+            try { await ctx.resume() } catch {}
+          }
+          if (ctx.state !== 'running') return
+
+          const pattern = [
+            { f: 880, dur: 0.16, gap: 0.06, vol: 0.34 },
+            { f: 1175, dur: 0.16, gap: 0.06, vol: 0.36 },
+            { f: 1480, dur: 0.22, gap: 0.12, vol: 0.38 },
+            { f: 880, dur: 0.16, gap: 0.06, vol: 0.34 },
+            { f: 1480, dur: 0.28, gap: 0.0, vol: 0.40 },
           ]
           let t = ctx.currentTime + 0.02
-          for (const s of seq) {
+          for (const step of pattern) {
             const o = ctx.createOscillator()
             const g = ctx.createGain()
             o.type = 'square'
-            o.frequency.setValueAtTime(s.f, t)
+            o.frequency.setValueAtTime(step.f, t)
             g.gain.setValueAtTime(0.0001, t)
-            g.gain.exponentialRampToValueAtTime(0.22, t + 0.02)
-            g.gain.exponentialRampToValueAtTime(0.0001, t + s.d)
+            g.gain.exponentialRampToValueAtTime(step.vol, t + 0.02)
+            g.gain.exponentialRampToValueAtTime(0.0001, t + step.dur)
             o.connect(g)
             g.connect(ctx.destination)
             o.start(t)
-            o.stop(t + s.d + 0.02)
-            t += s.d + 0.05
+            o.stop(t + step.dur + 0.02)
+            t += step.dur + step.gap
           }
-          try { navigator.vibrate?.([100, 50, 100, 50, 180]) } catch {}
         } catch {}
+
+        try { navigator.vibrate?.([120, 60, 120, 60, 200, 80, 240]) } catch {}
+      }
+
+      function startPickupAlarmLoop() {
+        if (pickupAlarmTimer) return
+        // Repite mientras haya avisos (por si el primero falló o no se oyó)
+        pickupAlarmTimer = setInterval(() => {
+          if (!activePickups.size) {
+            clearInterval(pickupAlarmTimer)
+            pickupAlarmTimer = null
+            return
+          }
+          playPickupSound()
+        }, 3500)
+      }
+
+      function stopPickupAlarmLoop() {
+        if (pickupAlarmTimer) {
+          clearInterval(pickupAlarmTimer)
+          pickupAlarmTimer = null
+        }
       }
 
       function renderPickupAlert() {
@@ -2330,6 +2467,7 @@
         if (!list.length) {
           box.classList.remove('show')
           box.innerHTML = ''
+          stopPickupAlarmLoop()
           return
         }
         box.classList.add('show')
@@ -2345,6 +2483,7 @@
             </div>`,
           )
           .join('')
+        startPickupAlarmLoop()
       }
 
       async function dismissPickup(id) {
@@ -2359,6 +2498,7 @@
       }
 
       $('pickupAlert')?.addEventListener('click', (e) => {
+        unlockTpvAudio()
         const x = e.target.closest('[data-pickup-x]')
         const card = e.target.closest('[data-pickup]')
         const id = (x || card)?.dataset?.pickupX || (x || card)?.dataset?.pickup
