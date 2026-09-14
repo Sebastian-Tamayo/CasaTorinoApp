@@ -1,0 +1,9 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "ignoreCommand": "if [ -n \"$VERCEL_GIT_COMMIT_SHA\" ]; then echo '[reservas] Bloqueado rebuild desde Git — usar vercel deploy --prod'; exit 0; else exit 1; fi",
+  "rewrites": [
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}
