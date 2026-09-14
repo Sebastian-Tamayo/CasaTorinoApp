@@ -97,5 +97,7 @@
     create: (order) => post('create', { order }),
     complete: (id) => post('complete', { id }),
     undo: () => post('undo'),
+    syncJornada: (phase, payload = {}) =>
+      post('syncJornada', { phase, ...payload }),
   }
 })()

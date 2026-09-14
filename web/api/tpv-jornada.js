@@ -17,6 +17,7 @@ const VERCEL_TOKEN = process.env.TPV_VERCEL_TOKEN
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'jornada'
 const SALES_MAX = 500
+const { getJson, setJson } = require('./_opsStore')
 
 /** @type {null | object} */
 let memory = null
@@ -57,44 +58,12 @@ function authorized(req) {
 }
 
 async function readEdge() {
-  if (!EDGE_ID || !VERCEL_TOKEN) return null
-  const url =
-    `https://api.vercel.com/v1/edge-config/${EDGE_ID}/item/${ITEM_KEY}` +
-    (TEAM_ID ? `?teamId=${TEAM_ID}` : '')
-  const r = await fetch(url, {
-    headers: { Authorization: `Bearer ${VERCEL_TOKEN}` },
-    cache: 'no-store',
-  })
-  if (r.status === 404) return emptyState()
-  if (!r.ok) throw new Error('edge GET ' + r.status)
-  const data = await r.json()
-  if (data && typeof data === 'object' && 'value' in data && data.key === ITEM_KEY) {
-    return data.value || emptyState()
-  }
-  return data && typeof data === 'object' ? data : emptyState()
+  return getJson(ITEM_KEY, emptyState)
 }
 
 async function writeEdge(state) {
-  if (!EDGE_ID || !VERCEL_TOKEN) {
-    throw new Error('missing Edge Config env')
-  }
-  const url =
-    `https://api.vercel.com/v1/edge-config/${EDGE_ID}/items` +
-    (TEAM_ID ? `?teamId=${TEAM_ID}` : '')
-  const r = await fetch(url, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${VERCEL_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      items: [{ operation: 'upsert', key: ITEM_KEY, value: state }],
-    }),
-  })
-  if (!r.ok) {
-    const text = await r.text().catch(() => '')
-    throw new Error('edge PATCH ' + r.status + ' ' + text.slice(0, 200))
-  }
+  memory = state
+  await setJson(ITEM_KEY, state)
 }
 
 function madridMonthDay(ts) {
@@ -116,9 +85,8 @@ function madridMonthDay(ts) {
   }
 }
 
-/** Archiva / actualiza el cierre en Edge Config `cierres` para el ERP. */
+/** Archiva / actualiza el cierre en Blob `cierres` para el ERP. */
 async function archiveToCierres(stateWithTotals) {
-  if (!EDGE_ID || !VERCEL_TOKEN) return null
   const startedAt = Number(stateWithTotals.startedAt) || null
   const endedAt = Number(stateWithTotals.endedAt) || Date.now()
   const { dayKey, monthKey } = madridMonthDay(endedAt)
@@ -145,60 +113,57 @@ async function archiveToCierres(stateWithTotals) {
     updatedAt: Date.now(),
   }
 
-  const urlGet =
-    `https://api.vercel.com/v1/edge-config/${EDGE_ID}/item/cierres` +
-    (TEAM_ID ? `?teamId=${TEAM_ID}` : '')
-  let items = []
-  try {
-    const r = await fetch(urlGet, {
-      headers: { Authorization: `Bearer ${VERCEL_TOKEN}` },
-      cache: 'no-store',
-    })
-    if (r.ok) {
-      const data = await r.json()
-      const value =
-        data && typeof data === 'object' && 'value' in data ? data.value : data
-      items = Array.isArray(value?.items) ? value.items.slice() : []
-    }
-  } catch (err) {
-    console.warn('[tpv-jornada] read cierres', err)
-  }
-
+  const store =
+    (await getJson('cierres', () => ({
+      kind: 'casa-torino-cierres',
+      items: [],
+      updatedAt: 0,
+    }))) || { items: [] }
+  let items = Array.isArray(store.items) ? store.items.slice() : []
   const idx = items.findIndex((c) => c && c.id === cierre.id)
   if (idx >= 0) items[idx] = cierre
   else items.push(cierre)
   items.sort((a, b) => (Number(b.endedAt) || 0) - (Number(a.endedAt) || 0))
   while (items.length > 400) items.pop()
-
-  const urlPatch =
-    `https://api.vercel.com/v1/edge-config/${EDGE_ID}/items` +
-    (TEAM_ID ? `?teamId=${TEAM_ID}` : '')
-  const patch = await fetch(urlPatch, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${VERCEL_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      items: [
-        {
-          operation: 'upsert',
-          key: 'cierres',
-          value: {
-            kind: 'casa-torino-cierres',
-            items,
-            updatedAt: Date.now(),
-          },
-        },
-      ],
-    }),
+  await setJson('cierres', {
+    kind: 'casa-torino-cierres',
+    items,
+    updatedAt: Date.now(),
   })
-  if (!patch.ok) {
-    const text = await patch.text().catch(() => '')
-    console.warn('[tpv-jornada] archive cierres', patch.status, text.slice(0, 160))
-    return null
-  }
   return cierre
+}
+
+/** Alinea histórico KDS con inicio/fin de jornada. */
+async function syncKitchenJornada(phase, state) {
+  try {
+    const kitchen = await getJson('kitchen', () => ({
+      orders: [],
+      lastCompleted: null,
+      history: [],
+      historyDay: null,
+      jornadaId: null,
+      jornadaStartedAt: null,
+      updatedAt: 0,
+    }))
+    const jId = `j-${state.startedAt || Date.now()}`
+    if (phase === 'start') {
+      kitchen.history = []
+      kitchen.lastCompleted = null
+      kitchen.historyDay = new Date(state.startedAt || Date.now())
+        .toISOString()
+        .slice(0, 10)
+      kitchen.jornadaId = jId
+      kitchen.jornadaStartedAt = Number(state.startedAt) || Date.now()
+    } else if (phase === 'end') {
+      kitchen.jornadaId = jId
+      kitchen.historyDay =
+        kitchen.historyDay || new Date().toISOString().slice(0, 10)
+    }
+    kitchen.updatedAt = Date.now()
+    await setJson('kitchen', kitchen)
+  } catch (err) {
+    console.warn('[tpv-jornada] syncKitchen', err)
+  }
 }
 
 async function getState() {
@@ -374,6 +339,7 @@ module.exports = async function handler(req, res) {
           sales: [],
           updatedAt: now,
         }
+        await syncKitchenJornada('start', state)
       } else if (action === 'end') {
         if (state.status !== 'open') {
           res.statusCode = 409
@@ -392,6 +358,7 @@ module.exports = async function handler(req, res) {
           updatedAt: now,
           sales: Array.isArray(state.sales) ? state.sales : [],
         }
+        await syncKitchenJornada('end', state)
       } else if (action === 'sale') {
         if (state.status !== 'open') {
           res.statusCode = 409

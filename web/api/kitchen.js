@@ -1,24 +1,23 @@
 /**
  * Casa Torino — Kitchen Display (KDS)
- * Persistencia: Vercel Edge Config (misma que TPV), clave `kitchen`.
+ * Persistencia: Vercel Blob vía api/_opsStore.js (clave `kitchen`).
  *
- * GET  /api/kitchen  → { orders, history, historyDay, lastCompleted, canUndo, updatedAt }
- * POST /api/kitchen  → { action: 'create'|'complete'|'undo', ... }
+ * GET  /api/kitchen
+ * POST /api/kitchen  { action: create|complete|undo|resetHistory|syncJornada }
  *
- * Histórico del día:
- *   - Cada pedido marcado como Listo entra en `history`
- *   - Día de cocina: 09:00 → 09:00 (Europe/Madrid)
- *   - Al cruzar las 09:00 se vacía automáticamente
+ * Histórico:
+ *   - Se limpia al «Inicio de jornada» del TPV (syncJornada / resetHistory)
+ *   - También se puede alinear al Fin de sesión
  */
-const EDGE_ID = process.env.TPV_EDGE_CONFIG_ID
-const TEAM_ID = process.env.TPV_TEAM_ID
-const VERCEL_TOKEN = process.env.TPV_VERCEL_TOKEN
+const {
+  getJson,
+  setJson,
+} = require('./_opsStore')
+
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'kitchen'
 const HISTORY_MAX = 300
-
-/** @type {null | object} */
-let memory = null
+const ORDERS_MAX = 80
 
 function cors(req, res) {
   const origin = req.headers.origin || '*'
@@ -32,64 +31,15 @@ function cors(req, res) {
   res.setHeader('Cache-Control', 'no-store')
 }
 
-/** Día de cocina: de 09:00 a 09:00 (Europe/Madrid). */
-function kitchenDayId(now = new Date()) {
-  const fmt = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Europe/Madrid',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    hourCycle: 'h23',
-  })
-  const parts = Object.fromEntries(
-    fmt
-      .formatToParts(now)
-      .filter((p) => p.type !== 'literal')
-      .map((p) => [p.type, p.value]),
-  )
-  let y = Number(parts.year)
-  let m = Number(parts.month)
-  let d = Number(parts.day)
-  const hour = Number(parts.hour)
-  if (hour < 9) {
-    const dt = new Date(Date.UTC(y, m - 1, d))
-    dt.setUTCDate(dt.getUTCDate() - 1)
-    y = dt.getUTCFullYear()
-    m = dt.getUTCMonth() + 1
-    d = dt.getUTCDate()
-  }
-  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-}
-
 function emptyState() {
   return {
     orders: [],
     lastCompleted: null,
     history: [],
-    historyDay: kitchenDayId(),
+    historyDay: null,
+    jornadaId: null,
+    jornadaStartedAt: null,
     updatedAt: 0,
-  }
-}
-
-function applyDayRollover(state) {
-  const day = kitchenDayId()
-  const historyDay = state.historyDay || day
-  const history = Array.isArray(state.history) ? state.history : []
-  if (historyDay !== day) {
-    return {
-      ...state,
-      history: [],
-      historyDay: day,
-      updatedAt: Date.now(),
-      _rolled: true,
-    }
-  }
-  return {
-    ...state,
-    history,
-    historyDay: day,
-    _rolled: false,
   }
 }
 
@@ -117,88 +67,29 @@ function parseBody(req) {
   return req.body
 }
 
-async function readEdge() {
-  if (!EDGE_ID || !VERCEL_TOKEN) return emptyState()
-  const url =
-    `https://api.vercel.com/v1/edge-config/${EDGE_ID}/item/${ITEM_KEY}` +
-    (TEAM_ID ? `?teamId=${TEAM_ID}` : '')
-  const r = await fetch(url, {
-    headers: { Authorization: `Bearer ${VERCEL_TOKEN}` },
-    cache: 'no-store',
-  })
-  if (r.status === 404 || r.status === 204) return emptyState()
-  if (!r.ok) throw new Error('edge GET ' + r.status)
-  const text = await r.text()
-  if (!text || !text.trim()) return emptyState()
-  let data
-  try {
-    data = JSON.parse(text)
-  } catch {
-    return emptyState()
+async function loadState() {
+  const value = await getJson(ITEM_KEY, emptyState)
+  return {
+    ...emptyState(),
+    ...(value && typeof value === 'object' ? value : {}),
+    orders: Array.isArray(value?.orders) ? value.orders : [],
+    history: Array.isArray(value?.history) ? value.history : [],
+    lastCompleted: value?.lastCompleted || null,
   }
-  const value =
-    data && typeof data === 'object' && 'value' in data && data.key === ITEM_KEY
-      ? data.value
-      : data
-  if (!value || typeof value !== 'object') return emptyState()
-  return applyDayRollover({
-    orders: Array.isArray(value.orders) ? value.orders : [],
-    lastCompleted: value.lastCompleted || null,
-    history: Array.isArray(value.history) ? value.history : [],
-    historyDay: value.historyDay || kitchenDayId(),
-    updatedAt: Number(value.updatedAt || 0),
-  })
 }
 
-async function writeEdge(state) {
-  if (!EDGE_ID || !VERCEL_TOKEN) throw new Error('missing Edge Config env')
+async function saveState(state) {
   const payload = {
     orders: state.orders || [],
     lastCompleted: state.lastCompleted || null,
     history: state.history || [],
-    historyDay: state.historyDay || kitchenDayId(),
+    historyDay: state.historyDay || null,
+    jornadaId: state.jornadaId || null,
+    jornadaStartedAt: state.jornadaStartedAt || null,
     updatedAt: state.updatedAt || Date.now(),
   }
-  const url =
-    `https://api.vercel.com/v1/edge-config/${EDGE_ID}/items` +
-    (TEAM_ID ? `?teamId=${TEAM_ID}` : '')
-  let lastErr = null
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    const r = await fetch(url, {
-      method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${VERCEL_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        items: [{ operation: 'upsert', key: ITEM_KEY, value: payload }],
-      }),
-    })
-    if (r.ok) return
-    const text = await r.text().catch(() => '')
-    lastErr = new Error('edge PATCH ' + r.status + ' ' + text.slice(0, 180))
-    if (r.status !== 409 && r.status !== 429 && r.status < 500) break
-    await new Promise((resolve) => setTimeout(resolve, 100 * attempt))
-  }
-  throw lastErr || new Error('edge PATCH failed')
-}
-
-async function loadFresh() {
-  const remote = await readEdge()
-  if (remote._rolled) {
-    const next = { ...remote }
-    delete next._rolled
-    memory = next
-    try {
-      await writeEdge(next)
-    } catch (err) {
-      console.warn('[kitchen] rollover persist', err)
-    }
-    return next
-  }
-  delete remote._rolled
-  memory = remote
-  return remote
+  await setJson(ITEM_KEY, payload)
+  return payload
 }
 
 function sanitizeItems(raw) {
@@ -224,18 +115,20 @@ function sanitizeItems(raw) {
 
 function publicPayload(state) {
   const pending = (state.orders || []).filter(
-    (o) => o && o.status === 'pending_kitchen',
+    (o) => o && (o.status === 'pending_kitchen' || o.status === 'alert'),
   )
   const history = Array.isArray(state.history) ? state.history : []
   return {
     orders: pending,
     history,
-    historyDay: state.historyDay || kitchenDayId(),
+    historyDay: state.historyDay || null,
     historyCount: history.length,
+    jornadaId: state.jornadaId || null,
+    jornadaStartedAt: state.jornadaStartedAt || null,
     lastCompleted: state.lastCompleted || null,
     updatedAt: state.updatedAt || 0,
     canUndo: Boolean(state.lastCompleted),
-    purgeAt: '09:00 Europe/Madrid',
+    purgeAt: 'Inicio / fin de jornada TPV',
   }
 }
 
@@ -262,7 +155,7 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const state = await loadFresh()
+      const state = await loadState()
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
       return res.end(JSON.stringify(publicPayload(state)))
@@ -271,14 +164,66 @@ module.exports = async function handler(req, res) {
     if (req.method === 'POST') {
       const body = parseBody(req)
       const action = String(body.action || '').trim()
-      const state = await loadFresh()
+      const state = await loadState()
       let orders = Array.isArray(state.orders) ? state.orders.slice() : []
       let lastCompleted = state.lastCompleted || null
       let history = Array.isArray(state.history) ? state.history.slice() : []
-      const historyDay = state.historyDay || kitchenDayId()
+      let historyDay = state.historyDay || null
+      let jornadaId = state.jornadaId || null
+      let jornadaStartedAt = state.jornadaStartedAt || null
 
       if (action === 'create') {
         const incoming = body.order || body
+        const kind = String(incoming.kind || 'order').trim()
+        const mesa = String(incoming.mesa || '').trim()
+        if (!mesa) {
+          res.statusCode = 400
+          res.setHeader('Content-Type', 'application/json')
+          return res.end(JSON.stringify({ error: 'Falta mesa' }))
+        }
+
+        // Aviso especial: siguiente plato (solo menús)
+        if (kind === 'siguiente_plato') {
+          const now = new Date().toISOString()
+          const order = {
+            id:
+              String(incoming.id || '').trim() ||
+              `sp-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+            mesa,
+            status: 'pending_kitchen',
+            kind: 'siguiente_plato',
+            createdAt: now,
+            completedAt: null,
+            notes: String(incoming.notes || '¡SIGUIENTE PLATO!').trim(),
+            items: [
+              {
+                id: 'siguiente-plato',
+                name: '➡️ SIGUIENTE PLATO (MENÚ)',
+                qty: 1,
+                categoryType: 'comida',
+                catId: 'menus-dia',
+                note: String(incoming.menuName || 'Menú').trim(),
+              },
+            ],
+          }
+          orders = [order, ...orders].slice(0, ORDERS_MAX)
+          const next = {
+            orders,
+            lastCompleted,
+            history,
+            historyDay,
+            jornadaId,
+            jornadaStartedAt,
+            updatedAt: Date.now(),
+          }
+          await saveState(next)
+          res.statusCode = 201
+          res.setHeader('Content-Type', 'application/json')
+          return res.end(
+            JSON.stringify({ ok: true, order, ...publicPayload(next) }),
+          )
+        }
+
         const items = sanitizeItems(incoming.items)
         if (!items.length) {
           res.statusCode = 400
@@ -287,12 +232,6 @@ module.exports = async function handler(req, res) {
             JSON.stringify({ error: 'Sin productos de comida para cocina' }),
           )
         }
-        const mesa = String(incoming.mesa || '').trim()
-        if (!mesa) {
-          res.statusCode = 400
-          res.setHeader('Content-Type', 'application/json')
-          return res.end(JSON.stringify({ error: 'Falta mesa' }))
-        }
         const now = new Date().toISOString()
         const order = {
           id:
@@ -300,21 +239,23 @@ module.exports = async function handler(req, res) {
             `k-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
           mesa,
           status: 'pending_kitchen',
+          kind: 'order',
           createdAt: now,
           completedAt: null,
           notes: String(incoming.notes || '').trim(),
           items,
         }
-        orders = [order, ...orders].slice(0, 80)
+        orders = [order, ...orders].slice(0, ORDERS_MAX)
         const next = {
           orders,
           lastCompleted,
           history,
           historyDay,
+          jornadaId,
+          jornadaStartedAt,
           updatedAt: Date.now(),
         }
-        memory = next
-        await writeEdge(next)
+        await saveState(next)
         res.statusCode = 201
         res.setHeader('Content-Type', 'application/json')
         return res.end(JSON.stringify({ ok: true, order, ...publicPayload(next) }))
@@ -341,10 +282,11 @@ module.exports = async function handler(req, res) {
           lastCompleted,
           history,
           historyDay,
+          jornadaId,
+          jornadaStartedAt,
           updatedAt: Date.now(),
         }
-        memory = next
-        await writeEdge(next)
+        await saveState(next)
         res.statusCode = 200
         res.setHeader('Content-Type', 'application/json')
         return res.end(
@@ -373,15 +315,53 @@ module.exports = async function handler(req, res) {
           lastCompleted,
           history,
           historyDay,
+          jornadaId,
+          jornadaStartedAt,
           updatedAt: Date.now(),
         }
-        memory = next
-        await writeEdge(next)
+        await saveState(next)
         res.statusCode = 200
         res.setHeader('Content-Type', 'application/json')
         return res.end(
           JSON.stringify({ ok: true, order: restored, ...publicPayload(next) }),
         )
+      }
+
+      // Inicio de jornada TPV → nuevo histórico limpio
+      if (action === 'resetHistory' || action === 'syncJornada') {
+        const phase = String(body.phase || 'start').toLowerCase()
+        const jId =
+          String(body.jornadaId || '').trim() ||
+          `j-${body.startedAt || Date.now()}`
+        const startedAt = Number(body.startedAt) || Date.now()
+
+        if (phase === 'start') {
+          history = []
+          lastCompleted = null
+          historyDay = new Date(startedAt).toISOString().slice(0, 10)
+          jornadaId = jId
+          jornadaStartedAt = startedAt
+          // Opcional: no vaciar pedidos pendientes en curso
+        } else if (phase === 'end') {
+          // Fin de sesión: conserva histórico hasta el próximo inicio,
+          // pero marca la jornada cerrada
+          historyDay = historyDay || new Date().toISOString().slice(0, 10)
+          jornadaId = jId || jornadaId
+        }
+
+        const next = {
+          orders,
+          lastCompleted,
+          history,
+          historyDay,
+          jornadaId,
+          jornadaStartedAt,
+          updatedAt: Date.now(),
+        }
+        await saveState(next)
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json')
+        return res.end(JSON.stringify({ ok: true, ...publicPayload(next) }))
       }
 
       res.statusCode = 400

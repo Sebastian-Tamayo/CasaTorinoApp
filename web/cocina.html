@@ -165,6 +165,17 @@
     }
     .ticket.late { border-color: #f59e0b; }
     .ticket.urgent { border-color: var(--danger); }
+    .ticket.next-course {
+      border-color: #f59e0b;
+      box-shadow: 0 0 0 2px rgba(245,158,11,.35), 0 12px 40px rgba(0,0,0,.35);
+      background: linear-gradient(180deg, rgba(245,158,11,.18), rgba(17,24,32,.95));
+    }
+    .ticket.next-course .mesa-num span { color: #fbbf24; }
+    .next-banner {
+      margin: 0 0 .35rem; padding: .45rem .6rem; border-radius: 10px;
+      background: rgba(245,158,11,.2); color: #fde68a; font-weight: 800;
+      font-size: .82rem; letter-spacing: .03em; text-transform: uppercase;
+    }
 
     .ticket-h {
       display: flex; align-items: center; justify-content: space-between; gap: .5rem;
@@ -487,7 +498,7 @@
           list.innerHTML = `<div class="hist-empty"><div>
             <i class="fa-solid fa-clipboard-list"></i>
             <strong>Sin pedidos servidos aún</strong>
-            <div>Cuando pulses Listo, el pedido quedará aquí hasta las 09:00 del día siguiente.</div>
+            <div>El histórico se renueva con el <strong>Inicio de jornada</strong> del TPV (y se alinea al Fin de sesión).</div>
           </div></div>`
           return
         }
@@ -540,15 +551,19 @@
             : ''
           const neo = flashIds.has(o.id) ? 'new' : ''
           const urg = urgencyClass(o.createdAt)
-          return `<article class="ticket ${neo} ${urg}" data-id="${escapeHtml(o.id)}">
+          const isNext = o.kind === 'siguiente_plato'
+          const banner = isNext
+            ? `<div class="next-banner"><i class="fa-solid fa-bell"></i> Siguiente plato (menú)</div>`
+            : ''
+          return `<article class="ticket ${neo} ${urg}${isNext ? ' next-course' : ''}" data-id="${escapeHtml(o.id)}">
             <div class="ticket-h">
               <div class="mesa-num"><span>Mesa</span>${escapeHtml(o.mesa)}</div>
               <div class="elapsed" data-created="${escapeHtml(o.createdAt)}">${elapsedLabel(o.createdAt)}<small>transcurrido</small></div>
             </div>
-            <div class="ticket-b">${lines}${notes}</div>
+            <div class="ticket-b">${banner}${lines}${notes}</div>
             <div class="ticket-f">
               <button class="btn-ready" type="button" data-complete="${escapeHtml(o.id)}">
-                <i class="fa-solid fa-check"></i> Listo
+                <i class="fa-solid fa-check"></i> ${isNext ? 'Enterado' : 'Listo'}
               </button>
             </div>
           </article>`
@@ -590,7 +605,7 @@
           toast(`Mesa ${data.order?.mesa || ''} marcada como lista`)
           render()
         } catch (err) {
-          toast('No se pudo completar')
+          toast('No se pudo completar: ' + (err.message || err))
           console.warn(err)
         } finally {
           completing.delete(id)

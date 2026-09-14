@@ -548,7 +548,8 @@
         -webkit-overflow-scrolling: touch;
         padding-bottom: calc(1.75rem + var(--safe-b) + 88px);
       }
-      .search { display: none; }
+      .search { display: flex; flex: 1 1 auto; min-width: 0; width: auto; max-width: none; }
+      .search input { padding: .55rem .75rem .55rem 2rem; font-size: .9rem; }
       .clock { display: none; }
       .brand em { display: none; }
       .brand strong { font-size: .86rem; }
@@ -809,7 +810,7 @@
         <div class="clock" id="clock">--:--</div>
         <div class="search">
           <i class="fa-solid fa-magnifying-glass"></i>
-          <input id="search" type="search" placeholder="Buscar…" autocomplete="off" />
+          <input id="search" type="search" placeholder="Buscar producto…" autocomplete="off" enterkeyhint="search" />
         </div>
         <label class="mesa-chip" for="mesaTop">
           <span>Mesa</span>
@@ -877,6 +878,7 @@
           </div>
           <div class="actions">
             <button class="btn k" id="btnKitchen" type="button"><i class="fa-solid fa-fire-burner"></i> Enviar a Cocina</button>
+            <button class="btn k" id="btnNextCourse" type="button" hidden style="background:linear-gradient(180deg,#f59e0b,#d97706);"><i class="fa-solid fa-bell"></i> Siguiente plato</button>
             <button class="btn g" id="btnClear2" type="button">Vaciar</button>
             <button class="btn p" id="btnDone" type="button">Cobrado</button>
           </div>
@@ -1246,11 +1248,19 @@
       }
 
       async function startJornada() {
-        if (!confirm('¿Iniciar jornada?\nSe empieza a contabilizar todo lo cobrado desde ahora.')) return
+        if (!confirm('¿Iniciar jornada?\nSe empieza a contabilizar todo lo cobrado desde ahora.\nEl histórico de cocina se renueva.')) return
         try {
           const j = await window.CasaTorinoTpvJornada.start()
           paintJornadaStatus(j)
-          alert('Jornada iniciada.')
+          try {
+            await window.CasaTorinoKitchenSync?.syncJornada?.('start', {
+              startedAt: j.startedAt,
+              jornadaId: `j-${j.startedAt}`,
+            })
+          } catch (err) {
+            console.warn('sync cocina jornada', err)
+          }
+          alert('Jornada iniciada.\nHistórico de cocina renovado.')
         } catch (err) {
           console.warn('startJornada', err)
           if (err.data) paintJornadaStatus(err.data)
@@ -1265,6 +1275,15 @@
         try {
           const j = await window.CasaTorinoTpvJornada.end()
           paintJornadaStatus(j)
+          try {
+            await window.CasaTorinoKitchenSync?.syncJornada?.('end', {
+              startedAt: j.startedAt,
+              endedAt: j.endedAt,
+              jornadaId: `j-${j.startedAt}`,
+            })
+          } catch (err) {
+            console.warn('sync cocina fin', err)
+          }
           openJornadaModal()
           if (j?.cierre) {
             alert('Sesión cerrada.\nTotal enviado al ERP → Caja TPV.')
@@ -1604,11 +1623,65 @@
 
       function filtered() {
         const q = state.q.trim().toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
         return all().filter((i) => {
           if (state.cat !== 'all' && i.catId !== state.cat) return false
           if (!q) return true
-          return i.name.toLowerCase().includes(q) || (i.desc || '').toLowerCase().includes(q)
+          const name = (i.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          const desc = (i.desc || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          const base = (i.base || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          return name.includes(q) || desc.includes(q) || base.includes(q)
         })
+      }
+
+      function menuLinesInCart() {
+        return lines().filter((l) => l.catId === 'menus-dia')
+      }
+
+      function updateNextCourseBtn() {
+        const btn = $('btnNextCourse')
+        if (!btn) return
+        const menus = menuLinesInCart()
+        btn.hidden = menus.length === 0
+      }
+
+      async function sendNextCourse() {
+        if (!requireMesa()) return
+        const menus = menuLinesInCart()
+        if (!menus.length) {
+          alert('Siguiente plato solo aplica cuando hay un Menú del día en la cuenta.')
+          return
+        }
+        const m = normalizeMesa(state.mesa)
+        const menuName = menus.map((x) => `${x.qty} × ${x.name}`).join(', ')
+        if (!confirm(`Mesa ${m}\n¿Avisar a cocina: SIGUIENTE PLATO?\n\n${menuName}`)) return
+        const btn = $('btnNextCourse')
+        if (btn) btn.disabled = true
+        try {
+          if (!window.CasaTorinoKitchenSync?.create) throw new Error('Sync cocina no cargado')
+          await window.CasaTorinoKitchenSync.create({
+            mesa: m,
+            kind: 'siguiente_plato',
+            notes: '¡SIGUIENTE PLATO!',
+            menuName,
+            items: [{
+              id: 'siguiente-plato',
+              name: '➡️ SIGUIENTE PLATO (MENÚ)',
+              qty: 1,
+              categoryType: 'comida',
+              catId: 'menus-dia',
+              note: menuName,
+            }],
+          })
+          try { navigator.vibrate?.([30, 40, 30]) } catch {}
+          alert('Aviso enviado a cocina: Siguiente plato')
+        } catch (err) {
+          console.warn('sendNextCourse', err)
+          alert('No se pudo avisar a cocina.\n' + (err.message || err))
+        } finally {
+          if (btn) btn.disabled = false
+        }
       }
 
       function renderProducts() {
@@ -1652,6 +1725,7 @@
         if ($('iva')) $('iva').textContent = money(iva)
         $('total').textContent = money(total)
         if ($('fabMesa')) $('fabMesa').textContent = m ? `Mesa ${m}` : ''
+        updateNextCourseBtn()
         $('lines').innerHTML = ls.length
           ? ls.map((l) => {
               const ctype = categoryTypeOf(l)
@@ -1735,7 +1809,6 @@
         const line = state.cart[b.dataset.id]; if (!line) return
         setQty(b.dataset.id, b.dataset.act === '+' ? line.qty + 1 : line.qty - 1)
       })
-      $('search').addEventListener('input', () => { state.q = $('search').value; renderProducts() })
       $('paid').addEventListener('input', () => { persist(); updateChange() })
       $('tender').addEventListener('click', (e) => {
         const b = e.target.closest('[data-cash]'); if (!b) return
@@ -1755,10 +1828,22 @@
       $('btnClear').onclick = clearCart
       $('btnClear2').onclick = clearCart
       $('btnKitchen').onclick = sendToKitchen
+      $('btnNextCourse').onclick = sendNextCourse
       $('btnDone').onclick = done
       $('btnUndo').onclick = undo
       $('fab').onclick = openTicket
       $('backdrop').onclick = closeTicket
+      $('search').addEventListener('input', () => {
+        state.q = $('search').value
+        if (state.q.trim() && state.cat !== 'all') {
+          state.cat = 'all'
+          renderCats()
+        }
+        renderProducts()
+      })
+      $('search').addEventListener('focus', () => {
+        if (window.matchMedia('(max-width: 720px)').matches) closeTicket()
+      })
       $('btnJornadaStart').onclick = startJornada
       $('btnJornadaEnd').onclick = endJornada
       $('btnJornadaTotal').onclick = async () => {
@@ -1820,17 +1905,13 @@
 
       window.CasaTorinoTpvJornada?.startPolling((j) => paintJornadaStatus(j))
 
-      // Actualización en vivo entre dispositivos
       window.CasaTorinoTpvSync?.start((remote) => {
         const prevJson = JSON.stringify(state.tables)
         const nextJson = JSON.stringify(remote.tables || {})
         if (prevJson === nextJson) return
         state.tables = remote.tables || {}
         const m = normalizeMesa(state.mesa)
-        if (m) {
-          loadMesaIntoState(m)
-        }
-        // No re-push inmediato: solo pintar lo recibido
+        if (m) loadMesaIntoState(m)
         sessionStorage.setItem(KEY, JSON.stringify({ mesa: m, tables: state.tables }))
         render()
       })
