@@ -236,6 +236,41 @@
       opacity: 0; pointer-events: none; transition: .2s ease; z-index: 20;
     }
     .toast.show { opacity: 1; }
+
+    /* —— Responsive: móvil → portátil 14" → escritorio —— */
+    @media (max-width: 720px) {
+      .top { gap: .5rem; padding: .55rem .65rem; }
+      .brand em { display: none; }
+      .btn-undo, .btn-hist { height: 42px; padding: 0 .7rem; font-size: .82rem; }
+      .btn-icon { width: 42px; height: 42px; }
+      .grid { grid-template-columns: 1fr; gap: .7rem; }
+      .ticket { min-height: 0; }
+      .mesa-num { font-size: clamp(1.7rem, 8vw, 2.2rem); }
+      .btn-ready { height: 52px; font-size: 1.05rem; }
+    }
+    @media (min-width: 721px) and (max-width: 1100px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .top { gap: .55rem; }
+    }
+    @media (min-width: 1101px) {
+      .grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+    }
+    /* Portátil bajo (14" 768px alto): que quepan tickets + Listo */
+    @media (max-height: 860px) {
+      body { overflow: hidden; }
+      .app { height: 100dvh; }
+      .top { padding: .45rem .7rem; flex-wrap: nowrap; overflow-x: auto; }
+      .ticket { min-height: 0; }
+      .ticket-h { padding: .55rem .75rem; }
+      .ticket-b { padding: .55rem .75rem .65rem; gap: .4rem; }
+      .btn-ready { height: 48px; font-size: 1.05rem; }
+      .pname { font-size: 1rem; }
+      .qty { font-size: 1.2rem; }
+    }
+    @media (max-width: 420px) {
+      .gate-card { padding: 1.1rem; }
+      .gate-pad button { height: 52px; }
+    }
   </style>
 </head>
 <body class="kds-locked">
@@ -352,23 +387,14 @@
       }
 
       async function bootAuth() {
-        // Reutilizar sesión si sigue viva (TPV + cocina a la vez, jornada 24h).
-        // Solo pedir PIN si no hay cookie válida — NUNCA borrar la sesión al abrir.
-        try {
-          const r = await fetch('/api/tpv-auth', {
-            method: 'GET',
-            credentials: 'same-origin',
-            cache: 'no-store',
-          })
-          const data = await r.json().catch(() => ({}))
-          if (r.ok && data.ok) {
-            unlock()
-            return
-          }
-        } catch {}
+        // Siempre pedir PIN al entrar (cada carga). Sin auto-unlock por cookie.
+        // No DELETE: evita tumbar TPV/otras pestañas en paralelo.
         document.body.classList.add('kds-locked')
         const gate = $('gate')
         if (gate) gate.hidden = false
+        pinBuf = ''
+        paintPinDots()
+        if ($('gateErr')) $('gateErr').textContent = ''
       }
 
       function lockForPin(msg) {

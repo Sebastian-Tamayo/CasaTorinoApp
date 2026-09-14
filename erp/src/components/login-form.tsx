@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export function LoginForm() {
@@ -9,23 +9,7 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  useEffect(() => {
-    // Si la sesión sigue viva (24h sliding), entrar directo
-    void (async () => {
-      try {
-        const r = await fetch("/api/erp-auth", {
-          method: "GET",
-          credentials: "same-origin",
-          cache: "no-store",
-        });
-        const data = await r.json().catch(() => ({}));
-        if (r.ok && data.ok) {
-          router.push("/gestion");
-          router.refresh();
-        }
-      } catch {}
-    })();
-  }, [router]);
+  // Siempre mostrar teclado PIN al entrar — sin auto-login por cookie.
 
   async function tryPin(nextPin: string) {
     if (nextPin.length < 4 || pending) return;
@@ -44,6 +28,9 @@ export function LoginForm() {
         setError(data.error || "PIN incorrecto");
         return;
       }
+      try {
+        sessionStorage.setItem("casa-torino-erp-unlocked", "1");
+      } catch {}
       router.push("/gestion");
       router.refresh();
     } catch {
@@ -113,7 +100,7 @@ export function LoginForm() {
       ) : null}
 
       <p className="text-center text-xs text-ink/45">
-        Mismo acceso que TPV / cocina · oficina del negocio
+        Mismo acceso que TPV / cocina · se pide PIN en cada entrada
       </p>
     </div>
   );

@@ -265,15 +265,9 @@
       }
 
       async function boot() {
-        // Siempre pedir PIN al abrir Gestión interna
-        try {
-          sessionStorage.removeItem('casa-torino-tpv-auth-v1')
-          await fetch('/api/tpv-auth', {
-            method: 'DELETE',
-            credentials: 'same-origin',
-            cache: 'no-store',
-          })
-        } catch {}
+        // Siempre pedir PIN al abrir Gestión interna (cada carga).
+        // No DELETE: no invalidar TPV/cocina abiertos en otra pestaña.
+        try { sessionStorage.removeItem('casa-torino-tpv-auth-v1') } catch {}
         lock()
       }
 

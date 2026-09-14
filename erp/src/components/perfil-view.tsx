@@ -17,6 +17,9 @@ export function PerfilView() {
         method: "DELETE",
         credentials: "same-origin",
       });
+      try {
+        sessionStorage.removeItem("casa-torino-erp-unlocked");
+      } catch {}
       router.replace("/login");
       router.refresh();
     } catch (err) {

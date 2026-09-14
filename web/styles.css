@@ -38,7 +38,10 @@ body {
 }
 img { max-width: 100%; display: block; }
 a { color: inherit; }
-.container { width: min(1120px, calc(100% - 2rem)); margin: 0 auto; }
+.container { width: min(1120px, calc(100% - 1.25rem)); margin: 0 auto; }
+@media (min-width: 640px) {
+  .container { width: min(1120px, calc(100% - 2rem)); }
+}
 
 .site-header {
   position: sticky; top: 0; z-index: 40;
@@ -489,6 +492,10 @@ a { color: inherit; }
 .footer-links { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
 .footer-links a { color: var(--blue); text-decoration: none; font-weight: 600; }
 
+@media (max-width: 1100px) {
+  .nav-wrap { min-height: 64px; gap: .65rem; }
+  .brand img { width: 42px; height: 42px; }
+}
 @media (max-width: 900px) {
   .hero-grid,
   .terraza-layout,
@@ -522,4 +529,11 @@ a { color: inherit; }
   .equipo-grid img { height: 250px; }
   .site-header { position: sticky; }
   .nav-wrap { position: relative; }
+}
+@media (max-height: 720px) {
+  .carta-scroll { max-height: min(55vh, 420px); }
+}
+@media (max-width: 480px) {
+  .brand span { font-size: .92rem; }
+  .hero-logo { width: 88px; height: 88px; }
 }

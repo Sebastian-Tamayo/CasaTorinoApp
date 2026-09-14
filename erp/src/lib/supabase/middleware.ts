@@ -48,11 +48,8 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (isLogin && allowed) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/gestion";
-    return NextResponse.redirect(url);
-  }
+  // No redirigir /login → /gestion aunque haya cookie:
+  // el PIN se pide siempre al entrar en la página de acceso.
 
   // Sliding renewal PIN 24h mientras se navega el ERP
   if (allowed) {
