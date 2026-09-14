@@ -142,13 +142,25 @@ Que el personal gestione reservas sin depender de un papel o de un servicio grat
 ### 4.6 ERP — “la oficina del negocio”
 
 **Para qué sirve**  
-Control de caja, gastos, ingresos y visión general del negocio (más “contabilidad / administración” que “sala”).
+Back-office de hostelería (más “contabilidad / administración” que “sala”):
+
+- **Caja e ingresos** (local / domicilio, tarjeta / efectivo).  
+- **Gastos y proveedores** (dónde se va el dinero).  
+- **Documentos** (facturas, albaranes, contratos en la nube).  
+- **RRHH** (empleados, nóminas, SS e IRPF).  
+- **Fiscal trimestral** (estimación IVA / IRPF para gestoría).  
+- **Cuenta de resultados (P&L / EBITDA)** con cierres mensuales.
 
 **Quién lo usa**  
 Dueñas o quien lleve los números, no el camarero en pleno servicio.
 
+**Enlace:** https://casa-torino-app.vercel.app
+
 **Frase útil:**  
-> “Es la parte de oficina: para ver cómo va el negocio, no para tomar comandas.”
+> “Es la parte de oficina: caja, gastos, papeles, personal e impuestos… para ver cómo va el negocio, no para tomar comandas.”
+
+> Propuesta completa para el cliente (Word + Markdown):  
+> `docs/Casa-Torino-Propuesta-Ecosistema-Cliente.docx` · `docs/PROPUESTA-ECOSISTEMA-CLIENTE.md`
 
 ---
 
