@@ -14,6 +14,7 @@ const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'kitchen'
 const HISTORY_MAX = 300
 const ORDERS_MAX = 80
+const PICKUPS_MAX = 30
 
 function cors(req, res) {
   const origin = req.headers.origin || '*'
@@ -35,6 +36,8 @@ function emptyState() {
     historyDay: null,
     jornadaId: null,
     jornadaStartedAt: null,
+    // Avisos TPV: cocina marcó Listo → camareros recogen mesa
+    pickups: [],
     updatedAt: 0,
   }
 }
@@ -69,6 +72,7 @@ function normalizeState(value) {
     ...(value && typeof value === 'object' ? value : {}),
     orders: Array.isArray(value?.orders) ? value.orders : [],
     history: Array.isArray(value?.history) ? value.history : [],
+    pickups: Array.isArray(value?.pickups) ? value.pickups : [],
     lastCompleted: value?.lastCompleted || null,
   }
 }
@@ -104,6 +108,7 @@ function publicPayload(state) {
     (o) => o && (o.status === 'pending_kitchen' || o.status === 'alert'),
   )
   const history = Array.isArray(state.history) ? state.history : []
+  const pickups = Array.isArray(state.pickups) ? state.pickups : []
   return {
     orders: pending,
     history,
@@ -112,6 +117,7 @@ function publicPayload(state) {
     jornadaId: state.jornadaId || null,
     jornadaStartedAt: state.jornadaStartedAt || null,
     lastCompleted: state.lastCompleted || null,
+    pickups,
     updatedAt: state.updatedAt || 0,
     canUndo: Boolean(state.lastCompleted),
     purgeAt: 'Inicio / fin de jornada TPV',
@@ -264,7 +270,24 @@ module.exports = async function handler(req, res) {
             state.orders = orders
             state.lastCompleted = done
             state.history = pushHistory(state.history, done)
-            return { state, meta: { order: done } }
+            // Aviso a TPV: solo mesa (texto corto para cualquier camarero)
+            // No avisar en "siguiente plato" (es un enterado, no plato listo)
+            if (done.kind !== 'siguiente_plato') {
+              const mesa = String(done.mesa || '').trim() || '?'
+              const pickup = {
+                id: done.id,
+                mesa,
+                at: done.completedAt,
+                message: `Recoger mesa ${mesa}`,
+              }
+              const prev = Array.isArray(state.pickups) ? state.pickups : []
+              state.pickups = [pickup, ...prev.filter((p) => p && p.id !== pickup.id)].slice(
+                0,
+                PICKUPS_MAX,
+              )
+              return { state, meta: { order: done, pickup } }
+            }
+            return { state, meta: { order: done, pickup: null } }
           })
           res.statusCode = 200
           res.setHeader('Content-Type', 'application/json')
@@ -272,6 +295,7 @@ module.exports = async function handler(req, res) {
             JSON.stringify({
               ok: true,
               order: meta.order,
+              pickup: meta.pickup,
               ...publicPayload(state),
             }),
           )
@@ -283,6 +307,20 @@ module.exports = async function handler(req, res) {
           }
           throw err
         }
+      }
+
+      if (action === 'ackPickup') {
+        const id = String(body.id || '').trim()
+        const { state } = await mutate((state) => {
+          const list = Array.isArray(state.pickups) ? state.pickups : []
+          state.pickups = id
+            ? list.filter((p) => p && p.id !== id)
+            : []
+          return { state }
+        })
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json')
+        return res.end(JSON.stringify({ ok: true, ...publicPayload(state) }))
       }
 
       if (action === 'undo') {
@@ -303,6 +341,8 @@ module.exports = async function handler(req, res) {
             state.orders = orders
             state.history = removeFromHistory(state.history, restored.id)
             state.lastCompleted = null
+            // Si se deshace el Listo, quitar aviso de recogida
+            state.pickups = (state.pickups || []).filter((p) => p && p.id !== restored.id)
             return { state, meta: { order: restored } }
           })
           res.statusCode = 200
@@ -335,6 +375,7 @@ module.exports = async function handler(req, res) {
           if (phase === 'start') {
             state.history = []
             state.lastCompleted = null
+            state.pickups = []
             state.historyDay = new Date(startedAt).toISOString().slice(0, 10)
             state.jornadaId = jId
             state.jornadaStartedAt = startedAt

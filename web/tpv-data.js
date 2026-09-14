@@ -175,7 +175,7 @@ window.TPV_CATALOG = [
       {
         "id": "colombia-choripapa",
         "name": "Choripapa",
-        "price": 9.0,
+        "price": 10.0,
         "desc": "Patata, chorizo, queso, pollo desmechado y maíz",
         "base": "Choripapa",
         "categoryType": "comida"
@@ -215,7 +215,7 @@ window.TPV_CATALOG = [
       {
         "id": "colombia-picadas-m",
         "name": "Picadas (M)",
-        "price": 14.0,
+        "price": 15.0,
         "desc": "Vacuno, cerdo, pollo, chorizo, morcilla, panceta, criolla, arepa y yuca",
         "base": "Picadas",
         "categoryType": "comida"
@@ -223,7 +223,7 @@ window.TPV_CATALOG = [
       {
         "id": "colombia-picadas-l",
         "name": "Picadas (L)",
-        "price": 18.0,
+        "price": 20.0,
         "desc": "Vacuno, cerdo, pollo, chorizo, morcilla, panceta, criolla, arepa y yuca",
         "base": "Picadas",
         "categoryType": "comida"
@@ -255,7 +255,7 @@ window.TPV_CATALOG = [
       {
         "id": "colombia-arroz-oriental",
         "name": "Arroz oriental",
-        "price": 10.0,
+        "price": 14.0,
         "desc": "Cerdo, pollo, verduras, maíz, brotes, jamón y salsas",
         "base": "Arroz oriental",
         "categoryType": "comida"
@@ -271,7 +271,7 @@ window.TPV_CATALOG = [
       {
         "id": "colombia-cazuela-de-mariscos",
         "name": "Cazuela de mariscos",
-        "price": 16.0,
+        "price": 18.0,
         "desc": "Calamares, mejillones, palitos de cangrejo, gambas y patacón",
         "base": "Cazuela de mariscos",
         "categoryType": "comida"
@@ -414,7 +414,7 @@ window.TPV_CATALOG = [
       {
         "id": "espana-entrecot",
         "name": "Entrecot",
-        "price": 19.0,
+        "price": 25.0,
         "desc": "Entrecot de ternera, ensalada y patatas",
         "base": "Entrecot",
         "categoryType": "comida"
@@ -829,6 +829,22 @@ window.TPV_CATALOG = [
         "price": 1.7,
         "desc": "",
         "base": "Infusión",
+        "categoryType": "bebida"
+      },
+      {
+        "id": "bebidas-te-frio",
+        "name": "Té frío",
+        "price": 2.4,
+        "desc": "",
+        "base": "Té frío",
+        "categoryType": "bebida"
+      },
+      {
+        "id": "bebidas-canon",
+        "name": "Cañón",
+        "price": 3.5,
+        "desc": "Cerveza de cañón",
+        "base": "Cañón",
         "categoryType": "bebida"
       }
     ]

@@ -1,6 +1,7 @@
 /**
  * Casa Torino — sync cocina (KDS) — endurecido 24/7
  * Polling + reintentos + renovación de sesión PIN
+ * + avisos de recogida (Listo → TPV)
  */
 (() => {
   const API_URL = '/api/kitchen'
@@ -13,8 +14,10 @@
   let polling = false
   let lastUpdatedAt = 0
   let knownIds = new Set()
+  let knownPickupIds = new Set()
   let onUpdate = null
   let onAuthLost = null
+  let onPickup = null
   let bootstrapped = false
 
   function sleep(ms) {
@@ -73,7 +76,6 @@
           err.status = r.status
           throw err
         }
-        // Renovar cookie en operaciones críticas
         refreshSession()
         return data
       } catch (err) {
@@ -92,18 +94,28 @@
       const remote = await pull()
       const remoteAt = Number(remote?.updatedAt || 0)
       const orders = Array.isArray(remote.orders) ? remote.orders : []
+      const pickups = Array.isArray(remote.pickups) ? remote.pickups : []
       const ids = new Set(orders.map((o) => o.id))
+      const pickupIds = new Set(pickups.map((p) => p && p.id).filter(Boolean))
       let newOrders = []
+      let newPickups = []
 
       if (!bootstrapped) {
         bootstrapped = true
         knownIds = ids
-      } else if (remoteAt >= lastUpdatedAt) {
-        newOrders = orders.filter((o) => o && !knownIds.has(o.id))
-        knownIds = ids
+        knownPickupIds = pickupIds
+      } else {
+        if (remoteAt >= lastUpdatedAt) {
+          newOrders = orders.filter((o) => o && !knownIds.has(o.id))
+          knownIds = ids
+        }
+        newPickups = pickups.filter((p) => p && p.id && !knownPickupIds.has(p.id))
+        // Si un pickup se ack-eó en otro TPV, dejar de trackearlo
+        knownPickupIds = pickupIds
+        for (const p of newPickups) knownPickupIds.add(p.id)
       }
 
-      if (remoteAt !== lastUpdatedAt || newOrders.length) {
+      if (remoteAt !== lastUpdatedAt || newOrders.length || newPickups.length) {
         lastUpdatedAt = remoteAt
         if (typeof onUpdate === 'function') {
           onUpdate({
@@ -114,11 +126,16 @@
             jornadaId: remote.jornadaId || null,
             jornadaStartedAt: remote.jornadaStartedAt || null,
             lastCompleted: remote.lastCompleted || null,
+            pickups,
             canUndo: Boolean(remote.canUndo),
             updatedAt: remoteAt,
             newOrders,
+            newPickups,
             purgeAt: remote.purgeAt || 'Inicio / fin de jornada TPV',
           })
+        }
+        if (newPickups.length && typeof onPickup === 'function') {
+          onPickup(newPickups, pickups)
         }
       }
     } catch (err) {
@@ -128,15 +145,16 @@
     }
   }
 
-  function start(handler, authLostHandler) {
+  function start(handler, authLostHandler, pickupHandler) {
     onUpdate = handler
     onAuthLost = authLostHandler || null
+    onPickup = pickupHandler || null
     bootstrapped = false
     tick()
     if (timer) clearInterval(timer)
     timer = setInterval(tick, POLL_MS)
     if (heartbeat) clearInterval(heartbeat)
-    heartbeat = setInterval(refreshSession, 15 * 60 * 1000) // cada 15 min
+    heartbeat = setInterval(refreshSession, 15 * 60 * 1000)
     refreshSession()
   }
 
@@ -157,6 +175,7 @@
     create: (order) => post('create', { order }),
     complete: (id) => post('complete', { id }),
     undo: () => post('undo'),
+    ackPickup: (id) => post('ackPickup', { id: id || '' }),
     syncJornada: (phase, payload = {}) =>
       post('syncJornada', { phase, ...payload }),
   }
