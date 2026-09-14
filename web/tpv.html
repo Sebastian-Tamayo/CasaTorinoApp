@@ -465,6 +465,70 @@
     .line-note {
       margin-top: .2rem; color: #ff8e8e; font-style: italic; font-weight: 700; font-size: .82rem;
     }
+    .line-note.menu-pick {
+      color: #fde68a; font-style: normal; font-weight: 800;
+      background: rgba(245,197,24,.12); border: 1px solid rgba(245,197,24,.35);
+      border-radius: 10px; padding: .35rem .5rem; margin-top: .35rem;
+    }
+    .btn-pick {
+      margin-top: .3rem; border: 1px solid rgba(245,197,24,.4);
+      background: rgba(245,197,24,.12); color: #fde68a;
+      border-radius: 999px; padding: .25rem .55rem;
+      font: inherit; font-size: .72rem; font-weight: 800; cursor: pointer;
+    }
+
+    /* Modal elección menú español */
+    .course-modal {
+      position: fixed; inset: 0; z-index: 90;
+      display: grid; place-items: center; padding: 1rem;
+      background: rgba(0,0,0,.62);
+    }
+    .course-modal[hidden] { display: none !important; }
+    .course-card {
+      width: min(420px, 100%);
+      background: var(--panel, #151c26);
+      border: 1px solid var(--line2);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      padding: 1.1rem 1rem 1rem;
+    }
+    .course-card h3 {
+      margin: 0 0 .35rem; font-size: 1.1rem; font-weight: 800;
+    }
+    .course-card .sub {
+      margin: 0 0 1rem; color: var(--muted); font-size: .82rem; font-weight: 600; line-height: 1.35;
+    }
+    .course-block { margin: 0 0 .85rem; }
+    .course-block h4 {
+      margin: 0 0 .45rem; font-size: .78rem; font-weight: 800;
+      letter-spacing: .04em; text-transform: uppercase; color: var(--gold);
+    }
+    .course-opts { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+    .course-opts button {
+      border: 1px solid var(--line2); background: var(--card); color: var(--ink);
+      border-radius: 14px; padding: .85rem .5rem; font: inherit;
+      font-weight: 800; font-size: .95rem; cursor: pointer;
+    }
+    .course-opts button.on {
+      border-color: rgba(245,197,24,.65);
+      background: rgba(245,197,24,.18);
+      color: #fff;
+      box-shadow: inset 0 0 0 1px rgba(245,197,24,.35);
+    }
+    .course-actions {
+      display: grid; grid-template-columns: 1fr 1.2fr; gap: .5rem; margin-top: .35rem;
+    }
+    .course-actions button {
+      border: 0; border-radius: 14px; padding: .9rem .7rem;
+      font: inherit; font-weight: 800; cursor: pointer;
+    }
+    .course-actions .cancel {
+      background: var(--card2); color: var(--ink); border: 1px solid var(--line2);
+    }
+    .course-actions .ok {
+      background: linear-gradient(135deg, #f5c518, #e0a800); color: #1a1200;
+    }
+    .course-actions .ok:disabled { opacity: .45; cursor: not-allowed; }
 
     .fab {
       position: fixed; left: .85rem; right: .85rem; bottom: calc(.75rem + var(--safe-b));
@@ -964,6 +1028,31 @@
     </button>
   </div>
   <div class="backdrop" id="backdrop" hidden></div>
+
+  <div class="course-modal" id="courseModal" hidden role="dialog" aria-modal="true" aria-labelledby="courseModalTitle">
+    <div class="course-card">
+      <h3 id="courseModalTitle">Menú español</h3>
+      <p class="sub" id="courseModalSub">Elige qué opción comerá el cliente. Cocina lo verá en el ticket.</p>
+      <div class="course-block">
+        <h4>Primero</h4>
+        <div class="course-opts" id="coursePrimero" role="group" aria-label="Primero">
+          <button type="button" data-course="primero" data-n="1">Nº 1</button>
+          <button type="button" data-course="primero" data-n="2">Nº 2</button>
+        </div>
+      </div>
+      <div class="course-block">
+        <h4>Segundo</h4>
+        <div class="course-opts" id="courseSegundo" role="group" aria-label="Segundo">
+          <button type="button" data-course="segundo" data-n="1">Nº 1</button>
+          <button type="button" data-course="segundo" data-n="2">Nº 2</button>
+        </div>
+      </div>
+      <div class="course-actions">
+        <button type="button" class="cancel" id="courseCancel">Cancelar</button>
+        <button type="button" class="ok" id="courseOk" disabled>Añadir a cuenta</button>
+      </div>
+    </div>
+  </div>
 
   <div class="jornada-modal" id="jornadaModal" hidden role="dialog" aria-modal="true" aria-labelledby="jornadaModalTitle">
     <div class="jornada-card">
@@ -1497,26 +1586,139 @@
         return 'comida'
       }
 
-      function add(item) {
+      function isSpanishMenu(itemOrLine) {
+        if (!itemOrLine) return false
+        if (itemOrLine.coursePick === true) return true
+        const id = String(itemOrLine.id || itemOrLine.productId || '')
+        return id === 'menu-dia-es-semana' || id === 'menu-dia-es-finde' || /^menu-dia-es-/.test(id)
+      }
+
+      function formatCourseNote(primero, segundo) {
+        return `Primero N${primero} · Segundo N${segundo}`
+      }
+
+      function cartKeyFor(productId, note) {
+        const n = String(note || '').trim()
+        if (n) return `${productId}::${n}`
+        return productId
+      }
+
+      function qtyOfProduct(productId) {
+        return lines().reduce((a, l) => a + ((l.productId || l.id) === productId ? Number(l.qty || 0) : 0), 0)
+      }
+
+      let coursePickCtx = null // { item, editKey } | null
+      let courseSel = { primero: '', segundo: '' }
+
+      function paintCourseModal() {
+        document.querySelectorAll('#coursePrimero button, #courseSegundo button').forEach((btn) => {
+          const course = btn.dataset.course
+          const n = btn.dataset.n
+          btn.classList.toggle('on', String(courseSel[course] || '') === String(n))
+        })
+        const ok = $('courseOk')
+        if (ok) ok.disabled = !(courseSel.primero && courseSel.segundo)
+      }
+
+      function openCoursePick(item, editKey) {
+        coursePickCtx = { item, editKey: editKey || null }
+        courseSel = { primero: '', segundo: '' }
+        if (editKey && state.cart[editKey]) {
+          const m = String(state.cart[editKey].note || '').match(/Primero N[ºo]?(\d).*Segundo N[ºo]?(\d)/i)
+          if (m) courseSel = { primero: m[1], segundo: m[2] }
+        }
+        if ($('courseModalTitle')) {
+          $('courseModalTitle').textContent = item?.name || 'Menú español'
+        }
+        if ($('courseOk')) {
+          $('courseOk').textContent = editKey ? 'Guardar elección' : 'Añadir a cuenta'
+        }
+        paintCourseModal()
+        if ($('courseModal')) $('courseModal').hidden = false
+      }
+
+      function closeCoursePick() {
+        coursePickCtx = null
+        if ($('courseModal')) $('courseModal').hidden = true
+      }
+
+      function commitCoursePick() {
+        if (!coursePickCtx?.item || !courseSel.primero || !courseSel.segundo) return
+        const item = coursePickCtx.item
+        const note = formatCourseNote(courseSel.primero, courseSel.segundo)
+        const editKey = coursePickCtx.editKey
+        closeCoursePick()
+        if (editKey && state.cart[editKey]) {
+          const line = state.cart[editKey]
+          const newKey = cartKeyFor(line.productId || line.id, note)
+          if (newKey === editKey) {
+            line.note = note
+            line.primero = courseSel.primero
+            line.segundo = courseSel.segundo
+          } else {
+            // Mover / fusionar si ya existe esa misma elección
+            const moved = {
+              ...line,
+              id: line.productId || line.id,
+              productId: line.productId || line.id,
+              key: newKey,
+              note,
+              primero: courseSel.primero,
+              segundo: courseSel.segundo,
+            }
+            delete state.cart[editKey]
+            if (state.cart[newKey]) {
+              state.cart[newKey].qty += Number(moved.qty || 1)
+              state.cart[newKey].sentQty = Math.min(
+                Number(state.cart[newKey].sentQty || 0) + Number(moved.sentQty || 0),
+                state.cart[newKey].qty,
+              )
+            } else {
+              state.cart[newKey] = moved
+            }
+            state.hist = state.hist.map((h) => (h === editKey ? newKey : h))
+          }
+          persist(); render(); return
+        }
+        addWithNote(item, note, { primero: courseSel.primero, segundo: courseSel.segundo })
+      }
+
+      function addWithNote(item, note, meta) {
         if (!requireMesa()) return
         const ctype = categoryTypeOf(item)
-        if (state.cart[item.id]) state.cart[item.id].qty += 1
+        const key = cartKeyFor(item.id, note)
+        if (state.cart[key]) state.cart[key].qty += 1
         else {
-          state.cart[item.id] = {
+          state.cart[key] = {
             id: item.id,
+            productId: item.id,
+            key,
             name: item.name,
             price: item.price,
             qty: 1,
             catId: item.catId,
             categoryType: ctype,
             sentQty: 0,
-            note: '',
+            note: String(note || ''),
+            coursePick: Boolean(item.coursePick || isSpanishMenu(item)),
+            primero: meta?.primero || '',
+            segundo: meta?.segundo || '',
           }
         }
-        if (!state.cart[item.id].categoryType) state.cart[item.id].categoryType = ctype
-        state.hist.push(item.id)
+        if (!state.cart[key].categoryType) state.cart[key].categoryType = ctype
+        state.hist.push(key)
         persist(); render(); flash(item.id)
         try { navigator.vibrate?.(12) } catch {}
+      }
+
+      function add(item) {
+        if (!requireMesa()) return
+        // Solo menú español: pedir Primero/Segundo Nº1 o Nº2
+        if (isSpanishMenu(item) || item.coursePick) {
+          openCoursePick(item, null)
+          return
+        }
+        addWithNote(item, '', null)
       }
 
       function setQty(id, qty) {
@@ -1559,7 +1761,8 @@
           const pending = Math.max(0, Number(l.qty || 0) - sent)
           if (pending <= 0) continue
           foodPending.push({
-            id: l.id,
+            key: l.key || cartKeyFor(l.productId || l.id, l.note),
+            id: l.productId || l.id,
             name: l.name,
             qty: pending,
             catId: l.catId || '',
@@ -1575,7 +1778,9 @@
           else alert('La cuenta está vacía.')
           return
         }
-        const resumen = foodPending.map((x) => `${x.qty} × ${x.name}`).join('\n')
+        const resumen = foodPending
+          .map((x) => `${x.qty} × ${x.name}${x.note ? ` (${x.note})` : ''}`)
+          .join('\n')
         if (!confirm(`Mesa ${m}\nEnviar a cocina:\n\n${resumen}\n\n(Las bebidas no se envían)`)) return
 
         const btn = $('btnKitchen')
@@ -1586,11 +1791,13 @@
             mesa: m,
             notes,
             status: 'pending_kitchen',
-            items: foodPending,
+            items: foodPending.map(({ id, name, qty, catId, categoryType, note }) => ({
+              id, name, qty, catId, categoryType, note,
+            })),
           })
           // Marcar como enviadas (siguen en la cuenta del TPV para cobrar)
           for (const l of foodPending) {
-            const line = state.cart[l.id]
+            const line = state.cart[l.key]
             if (!line) continue
             line.sentQty = Number(line.qty || 0)
             line.categoryType = 'comida'
@@ -1774,7 +1981,7 @@
         $('menuCount').textContent = `${items.length} producto${items.length === 1 ? '' : 's'}`
         $('products').innerHTML = items.length
           ? items.map((i) => {
-              const q = state.cart[i.id]?.qty || 0
+              const q = qtyOfProduct(i.id)
               const accent = accentFor(i.catId)
               return `<button class="prod" data-id="${i.id}" type="button" style="--accent:${accent}">
                 <div class="name"><span>${i.name}</span>${q ? `<span class="qty">×${q}</span>` : ''}</div>
@@ -1813,6 +2020,7 @@
           ? ls.map((l) => {
               const ctype = categoryTypeOf(l)
               const sent = Number(l.sentQty || 0)
+              const key = l.key || cartKeyFor(l.productId || l.id, l.note)
               const tags = [
                 ctype === 'bebida'
                   ? '<span class="tag-drink">barra</span>'
@@ -1821,21 +2029,28 @@
                   ? `<span class="tag-sent">enviado ${Math.min(sent, l.qty)}/${l.qty}</span>`
                   : '',
               ].join('')
+              const isMenuPick = Boolean(l.coursePick || isSpanishMenu(l) || /Primero N/i.test(String(l.note || '')))
               const note = l.note
-                ? `<div class="line-note">${String(l.note).replace(/</g, '&lt;')}</div>`
+                ? `<div class="line-note${isMenuPick ? ' menu-pick' : ''}">${String(l.note).replace(/</g, '&lt;')}</div>`
+                : (isMenuPick
+                  ? `<div class="line-note menu-pick">⚠ Falta elegir Primero / Segundo</div>`
+                  : '')
+              const pickBtn = isMenuPick
+                ? `<button type="button" class="btn-pick" data-pick="${key}">Cambiar N1/N2</button>`
                 : ''
-              return `<div class="line">
+              return `<div class="line" data-key="${key}">
               <div>
                 <div class="line-name">${l.name}${tags}</div>
                 <div class="line-meta">${money(l.price)} · ud.</div>
                 ${note}
+                ${pickBtn}
               </div>
               <div class="line-right">
                 <div class="line-sum">${money(l.price * l.qty)}</div>
                 <div class="q">
-                  <button type="button" data-act="-" data-id="${l.id}" aria-label="Quitar">−</button>
+                  <button type="button" data-act="-" data-id="${key}" aria-label="Quitar">−</button>
                   <span>${l.qty}</span>
-                  <button type="button" data-act="+" data-id="${l.id}" aria-label="Añadir">+</button>
+                  <button type="button" data-act="+" data-id="${key}" aria-label="Añadir">+</button>
                 </div>
               </div>
             </div>`
@@ -1888,9 +2103,42 @@
         const item = all().find((x) => x.id === b.dataset.id); if (item) add(item)
       })
       $('lines').addEventListener('click', (e) => {
+        const pick = e.target.closest('[data-pick]')
+        if (pick) {
+          const key = pick.dataset.pick
+          const line = state.cart[key]
+          if (!line) return
+          const item = all().find((x) => x.id === (line.productId || line.id)) || {
+            id: line.productId || line.id,
+            name: line.name,
+            price: line.price,
+            catId: line.catId,
+            coursePick: true,
+          }
+          openCoursePick(item, key)
+          return
+        }
         const b = e.target.closest('button[data-act]'); if (!b) return
         const line = state.cart[b.dataset.id]; if (!line) return
         setQty(b.dataset.id, b.dataset.act === '+' ? line.qty + 1 : line.qty - 1)
+      })
+      // Modal menú español: Primero/Segundo N1|N2
+      $('courseCancel')?.addEventListener('click', () => closeCoursePick())
+      $('courseOk')?.addEventListener('click', () => commitCoursePick())
+      $('courseModal')?.addEventListener('click', (e) => {
+        if (e.target === $('courseModal')) closeCoursePick()
+      })
+      ;['coursePrimero', 'courseSegundo'].forEach((id) => {
+        $(id)?.addEventListener('click', (e) => {
+          const btn = e.target.closest('button[data-course]')
+          if (!btn) return
+          courseSel[btn.dataset.course] = String(btn.dataset.n)
+          paintCourseModal()
+        })
+      })
+      window.addEventListener('keydown', (e) => {
+        if ($('courseModal')?.hidden) return
+        if (e.key === 'Escape') { e.preventDefault(); closeCoursePick() }
       })
       $('paid').addEventListener('input', () => { persist(); updateChange() })
       $('tender').addEventListener('click', (e) => {

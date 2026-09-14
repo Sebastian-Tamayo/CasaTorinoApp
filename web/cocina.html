@@ -211,6 +211,14 @@
       margin-top: .25rem; color: var(--danger);
       font-style: italic; font-weight: 700; font-size: .95rem;
     }
+    .pnote.menu-choice {
+      font-style: normal; font-weight: 900; font-size: 1.05rem;
+      color: #fbbf24;
+      background: rgba(245,158,11,.16);
+      border: 1px solid rgba(245,158,11,.4);
+      border-radius: 10px; padding: .4rem .55rem; margin-top: .4rem;
+      letter-spacing: .01em;
+    }
     .order-notes {
       margin-top: .15rem; padding: .65rem .7rem;
       border-radius: 10px; border: 1px dashed #7f1d1d;
@@ -580,14 +588,16 @@
         }
         const sorted = orders.slice().sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
         grid.innerHTML = sorted.map((o) => {
-          const lines = groupItems(o.items).map((l) => `
-            <div class="line">
+          const lines = groupItems(o.items).map((l) => {
+            const isMenuChoice = /Primero N/i.test(String(l.note || ''))
+            return `<div class="line">
               <div class="qty">${l.qty}</div>
               <div>
                 <div class="pname">${escapeHtml(l.name)}</div>
-                ${l.note ? `<div class="pnote">${escapeHtml(l.note)}</div>` : ''}
+                ${l.note ? `<div class="pnote${isMenuChoice ? ' menu-choice' : ''}">${escapeHtml(l.note)}</div>` : ''}
               </div>
-            </div>`).join('')
+            </div>`
+          }).join('')
           const notes = o.notes
             ? `<div class="order-notes"><i class="fa-solid fa-comment-dots"></i> ${escapeHtml(o.notes)}</div>`
             : ''

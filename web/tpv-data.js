@@ -8,9 +8,10 @@ window.TPV_CATALOG = [
         "id": "menu-dia-es-semana",
         "name": "Menú del día español (entre semana)",
         "price": 13.0,
-        "desc": "Menú español · lunes a viernes",
+        "desc": "Español · el camarero elige Primero (Nº1/Nº2) y Segundo (Nº1/Nº2)",
         "base": "Menú del día",
-        "categoryType": "comida"
+        "categoryType": "comida",
+        "coursePick": true
       },
       {
         "id": "menu-dia-co-semana",
@@ -24,9 +25,10 @@ window.TPV_CATALOG = [
         "id": "menu-dia-es-finde",
         "name": "Menú del día español (fin de semana)",
         "price": 18.0,
-        "desc": "Menú español · sábado y domingo",
+        "desc": "Español · el camarero elige Primero (Nº1/Nº2) y Segundo (Nº1/Nº2)",
         "base": "Menú del día",
-        "categoryType": "comida"
+        "categoryType": "comida",
+        "coursePick": true
       },
       {
         "id": "menu-dia-co-finde",
