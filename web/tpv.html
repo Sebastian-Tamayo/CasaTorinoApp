@@ -59,7 +59,7 @@
     .app {
       min-height: 100dvh;
       display: grid;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto auto 1fr;
       padding-top: var(--safe-t);
       background:
         radial-gradient(900px 420px at 8% -10%, rgba(245,197,24,.09), transparent 55%),
@@ -559,7 +559,7 @@
       .app {
         height: auto;
         min-height: 100dvh;
-        grid-template-rows: auto auto;
+        grid-template-rows: auto auto auto;
       }
       .workspace {
         grid-template-rows: auto auto;
@@ -642,6 +642,85 @@
     body.tpv-locked .app,
     body.tpv-locked .backdrop,
     body.tpv-locked .fab { visibility: hidden; pointer-events: none; }
+
+    /* —— Jornada / caja —— */
+    .jornada-bar {
+      display: flex; flex-wrap: wrap; align-items: center; gap: .45rem;
+      padding: .45rem .7rem;
+      border-bottom: 1px solid var(--line);
+      background: rgba(12, 18, 26, .92);
+      position: sticky; top: 58px; z-index: 28;
+      backdrop-filter: blur(12px);
+    }
+    .jornada-status {
+      flex: 1 1 auto; min-width: 8rem;
+      font-size: .78rem; font-weight: 700; color: var(--muted);
+    }
+    .jornada-status strong { color: var(--ink); font-weight: 800; }
+    .jornada-status.open strong { color: var(--ok); }
+    .jornada-status.ended strong { color: var(--gold); }
+    .jornada-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+    .jornada-actions .btn-j {
+      border: 1px solid var(--line2); background: var(--card); color: var(--ink);
+      border-radius: 999px; padding: .45rem .75rem;
+      font: inherit; font-size: .72rem; font-weight: 800;
+      cursor: pointer; white-space: nowrap;
+    }
+    .jornada-actions .btn-j:disabled { opacity: .4; cursor: not-allowed; }
+    .jornada-actions .btn-j.start { border-color: rgba(52,211,153,.45); color: #86efac; }
+    .jornada-actions .btn-j.total { border-color: rgba(245,197,24,.45); color: var(--gold); }
+    .jornada-actions .btn-j.end { border-color: rgba(251,113,133,.45); color: #fda4af; }
+    .jornada-modal {
+      position: fixed; inset: 0; z-index: 80;
+      display: grid; place-items: center; padding: 1rem;
+      background: rgba(0,0,0,.55);
+    }
+    .jornada-modal[hidden] { display: none !important; }
+    .jornada-card {
+      width: min(520px, 100%);
+      max-height: min(88dvh, 720px);
+      overflow: auto;
+      background: var(--panel);
+      border: 1px solid var(--line2);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      padding: 1.1rem 1rem 1rem;
+    }
+    .jornada-card h3 {
+      margin: 0 0 .35rem; font-size: 1.15rem; font-weight: 800;
+    }
+    .jornada-card .sub {
+      margin: 0 0 .9rem; color: var(--muted); font-size: .82rem; font-weight: 600;
+    }
+    .jornada-grand {
+      display: flex; justify-content: space-between; align-items: baseline;
+      gap: .75rem; padding: .85rem 1rem; margin: 0 0 .85rem;
+      border-radius: 14px; background: color-mix(in srgb, var(--gold) 14%, var(--card));
+      border: 1px solid rgba(245,197,24,.35);
+    }
+    .jornada-grand span { font-weight: 700; color: var(--muted); font-size: .8rem; }
+    .jornada-grand strong { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .jornada-sec { margin: 0 0 .85rem; }
+    .jornada-sec h4 {
+      margin: 0 0 .4rem; font-size: .78rem; font-weight: 800;
+      letter-spacing: .04em; text-transform: uppercase; color: var(--gold);
+    }
+    .jornada-row {
+      display: flex; justify-content: space-between; gap: .75rem;
+      padding: .4rem 0; border-bottom: 1px solid var(--line);
+      font-size: .88rem; font-weight: 650;
+    }
+    .jornada-row:last-child { border-bottom: 0; }
+    .jornada-row em { color: var(--muted); font-style: normal; font-weight: 600; font-size: .78rem; }
+    .jornada-card .close-row { display: flex; justify-content: flex-end; margin-top: .5rem; }
+    .jornada-card .close-row button {
+      border: 1px solid var(--line2); background: var(--card); color: var(--ink);
+      border-radius: 12px; padding: .55rem 1rem; font: inherit; font-weight: 800; cursor: pointer;
+    }
+    @media (max-width: 720px) {
+      .jornada-bar { padding: .4rem .55rem; }
+      .jornada-actions .btn-j { padding: .42rem .62rem; font-size: .68rem; }
+    }
   </style>
 </head>
 <body class="tpv-locked">
@@ -696,6 +775,15 @@
         <button class="icon-btn" id="btnClear" type="button" title="Vaciar"><i class="fa-solid fa-trash"></i></button>
       </div>
     </header>
+
+    <div class="jornada-bar" id="jornadaBar" aria-label="Jornada de caja">
+      <div class="jornada-status" id="jornadaStatus">Jornada: <strong>sin iniciar</strong></div>
+      <div class="jornada-actions">
+        <button class="btn-j start" id="btnJornadaStart" type="button"><i class="fa-solid fa-play"></i> Inicio de jornada</button>
+        <button class="btn-j total" id="btnJornadaTotal" type="button"><i class="fa-solid fa-chart-column"></i> Total de jornada</button>
+        <button class="btn-j end" id="btnJornadaEnd" type="button" disabled><i class="fa-solid fa-flag-checkered"></i> Fin de sesión</button>
+      </div>
+    </div>
 
     <div class="workspace">
       <nav class="rail" id="cats" aria-label="Categorías"></nav>
@@ -762,10 +850,37 @@
   </div>
   <div class="backdrop" id="backdrop" hidden></div>
 
+  <div class="jornada-modal" id="jornadaModal" hidden role="dialog" aria-modal="true" aria-labelledby="jornadaModalTitle">
+    <div class="jornada-card">
+      <h3 id="jornadaModalTitle">Total de jornada</h3>
+      <p class="sub" id="jornadaModalSub">—</p>
+      <div class="jornada-grand">
+        <span>Total vendido</span>
+        <strong id="jornadaGrand">0,00 €</strong>
+      </div>
+      <div class="jornada-sec">
+        <h4>Por tipo</h4>
+        <div id="jornadaByType"></div>
+      </div>
+      <div class="jornada-sec">
+        <h4>Por categoría</h4>
+        <div id="jornadaByCat"></div>
+      </div>
+      <div class="jornada-sec">
+        <h4>Por producto</h4>
+        <div id="jornadaByProd"></div>
+      </div>
+      <div class="close-row">
+        <button type="button" id="btnJornadaClose">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.min.js"></script>
   <script src="tpv-data.js"></script>
   <script src="printService.js"></script>
   <script src="tpvSync.js"></script>
+  <script src="tpvJornada.js"></script>
   <script src="kitchenSync.js"></script>
   <script>
     (() => {
@@ -896,12 +1011,171 @@
         cart: {},
         hist: [],
         tables: {},
+        jornada: null,
       }
       const IVA_RATE = 0.10 // hostelería: comidas y bebidas 10%
 
-      const all = () => catalog.flatMap((c) => c.items.map((i) => ({ ...i, catId: c.id })))
+      const all = () => catalog.flatMap((c) => c.items.map((i) => ({ ...i, catId: c.id, catName: c.name })))
       const normalizeMesa = (v) => String(v || '').trim().replace(/\s+/g, '')
       const accentFor = (catId) => (CAT_META[catId] || CAT_META.all).accent
+      const catNameOf = (catId) => {
+        const fromCatalog = catalog.find((c) => c.id === catId)
+        if (fromCatalog) return fromCatalog.name
+        return (CAT_META[catId] || {}).label || catId || 'Otros'
+      }
+
+      function fmtHm(ts) {
+        if (!ts) return '—'
+        return new Date(ts).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+      }
+
+      function paintJornadaStatus(j) {
+        state.jornada = j || null
+        const el = $('jornadaStatus')
+        const btnStart = $('btnJornadaStart')
+        const btnEnd = $('btnJornadaEnd')
+        if (!el) return
+        const status = j?.status || 'closed'
+        el.classList.remove('open', 'ended')
+        if (status === 'open') {
+          el.classList.add('open')
+          const t = j?.totals?.total
+          el.innerHTML = `Jornada: <strong>abierta</strong> · desde ${fmtHm(j.startedAt)}${
+            Number.isFinite(t) ? ` · ${money(t)}` : ''
+          }`
+          if (btnStart) btnStart.disabled = true
+          if (btnEnd) btnEnd.disabled = false
+        } else if (status === 'ended') {
+          el.classList.add('ended')
+          const t = j?.totals?.total
+          el.innerHTML = `Jornada: <strong>cerrada</strong> · ${fmtHm(j.startedAt)}–${fmtHm(j.endedAt)}${
+            Number.isFinite(t) ? ` · ${money(t)}` : ''
+          }`
+          if (btnStart) btnStart.disabled = false
+          if (btnEnd) btnEnd.disabled = true
+        } else {
+          el.innerHTML = 'Jornada: <strong>sin iniciar</strong>'
+          if (btnStart) btnStart.disabled = false
+          if (btnEnd) btnEnd.disabled = true
+        }
+      }
+
+      function openJornadaModal() {
+        const j = state.jornada || window.CasaTorinoTpvJornada?.last
+        const totals = j?.totals || {
+          tickets: 0,
+          total: 0,
+          byType: { comida: { qty: 0, total: 0 }, bebida: { qty: 0, total: 0 } },
+          byCategory: [],
+          byProduct: [],
+        }
+        const statusLabel =
+          j?.status === 'open'
+            ? `Abierta desde ${fmtHm(j.startedAt)}`
+            : j?.status === 'ended'
+              ? `Cerrada · ${fmtHm(j.startedAt)} – ${fmtHm(j.endedAt)}`
+              : 'Sin jornada iniciada'
+        if ($('jornadaModalSub')) {
+          $('jornadaModalSub').textContent =
+            `${statusLabel} · ${totals.tickets || 0} ticket${(totals.tickets || 0) === 1 ? '' : 's'}`
+        }
+        if ($('jornadaGrand')) $('jornadaGrand').textContent = money(totals.total || 0)
+
+        const typeHtml = ['comida', 'bebida']
+          .map((k) => {
+            const row = totals.byType?.[k] || { qty: 0, total: 0 }
+            const label = k === 'comida' ? 'Comida' : 'Bebida'
+            return `<div class="jornada-row"><span>${label} <em>${row.qty} ud.</em></span><strong>${money(row.total)}</strong></div>`
+          })
+          .join('')
+        if ($('jornadaByType')) $('jornadaByType').innerHTML = typeHtml || '<div class="jornada-row">Sin ventas</div>'
+
+        const cats = Array.isArray(totals.byCategory) ? totals.byCategory : []
+        if ($('jornadaByCat')) {
+          $('jornadaByCat').innerHTML = cats.length
+            ? cats
+                .map(
+                  (c) =>
+                    `<div class="jornada-row"><span>${c.name || c.id} <em>${c.qty} ud. · ${
+                      c.categoryType === 'bebida' ? 'bebida' : 'comida'
+                    }</em></span><strong>${money(c.total)}</strong></div>`,
+                )
+                .join('')
+            : '<div class="jornada-row">Sin ventas</div>'
+        }
+
+        const prods = Array.isArray(totals.byProduct) ? totals.byProduct : []
+        if ($('jornadaByProd')) {
+          $('jornadaByProd').innerHTML = prods.length
+            ? prods
+                .map(
+                  (p) =>
+                    `<div class="jornada-row"><span>${p.name} <em>${p.qty} ud. · ${
+                      p.categoryType === 'bebida' ? 'bebida' : 'comida'
+                    }</em></span><strong>${money(p.total)}</strong></div>`,
+                )
+                .join('')
+            : '<div class="jornada-row">Sin ventas</div>'
+        }
+
+        if ($('jornadaModal')) $('jornadaModal').hidden = false
+      }
+
+      function closeJornadaModal() {
+        if ($('jornadaModal')) $('jornadaModal').hidden = true
+      }
+
+      async function startJornada() {
+        if (!confirm('¿Iniciar jornada?\nSe empieza a contabilizar todo lo cobrado desde ahora.')) return
+        try {
+          const j = await window.CasaTorinoTpvJornada.start()
+          paintJornadaStatus(j)
+          alert('Jornada iniciada.')
+        } catch (err) {
+          console.warn('startJornada', err)
+          if (err.data) paintJornadaStatus(err.data)
+          alert(err.message || 'No se pudo iniciar la jornada')
+        }
+      }
+
+      async function endJornada() {
+        const t = state.jornada?.totals?.total
+        const extra = Number.isFinite(t) ? `\nTotal actual: ${money(t)}` : ''
+        if (!confirm(`¿Fin de sesión / cerrar jornada?${extra}\n\nDespués podrás ver el Total de jornada.`)) return
+        try {
+          const j = await window.CasaTorinoTpvJornada.end()
+          paintJornadaStatus(j)
+          openJornadaModal()
+        } catch (err) {
+          console.warn('endJornada', err)
+          if (err.data) paintJornadaStatus(err.data)
+          alert(err.message || 'No se pudo cerrar la jornada')
+        }
+      }
+
+      async function ensureJornadaOpenForSale() {
+        const j = state.jornada || window.CasaTorinoTpvJornada?.last
+        if (j?.status === 'open') return true
+        if (
+          !confirm(
+            'No hay jornada abierta.\n\n¿Iniciar jornada ahora y registrar este cobro?',
+          )
+        ) {
+          return false
+        }
+        try {
+          const started = await window.CasaTorinoTpvJornada.start()
+          paintJornadaStatus(started)
+          return true
+        } catch (err) {
+          if (err.status === 409 && err.data?.status === 'open') {
+            paintJornadaStatus(err.data)
+            return true
+          }
+          alert(err.message || 'No se pudo abrir la jornada')
+          return false
+        }
+      }
 
       function syncMesaInputs(v) {
         const val = normalizeMesa(v)
@@ -1123,8 +1397,19 @@
         const mesaTxt = m ? `Mesa ${m}\n` : ''
         if (!confirm(`${mesaTxt}Cobrado ${money(total)}\nIVA 10%: ${money(iva)}\n\n¿Imprimir ticket, abrir cajón y cerrar esta cuenta?`)) return
 
-        // Snapshot antes de vaciar (para el ticket)
+        if (!(await ensureJornadaOpenForSale())) return
+
+        // Snapshot antes de vaciar (para el ticket + jornada)
         const cartItems = ls.map((l) => ({ name: l.name, qty: l.qty, price: l.price }))
+        const saleLines = ls.map((l) => ({
+          id: l.id,
+          name: l.name,
+          qty: l.qty,
+          price: l.price,
+          categoryType: categoryTypeOf(l),
+          catId: l.catId || '',
+          catName: catNameOf(l.catId),
+        }))
         const paidRaw = $('paid')?.value || ''
         const paid = parseFloat(String(paidRaw).replace(',', '.'))
         const meta = {
@@ -1140,6 +1425,30 @@
         // Imprime + abre cajón (si QZ Tray no está, avisa y NO bloquea el cobro)
         if (window.CasaTorinoPrint?.printReceipt) {
           await window.CasaTorinoPrint.printReceipt(cartItems, total, meta)
+        }
+
+        // Registrar en total de jornada (comida / bebida / categorías)
+        try {
+          const sale = {
+            id:
+              typeof crypto !== 'undefined' && crypto.randomUUID
+                ? crypto.randomUUID()
+                : 's-' + Date.now() + '-' + Math.random().toString(16).slice(2, 8),
+            at: Date.now(),
+            mesa: m || '',
+            total,
+            base,
+            iva,
+            lines: saleLines,
+          }
+          const j = await window.CasaTorinoTpvJornada.addSale(sale)
+          paintJornadaStatus(j)
+        } catch (err) {
+          console.warn('jornada sale', err)
+          alert(
+            'Cobro hecho en la mesa, pero no se pudo guardar en el total de jornada.\n' +
+              (err.message || err),
+          )
         }
 
         state.cart = {}; state.hist = []; state.notes = ''
@@ -1327,9 +1636,26 @@
       $('btnUndo').onclick = undo
       $('fab').onclick = openTicket
       $('backdrop').onclick = closeTicket
+      $('btnJornadaStart').onclick = startJornada
+      $('btnJornadaEnd').onclick = endJornada
+      $('btnJornadaTotal').onclick = async () => {
+        try {
+          const j = await window.CasaTorinoTpvJornada.refresh()
+          paintJornadaStatus(j)
+        } catch (err) {
+          console.warn(err)
+        }
+        openJornadaModal()
+      }
+      $('btnJornadaClose').onclick = closeJornadaModal
+      $('jornadaModal')?.addEventListener('click', (e) => {
+        if (e.target === $('jornadaModal')) closeJornadaModal()
+      })
 
       load(); render(); tickClock()
       setInterval(tickClock, 30000)
+
+      window.CasaTorinoTpvJornada?.startPolling((j) => paintJornadaStatus(j))
 
       // Actualización en vivo entre dispositivos
       window.CasaTorinoTpvSync?.start((remote) => {
