@@ -2523,8 +2523,7 @@
       ;(function setupTpvTouchScroll() {
         document.documentElement.classList.add('tpv-touch-scroll', 'has-touch')
 
-        const SKIP =
-          'input, textarea, select, button, a, label, .btn, .icon-btn, .link, .q, .tender, .actions, .btn-pick, .fab, .gate-pad, .pickup-card'
+        const SKIP = 'input, textarea, select'
 
         function attachPan(el) {
           if (!el || el.dataset.tpvPan === '1') return
