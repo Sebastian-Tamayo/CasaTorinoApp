@@ -200,7 +200,7 @@ function normalizeSale(raw) {
       if (!qty || !Number.isFinite(price)) return null
       const catId = String(l.catId || '')
       const categoryType =
-        catId === 'bebidas' || catId === 'cafes' || catId === 'postres'
+        catId === 'bebidas' || catId === 'cafes' || catId === 'postres' || catId === 'extras'
           ? 'bebida'
           : l.categoryType === 'bebida' || l.categoryType === 'comida'
             ? l.categoryType

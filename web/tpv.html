@@ -463,6 +463,26 @@
     .line-meta { color: var(--muted); font-size: .72rem; font-weight: 600; margin-top: .15rem; }
     .line-right { text-align: right; display: grid; gap: .4rem; justify-items: end; align-content: start; }
     .line-sum { font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
+    .line-price-edit {
+      display: flex; align-items: center; gap: .3rem; margin-top: .35rem;
+      flex-wrap: wrap;
+    }
+    .line-price-edit label {
+      font-size: .68rem; font-weight: 800; color: var(--gold);
+      text-transform: uppercase; letter-spacing: .03em;
+    }
+    .line-price-edit input {
+      width: 5.2rem; border: 1px solid var(--line2); border-radius: 10px;
+      background: #0f1620; color: var(--ink); font-weight: 800;
+      font-size: .88rem; padding: .35rem .45rem; outline: none;
+      font-variant-numeric: tabular-nums; text-align: right;
+    }
+    .line-price-edit input:focus {
+      border-color: rgba(245,197,24,.55); box-shadow: 0 0 0 2px var(--gold-dim);
+    }
+    .line-price-edit em {
+      font-style: normal; color: var(--muted); font-size: .75rem; font-weight: 700;
+    }
     .q {
       display: inline-flex; align-items: center; gap: .25rem;
       background: var(--bg2); border: 1px solid var(--line2);
@@ -1329,6 +1349,30 @@
     </div>
   </div>
 
+  <div class="course-modal" id="extraModal" hidden role="dialog" aria-modal="true" aria-labelledby="extraModalTitle">
+    <div class="course-card">
+      <div class="course-card-h">
+        <button type="button" class="btn-modal-back" id="extraBack" aria-label="Volver">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </button>
+        <h3 id="extraModalTitle">Producto libre</h3>
+      </div>
+      <p class="sub">Pon el nombre y el precio. Luego podrás cambiar el precio en la cuenta.</p>
+      <div class="course-block">
+        <h4>Nombre</h4>
+        <input id="extraName" type="text" inputmode="text" enterkeyhint="next" maxlength="80" placeholder="Ej. Pan, tapa, encargo…" autocomplete="off" spellcheck="true" style="width:100%;border:1px solid var(--line2);border-radius:12px;background:var(--card);color:var(--ink);font:inherit;font-weight:700;padding:.7rem .8rem;outline:none" />
+      </div>
+      <div class="course-block">
+        <h4>Precio (€)</h4>
+        <input id="extraPrice" type="text" inputmode="decimal" enterkeyhint="done" placeholder="0,00" autocomplete="off" spellcheck="false" style="width:100%;border:1px solid var(--line2);border-radius:12px;background:var(--card);color:var(--ink);font:inherit;font-weight:800;padding:.7rem .8rem;outline:none" />
+      </div>
+      <div class="course-actions">
+        <button type="button" class="cancel" id="extraCancel">Cancelar</button>
+        <button type="button" class="ok" id="extraOk">Añadir a cuenta</button>
+      </div>
+    </div>
+  </div>
+
   <div class="jornada-modal" id="jornadaModal" hidden role="dialog" aria-modal="true" aria-labelledby="jornadaModalTitle">
     <div class="jornada-card">
       <div class="jornada-card-h">
@@ -1584,6 +1628,7 @@
         postres: { label: 'Postres', icon: 'fa-ice-cream', accent: '#e879f9' },
         bebidas: { label: 'Bebidas', icon: 'fa-glass-water', accent: '#2dd4bf' },
         cafes: { label: 'Cafés', icon: 'fa-mug-hot', accent: '#d6a26a' },
+        extras: { label: 'Varios', icon: 'fa-pen-to-square', accent: '#a78bfa' },
       }
 
       const state = {
@@ -1949,8 +1994,8 @@
 
       function categoryTypeOf(itemOrLine) {
         const catId = String(itemOrLine?.catId || '').toLowerCase()
-        // Barra: bebidas, cafés y postres (no van a cocina)
-        if (catId === 'bebidas' || catId === 'cafes' || catId === 'postres') return 'bebida'
+        // Barra: bebidas, cafés, postres y varios (no van a cocina)
+        if (catId === 'bebidas' || catId === 'cafes' || catId === 'postres' || catId === 'extras') return 'bebida'
         if (itemOrLine?.categoryType === 'bebida' || itemOrLine?.categoryType === 'comida') {
           return itemOrLine.categoryType
         }
@@ -1962,6 +2007,39 @@
         if (itemOrLine.coursePick === true) return true
         const id = String(itemOrLine.id || itemOrLine.productId || '')
         return id === 'menu-dia-es-semana' || id === 'menu-dia-es-finde' || /^menu-dia-es-/.test(id)
+      }
+
+      function isPriceEditable(itemOrLine) {
+        if (!itemOrLine) return false
+        if (itemOrLine.priceEditable === true || itemOrLine.customProduct === true) return true
+        const cat = String(itemOrLine.catId || '')
+        return cat === 'menus-dia' || cat === 'extras'
+      }
+
+      function formatPriceInput(n) {
+        const v = Math.round((Number(n) + Number.EPSILON) * 100) / 100
+        if (!Number.isFinite(v)) return ''
+        return v.toFixed(2).replace('.', ',')
+      }
+
+      function parsePriceInput(raw) {
+        const n = parseFloat(String(raw || '').trim().replace(',', '.'))
+        if (!Number.isFinite(n) || n < 0) return null
+        return Math.round((n + Number.EPSILON) * 100) / 100
+      }
+
+      function setLinePrice(key, raw) {
+        const line = state.cart[key]
+        if (!line || !isPriceEditable(line)) return
+        const price = parsePriceInput(raw)
+        if (price == null) {
+          alert('Precio no válido')
+          renderTicket()
+          return
+        }
+        line.price = price
+        persist()
+        renderTicket()
       }
 
       function formatCourseNote(primero, segundo) {
@@ -2072,11 +2150,14 @@
             sentQty: 0,
             note: String(note || ''),
             coursePick: Boolean(item.coursePick || isSpanishMenu(item)),
+            priceEditable: Boolean(item.priceEditable || item.customProduct || isPriceEditable(item)),
+            customProduct: Boolean(item.customProduct),
             primero: meta?.primero || '',
             segundo: meta?.segundo || '',
           }
         }
         if (!state.cart[key].categoryType) state.cart[key].categoryType = ctype
+        if (isPriceEditable(item) || isPriceEditable(state.cart[key])) state.cart[key].priceEditable = true
         state.hist.push(key)
         persist(); render(); flash(item.id)
         try { navigator.vibrate?.(12) } catch {}
@@ -2084,12 +2165,65 @@
 
       function add(item) {
         if (!requireMesa()) return
+        if (item.customProduct || item.id === 'extras-libre' || item.catId === 'extras') {
+          openExtraModal()
+          return
+        }
         // Solo menú español: pedir Primero/Segundo Nº1 o Nº2
         if (isSpanishMenu(item) || item.coursePick) {
           openCoursePick(item, null)
           return
         }
         addWithNote(item, '', null)
+      }
+
+      function openExtraModal() {
+        if (!requireMesa()) return
+        if ($('extraName')) $('extraName').value = ''
+        if ($('extraPrice')) $('extraPrice').value = ''
+        if ($('extraModal')) $('extraModal').hidden = false
+        setTimeout(() => { try { $('extraName')?.focus() } catch {} }, 50)
+      }
+
+      function closeExtraModal() {
+        if ($('extraModal')) $('extraModal').hidden = true
+      }
+
+      function commitExtraProduct() {
+        const name = String($('extraName')?.value || '').trim()
+        const price = parsePriceInput($('extraPrice')?.value)
+        if (!name) {
+          alert('Pon un nombre al producto.')
+          $('extraName')?.focus()
+          return
+        }
+        if (price == null) {
+          alert('Pon un precio válido (ej. 1,50).')
+          $('extraPrice')?.focus()
+          return
+        }
+        const slug = name
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '')
+          .slice(0, 40) || 'libre'
+        const id = 'extras-' + slug
+        closeExtraModal()
+        addWithNote(
+          {
+            id,
+            name,
+            price,
+            catId: 'extras',
+            categoryType: 'bebida',
+            customProduct: true,
+            priceEditable: true,
+          },
+          '',
+          null,
+        )
       }
 
       function setQty(id, qty) {
@@ -2373,6 +2507,17 @@
         const items = filtered()
         const meta = CAT_META[state.cat] || CAT_META.all
         $('menuTitle').textContent = meta.label
+        // Categoría Varios: UI especial
+        if (state.cat === 'extras') {
+          $('menuCount').textContent = 'producto libre'
+          $('products').innerHTML = `
+            <button class="prod" type="button" id="btnOpenExtra" data-extra="1" style="--accent:${accentFor('extras')};grid-column:1/-1;min-height:120px">
+              <div class="name"><span>＋ Añadir producto libre</span></div>
+              <div class="desc">Pan, tapa, encargo u otra venta suelta · luego puedes cambiar el precio en la cuenta</div>
+              <div class="price">precio libre</div>
+            </button>`
+          return
+        }
         $('menuCount').textContent = `${items.length} producto${items.length === 1 ? '' : 's'}`
         $('products').innerHTML = items.length
           ? items.map((i) => {
@@ -2381,7 +2526,7 @@
               return `<button class="prod" data-id="${i.id}" type="button" style="--accent:${accent}">
                 <div class="name"><span>${i.name}</span>${q ? `<span class="qty">×${q}</span>` : ''}</div>
                 ${i.desc ? `<div class="desc">${i.desc}</div>` : '<div></div>'}
-                <div class="price">${money(i.price)}</div>
+                <div class="price">${i.customProduct ? 'precio libre' : money(i.price)}</div>
               </button>`
             }).join('')
           : `<p class="empty">Sin resultados.</p>`
@@ -2433,10 +2578,18 @@
               const pickBtn = isMenuPick
                 ? `<button type="button" class="btn-pick" data-pick="${key}">Cambiar N1/N2</button>`
                 : ''
+              const editable = isPriceEditable(l)
+              const priceBlock = editable
+                ? `<div class="line-price-edit">
+                    <label for="price-${key}">Precio</label>
+                    <input id="price-${key}" class="line-price" type="text" inputmode="decimal" enterkeyhint="done" data-price-key="${key}" value="${formatPriceInput(l.price)}" aria-label="Precio unidad" />
+                    <em>€ / ud.</em>
+                  </div>`
+                : `<div class="line-meta">${money(l.price)} · ud.</div>`
               return `<div class="line" data-key="${key}">
               <div>
                 <div class="line-name">${l.name}${tags}</div>
-                <div class="line-meta">${money(l.price)} · ud.</div>
+                ${priceBlock}
                 ${note}
                 ${pickBtn}
               </div>
@@ -2612,54 +2765,52 @@
           moved = false
         }
 
-        // --- Touch ---
-        document.addEventListener('touchstart', (e) => {
-          if (e.touches.length !== 1) return
-          const t = e.touches[0]
-          begin(t.clientY, t.clientX, t.identifier, e.target)
-        }, { capture: true, passive: true })
+        // Preferir Pointer Events (cubre dedo/ratón/pen en Windows).
+        // Touch nativo solo si no hay PointerEvent.
+        if (window.PointerEvent) {
+          document.addEventListener('pointerdown', (e) => {
+            if (e.button != null && e.button !== 0) return
+            begin(e.clientY, e.clientX, e.pointerId, e.target)
+          }, { capture: true, passive: true })
 
-        document.addEventListener('touchmove', (e) => {
-          if (!active || e.touches.length !== 1) return
-          const t = e.touches[0]
-          move(t.clientY, t.clientX, e)
-        }, { capture: true, passive: false })
+          document.addEventListener('pointermove', (e) => {
+            if (!active) return
+            if (pointerId != null && e.pointerId !== pointerId) return
+            move(e.clientY, e.clientX, e)
+          }, { capture: true, passive: false })
 
-        document.addEventListener('touchend', end, { capture: true, passive: true })
-        document.addEventListener('touchcancel', end, { capture: true, passive: true })
+          document.addEventListener('pointerup', end, { capture: true, passive: true })
+          document.addEventListener('pointercancel', end, { capture: true, passive: true })
+        } else {
+          document.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) return
+            const t = e.touches[0]
+            begin(t.clientY, t.clientX, t.identifier, e.target)
+          }, { capture: true, passive: true })
 
-        // --- Pointer (Windows táctil / dedo como mouse) ---
-        document.addEventListener('pointerdown', (e) => {
-          if (e.button != null && e.button !== 0) return
-          begin(e.clientY, e.clientX, e.pointerId, e.target)
-        }, { capture: true, passive: true })
+          document.addEventListener('touchmove', (e) => {
+            if (!active || e.touches.length !== 1) return
+            const t = e.touches[0]
+            move(t.clientY, t.clientX, e)
+          }, { capture: true, passive: false })
 
-        document.addEventListener('pointermove', (e) => {
-          if (!active) return
-          if (pointerId != null && e.pointerId !== pointerId) return
-          move(e.clientY, e.clientX, e)
-        }, { capture: true, passive: false })
+          document.addEventListener('touchend', end, { capture: true, passive: true })
+          document.addEventListener('touchcancel', end, { capture: true, passive: true })
 
-        document.addEventListener('pointerup', end, { capture: true, passive: true })
-        document.addEventListener('pointercancel', end, { capture: true, passive: true })
+          document.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return
+            begin(e.clientY, e.clientX, 'mouse', e.target)
+          }, { capture: true, passive: true })
 
-        // --- Mouse clásico (algunos TPV solo emiten mouse events) ---
-        document.addEventListener('mousedown', (e) => {
-          if (e.button !== 0) return
-          // Evitar doble inicio si ya hubo pointerdown
-          if (window.PointerEvent) return
-          begin(e.clientY, e.clientX, 'mouse', e.target)
-        }, { capture: true, passive: true })
+          document.addEventListener('mousemove', (e) => {
+            if (!active || pointerId !== 'mouse') return
+            move(e.clientY, e.clientX, e)
+          }, { capture: true, passive: false })
 
-        document.addEventListener('mousemove', (e) => {
-          if (!active || pointerId !== 'mouse') return
-          move(e.clientY, e.clientX, e)
-        }, { capture: true, passive: false })
-
-        document.addEventListener('mouseup', () => {
-          if (pointerId === 'mouse') end()
-        }, { capture: true, passive: true })
-
+          document.addEventListener('mouseup', () => {
+            if (pointerId === 'mouse') end()
+          }, { capture: true, passive: true })
+        }
         // Marca zonas para depuración / CSS
         const mark = () => {
           document.querySelectorAll(ZONE).forEach((el) => { el.dataset.tpvPan = '1' })
@@ -2724,6 +2875,10 @@
         state.cat = b.dataset.cat; render()
       })
       bindTap($('products'), '.prod', (_e, b) => {
+        if (b.dataset.extra || b.id === 'btnOpenExtra') {
+          openExtraModal()
+          return
+        }
         const item = all().find((x) => x.id === b.dataset.id); if (item) add(item)
       })
       bindTap($('lines'), '[data-pick], button[data-act]', (_e, el) => {
@@ -2745,12 +2900,36 @@
         const line = state.cart[el.dataset.id]; if (!line) return
         setQty(el.dataset.id, el.dataset.act === '+' ? line.qty + 1 : line.qty - 1)
       })
+      $('lines').addEventListener('change', (e) => {
+        const input = e.target.closest?.('input.line-price')
+        if (!input) return
+        setLinePrice(input.dataset.priceKey, input.value)
+      })
+      $('lines').addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return
+        const input = e.target.closest?.('input.line-price')
+        if (!input) return
+        e.preventDefault()
+        input.blur()
+      })
       // Modal menú español: Primero/Segundo N1|N2
       $('courseCancel')?.addEventListener('click', () => closeCoursePick())
       $('courseBack')?.addEventListener('click', () => closeCoursePick())
       $('courseOk')?.addEventListener('click', () => commitCoursePick())
       $('courseModal')?.addEventListener('click', (e) => {
         if (e.target === $('courseModal')) closeCoursePick()
+      })
+      $('extraCancel')?.addEventListener('click', () => closeExtraModal())
+      $('extraBack')?.addEventListener('click', () => closeExtraModal())
+      $('extraOk')?.addEventListener('click', () => commitExtraProduct())
+      $('extraModal')?.addEventListener('click', (e) => {
+        if (e.target === $('extraModal')) closeExtraModal()
+      })
+      $('extraPrice')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); commitExtraProduct() }
+      })
+      $('extraName')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); $('extraPrice')?.focus() }
       })
       ;['coursePrimero', 'courseSegundo'].forEach((id) => {
         $(id)?.addEventListener('click', (e) => {
@@ -2761,6 +2940,9 @@
         })
       })
       window.addEventListener('keydown', (e) => {
+        if ($('extraModal')?.hidden === false && e.key === 'Escape') {
+          e.preventDefault(); closeExtraModal(); return
+        }
         if ($('courseModal')?.hidden === false && e.key === 'Escape') {
           e.preventDefault(); closeCoursePick(); return
         }

@@ -855,5 +855,21 @@ window.TPV_CATALOG = [
         "categoryType": "bebida"
       }
     ]
+  },
+  {
+    "id": "extras",
+    "name": "Varios / libre",
+    "icon": "fa-pen-to-square",
+    "items": [
+      {
+        "id": "extras-libre",
+        "name": "Producto libre",
+        "price": 0,
+        "desc": "Escribe el nombre y el precio (pan, tapa, encargo…)",
+        "base": "Producto libre",
+        "categoryType": "bebida",
+        "customProduct": true
+      }
+    ]
   }
 ]
