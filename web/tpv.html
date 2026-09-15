@@ -574,6 +574,18 @@
     }
     .cambio strong { color: var(--ok); font-size: 1.15rem; font-variant-numeric: tabular-nums; }
     .actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .45rem; }
+    .btn.undo-charge {
+      grid-column: 1 / -1;
+      background: linear-gradient(180deg, #7c2d12, #9a3412);
+      color: #ffedd5;
+      border: 1px solid rgba(251, 146, 60, .55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: .45rem;
+    }
+    .btn.undo-charge.show { display: inline-flex; }
+    .btn.undo-charge:disabled { opacity: .45; }
     .btn {
       border: 0; border-radius: 16px; padding: .85rem .45rem;
       font-weight: 800; cursor: pointer; letter-spacing: -.01em;
@@ -1302,6 +1314,9 @@
             <div class="cambio"><span>Cambio</span><strong id="change">—</strong></div>
           </div>
           <div class="actions">
+            <button class="btn undo-charge" id="btnUndoCharge" type="button" hidden>
+              <i class="fa-solid fa-rotate-left"></i> Deshacer último cobro
+            </button>
             <button class="btn k" id="btnKitchen" type="button"><i class="fa-solid fa-fire-burner"></i> Enviar a Cocina</button>
             <button class="btn k" id="btnNextCourse" type="button" hidden style="background:linear-gradient(180deg,#f59e0b,#d97706);"><i class="fa-solid fa-bell"></i> Siguiente plato</button>
             <button class="btn g" id="btnClear2" type="button">Vaciar</button>
@@ -1619,6 +1634,7 @@
       const money = (n) => (Math.round((+n + Number.EPSILON) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
       const $ = (id) => document.getElementById(id)
       const KEY = 'casa-torino-tpv-mesas-v1'
+      const LAST_CHARGE_KEY = 'casa-torino-tpv-last-charge-v1'
 
       const CAT_META = {
         all: { label: 'Todos', icon: 'fa-border-all', accent: '#f5c518' },
@@ -1816,7 +1832,10 @@
         if (!confirm('¿Borrar este ticket de la jornada?\nSe restará del total.')) return
         try {
           const j = await window.CasaTorinoTpvJornada.deleteSale(saleId)
+          const last = readLastCharge()
+          if (last && last.saleId === saleId) writeLastCharge(null)
           paintJornadaStatus(j)
+          paintUndoChargeBtn()
           openJornadaModal()
         } catch (err) {
           console.warn('jornada deleteSale', err)
@@ -1833,6 +1852,8 @@
         try {
           const j = await window.CasaTorinoTpvJornada.start()
           paintJornadaStatus(j)
+          writeLastCharge(null)
+          paintUndoChargeBtn()
           try {
             await window.CasaTorinoKitchenSync?.syncJornada?.('start', {
               startedAt: j.startedAt,
@@ -2361,6 +2382,112 @@
         }
       }
 
+      function cloneJson(v) {
+        try { return JSON.parse(JSON.stringify(v)) } catch { return null }
+      }
+
+      function readLastCharge() {
+        try {
+          const raw = sessionStorage.getItem(LAST_CHARGE_KEY)
+          if (!raw) return null
+          const d = JSON.parse(raw)
+          if (!d || !d.saleId || !d.cart) return null
+          return d
+        } catch {
+          return null
+        }
+      }
+
+      function writeLastCharge(payload) {
+        try {
+          if (!payload) sessionStorage.removeItem(LAST_CHARGE_KEY)
+          else sessionStorage.setItem(LAST_CHARGE_KEY, JSON.stringify(payload))
+        } catch {}
+      }
+
+      function paintUndoChargeBtn() {
+        const btn = $('btnUndoCharge')
+        if (!btn) return
+        const last = readLastCharge()
+        if (!last) {
+          btn.hidden = true
+          btn.classList.remove('show')
+          btn.disabled = true
+          btn.title = ''
+          return
+        }
+        const mesa = last.mesa ? `Mesa ${last.mesa}` : 'sin mesa'
+        const totalTxt = money(last.total || 0)
+        btn.hidden = false
+        btn.classList.add('show')
+        btn.disabled = false
+        btn.innerHTML = `<i class="fa-solid fa-rotate-left"></i> Deshacer último cobro · ${mesa} · ${totalTxt}`
+        btn.title = 'Anula solo el último cobro de la jornada y recupera esa cuenta'
+      }
+
+      async function undoLastCharge() {
+        const last = readLastCharge()
+        if (!last) {
+          alert('No hay un cobro reciente para deshacer.')
+          paintUndoChargeBtn()
+          return
+        }
+        const mesaTxt = last.mesa ? `Mesa ${last.mesa}` : 'Cuenta sin mesa'
+        const totalTxt = money(last.total || 0)
+        if (!confirm(
+          `¿Deshacer el último cobro?\n\n${mesaTxt}\nTotal: ${totalTxt}\n\n` +
+          `Se restará de la jornada y se recuperará esa cuenta en el TPV.\n` +
+          `Solo se puede deshacer el cobro más reciente.`,
+        )) return
+
+        const btn = $('btnUndoCharge')
+        if (btn) btn.disabled = true
+        try {
+          if (window.CasaTorinoTpvJornada?.deleteSale && last.saleId) {
+            try {
+              const j = await window.CasaTorinoTpvJornada.deleteSale(last.saleId)
+              paintJornadaStatus(j)
+            } catch (err) {
+              // Si el ticket ya no está (corregido a mano), igual restauramos la cuenta
+              console.warn('undoLastCharge deleteSale', err)
+              if (err && err.status === 401) {
+                lockTpvForPin('Sesión caducada — introduce el PIN')
+                return
+              }
+              if (err && err.status && err.status !== 404) {
+                alert('No se pudo quitar el cobro de la jornada.\n' + (err.message || err))
+                return
+              }
+            }
+          }
+
+          const mesa = normalizeMesa(last.mesa)
+          const cart = cloneJson(last.cart) || {}
+          const hist = Array.isArray(last.hist) ? last.hist.slice() : []
+          const notes = String(last.notes || '')
+          const paid = String(last.paid || '')
+
+          if (mesa) {
+            state.tables[mesa] = { cart, hist, notes, paid }
+            state.mesa = mesa
+            syncMesaInputs(mesa)
+          }
+          state.cart = cart
+          state.hist = hist
+          state.notes = notes
+          if ($('notes')) $('notes').value = notes
+          if ($('paid')) $('paid').value = paid
+
+          writeLastCharge(null)
+          persist()
+          render()
+          openTicket()
+          try { navigator.vibrate?.([30, 40, 30]) } catch {}
+        } finally {
+          paintUndoChargeBtn()
+        }
+      }
+
       async function done() {
         const { ls, total, count, base, iva } = totals()
         if (!count) return
@@ -2370,7 +2497,7 @@
 
         if (!(await ensureJornadaOpenForSale())) return
 
-        // Snapshot antes de vaciar (para jornada)
+        // Snapshot para poder deshacer SOLO este cobro
         const saleLines = ls.map((l) => ({
           id: l.id,
           name: l.name,
@@ -2380,6 +2507,22 @@
           catId: l.catId || '',
           catName: catNameOf(l.catId),
         }))
+        const undoSnapshot = {
+          mesa: m || '',
+          total,
+          base,
+          iva,
+          notes: ($('notes')?.value || state.notes || '').trim(),
+          paid: $('paid')?.value || '',
+          cart: cloneJson(state.cart) || {},
+          hist: Array.isArray(state.hist) ? state.hist.slice() : [],
+          at: Date.now(),
+        }
+
+        const saleId =
+          typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : 's-' + Date.now() + '-' + Math.random().toString(16).slice(2, 8)
 
         // Abrir cajón sin reimprimir (el ticket se da antes con «Ticket»)
         if (window.CasaTorinoPrint?.openCashDrawer) {
@@ -2389,10 +2532,7 @@
         // Registrar en total de jornada (comida / bebida / categorías)
         try {
           const sale = {
-            id:
-              typeof crypto !== 'undefined' && crypto.randomUUID
-                ? crypto.randomUUID()
-                : 's-' + Date.now() + '-' + Math.random().toString(16).slice(2, 8),
+            id: saleId,
             at: Date.now(),
             mesa: m || '',
             total,
@@ -2402,12 +2542,15 @@
           }
           const j = await window.CasaTorinoTpvJornada.addSale(sale)
           paintJornadaStatus(j)
+          writeLastCharge({ ...undoSnapshot, saleId })
         } catch (err) {
           console.warn('jornada sale', err)
           alert(
             'Cobro hecho en la mesa, pero no se pudo guardar en el total de jornada.\n' +
               (err.message || err),
           )
+          // Sin saleId en jornada no hay nada que restar; no guardamos deshacer
+          writeLastCharge(null)
         }
 
         state.cart = {}; state.hist = []; state.notes = ''
@@ -2415,6 +2558,7 @@
         if ($('paid')) $('paid').value = ''
         if (m) state.tables[m] = { cart: {}, hist: [], notes: '', paid: '' }
         persist(); render(); closeTicket()
+        paintUndoChargeBtn()
       }
 
       function flash(id) {
@@ -2608,6 +2752,7 @@
             }).join('')
           : `<p class="empty">${m ? `Cuenta de la mesa ${m} vacía.` : 'Pon el nº de mesa y toca productos.'}</p>`
         updateChange()
+        paintUndoChargeBtn()
       }
 
       function render() { renderCats(); renderProducts(); renderTicket() }
@@ -3003,6 +3148,7 @@
       $('btnTicket').onclick = printTicketOnly
       $('btnDone').onclick = done
       $('btnUndo').onclick = undo
+      $('btnUndoCharge')?.addEventListener('click', () => { undoLastCharge() })
       $('fab').onclick = openTicket
       $('backdrop').onclick = closeTicket
       $('btnCloseCheck')?.addEventListener('click', closeTicket)
