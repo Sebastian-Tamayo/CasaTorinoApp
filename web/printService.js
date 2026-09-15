@@ -1,17 +1,28 @@
 /**
  * Casa Torino — impresión térmica ESC/POS vía QZ Tray
- * Impresora: PREMIER ITP-85 (80 mm) · Cajón RJ11 en impresora
+ * Impresora: POS-58 (58 mm) · nombre exacto en Windows
  *
- * Requisito en el PC Windows: QZ Tray instalado y abierto.
+ * Requisito en el PC: QZ Tray instalado y abierto.
  * https://qz.io/download
+ *
+ * Primera vez: en el aviso de QZ Tray pulsa «Allow» / «Permitir»
+ * y marca recordar el sitio (casa-torino-web.vercel.app).
  */
 (() => {
+  const PRINTER_NAME = 'POS-58'
+  const PRINTER_ALIASES = [
+    /^POS-58$/i,
+    /^POS\s*58$/i,
+    /^POS58$/i,
+    /POS[-_\s]?58/i,
+  ]
+
   const BUSINESS = {
     name: 'CASA TORINO',
     subtitle: 'Bar · Restaurante',
     footer: '¡Gracias por su visita!',
-    /** Ancho útil aprox. en caracteres (fuente A, 80 mm) */
-    cols: 42,
+    /** Ancho útil aprox. en caracteres (fuente A, 58 mm) */
+    cols: 32,
   }
 
   /** Comandos ESC/POS */
@@ -26,12 +37,14 @@
     SIZE_NORMAL: '\x1D\x21\x00',
     SIZE_DOUBLE: '\x1D\x21\x11',
     CUT: '\x1D\x56\x00',
-    /** Abrir cajón pin 2 (estándar ESC p) */
+    /** Abrir cajón pin 2 (estándar ESC p) — si no hay cajón, se ignora */
     DRAWER: '\x1B\x70\x00\x19\xFA',
     LF: '\n',
   }
 
+  const STORAGE_KEY = 'casa-torino-printer-v1'
   let connecting = null
+  let trustedSetupDone = false
 
   function money(n) {
     return (Math.round((+n + Number.EPSILON) * 100) / 100)
@@ -49,16 +62,50 @@
     return L + ' '.repeat(space) + R
   }
 
-  function wrapName(name, max = 28) {
+  function wrapName(name, max = 20) {
     const s = String(name || '')
     if (s.length <= max) return s
     return s.slice(0, max - 1) + '…'
+  }
+
+  function rememberPrinter(name) {
+    try {
+      if (name) localStorage.setItem(STORAGE_KEY, String(name))
+    } catch {}
+  }
+
+  function rememberedPrinter() {
+    try {
+      return localStorage.getItem(STORAGE_KEY) || ''
+    } catch {
+      return ''
+    }
+  }
+
+  /**
+   * QZ Tray pide permiso la 1ª vez en el PC.
+   * Sin certificado de pago no se puede silenciar del todo:
+   * hay que pulsar «Allow» una vez y recordar el sitio.
+   * No forzamos certificado vacío (rompe la conexión en QZ 2.2).
+   */
+  function setupQzTrust() {
+    if (trustedSetupDone || typeof qz === 'undefined') return
+    trustedSetupDone = true
+    try {
+      if (qz.api && typeof qz.api.setPromiseType === 'function') {
+        // Compatible con promesas nativas del navegador
+        qz.api.setPromiseType((resolver) => new Promise(resolver))
+      }
+    } catch (err) {
+      console.warn('[printService] trust setup', err)
+    }
   }
 
   async function ensureConnected() {
     if (typeof qz === 'undefined') {
       throw new Error('QZ_MISSING')
     }
+    setupQzTrust()
     if (qz.websocket.isActive()) return
     if (connecting) return connecting
     connecting = qz.websocket
@@ -73,11 +120,14 @@
     return connecting
   }
 
+  function matchesPos58(name) {
+    const n = String(name || '').trim()
+    if (!n) return false
+    return PRINTER_ALIASES.some((re) => re.test(n))
+  }
+
   /**
-   * Construye el ticket ESC/POS.
-   * @param {Array<{name:string, qty:number, price:number}>} cartItems
-   * @param {number} total
-   * @param {{ mesa?: string, notes?: string, base?: number, iva?: number, ivaRate?: number, paid?: number|string, change?: number }} [meta]
+   * Construye el ticket ESC/POS (58 mm).
    */
   function buildReceipt(cartItems, total, meta = {}) {
     const now = new Date()
@@ -111,7 +161,7 @@
       const sum = qty * price
       data.push(padRow(`${qty}x ${wrapName(it.name)}`, money(sum)) + ESC.LF)
       if (qty > 1) {
-        data.push(`    ${money(price)} / ud.` + ESC.LF)
+        data.push(`  ${money(price)} / ud.` + ESC.LF)
       }
     }
 
@@ -121,7 +171,6 @@
       data.push('Notas:' + ESC.LF)
       data.push(ESC.BOLD_OFF)
       const note = String(meta.notes).replace(/\s+/g, ' ').trim()
-      // envolver notas a ancho del ticket
       let rest = note
       while (rest.length) {
         data.push(rest.slice(0, BUSINESS.cols) + ESC.LF)
@@ -130,26 +179,29 @@
     }
 
     data.push(line('-') + ESC.LF)
-    const ivaRate = Number.isFinite(meta.ivaRate) ? meta.ivaRate : 0.10
+    const ivaRate = Number.isFinite(meta.ivaRate) ? meta.ivaRate : 0.1
     let base = Number(meta.base)
     let iva = Number(meta.iva)
     if (!Number.isFinite(base) || !Number.isFinite(iva)) {
       base = Math.round((total / (1 + ivaRate) + Number.EPSILON) * 100) / 100
       iva = Math.round((total - base + Number.EPSILON) * 100) / 100
     }
-    data.push(padRow('Base imponible', money(base) + ' EUR') + ESC.LF)
-    data.push(padRow('IVA ' + Math.round(ivaRate * 100) + '%', money(iva) + ' EUR') + ESC.LF)
+    data.push(padRow('Base', money(base) + ' E') + ESC.LF)
+    data.push(padRow('IVA ' + Math.round(ivaRate * 100) + '%', money(iva) + ' E') + ESC.LF)
     data.push(ESC.BOLD_ON)
     data.push(ESC.SIZE_DOUBLE)
-    data.push(padRow('TOTAL', money(total) + ' EUR') + ESC.LF)
+    data.push(padRow('TOTAL', money(total)) + ESC.LF)
     data.push(ESC.SIZE_NORMAL)
     data.push(ESC.BOLD_OFF)
 
-    const paid = meta.paid !== undefined && meta.paid !== '' ? parseFloat(String(meta.paid).replace(',', '.')) : NaN
+    const paid =
+      meta.paid !== undefined && meta.paid !== ''
+        ? parseFloat(String(meta.paid).replace(',', '.'))
+        : NaN
     if (Number.isFinite(paid)) {
-      data.push(padRow('Entrega', money(paid) + ' EUR') + ESC.LF)
+      data.push(padRow('Entrega', money(paid) + ' E') + ESC.LF)
       const change = Number.isFinite(meta.change) ? meta.change : paid - total
-      data.push(padRow('Cambio', money(change) + ' EUR') + ESC.LF)
+      data.push(padRow('Cambio', money(change) + ' E') + ESC.LF)
     }
 
     data.push(line('=') + ESC.LF)
@@ -162,23 +214,51 @@
     return data
   }
 
-  async function findPrinter() {
-    // Preferir la térmica PREMIER si está en la lista; si no, la predeterminada
+  async function listPrinterNames() {
     try {
       const list = await qz.printers.find()
-      const names = Array.isArray(list) ? list : [list]
-      const match = names.find((n) => /premier|itp-?85|thermal|termica|receipt|ticket/i.test(String(n)))
-      if (match) return match
+      if (Array.isArray(list)) return list.map(String)
+      if (list) return [String(list)]
     } catch (_) {}
+    return []
+  }
+
+  async function findPrinter() {
+    // 1) Nombre exacto POS-58 (lo que pide Windows/QZ)
     try {
-      return await qz.printers.getDefault()
-    } catch (_) {
-      return null
+      const exact = await qz.printers.find(PRINTER_NAME)
+      if (exact) {
+        const name = Array.isArray(exact) ? exact[0] : exact
+        if (name) {
+          rememberPrinter(name)
+          return String(name)
+        }
+      }
+    } catch (_) {}
+
+    // 2) Buscar en la lista por alias / recuerdo
+    const names = await listPrinterNames()
+    const remembered = rememberedPrinter()
+    if (remembered) {
+      const hit = names.find((n) => String(n) === remembered)
+      if (hit) return hit
     }
+    const match = names.find((n) => matchesPos58(n))
+    if (match) {
+      rememberPrinter(match)
+      return match
+    }
+
+    // 3) Último recurso: predeterminada del sistema
+    try {
+      const def = await qz.printers.getDefault()
+      if (def) return String(def)
+    } catch (_) {}
+    return names[0] || null
   }
 
   /**
-   * Imprime ticket + abre cajón.
+   * Imprime ticket + abre cajón (si hay).
    * No lanza si falla: muestra alerta amigable.
    */
   async function printReceipt(cartItems, total, meta = {}) {
@@ -186,33 +266,72 @@
       await ensureConnected()
       const printer = await findPrinter()
       if (!printer) {
-        alert('No se encontró ninguna impresora.\nRevisa que la PREMIER ITP-85 esté instalada en Windows.')
+        alert(
+          'No se encontró la impresora POS-58.\n' +
+            'Comprueba que esté encendida, instalada en Windows\n' +
+            'y que QZ Tray esté abierto.',
+        )
         return false
       }
 
       const config = qz.configs.create(printer, {
         encoding: 'CP858',
         copies: 1,
+        // Raw ESC/POS → no usa driver gráfico
+        rasterize: false,
       })
-      const data = buildReceipt(cartItems, total, meta)
-      await qz.print(config, data)
+      const data = buildReceipt(cartItems, total, meta).map((chunk) => ({
+        type: 'raw',
+        format: 'command',
+        data: chunk,
+      }))
+      // Algunas versiones de QZ aceptan strings directos; si falla raw-object, reintento clásico
+      try {
+        await qz.print(config, data)
+      } catch (err1) {
+        const plain = buildReceipt(cartItems, total, meta)
+        await qz.print(config, plain)
+      }
+      rememberPrinter(printer)
       return true
     } catch (err) {
       console.warn('[printService]', err)
       const msg = String(err && (err.message || err))
       if (msg.includes('QZ_MISSING') || /websocket|connect|ECONNREFUSED|not connected|Unable to establish/i.test(msg)) {
-        alert('No se pudo conectar con la impresora. ¿Está QZ Tray abierto?')
+        alert('No se pudo conectar con QZ Tray.\nÁbrelo en el PC de la caja e inténtalo de nuevo.')
+      } else if (/denied|blocked|not trusted|cancelled|canceled|reject/i.test(msg)) {
+        alert(
+          'QZ Tray no confía aún en este sitio.\n' +
+            'En el aviso de QZ Tray pulsa «Allow» / «Permitir»\n' +
+            'y marca recordar para casa-torino-web.vercel.app',
+        )
       } else {
-        alert('No se pudo imprimir el ticket.\n' + (msg || 'Error desconocido'))
+        alert('No se pudo imprimir en POS-58.\n' + (msg || 'Error desconocido'))
       }
       return false
     }
   }
 
-  // API usada por tpv.html → botón Cobrado
+  /** Prueba rápida: imprime un ticket de prueba en POS-58 */
+  async function testPrint() {
+    return printReceipt(
+      [{ name: 'Prueba POS-58', qty: 1, price: 0 }],
+      0,
+      { mesa: 'TEST', notes: 'Impresión de prueba Casa Torino' },
+    )
+  }
+
+  async function resolvePrinterName() {
+    await ensureConnected()
+    return findPrinter()
+  }
+
   window.CasaTorinoPrint = {
     printReceipt,
+    testPrint,
     ensureConnected,
     buildReceipt,
+    resolvePrinterName,
+    PRINTER_NAME,
   }
 })()
