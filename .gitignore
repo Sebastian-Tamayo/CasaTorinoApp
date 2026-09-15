@@ -10,3 +10,7 @@ dist/
 *.log
 .vercel/.env*.local
 erp/.env.local
+web/assets/qz/private-key.pem
+**/private-key.pem
+*.pem
+!web/assets/qz/digital-certificate.txt

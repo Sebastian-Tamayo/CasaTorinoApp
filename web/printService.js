@@ -5,8 +5,10 @@
  * Requisito en el PC: QZ Tray instalado y abierto.
  * https://qz.io/download
  *
- * Primera vez: en el aviso de QZ Tray pulsa «Allow» / «Permitir»
- * y marca recordar el sitio (casa-torino-web.vercel.app).
+ * Para no ver "Action Required / Untrusted website":
+ * 1) Marca "Remember this decision" y pulsa Allow (rápido), o
+ * 2) Copia assets/qz/digital-certificate.txt → %APPDATA%\\qz\\override.crt
+ *    (ver assets/qz/LEEME-QUITAR-AVISO.txt)
  */
 (() => {
   const PRINTER_NAME = 'POS-58'
@@ -83,18 +85,58 @@
   }
 
   /**
-   * QZ Tray pide permiso la 1ª vez en el PC.
-   * Sin certificado de pago no se puede silenciar del todo:
-   * hay que pulsar «Allow» una vez y recordar el sitio.
-   * No forzamos certificado vacío (rompe la conexión en QZ 2.2).
+   * Certificado + firma → QZ deja de marcar el sitio como Untrusted
+   * (con override.crt instalado en el PC, o Allow+Remember).
    */
   function setupQzTrust() {
     if (trustedSetupDone || typeof qz === 'undefined') return
     trustedSetupDone = true
     try {
       if (qz.api && typeof qz.api.setPromiseType === 'function') {
-        // Compatible con promesas nativas del navegador
         qz.api.setPromiseType((resolver) => new Promise(resolver))
+      }
+      if (qz.security && typeof qz.security.setCertificatePromise === 'function') {
+        qz.security.setCertificatePromise((resolve, reject) => {
+          fetch('/assets/qz/digital-certificate.txt', {
+            cache: 'no-store',
+            headers: { Accept: 'text/plain' },
+          })
+            .then((r) => {
+              if (!r.ok) throw new Error('cert ' + r.status)
+              return r.text()
+            })
+            .then((cert) => resolve(cert))
+            .catch((err) => {
+              console.warn('[printService] certificate', err)
+              resolve()
+            })
+        })
+      }
+      if (qz.security && typeof qz.security.setSignatureAlgorithm === 'function') {
+        try {
+          qz.security.setSignatureAlgorithm('SHA512')
+        } catch (_) {}
+      }
+      if (qz.security && typeof qz.security.setSignaturePromise === 'function') {
+        qz.security.setSignaturePromise((toSign) => {
+          return (resolve, reject) => {
+            fetch('/api/qz-sign', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+              body: String(toSign || ''),
+            })
+              .then((r) => {
+                if (!r.ok) throw new Error('qz-sign ' + r.status)
+                return r.text()
+              })
+              .then((sig) => resolve(sig))
+              .catch((err) => {
+                console.warn('[printService] signature', err)
+                resolve()
+              })
+          }
+        })
       }
     } catch (err) {
       console.warn('[printService] trust setup', err)

@@ -1,0 +1,25 @@
+Casa Torino — quitar el aviso "Action Required" de QZ Tray (POS-58)
+====================================================================
+
+Opción A (rápida, 10 segundos)
+------------------------------
+1. Marca la casilla "Remember this decision"
+2. Pulsa "Allow"
+3. Si sale otra vez (impresoras / imprimir), vuelve a marcar Remember + Allow
+
+Opción B (definitiva, una sola vez en el PC de la caja)
+-----------------------------------------------------
+1. Cierra QZ Tray (icono cerca del reloj → Exit)
+2. Copia el archivo digital-certificate.txt a esta ruta de Windows:
+
+   %APPDATA%\qz\override.crt
+
+   (Pulsa Win+R, escribe %APPDATA%\qz y Enter.
+    Si no existe la carpeta "qz", créala.
+    Renombra/copia el certificado como override.crt)
+
+3. Abre de nuevo QZ Tray
+4. Recarga el TPV (F5) y prueba "Probar ticket"
+
+Con el certificado del sitio, QZ deja de pedir permiso en
+https://casa-torino-web.vercel.app
