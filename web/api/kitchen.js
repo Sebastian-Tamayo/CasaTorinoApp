@@ -90,7 +90,7 @@ function sanitizeItems(raw) {
       if (!name) return false
       const t = String(it?.categoryType || '').trim().toLowerCase()
       const catId = String(it?.catId || '').trim().toLowerCase()
-      if (t === 'bebida' || t === 'drink' || catId === 'bebidas') return false
+      if (t === 'bebida' || t === 'drink' || catId === 'bebidas' || catId === 'cafes' || catId === 'postres') return false
       return true
     })
     .map((it) => ({

@@ -1008,6 +1008,11 @@
       width: min(520px, 100%);
       max-height: min(88dvh, 720px);
       overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      -ms-touch-action: pan-y;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
       background: var(--panel);
       border: 1px solid var(--line2);
       border-radius: 20px;
@@ -1529,6 +1534,7 @@
         infantil: { label: 'Infantil', icon: 'fa-child', accent: '#c084fc' },
         postres: { label: 'Postres', icon: 'fa-ice-cream', accent: '#e879f9' },
         bebidas: { label: 'Bebidas', icon: 'fa-glass-water', accent: '#2dd4bf' },
+        cafes: { label: 'Cafés', icon: 'fa-mug-hot', accent: '#d6a26a' },
       }
 
       const state = {
@@ -1893,10 +1899,12 @@
       }
 
       function categoryTypeOf(itemOrLine) {
+        const catId = String(itemOrLine?.catId || '').toLowerCase()
+        // Barra: bebidas, cafés y postres (no van a cocina)
+        if (catId === 'bebidas' || catId === 'cafes' || catId === 'postres') return 'bebida'
         if (itemOrLine?.categoryType === 'bebida' || itemOrLine?.categoryType === 'comida') {
           return itemOrLine.categoryType
         }
-        if (itemOrLine?.catId === 'bebidas') return 'bebida'
         return 'comida'
       }
 
@@ -2088,14 +2096,14 @@
           const hasFood = lines().some((l) => categoryTypeOf(l) === 'comida')
           const hasDrink = lines().some((l) => categoryTypeOf(l) === 'bebida')
           if (hasFood) alert('Toda la comida de esta mesa ya está enviada a cocina.\nAñade más platos o espera.')
-          else if (hasDrink) alert('Solo hay bebidas en la cuenta.\nLas bebidas se quedan en barra y no van a cocina.')
+          else if (hasDrink) alert('Solo hay productos de barra en la cuenta.\nBebidas, cafés y postres se preparan en barra y no van a cocina.')
           else alert('La cuenta está vacía.')
           return
         }
         const resumen = foodPending
           .map((x) => `${x.qty} × ${x.name}${x.note ? ` (${x.note})` : ''}`)
           .join('\n')
-        if (!confirm(`Mesa ${m}\nEnviar a cocina:\n\n${resumen}\n\n(Las bebidas no se envían)`)) return
+        if (!confirm(`Mesa ${m}\nEnviar a cocina:\n\n${resumen}\n\n(Bebidas, cafés y postres no se envían)`)) return
 
         const btn = $('btnKitchen')
         if (btn) btn.disabled = true

@@ -502,7 +502,7 @@ window.TPV_CATALOG = [
         "price": 6.0,
         "desc": "Nata, mascarpone, bizcocho y fresa o café",
         "base": "Tiramisú",
-        "categoryType": "comida"
+        "categoryType": "bebida"
       },
       {
         "id": "postres-tarta-de-queso",
@@ -510,7 +510,7 @@ window.TPV_CATALOG = [
         "price": 5.0,
         "desc": "Nata, huevo, queso, naranja y leche condensada",
         "base": "Tarta de queso",
-        "categoryType": "comida"
+        "categoryType": "bebida"
       },
       {
         "id": "postres-arroz-con-leche",
@@ -518,7 +518,7 @@ window.TPV_CATALOG = [
         "price": 5.0,
         "desc": "Arroz, leche, canela, leche condensada y vainilla",
         "base": "Arroz con leche",
-        "categoryType": "comida"
+        "categoryType": "bebida"
       },
       {
         "id": "postres-michelada-de-mazamorra",
@@ -526,7 +526,7 @@ window.TPV_CATALOG = [
         "price": 6.0,
         "desc": "Maíz trillado, leche, canela, leche condensada y bocadillo",
         "base": "Michelada de mazamorra",
-        "categoryType": "comida"
+        "categoryType": "bebida"
       },
       {
         "id": "postres-ensalada-de-frutas-s",
@@ -534,7 +534,7 @@ window.TPV_CATALOG = [
         "price": 7.0,
         "desc": "Fruta de temporada, helado, queso, nata y yogur",
         "base": "Ensalada de frutas",
-        "categoryType": "comida"
+        "categoryType": "bebida"
       },
       {
         "id": "postres-ensalada-de-frutas-m",
@@ -542,7 +542,7 @@ window.TPV_CATALOG = [
         "price": 10.0,
         "desc": "Fruta de temporada, helado, queso, nata y yogur",
         "base": "Ensalada de frutas",
-        "categoryType": "comida"
+        "categoryType": "bebida"
       },
       {
         "id": "postres-ensalada-de-frutas-l",
@@ -550,7 +550,7 @@ window.TPV_CATALOG = [
         "price": 15.0,
         "desc": "Fruta de temporada, helado, queso, nata y yogur",
         "base": "Ensalada de frutas",
-        "categoryType": "comida"
+        "categoryType": "bebida"
       },
       {
         "id": "postres-banana-split",
@@ -558,7 +558,7 @@ window.TPV_CATALOG = [
         "price": 5.0,
         "desc": "Plátano con bolas de helado, fresa y nata",
         "base": "Banana split",
-        "categoryType": "comida"
+        "categoryType": "bebida"
       },
       {
         "id": "postres-bola-de-helado",
@@ -566,7 +566,7 @@ window.TPV_CATALOG = [
         "price": 2.5,
         "desc": "Chocolate, fresa o vainilla",
         "base": "Bola de helado",
-        "categoryType": "comida"
+        "categoryType": "bebida"
       }
     ]
   },
@@ -808,7 +808,22 @@ window.TPV_CATALOG = [
         "categoryType": "bebida"
       },
       {
-        "id": "bebidas-café",
+        "id": "bebidas-canon",
+        "name": "Cañón",
+        "price": 3.5,
+        "desc": "Cerveza de cañón",
+        "base": "Cañón",
+        "categoryType": "bebida"
+      }
+    ]
+  },
+  {
+    "id": "cafes",
+    "name": "Cafés",
+    "icon": "fa-mug-hot",
+    "items": [
+      {
+        "id": "cafes-cafe",
         "name": "Café",
         "price": 1.5,
         "desc": "",
@@ -816,7 +831,7 @@ window.TPV_CATALOG = [
         "categoryType": "bebida"
       },
       {
-        "id": "bebidas-café-con-leche",
+        "id": "cafes-cafe-con-leche",
         "name": "Café con leche",
         "price": 1.7,
         "desc": "",
@@ -824,7 +839,7 @@ window.TPV_CATALOG = [
         "categoryType": "bebida"
       },
       {
-        "id": "bebidas-infusión",
+        "id": "cafes-infusion",
         "name": "Infusión",
         "price": 1.7,
         "desc": "",
@@ -832,19 +847,11 @@ window.TPV_CATALOG = [
         "categoryType": "bebida"
       },
       {
-        "id": "bebidas-te-frio",
+        "id": "cafes-te-frio",
         "name": "Té frío",
         "price": 2.4,
         "desc": "",
         "base": "Té frío",
-        "categoryType": "bebida"
-      },
-      {
-        "id": "bebidas-canon",
-        "name": "Cañón",
-        "price": 3.5,
-        "desc": "Cerveza de cañón",
-        "base": "Cañón",
         "categoryType": "bebida"
       }
     ]

@@ -198,11 +198,12 @@ function normalizeSale(raw) {
       const qty = Math.max(0, Number(l.qty) || 0)
       const price = Number(l.price) || 0
       if (!qty || !Number.isFinite(price)) return null
+      const catId = String(l.catId || '')
       const categoryType =
-        l.categoryType === 'bebida' || l.categoryType === 'comida'
-          ? l.categoryType
-          : l.catId === 'bebidas'
-            ? 'bebida'
+        catId === 'bebidas' || catId === 'cafes' || catId === 'postres'
+          ? 'bebida'
+          : l.categoryType === 'bebida' || l.categoryType === 'comida'
+            ? l.categoryType
             : 'comida'
       return {
         id: String(l.id || '').slice(0, 80),
