@@ -87,6 +87,36 @@
       touch-action: pan-x pan-y;
       -ms-touch-action: pan-x pan-y;
     }
+
+    /*
+      TPV Windows: el scroll nativo de overflow a menudo NO responde al dedo.
+      Con .tpv-touch-scroll tomamos el gesto (JS) y movemos scrollTop.
+      Botones/inputs siguen con manipulation (no se capturan).
+    */
+    html.tpv-touch-scroll .menu,
+    html.tpv-touch-scroll .rail,
+    html.tpv-touch-scroll .lines,
+    html.tpv-touch-scroll .check-f,
+    html.tpv-touch-scroll .jornada-card {
+      touch-action: none !important;
+      -ms-touch-action: none !important;
+      overflow: auto !important;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+    html.tpv-touch-scroll input,
+    html.tpv-touch-scroll textarea,
+    html.tpv-touch-scroll select,
+    html.tpv-touch-scroll button,
+    html.tpv-touch-scroll .btn,
+    html.tpv-touch-scroll .cat,
+    html.tpv-touch-scroll .prod,
+    html.tpv-touch-scroll .q,
+    html.tpv-touch-scroll .tender,
+    html.tpv-touch-scroll .actions {
+      touch-action: manipulation !important;
+      -ms-touch-action: manipulation !important;
+    }
     /* Campos editables: teclado virtual Windows (no interferir con el gesto) */
     input, textarea, select {
       font: inherit;
@@ -2486,9 +2516,128 @@
       })
 
       /*
-        Scroll: SOLO nativo del navegador (overflow + touch-action).
-        No usamos polyfill JS: en Windows rompe el teclado virtual y los clics.
+        Scroll táctil TPV (Windows): el dedo debe subir/bajar las listas.
+        Teclado físico OK: no necesitamos teclado virtual aquí.
+        No capturamos botones ni inputs.
       */
+      ;(function setupTpvTouchScroll() {
+        document.documentElement.classList.add('tpv-touch-scroll', 'has-touch')
+
+        const SKIP =
+          'input, textarea, select, button, a, label, .btn, .icon-btn, .link, .q, .tender, .actions, .btn-pick, .fab, .gate-pad, .pickup-card'
+
+        function attachPan(el) {
+          if (!el || el.dataset.tpvPan === '1') return
+          el.dataset.tpvPan = '1'
+
+          let active = false
+          let moved = false
+          let startY = 0
+          let startX = 0
+          let originTop = 0
+          let originLeft = 0
+          let pointerId = null
+
+          const canScrollY = () => el.scrollHeight > el.clientHeight + 2
+          const canScrollX = () => el.scrollWidth > el.clientWidth + 2
+
+          const onStart = (y, x, id, target) => {
+            if (target && target.closest && target.closest(SKIP)) return false
+            if (!canScrollY() && !canScrollX()) return false
+            active = true
+            moved = false
+            startY = y
+            startX = x
+            originTop = el.scrollTop
+            originLeft = el.scrollLeft
+            pointerId = id
+            return true
+          }
+
+          const onMove = (y, x, ev) => {
+            if (!active) return
+            const dy = y - startY
+            const dx = x - startX
+            if (!moved) {
+              if (Math.abs(dy) < 6 && Math.abs(dx) < 6) return
+              moved = true
+              el.dataset.didPan = '1'
+            }
+            if (Math.abs(dy) >= Math.abs(dx) && canScrollY()) {
+              el.scrollTop = originTop - dy
+              if (ev && ev.cancelable) ev.preventDefault()
+            } else if (canScrollX()) {
+              el.scrollLeft = originLeft - dx
+              if (ev && ev.cancelable) ev.preventDefault()
+            }
+          }
+
+          const onEnd = () => {
+            if (!active) return
+            active = false
+            pointerId = null
+            if (moved) {
+              el.dataset.didPan = '1'
+              setTimeout(() => { try { delete el.dataset.didPan } catch {} }, 100)
+            }
+            moved = false
+          }
+
+          // Touch nativo (mejor en monitores táctiles)
+          el.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) return
+            const t = e.touches[0]
+            onStart(t.clientY, t.clientX, t.identifier, e.target)
+          }, { passive: true })
+
+          el.addEventListener('touchmove', (e) => {
+            if (!active || e.touches.length !== 1) return
+            const t = e.touches[0]
+            onMove(t.clientY, t.clientX, e)
+          }, { passive: false })
+
+          el.addEventListener('touchend', onEnd, { passive: true })
+          el.addEventListener('touchcancel', onEnd, { passive: true })
+
+          // Fallback Windows: a veces el dedo llega como pointer/mouse
+          el.addEventListener('pointerdown', (e) => {
+            if (e.button != null && e.button !== 0) return
+            // Solo si hay pantalla táctil o el pointer es touch/pen
+            const touchy =
+              e.pointerType === 'touch' ||
+              e.pointerType === 'pen' ||
+              (navigator.maxTouchPoints > 0 && e.pointerType === 'mouse')
+            if (!touchy) return
+            if (!onStart(e.clientY, e.clientX, e.pointerId, e.target)) return
+          }, { passive: true })
+
+          el.addEventListener('pointermove', (e) => {
+            if (!active || e.pointerId !== pointerId) return
+            onMove(e.clientY, e.clientX, e)
+          }, { passive: false })
+
+          el.addEventListener('pointerup', (e) => {
+            if (e.pointerId !== pointerId) return
+            onEnd()
+          }, { passive: true })
+          el.addEventListener('pointercancel', (e) => {
+            if (e.pointerId !== pointerId) return
+            onEnd()
+          }, { passive: true })
+        }
+
+        function wireAll() {
+          document
+            .querySelectorAll('.menu, .rail, .lines, .check-f, .jornada-card')
+            .forEach(attachPan)
+        }
+        wireAll()
+        setTimeout(wireAll, 300)
+        setTimeout(wireAll, 1200)
+        // Si se abre el modal de jornada más tarde
+        const mo = new MutationObserver(() => wireAll())
+        mo.observe(document.body, { childList: true, subtree: true })
+      })()
 
       function bindTap(root, selector, handler) {
         if (!root) return
@@ -2498,6 +2647,7 @@
         let startX = 0
         let startY = 0
         const run = (e, el) => {
+          if (root.dataset.didPan === '1') return
           const now = Date.now()
           if (el === lastEl && now - lastAt < 320) return
           lastEl = el
@@ -2514,7 +2664,10 @@
         }, { passive: true })
         root.addEventListener('pointercancel', () => { gesturing = true }, { passive: true })
         root.addEventListener('click', (e) => {
-          if (gesturing) { gesturing = false; return }
+          if (gesturing || root.dataset.didPan === '1') {
+            gesturing = false
+            return
+          }
           const el = e.target.closest(selector)
           if (!el || !root.contains(el)) return
           run(e, el)
