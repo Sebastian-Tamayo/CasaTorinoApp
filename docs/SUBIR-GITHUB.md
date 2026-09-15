@@ -26,6 +26,9 @@ Script rápido (con sesión GitHub en tu máquina):
 
 ```bash
 bash scripts/subir-github.sh "backup: estado 15 sep 2026"
+
+# O traer el espejo desde Proyeccion:
+bash scripts/traer-espejo-proyeccion.sh
 ```
 
 ## Espejo de emergencia (Proyeccion)
