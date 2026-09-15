@@ -4,8 +4,8 @@
 (() => {
   const API_URL = '/api/tpv-sync'
   const AUTH_URL = '/api/tpv-auth'
-  const POLL_MS = 1600
-  const PUSH_DEBOUNCE_MS = 450
+  const POLL_MS = 4000
+  const PUSH_DEBOUNCE_MS = 700
   const CLIENT_ID =
     typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID()

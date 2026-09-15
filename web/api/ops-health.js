@@ -2,7 +2,7 @@
  * Health check operativo — para vigilar el ecosistema 24/7
  * GET /api/ops-health
  */
-const { getJson, hasBlob } = require('./_opsStore')
+const { getJson, hasBlob, getBackend } = require('./_opsStore')
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -20,6 +20,7 @@ module.exports = async function handler(req, res) {
     ok: true,
     ts: new Date().toISOString(),
     blob: hasBlob(),
+    backend: typeof getBackend === 'function' ? getBackend() : 'unknown',
     keys: {},
   }
 

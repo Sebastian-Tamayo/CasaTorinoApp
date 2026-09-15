@@ -4,7 +4,7 @@
 (() => {
   const API_URL = '/api/tpv-jornada'
   const AUTH_URL = '/api/tpv-auth'
-  const POLL_MS = 4000
+  const POLL_MS = 12000
   const RETRIES = 3
   let timer = null
   let heartbeat = null

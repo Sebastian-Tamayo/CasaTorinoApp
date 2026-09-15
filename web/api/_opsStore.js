@@ -1,11 +1,12 @@
 /**
  * Casa Torino — almacén operativo 24/7
- * Vercel Blob (privado). Edge Config solo como migración única (lectura).
  *
- * Importante:
- * - @vercel/blob v2 `get()` devuelve { stream }, NO .json()
- * - Hay que usar useCache:false o las lecturas ven datos viejos (CDN HIT)
- * - Caché en memoria solo milisegundos (misma invocación)
+ * Preferencia:
+ * 1) Vercel Blob (privado) si está activo
+ * 2) Edge Config (fallback automático si Blob está suspendido / sin cuota)
+ *
+ * El polling agresivo agotó la Store Blob Hobby → quedó "suspended".
+ * Con este fallback el TPV/cocina siguen funcionando.
  */
 const { put, get } = require('@vercel/blob')
 
@@ -24,12 +25,15 @@ const BLOB_TOKEN = cleanToken(process.env.BLOB_READ_WRITE_TOKEN || '')
 const EDGE_ID = process.env.TPV_EDGE_CONFIG_ID
 const TEAM_ID = process.env.TPV_TEAM_ID
 const VERCEL_TOKEN = process.env.TPV_VERCEL_TOKEN
-const MEM_TTL_MS = 400
+const FORCE_EDGE = /^(1|true|yes)$/i.test(String(process.env.OPS_FORCE_EDGE || ''))
+const MEM_TTL_MS = 500
 
 /** @type {Record<string, { value: any, at: number }>} */
 const memory = Object.create(null)
-/** Evita re-migrar Edge→Blob en bucle */
-const migrated = Object.create(null)
+
+/** Sticky: una vez Blob falla por suspensión, no insistir (ahorra tiempo y errores) */
+let blobDisabled = FORCE_EDGE || !BLOB_TOKEN
+let backend = blobDisabled ? 'edge' : 'blob'
 
 function pathnameFor(key) {
   return `casa-torino-ops/${String(key).replace(/[^a-z0-9_-]/gi, '')}.json`
@@ -39,7 +43,23 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-async function readEdgeLegacy(key) {
+function isBlobSuspendedError(err) {
+  const msg = String(err && err.message ? err.message : err)
+  return /suspended|blocked|usage.?threshold|limits?.?reached|quota|billingState/i.test(
+    msg,
+  )
+}
+
+function markBlobDown(err) {
+  if (!isBlobSuspendedError(err) && !/forbidden|unauthorized/i.test(String(err))) {
+    return
+  }
+  blobDisabled = true
+  backend = 'edge'
+  console.warn('[opsStore] Blob no usable → Edge Config', String(err && err.message ? err.message : err))
+}
+
+async function readEdge(key) {
   if (!EDGE_ID || !VERCEL_TOKEN) return null
   const url =
     `https://api.vercel.com/v1/edge-config/${EDGE_ID}/item/${encodeURIComponent(key)}` +
@@ -61,11 +81,45 @@ async function readEdgeLegacy(key) {
   }
 }
 
+async function writeEdge(key, value) {
+  if (!EDGE_ID || !VERCEL_TOKEN) {
+    throw new Error('Edge Config no configurado (TPV_EDGE_CONFIG_ID / TPV_VERCEL_TOKEN)')
+  }
+  const url =
+    `https://api.vercel.com/v1/edge-config/${EDGE_ID}/items` +
+    (TEAM_ID ? `?teamId=${TEAM_ID}` : '')
+  let lastErr = null
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      const r = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${VERCEL_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items: [{ operation: 'upsert', key: String(key), value }],
+        }),
+      })
+      const text = await r.text()
+      if (!r.ok) {
+        throw new Error(text || `edge PATCH ${r.status}`)
+      }
+      memory[key] = { value, at: Date.now() }
+      backend = 'edge'
+      return value
+    } catch (err) {
+      lastErr = err
+      await sleep(120 * attempt * attempt)
+    }
+  }
+  throw lastErr || new Error('edge PUT failed')
+}
+
 async function blobGet(key) {
-  if (!BLOB_TOKEN) return null
+  if (blobDisabled || !BLOB_TOKEN) return null
   const pathname = pathnameFor(key)
   try {
-    // useCache:false → origen fresco (imprescindible para Listo / jornada)
     const result = await get(pathname, {
       access: 'private',
       token: BLOB_TOKEN,
@@ -74,7 +128,6 @@ async function blobGet(key) {
     if (!result || result.statusCode === 404 || result.statusCode === 304) {
       return null
     }
-    // SDK v2: stream; v1 legacy: json/text/body
     if (result.stream) {
       const text = await new Response(result.stream).text()
       return text ? JSON.parse(text) : null
@@ -92,16 +145,19 @@ async function blobGet(key) {
   } catch (err) {
     const msg = String(err && err.message ? err.message : err)
     if (/404|not found|BlobNotFound/i.test(msg)) return null
+    markBlobDown(err)
     throw err
   }
 }
 
 async function blobPut(key, value) {
-  if (!BLOB_TOKEN) throw new Error('missing BLOB_READ_WRITE_TOKEN')
+  if (blobDisabled || !BLOB_TOKEN) {
+    throw new Error('blob disabled')
+  }
   const pathname = pathnameFor(key)
   const body = JSON.stringify(value)
   let lastErr = null
-  for (let attempt = 1; attempt <= 4; attempt++) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       await put(pathname, body, {
         access: 'private',
@@ -109,16 +165,18 @@ async function blobPut(key, value) {
         allowOverwrite: true,
         contentType: 'application/json',
         token: BLOB_TOKEN,
-        // Evitar CDN largo: los clientes hacen RMW frecuente
         cacheControlMaxAge: 0,
       })
       memory[key] = { value, at: Date.now() }
+      backend = 'blob'
       return value
     } catch (err) {
       lastErr = err
+      markBlobDown(err)
+      if (blobDisabled) break
       const msg = String(err && err.message ? err.message : err)
       if (
-        /missing|unauthorized|forbidden|invalid/i.test(msg) &&
+        /missing|unauthorized|forbidden|invalid|suspended/i.test(msg) &&
         !/rate|429|503|502|timeout/i.test(msg)
       ) {
         break
@@ -144,21 +202,23 @@ async function getJson(key, fallback, opts = {}) {
   }
 
   let value = null
-  let blobFailed = false
-  try {
-    value = await blobGet(key)
-  } catch (err) {
-    blobFailed = true
-    console.warn('[opsStore] blobGet', key, err)
+
+  if (!blobDisabled) {
+    try {
+      value = await blobGet(key)
+    } catch (err) {
+      console.warn('[opsStore] blobGet', key, err)
+    }
   }
 
-  // Con Blob activo NO leemos Edge Config: era la causa de pisar datos frescos
-  // (Listo / jornada) con copias viejas cacheadas en Edge.
-  // Solo si no hay token Blob se contempla legacy.
-  if (value == null && !blobFailed && !BLOB_TOKEN && !migrated[key]) {
-    const legacy = await readEdgeLegacy(key)
-    migrated[key] = true
-    if (legacy != null) value = legacy
+  // Si Blob está caído/suspendido o no hay dato → Edge Config
+  if (value == null) {
+    try {
+      value = await readEdge(key)
+      if (value != null) backend = blobDisabled ? 'edge' : backend
+    } catch (err) {
+      console.warn('[opsStore] edgeGet', key, err)
+    }
   }
 
   if (value == null) {
@@ -169,7 +229,16 @@ async function getJson(key, fallback, opts = {}) {
 }
 
 async function setJson(key, value) {
-  await blobPut(key, value)
+  // Intentar Blob; si está suspendido / falla, Edge Config
+  if (!blobDisabled) {
+    try {
+      await blobPut(key, value)
+      return value
+    } catch (err) {
+      console.warn('[opsStore] blobPut → edge', key, err)
+    }
+  }
+  await writeEdge(key, value)
   return value
 }
 
@@ -194,7 +263,6 @@ async function updateJson(key, fallback, mutator) {
     if (!next || typeof next !== 'object') {
       throw new Error('updateJson mutator must return object')
     }
-    // Si otro proceso escribió mientras mutábamos, reintentar sin put
     const latest = await getJson(key, fallback, { fresh: true })
     const latestVersion = Number(
       latest && typeof latest === 'object' ? latest.updatedAt || 0 : 0,
@@ -216,5 +284,6 @@ module.exports = {
   setJson,
   updateJson,
   pathnameFor,
-  hasBlob: () => Boolean(BLOB_TOKEN),
+  hasBlob: () => Boolean(BLOB_TOKEN) && !blobDisabled,
+  getBackend: () => backend,
 }

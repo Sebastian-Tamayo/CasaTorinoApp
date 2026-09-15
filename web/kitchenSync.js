@@ -6,7 +6,7 @@
 (() => {
   const API_URL = '/api/kitchen'
   const AUTH_URL = '/api/tpv-auth'
-  const POLL_MS = 1200
+  const POLL_MS = 3500
   const RETRIES = 3
 
   let timer = null
