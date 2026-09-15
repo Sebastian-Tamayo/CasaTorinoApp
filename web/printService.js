@@ -133,7 +133,7 @@
               .then((sig) => resolve(sig))
               .catch((err) => {
                 console.warn('[printService] signature', err)
-                resolve()
+                reject(err)
               })
           }
         })
