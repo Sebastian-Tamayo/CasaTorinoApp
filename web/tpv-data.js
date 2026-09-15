@@ -682,7 +682,7 @@ window.TPV_CATALOG = [
       {
         "id": "bebidas-refrescos",
         "name": "Refrescos",
-        "price": 2.8,
+        "price": 2.5,
         "desc": "Variados",
         "base": "Refrescos",
         "categoryType": "bebida"
