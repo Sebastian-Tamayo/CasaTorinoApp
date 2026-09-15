@@ -894,6 +894,7 @@
     .jornada-actions .btn-j.start { border-color: rgba(52,211,153,.45); color: #86efac; }
     .jornada-actions .btn-j.total { border-color: rgba(245,197,24,.45); color: var(--gold); }
     .jornada-actions .btn-j.end { border-color: rgba(251,113,133,.45); color: #fda4af; }
+    .jornada-actions .btn-j.print { border-color: rgba(147,197,253,.45); color: #93c5fd; }
     .jornada-modal {
       position: fixed; inset: 0; z-index: 80;
       display: grid; place-items: center; padding: 1rem;
@@ -1062,6 +1063,7 @@
         <button class="btn-j start" id="btnJornadaStart" type="button"><i class="fa-solid fa-play"></i> Inicio de jornada</button>
         <button class="btn-j total" id="btnJornadaTotal" type="button"><i class="fa-solid fa-chart-column"></i> Total de jornada</button>
         <button class="btn-j end" id="btnJornadaEnd" type="button" disabled><i class="fa-solid fa-flag-checkered"></i> Fin de sesión</button>
+        <button class="btn-j print" id="btnPrintTest" type="button" title="Probar impresora POS-58"><i class="fa-solid fa-print"></i> Probar ticket</button>
       </div>
     </div>
 
@@ -2399,6 +2401,23 @@
       })
       $('btnJornadaStart').onclick = startJornada
       $('btnJornadaEnd').onclick = endJornada
+      $('btnPrintTest')?.addEventListener('click', async () => {
+        const btn = $('btnPrintTest')
+        if (btn) btn.disabled = true
+        try {
+          if (!window.CasaTorinoPrint?.testPrint) {
+            alert('Servicio de impresión no cargado.\nRecarga la página.')
+            return
+          }
+          const name = await window.CasaTorinoPrint.resolvePrinterName?.().catch(() => null)
+          const ok = await window.CasaTorinoPrint.testPrint()
+          if (ok) {
+            alert('Prueba enviada a ' + (name || 'POS-58') + '.\nSi QZ Tray pidió permiso, pulsa Allow / Permitir.')
+          }
+        } finally {
+          if (btn) btn.disabled = false
+        }
+      })
       $('btnJornadaTotal').onclick = async () => {
         try {
           const j = await window.CasaTorinoTpvJornada.refresh()
