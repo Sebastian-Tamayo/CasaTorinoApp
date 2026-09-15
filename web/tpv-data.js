@@ -7,7 +7,7 @@ window.TPV_CATALOG = [
       {
         "id": "menu-dia-es-semana",
         "name": "Menú del día español (entre semana)",
-        "price": 13.0,
+        "price": 14.0,
         "desc": "Español · el camarero elige Primero (Nº1/Nº2) y Segundo (Nº1/Nº2)",
         "base": "Menú del día",
         "categoryType": "comida",
