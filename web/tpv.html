@@ -948,21 +948,38 @@
       }
       html.has-touch .check,
       html.has-touch .check.open {
-        height: auto !important;
-        max-height: none !important;
-        overflow: visible !important;
+        /* Panel cuenta usable: layout fijo, scroll nativo en líneas/total */
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        overflow: hidden !important;
         position: sticky;
         top: 0;
         align-self: start;
-        max-height: 100dvh;
-        overflow-y: auto !important;
-        -webkit-overflow-scrolling: touch;
-        touch-action: pan-y !important;
+        display: flex !important;
+        flex-direction: column !important;
+        touch-action: manipulation !important;
       }
-      html.has-touch .lines,
-      html.has-touch .check-f {
-        overflow: visible !important;
+      html.has-touch .lines {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        overflow: auto !important;
         max-height: none !important;
+        touch-action: pan-y !important;
+        -webkit-overflow-scrolling: touch;
+      }
+      html.has-touch .check-f {
+        flex: 0 0 auto !important;
+        overflow: auto !important;
+        max-height: 48% !important;
+        touch-action: pan-y !important;
+        -webkit-overflow-scrolling: touch;
+      }
+      html.has-touch .check-f .btn,
+      html.has-touch .check .q button,
+      html.has-touch .tender button,
+      html.has-touch .btn-pick {
+        touch-action: manipulation !important;
+        pointer-events: auto !important;
       }
       html.has-touch body.check-open {
         overflow-y: auto !important;
@@ -2569,8 +2586,7 @@
       document.documentElement.classList.add('has-touch')
 
       /**
-       * Scroll con el dedo (Windows a menudo emula ratón y no hace pan nativo).
-       * Arrastrar en vertical mueve scrollTop del contenedor o de la ventana.
+       * Scroll con el dedo. NUNCA intercepta botones/inputs del panel de cuenta.
        */
       function installFingerScroll(el, { windowScroll = false } = {}) {
         if (!el || el.dataset.fingerScroll === '1') return
@@ -2583,6 +2599,9 @@
         let left0 = 0
         let axis = null
         let moved = false
+        let captured = false
+        const INTERACTIVE =
+          'button, a, input, textarea, select, label, .btn, .icon-btn, .link, .q, .tender, .actions, .btn-pick, .pickup-card, .fab, .gate-pad, .cat, .prod'
 
         const getTop = () => (windowScroll ? window.scrollY || document.documentElement.scrollTop || 0 : el.scrollTop)
         const setTop = (v) => {
@@ -2596,17 +2615,17 @@
 
         el.addEventListener('pointerdown', (e) => {
           if (e.button != null && e.button !== 0) return
-          if (e.target.closest('input, textarea, select, .gate-pad')) return
+          if (e.target.closest(INTERACTIVE)) return
           if (windowScroll && e.target.closest('.rail, .check, .jornada-card')) return
           on = true
           moved = false
+          captured = false
           axis = null
           pid = e.pointerId
           y0 = e.clientY
           x0 = e.clientX
           top0 = getTop()
           left0 = getLeft()
-          try { el.setPointerCapture?.(e.pointerId) } catch {}
         }, { passive: true })
 
         el.addEventListener('pointermove', (e) => {
@@ -2614,8 +2633,11 @@
           const dy = e.clientY - y0
           const dx = e.clientX - x0
           if (!axis) {
-            if (Math.abs(dy) < 7 && Math.abs(dx) < 7) return
+            if (Math.abs(dy) < 10 && Math.abs(dx) < 10) return
             axis = Math.abs(dy) >= Math.abs(dx) ? 'y' : 'x'
+            if (!captured) {
+              try { el.setPointerCapture?.(e.pointerId); captured = true } catch {}
+            }
           }
           if (axis === 'y') {
             moved = true
@@ -2632,6 +2654,7 @@
           if (e.pointerId !== pid) return
           on = false
           pid = null
+          captured = false
           if (moved) {
             el.dataset.didPan = '1'
             setTimeout(() => { try { delete el.dataset.didPan } catch {} }, 80)
@@ -2645,14 +2668,14 @@
 
       function setupAllFingerScroll() {
         installFingerScroll(document.body, { windowScroll: true })
-        document.querySelectorAll('.rail, .check, .jornada-card').forEach((node) => {
+        // No en .check: Vaciar / +/− / Cobrar / importes deben funcionar siempre
+        document.querySelectorAll('.rail, .jornada-card').forEach((node) => {
           installFingerScroll(node)
         })
       }
       setupAllFingerScroll()
       setTimeout(setupAllFingerScroll, 500)
 
-      // Toques en TPV Windows: pointerup + debounce; ignora deslizamientos (scroll)
       function bindTap(root, selector, handler) {
         if (!root) return
         let lastAt = 0
@@ -2661,9 +2684,8 @@
         let startX = 0
         let startY = 0
         const run = (e, el) => {
-          if (el.closest?.('[data-did-pan="1"]') || root.dataset.didPan === '1') return
           const now = Date.now()
-          if (el === lastEl && now - lastAt < 380) return
+          if (el === lastEl && now - lastAt < 350) return
           lastEl = el
           lastAt = now
           handler(e, el)
@@ -2674,29 +2696,19 @@
           startY = e.clientY
         }, { passive: true })
         root.addEventListener('pointermove', (e) => {
-          if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) {
-            gesturing = true
-          }
+          if (Math.abs(e.clientX - startX) > 14 || Math.abs(e.clientY - startY) > 14) gesturing = true
         }, { passive: true })
         root.addEventListener('pointercancel', () => { gesturing = true }, { passive: true })
         root.addEventListener('pointerup', (e) => {
-          if (e.pointerType === 'mouse' && !(navigator.maxTouchPoints > 0)) {
-            // Ratón real: dejar el click
-            return
-          }
           if (e.button != null && e.button !== 0) return
-          if (gesturing || root.dataset.didPan === '1') return
+          if (gesturing) return
           const el = e.target.closest(selector)
           if (!el || !root.contains(el)) return
+          if (e.pointerType === 'mouse' && !(navigator.maxTouchPoints > 0)) return
           run(e, el)
         }, { passive: true })
         root.addEventListener('click', (e) => {
-          if (gesturing || root.dataset.didPan === '1') {
-            gesturing = false
-            e.preventDefault?.()
-            e.stopPropagation?.()
-            return
-          }
+          if (gesturing) { gesturing = false; return }
           const el = e.target.closest(selector)
           if (!el || !root.contains(el)) return
           run(e, el)
