@@ -60,13 +60,28 @@
     /* Controles táctiles (TPV Windows / tablets): sin delay y sin zoom por doble toque */
     button, a, .cat, .prod, .fab, .btn, .icon-btn, .link, .pickup-card,
     .q button, .tender button, .btn-pick, .btn-j, .chip, .gate-key,
-    label, summary {
+    summary {
       touch-action: manipulation;
       -webkit-touch-callout: none;
       cursor: pointer;
     }
     .menu, .lines, .rail, .check-f, .check.open, .workspace, .jornada-modal-body {
       touch-action: pan-y;
+    }
+    /* Campos editables: permitir teclado virtual (Windows TPV / tablet) */
+    input, textarea, select {
+      font: inherit;
+      user-select: text !important;
+      -webkit-user-select: text !important;
+      -webkit-touch-callout: default;
+      touch-action: manipulation;
+      cursor: text;
+      pointer-events: auto;
+    }
+    input[type="button"], input[type="submit"], input[type="checkbox"], input[type="radio"] {
+      cursor: pointer;
+      user-select: none !important;
+      -webkit-user-select: none !important;
     }
     button, input { font: inherit; }
     .app {
@@ -761,7 +776,8 @@
       .tax-row { font-size: .72rem; }
       .total-row strong { font-size: 1.25rem; }
       .check-f .btn { min-height: 40px; padding: .55rem .5rem; font-size: .88rem; }
-      .notes-field { display: none; } /* notas siguen en móvil; en portátil bajo se prioriza cobro */
+      .notes-field { margin-top: .25rem; padding: .3rem .5rem .35rem; }
+      .notes-field textarea { min-height: 1.8rem; max-height: 3.2rem; font-size: .78rem; }
       .prod { min-height: 76px; padding: .55rem .55rem .5rem .7rem; }
       .prod .desc { display: none; }
       .menu-head { margin-bottom: .4rem; }
@@ -1089,11 +1105,11 @@
         <div class="clock" id="clock">--:--</div>
         <div class="search">
           <i class="fa-solid fa-magnifying-glass"></i>
-          <input id="search" type="search" placeholder="Buscar producto…" autocomplete="off" enterkeyhint="search" />
+          <input id="search" type="search" inputmode="search" enterkeyhint="search" placeholder="Buscar producto…" autocomplete="off" spellcheck="false" />
         </div>
         <label class="mesa-chip" for="mesaTop">
           <span>Mesa</span>
-          <input id="mesaTop" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="nº" maxlength="4" autocomplete="off" />
+          <input id="mesaTop" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" placeholder="nº" maxlength="4" autocomplete="off" spellcheck="false" />
         </label>
         <button class="icon-btn" id="btnClear" type="button" title="Vaciar"><i class="fa-solid fa-trash"></i></button>
       </div>
@@ -1136,11 +1152,11 @@
           </div>
           <div class="mesa-field">
             <label for="mesa">Mesa</label>
-            <input id="mesa" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="nº de mesa" maxlength="4" autocomplete="off" />
+            <input id="mesa" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" placeholder="nº de mesa" maxlength="4" autocomplete="off" spellcheck="false" />
           </div>
           <div class="notes-field">
             <label for="notes">Notas del pedido</label>
-            <textarea id="notes" rows="2" maxlength="280" placeholder="Ej. sin tomate, poco hecho, alergias…" autocomplete="off"></textarea>
+            <textarea id="notes" rows="2" maxlength="280" inputmode="text" enterkeyhint="done" placeholder="Ej. sin tomate, poco hecho, alergias…" autocomplete="off" spellcheck="true"></textarea>
           </div>
         </div>
         <div class="lines" id="lines"><p class="empty">Pon el nº de mesa y toca productos.</p></div>
@@ -1159,7 +1175,7 @@
           <div class="pay-row">
             <div class="pay-box">
               <label for="paid">Cliente entrega</label>
-              <input id="paid" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0,00" />
+              <input id="paid" type="text" inputmode="decimal" enterkeyhint="done" placeholder="0,00" autocomplete="off" spellcheck="false" />
             </div>
             <div class="cambio"><span>Cambio</span><strong id="change">—</strong></div>
           </div>
@@ -1611,7 +1627,7 @@
                         <button type="button" data-jact="dec" title="Quitar una">−</button>
                         <span class="qty">${l.qty}</span>
                         <button type="button" data-jact="inc" title="Añadir una">+</button>
-                        <input class="price" type="number" inputmode="decimal" min="0" step="0.1" value="${Number(l.price).toFixed(2)}" data-jact="price" aria-label="Precio" />
+                        <input class="price" type="text" inputmode="decimal" enterkeyhint="done" value="${Number(l.price).toFixed(2)}" data-jact="price" aria-label="Precio" autocomplete="off" spellcheck="false" />
                         <button type="button" data-jact="del-line" title="Quitar producto">🗑</button>
                       </div>
                     </div>`
@@ -2370,6 +2386,63 @@
           if (e.key === 'Enter') { e.preventDefault(); switchMesa(el.value); el.blur() }
         })
       }
+
+      // Teclado virtual Windows/TPV: forzar foco en campos editables al tocar
+      const EDITABLE_SEL =
+        'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), select:not([disabled])'
+      function focusEditable(el) {
+        if (!el) return
+        try {
+          el.focus({ preventScroll: false })
+        } catch {
+          try { el.focus() } catch {}
+        }
+        // Algunos TPV Windows solo abren el teclado tras un click sintético / selección
+        try {
+          if (typeof el.select === 'function' && el.type !== 'search' && el.tagName !== 'TEXTAREA') {
+            // no seleccionar siempre: solo si está vacío o es importe
+            if (!el.value || el.id === 'paid' || el.classList.contains('price')) el.select()
+          }
+        } catch {}
+      }
+      document.addEventListener(
+        'pointerdown',
+        (e) => {
+          if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return
+          if (e.target.closest('button, a, .cat, .prod, .fab, .btn, .icon-btn')) return
+          const direct = e.target.closest(EDITABLE_SEL)
+          if (direct) return
+          const wrap = e.target.closest('.search, .mesa-chip, .mesa-field, .notes-field, .pay-box, .jornada-line-edit .ctrls')
+          if (!wrap) return
+          const el = wrap.querySelector(EDITABLE_SEL)
+          if (!el) return
+          focusEditable(el)
+        },
+        { capture: true, passive: true },
+      )
+      document.addEventListener(
+        'pointerup',
+        (e) => {
+          if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return
+          const el = e.target.closest(EDITABLE_SEL)
+          if (!el) return
+          if (document.activeElement !== el) focusEditable(el)
+        },
+        { capture: true, passive: true },
+      )
+      // Toque en etiqueta / caja → enfoca el input asociado
+      ;['mesa-field', 'notes-field', 'pay-box', 'search'].forEach((cls) => {
+        document.querySelector(`.${cls}`)?.addEventListener(
+          'click',
+          (e) => {
+            if (e.target.closest(EDITABLE_SEL)) return
+            if (e.target.closest('button')) return
+            const el = e.currentTarget.querySelector(EDITABLE_SEL)
+            if (el) focusEditable(el)
+          },
+          { passive: true },
+        )
+      })
 
       // Toques en TPV Windows: a veces el click sintético falla; pointerup + debounce
       function bindTap(root, selector, handler) {
