@@ -38,7 +38,7 @@
       --shadow: 0 18px 50px rgba(0,0,0,.45);
     }
     * { box-sizing: border-box; }
-    html { height: 100%; }
+    html { height: 100%; touch-action: manipulation; }
     html, body { max-width: 100%; }
     body {
       margin: 0;
@@ -48,12 +48,25 @@
       background: var(--bg);
       -webkit-tap-highlight-color: transparent;
       user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
       /* Móvil: la página entera debe poder moverse (scroll).
          En escritorio se vuelve a bloquear abajo en el @media. */
       overflow-x: clip;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior-y: contain;
+    }
+    /* Controles táctiles (TPV Windows / tablets): sin delay y sin zoom por doble toque */
+    button, a, .cat, .prod, .fab, .btn, .icon-btn, .link, .pickup-card,
+    .q button, .tender button, .btn-pick, .btn-j, .chip, .gate-key,
+    label, summary {
+      touch-action: manipulation;
+      -webkit-touch-callout: none;
+      cursor: pointer;
+    }
+    .menu, .lines, .rail, .check-f, .check.open, .workspace, .jornada-modal-body {
+      touch-action: pan-y;
     }
     button, input { font: inherit; }
     .app {
@@ -292,7 +305,7 @@
     }
     body.check-open {
       overflow: hidden !important;
-      touch-action: none;
+      touch-action: manipulation;
     }
     body.check-open .app {
       pointer-events: none;
@@ -462,12 +475,18 @@
       font-weight: 800; font-size: 1.1rem; outline: none;
     }
     .cambio strong { color: var(--ok); font-size: 1.15rem; font-variant-numeric: tabular-nums; }
-    .actions { display: grid; grid-template-columns: 1fr 1.35fr; gap: .5rem; }
+    .actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .45rem; }
     .btn {
-      border: 0; border-radius: 16px; padding: 1rem .9rem;
+      border: 0; border-radius: 16px; padding: .85rem .45rem;
       font-weight: 800; cursor: pointer; letter-spacing: -.01em;
+      font-size: .88rem;
     }
     .btn.g { background: var(--card2); color: var(--ink); border: 1px solid var(--line2); }
+    .btn.t {
+      background: linear-gradient(135deg, #5b9dff, #2563eb);
+      color: #f8fbff; box-shadow: 0 10px 28px rgba(37,99,235,.28);
+      display: inline-flex; align-items: center; justify-content: center; gap: .35rem;
+    }
     .btn.p {
       background: linear-gradient(135deg, #2dd46f, #16a34a);
       color: #04140a; box-shadow: 0 10px 28px rgba(45,212,111,.28);
@@ -784,7 +803,7 @@
         min-height: 0;
       }
       .menu { overflow: visible; }
-      body { touch-action: pan-y; }
+      body { touch-action: manipulation; }
       .jornada-bar { position: sticky; top: 56px; }
     }
     @media (max-width: 380px) {
@@ -797,6 +816,29 @@
     @media (max-height: 520px) and (orientation: landscape) {
       .gate-card { max-height: 96dvh; overflow: auto; }
       .fab { padding: .7rem .9rem; }
+    }
+
+    /* Táctil real (TPV Windows / tablet): zonas más grandes, como móvil */
+    html.has-touch .cat {
+      min-height: 64px;
+    }
+    html.has-touch .prod {
+      min-height: 96px;
+    }
+    html.has-touch .q button {
+      min-width: 44px; min-height: 44px;
+    }
+    html.has-touch .check-f .btn {
+      min-height: 52px;
+    }
+    html.has-touch .tender button {
+      min-height: 44px;
+    }
+    @media (hover: none), (pointer: coarse) {
+      .cat { min-height: 64px; }
+      .prod { min-height: 96px; }
+      .q button { min-width: 44px; min-height: 44px; }
+      .check-f .btn { min-height: 52px; }
     }
 
     /* Pantalla PIN */
@@ -1125,7 +1167,8 @@
             <button class="btn k" id="btnKitchen" type="button"><i class="fa-solid fa-fire-burner"></i> Enviar a Cocina</button>
             <button class="btn k" id="btnNextCourse" type="button" hidden style="background:linear-gradient(180deg,#f59e0b,#d97706);"><i class="fa-solid fa-bell"></i> Siguiente plato</button>
             <button class="btn g" id="btnClear2" type="button">Vaciar</button>
-            <button class="btn p" id="btnDone" type="button">Cobrado</button>
+            <button class="btn t" id="btnTicket" type="button"><i class="fa-solid fa-receipt"></i> Ticket</button>
+            <button class="btn p" id="btnDone" type="button">Cobrar</button>
           </div>
         </div>
       </aside>
@@ -2029,27 +2072,15 @@
         }
       }
 
-      async function done() {
+      async function printTicketOnly() {
         const { ls, total, count, base, iva } = totals()
-        if (!count) return
+        if (!count) {
+          alert('La cuenta está vacía.')
+          return
+        }
         const m = normalizeMesa(state.mesa)
         const notes = ($('notes')?.value || state.notes || '').trim()
-        const mesaTxt = m ? `Mesa ${m}\n` : ''
-        if (!confirm(`${mesaTxt}Cobrado ${money(total)}\nIVA 10%: ${money(iva)}\n\n¿Imprimir ticket, abrir cajón y cerrar esta cuenta?`)) return
-
-        if (!(await ensureJornadaOpenForSale())) return
-
-        // Snapshot antes de vaciar (para el ticket + jornada)
         const cartItems = ls.map((l) => ({ name: l.name, qty: l.qty, price: l.price }))
-        const saleLines = ls.map((l) => ({
-          id: l.id,
-          name: l.name,
-          qty: l.qty,
-          price: l.price,
-          categoryType: categoryTypeOf(l),
-          catId: l.catId || '',
-          catName: catNameOf(l.catId),
-        }))
         const paidRaw = $('paid')?.value || ''
         const paid = parseFloat(String(paidRaw).replace(',', '.'))
         const meta = {
@@ -2060,11 +2091,44 @@
           ivaRate: IVA_RATE,
           paid: Number.isFinite(paid) ? paid : undefined,
           change: Number.isFinite(paid) ? paid - total : undefined,
+          openDrawer: false,
         }
-
-        // Imprime + abre cajón (si QZ Tray no está, avisa y NO bloquea el cobro)
-        if (window.CasaTorinoPrint?.printReceipt) {
+        const btn = $('btnTicket')
+        if (btn) btn.disabled = true
+        try {
+          if (!window.CasaTorinoPrint?.printReceipt) {
+            alert('Servicio de impresión no cargado.\nRecarga la página.')
+            return
+          }
           await window.CasaTorinoPrint.printReceipt(cartItems, total, meta)
+        } finally {
+          if (btn) btn.disabled = false
+        }
+      }
+
+      async function done() {
+        const { ls, total, count, base, iva } = totals()
+        if (!count) return
+        const m = normalizeMesa(state.mesa)
+        const mesaTxt = m ? `Mesa ${m}\n` : ''
+        if (!confirm(`${mesaTxt}Cobrar ${money(total)}\nIVA 10%: ${money(iva)}\n\n¿Registrar cobro, abrir cajón y cerrar esta cuenta?\n(No imprime: usa Ticket antes si hace falta)`)) return
+
+        if (!(await ensureJornadaOpenForSale())) return
+
+        // Snapshot antes de vaciar (para jornada)
+        const saleLines = ls.map((l) => ({
+          id: l.id,
+          name: l.name,
+          qty: l.qty,
+          price: l.price,
+          categoryType: categoryTypeOf(l),
+          catId: l.catId || '',
+          catName: catNameOf(l.catId),
+        }))
+
+        // Abrir cajón sin reimprimir (el ticket se da antes con «Ticket»)
+        if (window.CasaTorinoPrint?.openCashDrawer) {
+          await window.CasaTorinoPrint.openCashDrawer()
         }
 
         // Registrar en total de jornada (comida / bebida / categorías)
@@ -2307,18 +2371,58 @@
         })
       }
 
-      $('cats').addEventListener('click', (e) => {
-        const b = e.target.closest('[data-cat]'); if (!b) return
+      // Toques en TPV Windows: a veces el click sintético falla; pointerup + debounce
+      function bindTap(root, selector, handler) {
+        if (!root) return
+        let lastAt = 0
+        let lastEl = null
+        const run = (e, el) => {
+          const now = Date.now()
+          if (el === lastEl && now - lastAt < 380) return
+          lastEl = el
+          lastAt = now
+          handler(e, el)
+        }
+        root.addEventListener('pointerup', (e) => {
+          if (e.pointerType === 'mouse') return
+          if (e.button != null && e.button !== 0) return
+          const el = e.target.closest(selector)
+          if (!el || !root.contains(el)) return
+          run(e, el)
+        }, { passive: true })
+        root.addEventListener('click', (e) => {
+          const el = e.target.closest(selector)
+          if (!el || !root.contains(el)) return
+          run(e, el)
+        })
+      }
+
+      // Marca táctil real (TPV / tablet) para CSS
+      const markTouch = () => {
+        document.documentElement.classList.add('has-touch')
+        window.removeEventListener('touchstart', markTouch)
+        window.removeEventListener('pointerdown', markTouchPointer)
+      }
+      const markTouchPointer = (e) => {
+        if (e.pointerType === 'touch' || e.pointerType === 'pen') markTouch()
+      }
+      window.addEventListener('touchstart', markTouch, { passive: true, once: true })
+      window.addEventListener('pointerdown', markTouchPointer, { passive: true })
+      try {
+        if (navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches) {
+          document.documentElement.classList.add('has-touch')
+        }
+      } catch {}
+
+      bindTap($('cats'), '[data-cat]', (_e, b) => {
         state.cat = b.dataset.cat; render()
       })
-      $('products').addEventListener('click', (e) => {
-        const b = e.target.closest('.prod'); if (!b) return
+      bindTap($('products'), '.prod', (_e, b) => {
         const item = all().find((x) => x.id === b.dataset.id); if (item) add(item)
       })
-      $('lines').addEventListener('click', (e) => {
-        const pick = e.target.closest('[data-pick]')
-        if (pick) {
-          const key = pick.dataset.pick
+      bindTap($('lines'), '[data-pick], button[data-act]', (_e, el) => {
+        if (el.hasAttribute('data-pick')) {
+          const key = el.dataset.pick
           const line = state.cart[key]
           if (!line) return
           const item = all().find((x) => x.id === (line.productId || line.id)) || {
@@ -2331,9 +2435,9 @@
           openCoursePick(item, key)
           return
         }
-        const b = e.target.closest('button[data-act]'); if (!b) return
-        const line = state.cart[b.dataset.id]; if (!line) return
-        setQty(b.dataset.id, b.dataset.act === '+' ? line.qty + 1 : line.qty - 1)
+        if (!el.matches('button[data-act]')) return
+        const line = state.cart[el.dataset.id]; if (!line) return
+        setQty(el.dataset.id, el.dataset.act === '+' ? line.qty + 1 : line.qty - 1)
       })
       // Modal menú español: Primero/Segundo N1|N2
       $('courseCancel')?.addEventListener('click', () => closeCoursePick())
@@ -2362,8 +2466,7 @@
         }
       })
       $('paid').addEventListener('input', () => { persist(); updateChange() })
-      $('tender').addEventListener('click', (e) => {
-        const b = e.target.closest('[data-cash]'); if (!b) return
+      bindTap($('tender'), '[data-cash]', (_e, b) => {
         const { total } = totals()
         if (b.dataset.cash === 'exact') $('paid').value = String(Math.round(total * 100) / 100)
         else $('paid').value = b.dataset.cash
@@ -2381,6 +2484,7 @@
       $('btnClear2').onclick = clearCart
       $('btnKitchen').onclick = sendToKitchen
       $('btnNextCourse').onclick = sendNextCourse
+      $('btnTicket').onclick = printTicketOnly
       $('btnDone').onclick = done
       $('btnUndo').onclick = undo
       $('fab').onclick = openTicket

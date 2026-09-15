@@ -252,7 +252,8 @@
     data.push(ESC.LF)
     data.push(ESC.LF)
     data.push(ESC.CUT)
-    data.push(ESC.DRAWER)
+    // Solo abrir cajón si se pide explícitamente (p.ej. al cobrar)
+    if (meta.openDrawer === true) data.push(ESC.DRAWER)
     return data
   }
 
@@ -299,8 +300,23 @@
     return names[0] || null
   }
 
+  function qzPrintErrorAlert(err) {
+    const msg = String(err && (err.message || err))
+    if (msg.includes('QZ_MISSING') || /websocket|connect|ECONNREFUSED|not connected|Unable to establish/i.test(msg)) {
+      alert('No se pudo conectar con QZ Tray.\nÁbrelo en el PC de la caja e inténtalo de nuevo.')
+    } else if (/denied|blocked|not trusted|cancelled|canceled|reject/i.test(msg)) {
+      alert(
+        'QZ Tray no confía aún en este sitio.\n' +
+          'En el aviso de QZ Tray pulsa «Allow» / «Permitir»\n' +
+          'y marca recordar para casa-torino-web.vercel.app',
+      )
+    } else {
+      alert('No se pudo imprimir en POS-58.\n' + (msg || 'Error desconocido'))
+    }
+  }
+
   /**
-   * Imprime ticket + abre cajón (si hay).
+   * Imprime ticket. Abrir cajón solo si meta.openDrawer === true.
    * No lanza si falla: muestra alerta amigable.
    */
   async function printReceipt(cartItems, total, meta = {}) {
@@ -338,18 +354,38 @@
       return true
     } catch (err) {
       console.warn('[printService]', err)
-      const msg = String(err && (err.message || err))
-      if (msg.includes('QZ_MISSING') || /websocket|connect|ECONNREFUSED|not connected|Unable to establish/i.test(msg)) {
-        alert('No se pudo conectar con QZ Tray.\nÁbrelo en el PC de la caja e inténtalo de nuevo.')
-      } else if (/denied|blocked|not trusted|cancelled|canceled|reject/i.test(msg)) {
-        alert(
-          'QZ Tray no confía aún en este sitio.\n' +
-            'En el aviso de QZ Tray pulsa «Allow» / «Permitir»\n' +
-            'y marca recordar para casa-torino-web.vercel.app',
-        )
-      } else {
-        alert('No se pudo imprimir en POS-58.\n' + (msg || 'Error desconocido'))
+      qzPrintErrorAlert(err)
+      return false
+    }
+  }
+
+  /** Solo abre el cajón (sin imprimir ticket). */
+  async function openCashDrawer() {
+    try {
+      await ensureConnected()
+      const printer = await findPrinter()
+      if (!printer) return false
+      const config = qz.configs.create(printer, {
+        encoding: 'CP858',
+        copies: 1,
+        rasterize: false,
+      })
+      const chunks = [ESC.INIT, ESC.DRAWER]
+      const data = chunks.map((chunk) => ({
+        type: 'raw',
+        format: 'command',
+        data: chunk,
+      }))
+      try {
+        await qz.print(config, data)
+      } catch (_) {
+        await qz.print(config, chunks)
       }
+      rememberPrinter(printer)
+      return true
+    } catch (err) {
+      console.warn('[printService] drawer', err)
+      // No bloquear el cobro si el cajón falla
       return false
     }
   }
@@ -370,6 +406,7 @@
 
   window.CasaTorinoPrint = {
     printReceipt,
+    openCashDrawer,
     testPrint,
     ensureConnected,
     buildReceipt,
