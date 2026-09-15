@@ -89,31 +89,38 @@
     }
 
     /*
-      TPV Windows: el scroll nativo de overflow a menudo NO responde al dedo.
-      Con .tpv-touch-scroll tomamos el gesto (JS) y movemos scrollTop.
-      Botones/inputs siguen con manipulation (no se capturan).
+      TPV Windows: forzar gesto de arrastre (como móvil).
+      touch-action:none en la zona y descendientes; inputs sí editable.
     */
     html.tpv-touch-scroll .menu,
     html.tpv-touch-scroll .rail,
     html.tpv-touch-scroll .lines,
     html.tpv-touch-scroll .check-f,
+    html.tpv-touch-scroll .check,
     html.tpv-touch-scroll .jornada-card {
       touch-action: none !important;
       -ms-touch-action: none !important;
-      overflow: auto !important;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
     }
+    html.tpv-touch-scroll .menu,
+    html.tpv-touch-scroll .rail,
+    html.tpv-touch-scroll .lines,
+    html.tpv-touch-scroll .check-f,
+    html.tpv-touch-scroll .jornada-card {
+      overflow: auto !important;
+    }
+    html.tpv-touch-scroll .menu *,
+    html.tpv-touch-scroll .rail *,
+    html.tpv-touch-scroll .lines *,
+    html.tpv-touch-scroll .check-f *,
+    html.tpv-touch-scroll .check * {
+      touch-action: none !important;
+      -ms-touch-action: none !important;
+    }
     html.tpv-touch-scroll input,
     html.tpv-touch-scroll textarea,
-    html.tpv-touch-scroll select,
-    html.tpv-touch-scroll button,
-    html.tpv-touch-scroll .btn,
-    html.tpv-touch-scroll .cat,
-    html.tpv-touch-scroll .prod,
-    html.tpv-touch-scroll .q,
-    html.tpv-touch-scroll .tender,
-    html.tpv-touch-scroll .actions {
+    html.tpv-touch-scroll select {
       touch-action: manipulation !important;
       -ms-touch-action: manipulation !important;
     }
@@ -2516,126 +2523,149 @@
       })
 
       /*
-        Scroll táctil TPV (Windows): el dedo debe subir/bajar las listas.
-        Teclado físico OK: no necesitamos teclado virtual aquí.
-        No capturamos botones ni inputs.
+        Scroll táctil TPV = arrastrar con el dedo (como móvil) en carta y cuenta.
+        Windows suele mandar el dedo como "mouse": aceptamos TODOS los punteros.
       */
       ;(function setupTpvTouchScroll() {
         document.documentElement.classList.add('tpv-touch-scroll', 'has-touch')
 
+        const ZONE = '.menu, .rail, .lines, .check-f, .jornada-card'
         const SKIP = 'input, textarea, select'
 
-        function attachPan(el) {
-          if (!el || el.dataset.tpvPan === '1') return
-          el.dataset.tpvPan = '1'
+        let scroller = null
+        let active = false
+        let moved = false
+        let startY = 0
+        let startX = 0
+        let originTop = 0
+        let originLeft = 0
+        let pointerId = null
 
-          let active = false
-          let moved = false
-          let startY = 0
-          let startX = 0
-          let originTop = 0
-          let originLeft = 0
-          let pointerId = null
-
-          const canScrollY = () => el.scrollHeight > el.clientHeight + 2
-          const canScrollX = () => el.scrollWidth > el.clientWidth + 2
-
-          const onStart = (y, x, id, target) => {
-            if (target && target.closest && target.closest(SKIP)) return false
-            if (!canScrollY() && !canScrollX()) return false
-            active = true
-            moved = false
-            startY = y
-            startX = x
-            originTop = el.scrollTop
-            originLeft = el.scrollLeft
-            pointerId = id
-            return true
-          }
-
-          const onMove = (y, x, ev) => {
-            if (!active) return
-            const dy = y - startY
-            const dx = x - startX
-            if (!moved) {
-              if (Math.abs(dy) < 6 && Math.abs(dx) < 6) return
-              moved = true
-              el.dataset.didPan = '1'
-            }
-            if (Math.abs(dy) >= Math.abs(dx) && canScrollY()) {
-              el.scrollTop = originTop - dy
-              if (ev && ev.cancelable) ev.preventDefault()
-            } else if (canScrollX()) {
-              el.scrollLeft = originLeft - dx
-              if (ev && ev.cancelable) ev.preventDefault()
-            }
-          }
-
-          const onEnd = () => {
-            if (!active) return
-            active = false
-            pointerId = null
-            if (moved) {
-              el.dataset.didPan = '1'
-              setTimeout(() => { try { delete el.dataset.didPan } catch {} }, 100)
-            }
-            moved = false
-          }
-
-          // Touch nativo (mejor en monitores táctiles)
-          el.addEventListener('touchstart', (e) => {
-            if (e.touches.length !== 1) return
-            const t = e.touches[0]
-            onStart(t.clientY, t.clientX, t.identifier, e.target)
-          }, { passive: true })
-
-          el.addEventListener('touchmove', (e) => {
-            if (!active || e.touches.length !== 1) return
-            const t = e.touches[0]
-            onMove(t.clientY, t.clientX, e)
-          }, { passive: false })
-
-          el.addEventListener('touchend', onEnd, { passive: true })
-          el.addEventListener('touchcancel', onEnd, { passive: true })
-
-          // Fallback Windows: a veces el dedo llega como pointer/mouse
-          el.addEventListener('pointerdown', (e) => {
-            if (e.button != null && e.button !== 0) return
-            // Solo si hay pantalla táctil o el pointer es touch/pen
-            const touchy =
-              e.pointerType === 'touch' ||
-              e.pointerType === 'pen' ||
-              (navigator.maxTouchPoints > 0 && e.pointerType === 'mouse')
-            if (!touchy) return
-            if (!onStart(e.clientY, e.clientX, e.pointerId, e.target)) return
-          }, { passive: true })
-
-          el.addEventListener('pointermove', (e) => {
-            if (!active || e.pointerId !== pointerId) return
-            onMove(e.clientY, e.clientX, e)
-          }, { passive: false })
-
-          el.addEventListener('pointerup', (e) => {
-            if (e.pointerId !== pointerId) return
-            onEnd()
-          }, { passive: true })
-          el.addEventListener('pointercancel', (e) => {
-            if (e.pointerId !== pointerId) return
-            onEnd()
-          }, { passive: true })
+        function pickScroller(target) {
+          if (!target || !target.closest) return null
+          if (target.closest(SKIP)) return null
+          // Si tocas la cuenta, prioriza la zona bajo el dedo
+          const direct = target.closest(ZONE)
+          if (direct) return direct
+          return null
         }
 
-        function wireAll() {
-          document
-            .querySelectorAll('.menu, .rail, .lines, .check-f, .jornada-card')
-            .forEach(attachPan)
+        function canY(el) { return el && el.scrollHeight > el.clientHeight + 1 }
+        function canX(el) { return el && el.scrollWidth > el.clientWidth + 1 }
+
+        function begin(y, x, id, target) {
+          const el = pickScroller(target)
+          if (!el) return false
+          if (!canY(el) && !canX(el)) return false
+          scroller = el
+          active = true
+          moved = false
+          startY = y
+          startX = x
+          originTop = el.scrollTop
+          originLeft = el.scrollLeft
+          pointerId = id
+          return true
         }
-        wireAll()
-        setTimeout(wireAll, 300)
-        setTimeout(wireAll, 1200)
-        // Si se abre el modal de jornada más tarde
-        const mo = new MutationObserver(() => wireAll())
-        mo.observe(document.body, { childList: true, subtree: true })
+
+        function move(y, x, ev) {
+          if (!active || !scroller) return
+          const dy = y - startY
+          const dx = x - startX
+          if (!moved) {
+            if (Math.abs(dy) < 5 && Math.abs(dx) < 5) return
+            moved = true
+            scroller.dataset.didPan = '1'
+            document.documentElement.dataset.tpvPanning = '1'
+            try {
+              if (pointerId != null && ev && ev.target) {
+                ;(scroller).setPointerCapture?.(pointerId)
+              }
+            } catch {}
+          }
+          if (Math.abs(dy) >= Math.abs(dx)) {
+            if (canY(scroller)) {
+              scroller.scrollTop = originTop - dy
+              if (ev && ev.cancelable) ev.preventDefault()
+            }
+          } else if (canX(scroller)) {
+            scroller.scrollLeft = originLeft - dx
+            if (ev && ev.cancelable) ev.preventDefault()
+          }
+        }
+
+        function end() {
+          if (!active) return
+          const el = scroller
+          active = false
+          scroller = null
+          pointerId = null
+          if (moved && el) {
+            el.dataset.didPan = '1'
+            setTimeout(() => {
+              try { delete el.dataset.didPan } catch {}
+              try { delete document.documentElement.dataset.tpvPanning } catch {}
+            }, 120)
+          } else {
+            try { delete document.documentElement.dataset.tpvPanning } catch {}
+          }
+          moved = false
+        }
+
+        // --- Touch ---
+        document.addEventListener('touchstart', (e) => {
+          if (e.touches.length !== 1) return
+          const t = e.touches[0]
+          begin(t.clientY, t.clientX, t.identifier, e.target)
+        }, { capture: true, passive: true })
+
+        document.addEventListener('touchmove', (e) => {
+          if (!active || e.touches.length !== 1) return
+          const t = e.touches[0]
+          move(t.clientY, t.clientX, e)
+        }, { capture: true, passive: false })
+
+        document.addEventListener('touchend', end, { capture: true, passive: true })
+        document.addEventListener('touchcancel', end, { capture: true, passive: true })
+
+        // --- Pointer (Windows táctil / dedo como mouse) ---
+        document.addEventListener('pointerdown', (e) => {
+          if (e.button != null && e.button !== 0) return
+          begin(e.clientY, e.clientX, e.pointerId, e.target)
+        }, { capture: true, passive: true })
+
+        document.addEventListener('pointermove', (e) => {
+          if (!active) return
+          if (pointerId != null && e.pointerId !== pointerId) return
+          move(e.clientY, e.clientX, e)
+        }, { capture: true, passive: false })
+
+        document.addEventListener('pointerup', end, { capture: true, passive: true })
+        document.addEventListener('pointercancel', end, { capture: true, passive: true })
+
+        // --- Mouse clásico (algunos TPV solo emiten mouse events) ---
+        document.addEventListener('mousedown', (e) => {
+          if (e.button !== 0) return
+          // Evitar doble inicio si ya hubo pointerdown
+          if (window.PointerEvent) return
+          begin(e.clientY, e.clientX, 'mouse', e.target)
+        }, { capture: true, passive: true })
+
+        document.addEventListener('mousemove', (e) => {
+          if (!active || pointerId !== 'mouse') return
+          move(e.clientY, e.clientX, e)
+        }, { capture: true, passive: false })
+
+        document.addEventListener('mouseup', () => {
+          if (pointerId === 'mouse') end()
+        }, { capture: true, passive: true })
+
+        // Marca zonas para depuración / CSS
+        const mark = () => {
+          document.querySelectorAll(ZONE).forEach((el) => { el.dataset.tpvPan = '1' })
+        }
+        mark()
+        setTimeout(mark, 400)
       })()
 
       function bindTap(root, selector, handler) {
@@ -2646,7 +2676,7 @@
         let startX = 0
         let startY = 0
         const run = (e, el) => {
-          if (root.dataset.didPan === '1') return
+          if (root.dataset.didPan === '1' || document.documentElement.dataset.tpvPanning === '1') return
           const now = Date.now()
           if (el === lastEl && now - lastAt < 320) return
           lastEl = el
@@ -2659,11 +2689,11 @@
           startY = e.clientY
         }, { passive: true })
         root.addEventListener('pointermove', (e) => {
-          if (Math.abs(e.clientX - startX) > 16 || Math.abs(e.clientY - startY) > 16) gesturing = true
+          if (Math.abs(e.clientX - startX) > 14 || Math.abs(e.clientY - startY) > 14) gesturing = true
         }, { passive: true })
         root.addEventListener('pointercancel', () => { gesturing = true }, { passive: true })
         root.addEventListener('click', (e) => {
-          if (gesturing || root.dataset.didPan === '1') {
+          if (gesturing || root.dataset.didPan === '1' || document.documentElement.dataset.tpvPanning === '1') {
             gesturing = false
             return
           }
