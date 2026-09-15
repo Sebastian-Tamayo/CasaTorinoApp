@@ -89,40 +89,43 @@
     }
 
     /*
-      TPV Windows: forzar gesto de arrastre (como móvil).
-      touch-action:none en la zona y descendientes; inputs sí editable.
+      TPV Windows / pantalla ancha: gesto de arrastre con el dedo.
+      SOLO en layout de caja (≥1024px). En móvil touch-action:none
+      bloquea el scroll nativo de la página y deja la UI trabada.
     */
-    html.tpv-touch-scroll .menu,
-    html.tpv-touch-scroll .rail,
-    html.tpv-touch-scroll .lines,
-    html.tpv-touch-scroll .check-f,
-    html.tpv-touch-scroll .check,
-    html.tpv-touch-scroll .jornada-card {
-      touch-action: none !important;
-      -ms-touch-action: none !important;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
-    }
-    html.tpv-touch-scroll .menu,
-    html.tpv-touch-scroll .rail,
-    html.tpv-touch-scroll .lines,
-    html.tpv-touch-scroll .check-f,
-    html.tpv-touch-scroll .jornada-card {
-      overflow: auto !important;
-    }
-    html.tpv-touch-scroll .menu *,
-    html.tpv-touch-scroll .rail *,
-    html.tpv-touch-scroll .lines *,
-    html.tpv-touch-scroll .check-f *,
-    html.tpv-touch-scroll .check * {
-      touch-action: none !important;
-      -ms-touch-action: none !important;
-    }
-    html.tpv-touch-scroll input,
-    html.tpv-touch-scroll textarea,
-    html.tpv-touch-scroll select {
-      touch-action: manipulation !important;
-      -ms-touch-action: manipulation !important;
+    @media (min-width: 1024px) {
+      html.tpv-touch-scroll .menu,
+      html.tpv-touch-scroll .rail,
+      html.tpv-touch-scroll .lines,
+      html.tpv-touch-scroll .check-f,
+      html.tpv-touch-scroll .check,
+      html.tpv-touch-scroll .jornada-card {
+        touch-action: none !important;
+        -ms-touch-action: none !important;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+      }
+      html.tpv-touch-scroll .menu,
+      html.tpv-touch-scroll .rail,
+      html.tpv-touch-scroll .lines,
+      html.tpv-touch-scroll .check-f,
+      html.tpv-touch-scroll .jornada-card {
+        overflow: auto !important;
+      }
+      html.tpv-touch-scroll .menu *,
+      html.tpv-touch-scroll .rail *,
+      html.tpv-touch-scroll .lines *,
+      html.tpv-touch-scroll .check-f *,
+      html.tpv-touch-scroll .check * {
+        touch-action: none !important;
+        -ms-touch-action: none !important;
+      }
+      html.tpv-touch-scroll input,
+      html.tpv-touch-scroll textarea,
+      html.tpv-touch-scroll select {
+        touch-action: manipulation !important;
+        -ms-touch-action: manipulation !important;
+      }
     }
     /* Campos editables: teclado virtual Windows (no interferir con el gesto) */
     input, textarea, select {
@@ -2676,12 +2679,12 @@
       })
 
       /*
-        Scroll táctil TPV = arrastrar con el dedo (como móvil) en carta y cuenta.
-        Windows suele mandar el dedo como "mouse": aceptamos TODOS los punteros.
+        Scroll táctil TPV = arrastrar con el dedo en carta y cuenta.
+        Solo en layout de caja (≥1024px). En móvil usamos scroll nativo
+        (si no, touch-action:none deja la pantalla trabada).
+        Windows suele mandar el dedo como "mouse": aceptamos todos los punteros.
       */
       ;(function setupTpvTouchScroll() {
-        document.documentElement.classList.add('tpv-touch-scroll', 'has-touch')
-
         const ZONE = '.menu, .rail, .lines, .check-f, .jornada-card'
         const SKIP = 'input, textarea, select'
 
@@ -2693,6 +2696,30 @@
         let originTop = 0
         let originLeft = 0
         let pointerId = null
+
+        function isPosLayout() {
+          try { return window.matchMedia('(min-width: 1024px)').matches } catch { return false }
+        }
+
+        function syncTouchScrollMode() {
+          if (isPosLayout()) {
+            document.documentElement.classList.add('tpv-touch-scroll', 'has-touch')
+          } else {
+            document.documentElement.classList.remove('tpv-touch-scroll')
+            // Cancelar gesto a medias al pasar a móvil
+            active = false
+            scroller = null
+            pointerId = null
+            moved = false
+            try { delete document.documentElement.dataset.tpvPanning } catch {}
+          }
+        }
+        syncTouchScrollMode()
+        try {
+          window.matchMedia('(min-width: 1024px)').addEventListener('change', syncTouchScrollMode)
+        } catch {
+          window.addEventListener('resize', syncTouchScrollMode, { passive: true })
+        }
 
         function pickScroller(target) {
           if (!target || !target.closest) return null
@@ -2707,6 +2734,7 @@
         function canX(el) { return el && el.scrollWidth > el.clientWidth + 1 }
 
         function begin(y, x, id, target) {
+          if (!document.documentElement.classList.contains('tpv-touch-scroll')) return false
           const el = pickScroller(target)
           if (!el) return false
           if (!canY(el) && !canX(el)) return false

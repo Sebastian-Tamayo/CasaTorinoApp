@@ -516,7 +516,13 @@ a { color: inherit; }
     -webkit-overflow-scrolling: touch;
   }
   .carta-nav button { flex: 0 0 auto; }
-  .carta-scroll { max-height: min(68vh, 560px); }
+  /* Móvil: sin caja con scroll interno (atascaba el dedo en la carta) */
+  .carta-scroll {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+    margin-right: 0;
+  }
   .contact-aside { border-left: 0; border-top: 1px solid var(--line); padding: 1rem 0 0; }
   .nav-toggle { display: inline-grid; place-items: center; }
   .nav {
@@ -530,7 +536,7 @@ a { color: inherit; }
   .site-header { position: sticky; }
   .nav-wrap { position: relative; }
 }
-@media (max-height: 720px) {
+@media (max-height: 720px) and (min-width: 901px) {
   .carta-scroll { max-height: min(55vh, 420px); }
 }
 @media (max-width: 480px) {
