@@ -2581,8 +2581,8 @@
               const editable = isPriceEditable(l)
               const priceBlock = editable
                 ? `<div class="line-price-edit">
-                    <label for="price-${key}">Precio</label>
-                    <input id="price-${key}" class="line-price" type="text" inputmode="decimal" enterkeyhint="done" data-price-key="${key}" value="${formatPriceInput(l.price)}" aria-label="Precio unidad" />
+                    <label>Precio</label>
+                    <input class="line-price" type="text" inputmode="decimal" enterkeyhint="done" data-price-key="${String(key).replace(/"/g, '&quot;')}" value="${formatPriceInput(l.price)}" aria-label="Precio unidad" />
                     <em>€ / ud.</em>
                   </div>`
                 : `<div class="line-meta">${money(l.price)} · ud.</div>`
