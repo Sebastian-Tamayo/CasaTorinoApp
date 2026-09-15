@@ -1,15 +1,13 @@
 /**
  * Casa Torino — almacén operativo 24/7
+ * Backend: Supabase (tabla public.ops_kv) — plan gratis
  *
- * Preferencia:
- * 1) Vercel Blob (privado) si está activo
- * 2) Edge Config (fallback automático si Blob está suspendido / sin cuota)
+ * Claves: kitchen | tpv | jornada | cierres
  *
- * El polling agresivo agotó la Store Blob Hobby → quedó "suspended".
- * Con este fallback el TPV/cocina siguen funcionando.
+ * Env (Vercel proyecto casa-torino-web):
+ *   SUPABASE_URL
+ *   SUPABASE_ANON_KEY   (o SUPABASE_SECRET_KEY / SUPABASE_SERVICE_ROLE_KEY)
  */
-const { put, get } = require('@vercel/blob')
-
 function cleanToken(raw) {
   let t = String(raw || '').trim()
   if (
@@ -21,170 +19,113 @@ function cleanToken(raw) {
   return t.trim()
 }
 
-const BLOB_TOKEN = cleanToken(process.env.BLOB_READ_WRITE_TOKEN || '')
-const EDGE_ID = process.env.TPV_EDGE_CONFIG_ID
-const TEAM_ID = process.env.TPV_TEAM_ID
-const VERCEL_TOKEN = process.env.TPV_VERCEL_TOKEN
-const FORCE_EDGE = /^(1|true|yes)$/i.test(String(process.env.OPS_FORCE_EDGE || ''))
-const MEM_TTL_MS = 500
+const SUPABASE_URL = cleanToken(
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+).replace(/\/$/, '')
+const SUPABASE_KEY = cleanToken(
+  process.env.SUPABASE_SECRET_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    '',
+)
+
+const MEM_TTL_MS = 400
 
 /** @type {Record<string, { value: any, at: number }>} */
 const memory = Object.create(null)
-
-/** Sticky: una vez Blob falla por suspensión, no insistir (ahorra tiempo y errores) */
-let blobDisabled = FORCE_EDGE || !BLOB_TOKEN
-let backend = blobDisabled ? 'edge' : 'blob'
-
-function pathnameFor(key) {
-  return `casa-torino-ops/${String(key).replace(/[^a-z0-9_-]/gi, '')}.json`
-}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function isBlobSuspendedError(err) {
-  const msg = String(err && err.message ? err.message : err)
-  return /suspended|blocked|usage.?threshold|limits?.?reached|quota|billingState/i.test(
-    msg,
-  )
-}
-
-function markBlobDown(err) {
-  if (!isBlobSuspendedError(err) && !/forbidden|unauthorized/i.test(String(err))) {
-    return
-  }
-  blobDisabled = true
-  backend = 'edge'
-  console.warn('[opsStore] Blob no usable → Edge Config', String(err && err.message ? err.message : err))
-}
-
-async function readEdge(key) {
-  if (!EDGE_ID || !VERCEL_TOKEN) return null
-  const url =
-    `https://api.vercel.com/v1/edge-config/${EDGE_ID}/item/${encodeURIComponent(key)}` +
-    (TEAM_ID ? `?teamId=${TEAM_ID}` : '')
-  try {
-    const r = await fetch(url, {
-      headers: { Authorization: `Bearer ${VERCEL_TOKEN}` },
-      cache: 'no-store',
-    })
-    if (r.status === 404 || r.status === 204) return null
-    if (!r.ok) return null
-    const text = await r.text()
-    if (!text || !text.trim()) return null
-    const data = JSON.parse(text)
-    if (data && typeof data === 'object' && 'value' in data) return data.value
-    return data
-  } catch {
-    return null
+function assertConfig() {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    throw new Error(
+      'Falta SUPABASE_URL / SUPABASE_ANON_KEY (o SECRET) en Vercel',
+    )
   }
 }
 
-async function writeEdge(key, value) {
-  if (!EDGE_ID || !VERCEL_TOKEN) {
-    throw new Error('Edge Config no configurado (TPV_EDGE_CONFIG_ID / TPV_VERCEL_TOKEN)')
+function restHeaders(extra = {}) {
+  return {
+    apikey: SUPABASE_KEY,
+    Authorization: `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    Prefer: 'return=representation',
+    ...extra,
   }
-  const url =
-    `https://api.vercel.com/v1/edge-config/${EDGE_ID}/items` +
-    (TEAM_ID ? `?teamId=${TEAM_ID}` : '')
+}
+
+async function sbFetch(path, options = {}) {
+  assertConfig()
+  const url = `${SUPABASE_URL}/rest/v1/${path.replace(/^\//, '')}`
   let lastErr = null
   for (let attempt = 1; attempt <= 4; attempt++) {
     try {
       const r = await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${VERCEL_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          items: [{ operation: 'upsert', key: String(key), value }],
-        }),
+        ...options,
+        headers: restHeaders(options.headers || {}),
+        cache: 'no-store',
       })
       const text = await r.text()
+      let data = null
+      if (text && text.trim()) {
+        try {
+          data = JSON.parse(text)
+        } catch {
+          data = text
+        }
+      }
       if (!r.ok) {
-        throw new Error(text || `edge PATCH ${r.status}`)
+        const msg =
+          (data && data.message) ||
+          (data && data.error) ||
+          (typeof data === 'string' ? data : '') ||
+          `supabase ${r.status}`
+        const err = new Error(msg)
+        err.status = r.status
+        err.body = data
+        throw err
       }
-      memory[key] = { value, at: Date.now() }
-      backend = 'edge'
-      return value
+      return data
     } catch (err) {
       lastErr = err
-      await sleep(120 * attempt * attempt)
-    }
-  }
-  throw lastErr || new Error('edge PUT failed')
-}
-
-async function blobGet(key) {
-  if (blobDisabled || !BLOB_TOKEN) return null
-  const pathname = pathnameFor(key)
-  try {
-    const result = await get(pathname, {
-      access: 'private',
-      token: BLOB_TOKEN,
-      useCache: false,
-    })
-    if (!result || result.statusCode === 404 || result.statusCode === 304) {
-      return null
-    }
-    if (result.stream) {
-      const text = await new Response(result.stream).text()
-      return text ? JSON.parse(text) : null
-    }
-    if (typeof result.json === 'function') return await result.json()
-    if (typeof result.text === 'function') {
-      const text = await result.text()
-      return text ? JSON.parse(text) : null
-    }
-    if (result.body) {
-      const text = await new Response(result.body).text()
-      return text ? JSON.parse(text) : null
-    }
-    return null
-  } catch (err) {
-    const msg = String(err && err.message ? err.message : err)
-    if (/404|not found|BlobNotFound/i.test(msg)) return null
-    markBlobDown(err)
-    throw err
-  }
-}
-
-async function blobPut(key, value) {
-  if (blobDisabled || !BLOB_TOKEN) {
-    throw new Error('blob disabled')
-  }
-  const pathname = pathnameFor(key)
-  const body = JSON.stringify(value)
-  let lastErr = null
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      await put(pathname, body, {
-        access: 'private',
-        addRandomSuffix: false,
-        allowOverwrite: true,
-        contentType: 'application/json',
-        token: BLOB_TOKEN,
-        cacheControlMaxAge: 0,
-      })
-      memory[key] = { value, at: Date.now() }
-      backend = 'blob'
-      return value
-    } catch (err) {
-      lastErr = err
-      markBlobDown(err)
-      if (blobDisabled) break
-      const msg = String(err && err.message ? err.message : err)
-      if (
-        /missing|unauthorized|forbidden|invalid|suspended/i.test(msg) &&
-        !/rate|429|503|502|timeout/i.test(msg)
-      ) {
-        break
+      if (err && err.status && err.status >= 400 && err.status < 500 && err.status !== 429) {
+        throw err
       }
-      await sleep(150 * attempt * attempt)
+      await sleep(80 * attempt * attempt)
     }
   }
-  throw lastErr || new Error('blob PUT failed')
+  throw lastErr || new Error('supabase fetch failed')
+}
+
+async function readRow(key) {
+  const rows = await sbFetch(
+    `ops_kv?key=eq.${encodeURIComponent(key)}&select=key,value,updated_at`,
+    { method: 'GET', headers: { Prefer: 'return=representation' } },
+  )
+  if (!Array.isArray(rows) || !rows.length) return null
+  return rows[0]
+}
+
+async function writeRow(key, value) {
+  const payload = {
+    key: String(key),
+    value,
+    updated_at: new Date().toISOString(),
+  }
+  // Upsert por PK
+  const rows = await sbFetch('ops_kv?on_conflict=key', {
+    method: 'POST',
+    headers: {
+      Prefer: 'resolution=merge-duplicates,return=representation',
+    },
+    body: JSON.stringify(payload),
+  })
+  memory[key] = { value, at: Date.now() }
+  return Array.isArray(rows) ? rows[0] : payload
 }
 
 /**
@@ -202,23 +143,12 @@ async function getJson(key, fallback, opts = {}) {
   }
 
   let value = null
-
-  if (!blobDisabled) {
-    try {
-      value = await blobGet(key)
-    } catch (err) {
-      console.warn('[opsStore] blobGet', key, err)
-    }
-  }
-
-  // Si Blob está caído/suspendido o no hay dato → Edge Config
-  if (value == null) {
-    try {
-      value = await readEdge(key)
-      if (value != null) backend = blobDisabled ? 'edge' : backend
-    } catch (err) {
-      console.warn('[opsStore] edgeGet', key, err)
-    }
+  try {
+    const row = await readRow(key)
+    if (row && row.value != null) value = row.value
+  } catch (err) {
+    console.warn('[opsStore] get', key, err)
+    throw err
   }
 
   if (value == null) {
@@ -229,16 +159,7 @@ async function getJson(key, fallback, opts = {}) {
 }
 
 async function setJson(key, value) {
-  // Intentar Blob; si está suspendido / falla, Edge Config
-  if (!blobDisabled) {
-    try {
-      await blobPut(key, value)
-      return value
-    } catch (err) {
-      console.warn('[opsStore] blobPut → edge', key, err)
-    }
-  }
-  await writeEdge(key, value)
+  await writeRow(key, value)
   return value
 }
 
@@ -283,7 +204,7 @@ module.exports = {
   getJson,
   setJson,
   updateJson,
-  pathnameFor,
-  hasBlob: () => Boolean(BLOB_TOKEN) && !blobDisabled,
-  getBackend: () => backend,
+  hasBlob: () => false,
+  getBackend: () => (SUPABASE_URL && SUPABASE_KEY ? 'supabase' : 'none'),
+  hasSupabase: () => Boolean(SUPABASE_URL && SUPABASE_KEY),
 }
