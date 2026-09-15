@@ -103,9 +103,63 @@ function sanitizeItems(raw) {
     }))
 }
 
+/** Menú español = siempre 2 platos (primero / segundo) */
+function isSpanishMenuItem(it) {
+  const id = String(it?.id || '')
+  const note = String(it?.note || '')
+  const cat = String(it?.catId || '').toLowerCase()
+  if (/^menu-dia-es-/.test(id)) return true
+  if (cat === 'menus-dia' && /Primero\s*N\s*\d/i.test(note)) return true
+  return false
+}
+
+function parseCourseNote(note) {
+  const m = String(note || '').match(/Primero\s*N\s*(\d)\s*[·.•\-]\s*Segundo\s*N\s*(\d)/i)
+  if (!m) return null
+  return { primero: m[1], segundo: m[2] }
+}
+
+function buildMenuDiaOrderFields(items) {
+  const menuItems = items.filter(isSpanishMenuItem)
+  if (!menuItems.length) return null
+
+  const course1Items = items.map((it) => {
+    if (!isSpanishMenuItem(it)) return { ...it }
+    const c = parseCourseNote(it.note)
+    return {
+      ...it,
+      name: `${it.name} · 1º PLATO N${c?.primero || '?'}`,
+      note: c ? `Primero Nº${c.primero}` : it.note,
+    }
+  })
+  const menuSecondItems = menuItems.map((it) => {
+    const c = parseCourseNote(it.note)
+    return {
+      id: it.id,
+      name: `${it.name} · 2º PLATO N${c?.segundo || '?'}`,
+      qty: it.qty,
+      categoryType: 'comida',
+      catId: it.catId || 'menus-dia',
+      note: c ? `Segundo Nº${c.segundo}` : String(it.note || '').trim(),
+    }
+  })
+  return {
+    kind: 'menu_dia',
+    course: 1,
+    courseTotal: 2,
+    items: course1Items,
+    menuSecondItems,
+    phase: 'primero',
+  }
+}
+
 function publicPayload(state) {
   const pending = (state.orders || []).filter(
-    (o) => o && (o.status === 'pending_kitchen' || o.status === 'alert'),
+    (o) =>
+      o &&
+      (o.status === 'pending_kitchen' ||
+        o.status === 'alert' ||
+        o.status === 'waiting_next'),
   )
   const history = Array.isArray(state.history) ? state.history : []
   const pickups = Array.isArray(state.pickups) ? state.pickups : []
@@ -190,6 +244,45 @@ module.exports = async function handler(req, res) {
         if (kind === 'siguiente_plato') {
           const { state, meta } = await mutate((state) => {
             const now = new Date().toISOString()
+            const orders = Array.isArray(state.orders) ? state.orders.slice() : []
+            // Activar 2º plato del menú que está esperando en esa mesa
+            const idx = orders.findIndex(
+              (o) =>
+                o &&
+                String(o.mesa) === mesa &&
+                o.kind === 'menu_dia' &&
+                (o.status === 'waiting_next' || o.phase === 'waiting_segundo'),
+            )
+            if (idx >= 0) {
+              const prev = orders[idx]
+              const secondItems =
+                Array.isArray(prev.menuSecondItems) && prev.menuSecondItems.length
+                  ? prev.menuSecondItems
+                  : [
+                      {
+                        id: 'segundo-plato',
+                        name: '2º PLATO (MENÚ)',
+                        qty: 1,
+                        categoryType: 'comida',
+                        catId: 'menus-dia',
+                        note: String(incoming.menuName || prev.notes || 'Menú').trim(),
+                      },
+                    ]
+              const activated = {
+                ...prev,
+                status: 'pending_kitchen',
+                phase: 'segundo',
+                course: 2,
+                notes: '¡SEGUNDO PLATO!',
+                items: secondItems,
+                activatedSecondAt: now,
+                completedAt: null,
+              }
+              orders[idx] = activated
+              state.orders = orders
+              return { state, meta: { order: activated } }
+            }
+            // Fallback: aviso suelto (si no había menú esperando)
             const order = {
               id:
                 String(incoming.id || '').trim() ||
@@ -211,7 +304,7 @@ module.exports = async function handler(req, res) {
                 },
               ],
             }
-            state.orders = [order, ...(state.orders || [])].slice(0, ORDERS_MAX)
+            state.orders = [order, ...orders].slice(0, ORDERS_MAX)
             return { state, meta: { order } }
           })
           res.statusCode = 201
@@ -232,17 +325,26 @@ module.exports = async function handler(req, res) {
 
         const { state, meta } = await mutate((state) => {
           const now = new Date().toISOString()
+          const menuFields = buildMenuDiaOrderFields(items)
           const order = {
             id:
               String(incoming.id || '').trim() ||
               `k-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
             mesa,
             status: 'pending_kitchen',
-            kind: 'order',
+            kind: menuFields ? 'menu_dia' : 'order',
             createdAt: now,
             completedAt: null,
             notes: String(incoming.notes || '').trim(),
-            items,
+            items: menuFields ? menuFields.items : items,
+            ...(menuFields
+              ? {
+                  course: 1,
+                  courseTotal: 2,
+                  phase: 'primero',
+                  menuSecondItems: menuFields.menuSecondItems,
+                }
+              : {}),
           }
           state.orders = [order, ...(state.orders || [])].slice(0, ORDERS_MAX)
           return { state, meta: { order } }
@@ -261,24 +363,51 @@ module.exports = async function handler(req, res) {
             const orders = Array.isArray(state.orders) ? state.orders.slice() : []
             const idx = orders.findIndex((o) => o && o.id === id)
             if (idx < 0) throw bizError(404, 'Pedido no encontrado')
-            const done = {
-              ...orders[idx],
-              status: 'ready',
-              completedAt: new Date().toISOString(),
-            }
-            orders.splice(idx, 1)
-            state.orders = orders
-            state.lastCompleted = done
-            state.history = pushHistory(state.history, done)
-            // Aviso a TPV: solo mesa (texto corto para cualquier camarero)
-            // No avisar en "siguiente plato" (es un enterado, no plato listo)
-            if (done.kind !== 'siguiente_plato') {
-              const mesa = String(done.mesa || '').trim() || '?'
+            const current = orders[idx]
+            const now = new Date().toISOString()
+            const mesa = String(current.mesa || '').trim() || '?'
+
+            // Menú español · 1º plato: avisa TPV pero NO cierra el ticket (espera 2º)
+            if (
+              current.kind === 'menu_dia' &&
+              Number(current.course || 1) === 1 &&
+              current.status !== 'waiting_next'
+            ) {
+              const snapshot = { ...current }
+              const waiting = {
+                ...current,
+                status: 'waiting_next',
+                phase: 'waiting_segundo',
+                course: 2,
+                completedFirstAt: now,
+                completedAt: null,
+                items: [
+                  {
+                    id: 'waiting-segundo',
+                    name: '⏳ 1º listo — esperando «Siguiente plato»',
+                    qty: 1,
+                    categoryType: 'comida',
+                    catId: 'menus-dia',
+                    note: 'La camarera pulsará Siguiente plato en el TPV',
+                  },
+                ],
+              }
+              orders[idx] = waiting
+              state.orders = orders
+              const done = {
+                ...snapshot,
+                status: 'ready',
+                completedAt: now,
+                menuPartial: true,
+                course: 1,
+              }
+              state.lastCompleted = done
+              // No va al histórico hasta cerrar el 2º
               const pickup = {
-                id: done.id,
+                id: `${done.id}::c1`,
                 mesa,
-                at: done.completedAt,
-                message: `Recoger mesa ${mesa}`,
+                at: now,
+                message: `Recoger mesa ${mesa} · 1º plato`,
               }
               const prev = Array.isArray(state.pickups) ? state.pickups : []
               state.pickups = [pickup, ...prev.filter((p) => p && p.id !== pickup.id)].slice(
@@ -287,7 +416,37 @@ module.exports = async function handler(req, res) {
               )
               return { state, meta: { order: done, pickup } }
             }
-            return { state, meta: { order: done, pickup: null } }
+
+            const done = {
+              ...current,
+              status: 'ready',
+              completedAt: now,
+            }
+            orders.splice(idx, 1)
+            state.orders = orders
+            state.lastCompleted = done
+            state.history = pushHistory(state.history, done)
+
+            if (done.kind === 'siguiente_plato') {
+              return { state, meta: { order: done, pickup: null } }
+            }
+
+            const isSecond =
+              done.kind === 'menu_dia' && Number(done.course || 0) === 2
+            const pickup = {
+              id: done.id,
+              mesa,
+              at: done.completedAt,
+              message: isSecond
+                ? `Recoger mesa ${mesa} · 2º plato`
+                : `Recoger mesa ${mesa}`,
+            }
+            const prev = Array.isArray(state.pickups) ? state.pickups : []
+            state.pickups = [pickup, ...prev.filter((p) => p && p.id !== pickup.id)].slice(
+              0,
+              PICKUPS_MAX,
+            )
+            return { state, meta: { order: done, pickup } }
           })
           res.statusCode = 200
           res.setHeader('Content-Type', 'application/json')
@@ -330,6 +489,28 @@ module.exports = async function handler(req, res) {
             if (!lastCompleted || lastCompleted.status !== 'ready') {
               throw bizError(400, 'Nada que deshacer')
             }
+
+            // Deshacer Listo del 1º plato del menú
+            if (lastCompleted.menuPartial && lastCompleted.kind === 'menu_dia') {
+              const restored = {
+                ...lastCompleted,
+                status: 'pending_kitchen',
+                completedAt: null,
+                course: 1,
+                phase: 'primero',
+                restoredAt: new Date().toISOString(),
+              }
+              delete restored.menuPartial
+              let orders = (state.orders || []).filter((o) => o.id !== restored.id)
+              orders = [restored, ...orders]
+              state.orders = orders
+              state.lastCompleted = null
+              state.pickups = (state.pickups || []).filter(
+                (p) => p && p.id !== restored.id && p.id !== `${restored.id}::c1`,
+              )
+              return { state, meta: { order: restored } }
+            }
+
             const restored = {
               ...lastCompleted,
               status: 'pending_kitchen',

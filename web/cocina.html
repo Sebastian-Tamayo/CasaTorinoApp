@@ -175,10 +175,29 @@
       background: linear-gradient(180deg, rgba(245,158,11,.18), rgba(17,24,32,.95));
     }
     .ticket.next-course .mesa-num span { color: #fbbf24; }
+    .ticket.waiting-next {
+      border-color: #64748b;
+      opacity: .92;
+      background: linear-gradient(180deg, rgba(100,116,139,.2), rgba(17,24,32,.95));
+    }
+    .ticket.menu-second {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 2px rgba(56,189,248,.3), 0 12px 40px rgba(0,0,0,.35);
+      background: linear-gradient(180deg, rgba(56,189,248,.16), rgba(17,24,32,.95));
+    }
     .next-banner {
       margin: 0 0 .35rem; padding: .45rem .6rem; border-radius: 10px;
       background: rgba(245,158,11,.2); color: #fde68a; font-weight: 800;
       font-size: .82rem; letter-spacing: .03em; text-transform: uppercase;
+    }
+    .next-banner.waiting {
+      background: rgba(100,116,139,.25); color: #cbd5e1;
+    }
+    .next-banner.second {
+      background: rgba(56,189,248,.22); color: #bae6fd;
+    }
+    .btn-ready:disabled {
+      opacity: .45; cursor: not-allowed; filter: grayscale(.3);
     }
 
     .ticket-h {
@@ -642,7 +661,7 @@
         const sorted = orders.slice().sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
         grid.innerHTML = sorted.map((o) => {
           const lines = groupItems(o.items).map((l) => {
-            const isMenuChoice = /Primero N/i.test(String(l.note || ''))
+            const isMenuChoice = /Primero N|Segundo N|1º PLATO|2º PLATO/i.test(String(l.note || '') + String(l.name || ''))
             return `<div class="line">
               <div class="qty">${l.qty}</div>
               <div>
@@ -657,18 +676,41 @@
           const neo = flashIds.has(o.id) ? 'new' : ''
           const urg = urgencyClass(o.createdAt)
           const isNext = o.kind === 'siguiente_plato'
-          const banner = isNext
-            ? `<div class="next-banner"><i class="fa-solid fa-bell"></i> Siguiente plato (menú)</div>`
-            : ''
-          return `<article class="ticket ${neo} ${urg}${isNext ? ' next-course' : ''}" data-id="${escapeHtml(o.id)}">
+          const isWaiting = o.status === 'waiting_next' || o.phase === 'waiting_segundo'
+          const isMenuFirst = o.kind === 'menu_dia' && Number(o.course || 1) === 1 && !isWaiting
+          const isMenuSecond = o.kind === 'menu_dia' && Number(o.course || 0) === 2 && !isWaiting
+          let banner = ''
+          if (isWaiting) {
+            banner = `<div class="next-banner waiting"><i class="fa-solid fa-hourglass-half"></i> 1º listo · esperando «Siguiente plato»</div>`
+          } else if (isMenuSecond) {
+            banner = `<div class="next-banner second"><i class="fa-solid fa-bell"></i> 2º plato del menú</div>`
+          } else if (isMenuFirst) {
+            banner = `<div class="next-banner"><i class="fa-solid fa-1"></i> 1º plato del menú</div>`
+          } else if (isNext) {
+            banner = `<div class="next-banner"><i class="fa-solid fa-bell"></i> Siguiente plato (menú)</div>`
+          }
+          const ticketClass = [
+            neo,
+            urg,
+            isNext ? 'next-course' : '',
+            isWaiting ? 'waiting-next' : '',
+            isMenuSecond ? 'menu-second' : '',
+          ].filter(Boolean).join(' ')
+          let btnLabel = 'Listo'
+          if (isWaiting) btnLabel = 'Esperando camarera…'
+          else if (isMenuFirst) btnLabel = 'Listo 1º plato'
+          else if (isMenuSecond) btnLabel = 'Listo 2º plato'
+          else if (isNext) btnLabel = 'Enterado'
+          const btnDisabled = isWaiting ? ' disabled' : ''
+          return `<article class="ticket ${ticketClass}" data-id="${escapeHtml(o.id)}">
             <div class="ticket-h">
               <div class="mesa-num"><span>Mesa</span>${escapeHtml(o.mesa)}</div>
               <div class="elapsed" data-created="${escapeHtml(o.createdAt)}">${elapsedLabel(o.createdAt)}<small>transcurrido</small></div>
             </div>
             <div class="ticket-b">${banner}${lines}${notes}</div>
             <div class="ticket-f">
-              <button class="btn-ready" type="button" data-complete="${escapeHtml(o.id)}">
-                <i class="fa-solid fa-check"></i> ${isNext ? 'Enterado' : 'Listo'}
+              <button class="btn-ready" type="button" data-complete="${escapeHtml(o.id)}"${btnDisabled}>
+                <i class="fa-solid fa-check"></i> ${btnLabel}
               </button>
             </div>
           </article>`
@@ -699,6 +741,8 @@
 
       async function complete(id) {
         if (!id || completing.has(id)) return
+        const btn = document.querySelector(`[data-complete="${CSS.escape(id)}"]`)
+        if (btn && btn.disabled) return
         completing.add(id)
         render()
         try {
@@ -707,7 +751,12 @@
           canUndo = Boolean(data.canUndo)
           applyHistory(data)
           flashIds.delete(id)
-          toast(`Mesa ${data.order?.mesa || ''} marcada como lista`)
+          const partial = data.order?.menuPartial
+          toast(
+            partial
+              ? `Mesa ${data.order?.mesa || ''} · 1º listo (sigue el menú)`
+              : `Mesa ${data.order?.mesa || ''} marcada como lista`,
+          )
           render()
         } catch (err) {
           if (err && err.status === 401) {

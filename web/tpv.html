@@ -340,7 +340,7 @@
     }
     body.check-open {
       overflow: hidden !important;
-      touch-action: manipulation;
+      touch-action: pan-y;
     }
     body.check-open .app {
       pointer-events: none;
@@ -900,6 +900,74 @@
       .prod { min-height: 96px; }
       .q button { min-width: 44px; min-height: 44px; }
       .check-f .btn { min-height: 52px; }
+    }
+
+    /*
+      TPV táctil (≥1024): scroll de página con el dedo (como móvil),
+      sin depender de barras de scroll tipo ratón en paneles internos.
+    */
+    @media (min-width: 1024px) {
+      html.has-touch body {
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        height: auto !important;
+        max-height: none !important;
+        touch-action: pan-y !important;
+        -ms-touch-action: pan-y !important;
+        -webkit-overflow-scrolling: touch !important;
+      }
+      html.has-touch .app {
+        height: auto !important;
+        max-height: none !important;
+        min-height: 100dvh;
+        overflow: visible !important;
+        grid-template-rows: auto auto auto;
+      }
+      html.has-touch .workspace {
+        height: auto !important;
+        max-height: none !important;
+        min-height: calc(100dvh - 120px);
+        overflow: visible !important;
+        align-items: start;
+      }
+      html.has-touch .menu {
+        overflow: visible !important;
+        max-height: none !important;
+        touch-action: pan-y !important;
+      }
+      html.has-touch .rail {
+        overflow: visible !important;
+        max-height: none !important;
+        position: sticky;
+        top: 0;
+        align-self: start;
+        max-height: 100dvh;
+        overflow-y: auto !important;
+        touch-action: pan-y !important;
+        -webkit-overflow-scrolling: touch;
+      }
+      html.has-touch .check,
+      html.has-touch .check.open {
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        position: sticky;
+        top: 0;
+        align-self: start;
+        max-height: 100dvh;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y !important;
+      }
+      html.has-touch .lines,
+      html.has-touch .check-f {
+        overflow: visible !important;
+        max-height: none !important;
+      }
+      html.has-touch body.check-open {
+        overflow-y: auto !important;
+        touch-action: pan-y !important;
+      }
     }
 
     /* Pantalla PIN */
@@ -2497,6 +2565,93 @@
         )
       })
 
+      // TPV = pantalla táctil: forzar modo dedo (no depender del ratón)
+      document.documentElement.classList.add('has-touch')
+
+      /**
+       * Scroll con el dedo (Windows a menudo emula ratón y no hace pan nativo).
+       * Arrastrar en vertical mueve scrollTop del contenedor o de la ventana.
+       */
+      function installFingerScroll(el, { windowScroll = false } = {}) {
+        if (!el || el.dataset.fingerScroll === '1') return
+        el.dataset.fingerScroll = '1'
+        let on = false
+        let pid = null
+        let y0 = 0
+        let x0 = 0
+        let top0 = 0
+        let left0 = 0
+        let axis = null
+        let moved = false
+
+        const getTop = () => (windowScroll ? window.scrollY || document.documentElement.scrollTop || 0 : el.scrollTop)
+        const setTop = (v) => {
+          if (windowScroll) window.scrollTo(0, v)
+          else el.scrollTop = v
+        }
+        const getLeft = () => (windowScroll ? 0 : el.scrollLeft)
+        const setLeft = (v) => {
+          if (!windowScroll) el.scrollLeft = v
+        }
+
+        el.addEventListener('pointerdown', (e) => {
+          if (e.button != null && e.button !== 0) return
+          if (e.target.closest('input, textarea, select, .gate-pad')) return
+          if (windowScroll && e.target.closest('.rail, .check, .jornada-card')) return
+          on = true
+          moved = false
+          axis = null
+          pid = e.pointerId
+          y0 = e.clientY
+          x0 = e.clientX
+          top0 = getTop()
+          left0 = getLeft()
+          try { el.setPointerCapture?.(e.pointerId) } catch {}
+        }, { passive: true })
+
+        el.addEventListener('pointermove', (e) => {
+          if (!on || e.pointerId !== pid) return
+          const dy = e.clientY - y0
+          const dx = e.clientX - x0
+          if (!axis) {
+            if (Math.abs(dy) < 7 && Math.abs(dx) < 7) return
+            axis = Math.abs(dy) >= Math.abs(dx) ? 'y' : 'x'
+          }
+          if (axis === 'y') {
+            moved = true
+            setTop(top0 - dy)
+            el.dataset.didPan = '1'
+          } else if (!windowScroll && el.scrollWidth > el.clientWidth + 4) {
+            moved = true
+            setLeft(left0 - dx)
+            el.dataset.didPan = '1'
+          }
+        }, { passive: true })
+
+        const end = (e) => {
+          if (e.pointerId !== pid) return
+          on = false
+          pid = null
+          if (moved) {
+            el.dataset.didPan = '1'
+            setTimeout(() => { try { delete el.dataset.didPan } catch {} }, 80)
+          }
+          axis = null
+          moved = false
+        }
+        el.addEventListener('pointerup', end, { passive: true })
+        el.addEventListener('pointercancel', end, { passive: true })
+      }
+
+      function setupAllFingerScroll() {
+        installFingerScroll(document.body, { windowScroll: true })
+        document.querySelectorAll('.rail, .check, .jornada-card').forEach((node) => {
+          installFingerScroll(node)
+        })
+      }
+      setupAllFingerScroll()
+      setTimeout(setupAllFingerScroll, 500)
+
       // Toques en TPV Windows: pointerup + debounce; ignora deslizamientos (scroll)
       function bindTap(root, selector, handler) {
         if (!root) return
@@ -2506,6 +2661,7 @@
         let startX = 0
         let startY = 0
         const run = (e, el) => {
+          if (el.closest?.('[data-did-pan="1"]') || root.dataset.didPan === '1') return
           const now = Date.now()
           if (el === lastEl && now - lastAt < 380) return
           lastEl = el
@@ -2513,29 +2669,32 @@
           handler(e, el)
         }
         root.addEventListener('pointerdown', (e) => {
-          if (e.pointerType === 'mouse') return
           gesturing = false
           startX = e.clientX
           startY = e.clientY
         }, { passive: true })
         root.addEventListener('pointermove', (e) => {
-          if (e.pointerType === 'mouse') return
           if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) {
             gesturing = true
           }
         }, { passive: true })
         root.addEventListener('pointercancel', () => { gesturing = true }, { passive: true })
         root.addEventListener('pointerup', (e) => {
-          if (e.pointerType === 'mouse') return
+          if (e.pointerType === 'mouse' && !(navigator.maxTouchPoints > 0)) {
+            // Ratón real: dejar el click
+            return
+          }
           if (e.button != null && e.button !== 0) return
-          if (gesturing) return
+          if (gesturing || root.dataset.didPan === '1') return
           const el = e.target.closest(selector)
           if (!el || !root.contains(el)) return
           run(e, el)
         }, { passive: true })
         root.addEventListener('click', (e) => {
-          if (gesturing) {
+          if (gesturing || root.dataset.didPan === '1') {
             gesturing = false
+            e.preventDefault?.()
+            e.stopPropagation?.()
             return
           }
           const el = e.target.closest(selector)
