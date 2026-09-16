@@ -722,7 +722,7 @@ window.TPV_CATALOG = [
       {
         "id": "bebidas-albariño-copa",
         "name": "Albariño (copa)",
-        "price": 3.2,
+        "price": 3.6,
         "desc": "Copa / botella",
         "base": "Albariño",
         "categoryType": "bebida"
