@@ -1,108 +1,50 @@
-# Casa Torino App — Ecosistema familiar
+# 🍽️ Casa Torino App - Ecosistema Gastronómico (Monorepo)
 
-Respaldo canónico del negocio **Casa Torino** (Gijón): web pública, TPV, cocina (KDS), reservas y ERP.
+Sistema integral desarrollado a medida para el restaurante Casa Torino (Gijón). Sustituye soluciones comerciales de TPV por una arquitectura propia, sin latencia, sin cuotas mensuales y adaptada 100% a las lógicas específicas del negocio.
 
-> Empresa familiar. Este repositorio es el **backup continuo** del software operativo.
-> **Nunca** subas PINs, tokens ni `.env` reales a GitHub.
+**Prueba de estrés en producción:** Facturación de +2.600€ y gestión de +130 comensales concurrentes durante el fin de semana de inauguración de terraza, operando sin caídas y con sincronización en tiempo real.
 
-## Módulos
+## 🚀 Arquitectura y Módulos
 
-| Carpeta | Qué es | Producción |
-|---------|--------|------------|
-| `web/` | Web pública clara + Gestión interna + **TPV** + **Cocina** | https://casa-torino-web.vercel.app |
-| `reservas/` | App de reservas staff | https://reservas-casatorino.vercel.app |
-| `erp/` | Back-office (Next.js + Supabase) | https://casa-torino-app.vercel.app |
-| `docs/` | Recuperación y anti-regresión | — |
+El ecosistema se divide en los siguientes módulos para producción:
+*   **/web (https://casa-torino-web.vercel.app):** Web pública clara (`#fff8e8`), Gestión interna, TPV móvil/escritorio y Monitor de Cocina (KDS).
+*   **/reservas (https://reservas-casatorino.vercel.app):** App de reservas del staff usando React, Vite y Vercel Edge Config (sin latencia de BBDD tradicional).
+*   **/erp (https://casa-torino-app.vercel.app):** Back-office construido con Next.js y Supabase.
 
-## Estado actual (15 sep 2026)
+## 🧠 Retos Técnicos Resueltos en Producción
 
-Respaldo alineado con producción (`casa-torino-web` en Vercel). Cambios importantes desde el último push:
+1. **Lógica de Enrutamiento KDS:** El sistema discrimina el destino de los productos. Los postres van directamente a la barra y no saturan la pantalla de cocina.
+2. **Gestión de Tiempos Asíncronos (Menús Mixtos):** Implementación de estados complejos de preparación. El "Menú Español" exige 2 tiempos (Listo 1º → TPV recoge → Listo 2º). El "Menú Colombiano" fluye en un solo tiempo.
+3. **Hardware Local desde la Nube:** Comunicación sin fricción entre un TPV web (Vercel) y el hardware físico local. La impresión vía QZ Tray apunta a "POS-58". La acción "Ticket" imprime sin cerrar mesa, mientras que "Cobrar" abre el cajón, limpia la mesa y registra la jornada[cite: 1].
+4. **UX Móvil Fluida:** Mantenimiento del scroll nativo en móviles para los camareros (sin bloqueos por `touch-action: none`), mientras se conserva la interfaz de paneles en pantallas anchas (≥1024px)[cite: 1].
+5. **Seguridad:** Los secretos y el PIN del personal (`TPV_PIN`) viven exclusivamente en Vercel, nunca en el código[cite: 1]. El acceso exige validación por PIN en todo momento[cite: 1].
 
-### Carta / precios
-- Menú entre semana: **español 14 €** · **colombiano 13 €**
-- Fin de semana: español 18 € · colombiano 15 € (sin cambio)
-- **Refrescos 2,50 €** (antes 2,80 €)
-- Categoría **Cafés** separada de bebidas (café, café con leche, infusión, té frío)
-- **Postres** van a barra (no a cocina)
+---
 
-### TPV (punto de venta)
-- Precio **editable en la cuenta** solo en **menús** y en productos **Varios / libre**
-- Nueva categoría **Varios**: producto libre (nombre + precio) para pan, encargos, etc.
-- **Ticket** = imprime sin cerrar mesa ni abrir cajón
-- **Cobrar** = registra jornada, abre cajón, limpia mesa (sin reimprimir)
-- Scroll táctil en caja Windows (pantalla ancha ≥1024px); en **móvil** scroll nativo (evita pantalla trabada)
-- Campos editables con teclado (mesa, notas, precios)
-- Aviso **Recoger mesa X** al marcar Listo en cocina
-- Sync / jornada / cocina vía **Supabase `ops_kv`** (con fallback histórico)
+## 🔒 Documentación Técnica Interna (Staff Casa Torino)
 
-### Cocina (KDS)
-- Menú **español** en 2 tiempos: Listo 1º → TPV recoge y sigue `waiting_next`; Listo 2º cierra
-- Menús **colombianos**: un solo Listo
-- Impresión / QZ Tray para POS-58
+> **Aviso:** Este repositorio es el backup continuo del software operativo. Nunca subas PINs, tokens ni `.env` reales a GitHub[cite: 1]. 
 
-### Web pública
-- Tema claro/crema (`#fff8e8`)
-- Carta en móvil sin cajas de scroll internas que atasquen el dedo
-- Precios de menú del día alineados con TPV
+### Estado actual (15 sep 2026)[cite: 1]
 
-### Accesos
-- PIN obligatorio al entrar en TPV / Cocina / Interno (`TPV_PIN` solo en Vercel)
+**Carta / precios**[cite: 1]
+- Menú entre semana: español 14 € · colombiano 13 €[cite: 1]
+- Fin de semana: español 18 € · colombiano 15 €[cite: 1]
+- Refrescos 2,50 €[cite: 1]
+- Categoría Cafés separada de bebidas (café, café con leche, infusión, té frío)[cite: 1]
 
-### Clonar en otro equipo
+**Operativa TPV**[cite: 1]
+- Precio editable en la cuenta solo en menús y en productos Varios / libre[cite: 1]
+- Sync / jornada / cocina vía Supabase `ops_kv` (con fallback histórico)[cite: 1]
 
-```bash
-git clone https://github.com/Sebastian-Tamayo/CasaTorinoApp.git
-cd CasaTorinoApp
-```
+### Histórico de cocina[cite: 1]
+Los pedidos marcados como Listo se guardan en histórico del día y se borran a las 09:00 (Europe/Madrid)[cite: 1].
 
-Los secretos (`BLOB_READ_WRITE_TOKEN`, PIN, tokens Supabase/Vercel) están en **Vercel** (proyecto `casa-torino-web`), no en el repo. Para desarrollar en local: copiar a `web/.env.local` (no se sube a Git).
+### Variables de Entorno y Despliegue[cite: 1]
+Para desarrollar en local: copiar credenciales a `web/.env.local` (no se sube a Git)[cite: 1].
 
-## Accesos (PIN en Vercel, no en el código)
-
-- **Gestión interna / TPV / Cocina**: PIN del personal (`TPV_PIN` en Vercel) — se pide **siempre** al abrir.
-- Tema web pública: **claro/crema** (`#fff8e8`). No sustituir por oscuro al desplegar TPV.
-
-## Deploy seguro (web)
-
+**Deploy seguro (web)**[cite: 1]
 ```bash
 cd web
 bash scripts/assert-light-theme.sh   # falla si el tema no es claro
 bash scripts/deploy-web.sh           # deploy a producción
-```
-
-Producción actual: https://casa-torino-web.vercel.app
-
-## Variables de entorno (Vercel)
-
-### Web / TPV / Cocina (`casa-torino-web`)
-- `TPV_PIN`
-- Credenciales Supabase / ops (`ops_kv`) según `docs/RECUPERACION.md`
-- `TPV_EDGE_CONFIG_ID` / `TPV_TEAM_ID` / `TPV_VERCEL_TOKEN` (legado / fallback)
-- `TPV_SYNC_KEY` (opcional)
-- QZ / impresión según configuración del POS
-
-### Reservas (`reservas-casatorino`)
-- `RESERVAS_EDGE_CONFIG_ID` (o `TPV_EDGE_CONFIG_ID`)
-- `RESERVAS_TEAM_ID`
-- `RESERVAS_VERCEL_TOKEN`
-- Root Directory = `reservas`
-- **No reconectar Git** hasta confirmar store Edge Config (ver `docs/reservas-ANTI-REGRESION.md`)
-
-## Histórico de cocina
-Los pedidos marcados como **Listo** se guardan en histórico del día y se borran a las **09:00** (Europe/Madrid).
-
-## Recuperación y subida a GitHub
-- Recuperación general: `docs/RECUPERACION.md` y `docs/casatorino-sync/`
-- Subir respaldo: `docs/SUBIR-GITHUB.md` y `scripts/subir-github.sh`
-- Si Cursor no puede hacer push a este repo, el espejo de emergencia está en **Proyeccion** (rama `backup/casa-torino-app`): ver `docs/SUBIR-GITHUB.md`
-
-## Reglas de oro
-1. Web pública siempre **clara**.
-2. Secretos solo en Vercel / `.env.local` (gitignored).
-3. TPV, Cocina e Interna **siempre** piden PIN al entrar.
-4. Reservas usan **Edge Config**, no CrudCrud.
-5. Hacer push frecuente a este repo: es el respaldo de la empresa.
-6. En móvil no forzar `touch-action: none` del TPV de caja (rompe el scroll).
-
----
-Casa Torino · Gijón
