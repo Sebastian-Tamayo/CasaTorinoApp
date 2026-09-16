@@ -1,4 +1,8 @@
 {
+  "framework": null,
+  "installCommand": "npm install",
+  "buildCommand": "echo static-web",
+  "outputDirectory": ".",
   "headers": [
     {
       "source": "/assets/(.*)",

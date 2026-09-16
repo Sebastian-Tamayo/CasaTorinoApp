@@ -1,6 +1,1 @@
-{
-  "installCommand": "npm install --prefix erp",
-  "buildCommand": "npm run build --prefix erp",
-  "framework": "nextjs",
-  "outputDirectory": "erp/.next"
-}
+{}
