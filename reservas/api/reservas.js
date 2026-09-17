@@ -25,14 +25,41 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Nombre obligatorio' })
       }
       const now = new Date().toISOString()
+      const personas = Math.max(1, Math.min(12, Number(body.personas) || 2))
+      const fecha = String(body.fecha || now.slice(0, 10))
+      const hora = String(body.hora || '14:00')
+
+      // Aforo por franja (solo si llega desde web u omitido; staff puede forzar con force:true)
+      if (!body.force) {
+        const CAPACITY = Number(process.env.RESERVAS_SLOT_CAPACITY || 40)
+        const items = await listReservas()
+        const used = items
+          .filter(
+            (r) =>
+              r &&
+              r.fecha === fecha &&
+              r.hora === hora &&
+              r.estado !== 'cancelada' &&
+              r.estado !== 'no_show',
+          )
+          .reduce((a, r) => a + (Number(r.personas) || 0), 0)
+        if (used + personas > CAPACITY) {
+          return res.status(409).json({
+            error: `No hay plazas suficientes a las ${hora} (libres ${Math.max(0, CAPACITY - used)})`,
+            remaining: Math.max(0, CAPACITY - used),
+            capacity: CAPACITY,
+          })
+        }
+      }
+
       const item = {
         id: randomUUID(),
         codigo: `CT-${Math.floor(1000 + Math.random() * 9000)}`,
         nombre: String(body.nombre).trim(),
         telefono: String(body.telefono || '').trim(),
-        fecha: String(body.fecha || now.slice(0, 10)),
-        hora: String(body.hora || '14:00'),
-        personas: Math.max(1, Math.min(12, Number(body.personas) || 2)),
+        fecha,
+        hora,
+        personas,
         notas: String(body.notas || '').trim(),
         estado: 'confirmada',
         createdAt: now,

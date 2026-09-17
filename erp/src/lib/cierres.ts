@@ -16,6 +16,11 @@ export type CierreItem = {
     };
     byCategory?: { id: string; name: string; qty: number; total: number }[];
     byProduct?: { id: string; name: string; qty: number; total: number }[];
+    byPayment?: {
+      efectivo?: { total?: number; tickets?: number };
+      tarjeta?: { total?: number; tickets?: number };
+    };
+    tipTotal?: number;
   };
   salesCount?: number;
   salesPreview?: { id: string; at: number; mesa: string; total: number }[];
@@ -34,20 +39,21 @@ export type CierresResponse = {
       comida: { total: number };
       bebida: { total: number };
     };
+    byPayment?: {
+      efectivo: { total: number; tickets: number };
+      tarjeta: { total: number; tickets: number };
+    };
+    tipTotal?: number;
     byDay: { dayKey: string; total: number; tickets: number; cierres: number }[];
   };
   updatedAt: number;
 };
 
-const DEFAULT_CIERRES_URL =
-  process.env.NEXT_PUBLIC_TPV_CIERRES_URL ||
-  "https://casa-torino-web.vercel.app/api/tpv-cierres";
-
 export async function fetchCierres(month?: string): Promise<CierresResponse> {
-  const url = new URL(DEFAULT_CIERRES_URL);
-  if (month) url.searchParams.set("month", month);
-  const r = await fetch(url.toString(), {
+  const qs = month ? `?month=${encodeURIComponent(month)}` : "";
+  const r = await fetch(`/api/cierres${qs}`, {
     cache: "no-store",
+    credentials: "same-origin",
     headers: { "Cache-Control": "no-store" },
   });
   if (!r.ok) {

@@ -33,12 +33,18 @@ El ecosistema se divide en los siguientes módulos para producción:
 - Refrescos 2,50 €[cite: 1]
 - Categoría Cafés separada de bebidas (café, café con leche, infusión, té frío)[cite: 1]
 
-**Operativa TPV**[cite: 1]
-- Precio editable en la cuenta solo en menús y en productos Varios / libre[cite: 1]
-- Sync / jornada / cocina vía Supabase `ops_kv` (con fallback histórico)[cite: 1]
+**Operativa TPV**
+- Precio editable en la cuenta solo en menús y en productos Varios / libre
+- Sync / jornada / cocina vía Supabase `ops_kv` (`web/api/_opsStore.js`)
+- Carta única: `web/data/carta.json` (web pública + TPV)
+- Cobro con efectivo/tarjeta (+ propina opcional) → cierres con desglose
+- Menús del día: filtro automático semana/finde (Europe/Madrid), override en TPV
 
-### Histórico de cocina[cite: 1]
-Los pedidos marcados como Listo se guardan en histórico del día y se borran a las 09:00 (Europe/Madrid)[cite: 1].
+### Histórico de cocina
+Los pedidos marcados como Listo se guardan en histórico del día; se renuevan con inicio de jornada TPV.
+
+### Deploy
+Ver checklist: [`docs/DEPLOY-CHECKLIST.md`](docs/DEPLOY-CHECKLIST.md).
 
 ### Variables de Entorno y Despliegue[cite: 1]
 Para desarrollar en local: copiar credenciales a `web/.env.local` (no se sube a Git)[cite: 1].

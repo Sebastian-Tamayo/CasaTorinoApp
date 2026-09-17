@@ -2,11 +2,21 @@
 
 ```
 Cliente web (clara) → Gestión interna (PIN)
-                         ├─ TPV (PIN) ──sync──► Edge Config `tpv`
-                         │                 └─► Edge Config `kitchen`
-                         ├─ Cocina KDS (PIN) ◄── kitchen
-                         ├─ Reservas staff
-                         └─ ERP (Supabase)
+                         ├─ TPV (PIN/sesión) ──sync──► Supabase ops_kv `tpv`
+                         │                        └─► ops_kv `kitchen` + `jornada` + `cierres`
+                         ├─ Cocina KDS (reusa sesión)
+                         ├─ Reservas staff / públicas → Edge Config `reservas`
+                         └─ ERP (Supabase) ← proxy autenticado a cierres
 ```
 
-Persistencia operativa: **Vercel Edge Config** (no SQL en TPV/Cocina).
+## Persistencia
+
+| Pieza | Backend |
+|---|---|
+| TPV mesas, cocina, jornada, cierres | Supabase `ops_kv` (`web/api/_opsStore.js`) |
+| Reservas | Vercel Edge Config (`reservas/server/reservas-store.js`) |
+| ERP gastos/RRHH/docs | Supabase tablas ERP |
+
+Carta/precios: fuente única `web/data/carta.json` (web pública + TPV).
+
+Deploy: ver [`DEPLOY-CHECKLIST.md`](DEPLOY-CHECKLIST.md).

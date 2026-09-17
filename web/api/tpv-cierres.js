@@ -15,7 +15,7 @@ function cors(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Content-Type, X-Tpv-Key, Cache-Control',
+    'Content-Type, X-Tpv-Key, X-Erp-Pin, Cache-Control',
   )
   res.setHeader('Cache-Control', 'no-store')
 }
@@ -30,10 +30,16 @@ function hasTpvSession(req) {
 }
 
 function authorized(req) {
-  if (req.method === 'GET' || req.method === 'OPTIONS') return true
+  if (req.method === 'OPTIONS') return true
   if (hasTpvSession(req)) return true
   const key = req.headers['x-tpv-key']
-  return Boolean(SYNC_KEY && key && key === SYNC_KEY)
+  if (SYNC_KEY && key && key === SYNC_KEY) return true
+  const pin = String(req.headers['x-erp-pin'] || '').trim()
+  const expected = String(
+    process.env.ERP_PIN || process.env.TPV_PIN || '',
+  ).trim()
+  if (expected && pin && pin === expected) return true
+  return false
 }
 
 function madridParts(ts = Date.now()) {
@@ -64,23 +70,46 @@ function buildMonthTotals(items) {
   let tickets = 0
   let comida = 0
   let bebida = 0
+  let tipTotal = 0
+  const byPayment = {
+    efectivo: { total: 0, tickets: 0 },
+    tarjeta: { total: 0, tickets: 0 },
+  }
   const byDay = {}
   for (const c of items) {
     const t = Number(c?.totals?.total) || 0
+    const tk = Number(c?.totals?.tickets) || 0
     total = round2(total + t)
-    tickets += Number(c?.totals?.tickets) || 0
+    tickets += tk
     comida = round2(comida + (Number(c?.totals?.byType?.comida?.total) || 0))
     bebida = round2(bebida + (Number(c?.totals?.byType?.bebida?.total) || 0))
+    tipTotal = round2(tipTotal + (Number(c?.totals?.tipTotal) || 0))
+    const bp = c?.totals?.byPayment
+    if (bp && typeof bp === 'object') {
+      byPayment.efectivo.total = round2(
+        byPayment.efectivo.total + (Number(bp.efectivo?.total) || 0),
+      )
+      byPayment.efectivo.tickets += Number(bp.efectivo?.tickets) || 0
+      byPayment.tarjeta.total = round2(
+        byPayment.tarjeta.total + (Number(bp.tarjeta?.total) || 0),
+      )
+      byPayment.tarjeta.tickets += Number(bp.tarjeta?.tickets) || 0
+    } else {
+      byPayment.efectivo.total = round2(byPayment.efectivo.total + t)
+      byPayment.efectivo.tickets += tk
+    }
     const day = c.dayKey || '—'
     if (!byDay[day]) byDay[day] = { dayKey: day, total: 0, tickets: 0, cierres: 0 }
     byDay[day].total = round2(byDay[day].total + t)
-    byDay[day].tickets += Number(c?.totals?.tickets) || 0
+    byDay[day].tickets += tk
     byDay[day].cierres += 1
   }
   return {
     total,
     tickets,
     byType: { comida: { total: comida }, bebida: { total: bebida } },
+    byPayment,
+    tipTotal,
     byDay: Object.values(byDay).sort((a, b) => (a.dayKey < b.dayKey ? 1 : -1)),
   }
 }
@@ -110,6 +139,11 @@ function normalizeCierre(raw) {
       },
       byCategory: Array.isArray(totals.byCategory) ? totals.byCategory : [],
       byProduct: Array.isArray(totals.byProduct) ? totals.byProduct : [],
+      byPayment: totals.byPayment || {
+        efectivo: { total: 0, tickets: 0 },
+        tarjeta: { total: 0, tickets: 0 },
+      },
+      tipTotal: round2(Number(totals.tipTotal) || 0),
     },
     salesCount: Array.isArray(raw.sales)
       ? raw.sales.length

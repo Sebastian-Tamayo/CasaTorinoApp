@@ -223,6 +223,11 @@ function normalizeSale(raw) {
       ? Number(raw.total)
       : lines.reduce((a, l) => a + l.qty * l.price, 0),
   )
+  const pm = String(raw.paymentMethod || '').toLowerCase()
+  const paymentMethod = pm === 'tarjeta' ? 'tarjeta' : 'efectivo'
+  const tipRaw = Number(raw.tip)
+  const tip =
+    Number.isFinite(tipRaw) && tipRaw >= 0 ? round2(tipRaw) : 0
   return {
     id:
       String(raw.id || '').slice(0, 64) ||
@@ -232,6 +237,8 @@ function normalizeSale(raw) {
     total,
     base: Number.isFinite(Number(raw.base)) ? round2(Number(raw.base)) : undefined,
     iva: Number.isFinite(Number(raw.iva)) ? round2(Number(raw.iva)) : undefined,
+    paymentMethod,
+    tip,
     lines,
   }
 }
@@ -244,12 +251,22 @@ function buildTotals(state) {
   }
   const byCategory = {}
   const byProduct = {}
+  const byPayment = {
+    efectivo: { total: 0, tickets: 0 },
+    tarjeta: { total: 0, tickets: 0 },
+  }
   let tickets = 0
   let grand = 0
+  let tipTotal = 0
 
   for (const sale of sales) {
     tickets += 1
-    grand = round2(grand + (Number(sale.total) || 0))
+    const saleTotal = Number(sale.total) || 0
+    grand = round2(grand + saleTotal)
+    const pm = sale.paymentMethod === 'tarjeta' ? 'tarjeta' : 'efectivo'
+    byPayment[pm].total = round2(byPayment[pm].total + saleTotal)
+    byPayment[pm].tickets += 1
+    tipTotal = round2(tipTotal + (Number(sale.tip) || 0))
     for (const l of sale.lines || []) {
       const ctype = l.categoryType === 'bebida' ? 'bebida' : 'comida'
       const lineTotal = round2((Number(l.qty) || 0) * (Number(l.price) || 0))
@@ -284,6 +301,8 @@ function buildTotals(state) {
     tickets,
     total: grand,
     byType,
+    byPayment,
+    tipTotal,
     byCategory: Object.values(byCategory).sort((a, b) => b.total - a.total),
     byProduct: Object.values(byProduct).sort((a, b) => b.total - a.total),
   }

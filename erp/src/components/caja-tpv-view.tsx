@@ -20,6 +20,38 @@ function fmtHm(ts?: number | null) {
   });
 }
 
+type PaymentTipTotals = {
+  byPayment?: {
+    efectivo?: { total?: number; tickets?: number };
+    tarjeta?: { total?: number; tickets?: number };
+  };
+  tipTotal?: number;
+};
+
+function showCierrePaymentTip(totals?: CierreItem["totals"]) {
+  if (!totals) return false;
+  if ((totals.tipTotal ?? 0) > 0) return true;
+  if ((totals.byPayment?.tarjeta?.total ?? 0) > 0) return true;
+  return totals.byPayment != null;
+}
+
+function paymentTipLine(totals?: PaymentTipTotals | null) {
+  if (!totals?.byPayment && !(totals?.tipTotal && totals.tipTotal > 0))
+    return null;
+  const ef = totals.byPayment?.efectivo?.total ?? 0;
+  const tj = totals.byPayment?.tarjeta?.total ?? 0;
+  const tip = totals.tipTotal ?? 0;
+  return (
+    <>
+      {" · Efectivo "}
+      {formatImporte(ef)}
+      {" · Tarjeta "}
+      {formatImporte(tj)}
+      {tip > 0 ? <> · Propina {formatImporte(tip)}</> : null}
+    </>
+  );
+}
+
 export function CajaTpvView() {
   const [mesKey, setMesKey] = useState<MesKey>(() => mesActualKey());
   const [items, setItems] = useState<CierreItem[]>([]);
@@ -27,6 +59,9 @@ export function CajaTpvView() {
   const [tickets, setTickets] = useState(0);
   const [comida, setComida] = useState(0);
   const [bebida, setBebida] = useState(0);
+  const [monthPayment, setMonthPayment] = useState<PaymentTipTotals | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -44,6 +79,14 @@ export function CajaTpvView() {
         setTickets(data.monthTotals?.tickets || 0);
         setComida(data.monthTotals?.byType?.comida?.total || 0);
         setBebida(data.monthTotals?.byType?.bebida?.total || 0);
+        setMonthPayment(
+          data.monthTotals?.byPayment
+            ? {
+                byPayment: data.monthTotals.byPayment,
+                tipTotal: data.monthTotals.tipTotal ?? 0,
+              }
+            : null,
+        );
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Error al cargar");
@@ -82,6 +125,7 @@ export function CajaTpvView() {
         <p className="mt-2 text-xs text-ink/50">
           {tickets} tickets · Comida {formatImporte(comida)} · Bebida{" "}
           {formatImporte(bebida)}
+          {paymentTipLine(monthPayment)}
         </p>
       </article>
 
@@ -133,6 +177,28 @@ export function CajaTpvView() {
                         Bebida:{" "}
                         {formatImporte(c.totals?.byType?.bebida?.total || 0)}
                       </p>
+                      {showCierrePaymentTip(c.totals) ? (
+                        <>
+                          <p>
+                            Efectivo:{" "}
+                            {formatImporte(
+                              c.totals?.byPayment?.efectivo?.total || 0,
+                            )}
+                          </p>
+                          <p>
+                            Tarjeta:{" "}
+                            {formatImporte(
+                              c.totals?.byPayment?.tarjeta?.total || 0,
+                            )}
+                          </p>
+                          {(c.totals?.tipTotal ?? 0) > 0 ? (
+                            <p>
+                              Propina:{" "}
+                              {formatImporte(c.totals?.tipTotal ?? 0)}
+                            </p>
+                          ) : null}
+                        </>
+                      ) : null}
                       {(c.totals?.byProduct || []).slice(0, 12).map((p) => (
                         <p key={p.id} className="mt-1 text-ink/70">
                           {p.qty} × {p.name}: {formatImporte(p.total)}

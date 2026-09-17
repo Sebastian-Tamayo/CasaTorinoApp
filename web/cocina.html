@@ -463,14 +463,30 @@
       }
 
       async function bootAuth() {
-        // Siempre pedir PIN al entrar (cada carga). Sin auto-unlock por cookie.
-        // No DELETE: evita tumbar TPV/otras pestañas en paralelo.
+        // Si ya hay sesión (Gestión interna / TPV), no pedir PIN otra vez.
+        // ?kiosk=1 marca preferencia de cocina fija (sigue usando cookie 24h).
+        try {
+          if (new URLSearchParams(location.search).get('kiosk') === '1') {
+            localStorage.setItem('casa-torino-kds-kiosk', '1')
+          }
+        } catch {}
         document.body.classList.add('kds-locked')
         const gate = $('gate')
         if (gate) gate.hidden = false
         pinBuf = ''
         paintPinDots()
         if ($('gateErr')) $('gateErr').textContent = ''
+        try {
+          const r = await fetch('/api/tpv-auth', {
+            credentials: 'same-origin',
+            cache: 'no-store',
+          })
+          const data = await r.json().catch(() => ({}))
+          if (data && data.ok) {
+            unlock()
+            return
+          }
+        } catch {}
       }
 
       function lockForPin(msg) {

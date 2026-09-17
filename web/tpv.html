@@ -1256,6 +1256,7 @@
         <button class="btn-j total" id="btnJornadaTotal" type="button"><i class="fa-solid fa-chart-column"></i> Total de jornada</button>
         <button class="btn-j end" id="btnJornadaEnd" type="button" disabled><i class="fa-solid fa-flag-checkered"></i> Fin de sesión</button>
         <button class="btn-j print" id="btnPrintTest" type="button" title="Probar impresora POS-58"><i class="fa-solid fa-print"></i> Probar ticket</button>
+        <button class="btn-j" id="btnMenuSchedule" type="button" title="Mostrar menús de entre semana y fin de semana"><i class="fa-solid fa-calendar-week"></i> Menús: auto</button>
       </div>
     </div>
 
@@ -1391,6 +1392,37 @@
     </div>
   </div>
 
+  <div class="jornada-modal" id="payModal" hidden role="dialog" aria-modal="true" aria-labelledby="payModalTitle">
+    <div class="jornada-card">
+      <div class="jornada-card-h">
+        <button type="button" class="btn-modal-back" id="payBack" aria-label="Volver">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </button>
+        <h3 id="payModalTitle">Cobrar</h3>
+      </div>
+      <p class="sub" id="payModalSub">Elige forma de pago</p>
+      <div class="jornada-grand">
+        <span>Total cuenta</span>
+        <strong id="payGrand">0,00 €</strong>
+      </div>
+      <div class="jornada-sec">
+        <h4>Forma de pago</h4>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <button type="button" class="btn-j start" id="payEfectivo" data-pay="efectivo" style="flex:1"><i class="fa-solid fa-money-bill"></i> Efectivo</button>
+          <button type="button" class="btn-j total" id="payTarjeta" data-pay="tarjeta" style="flex:1"><i class="fa-solid fa-credit-card"></i> Tarjeta</button>
+        </div>
+      </div>
+      <div class="jornada-sec">
+        <h4>Propina (opcional)</h4>
+        <input type="number" id="payTip" min="0" step="0.10" inputmode="decimal" placeholder="0,00" style="width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg-2);padding:.5rem .75rem;font-weight:700;font-size:1.05rem" />
+      </div>
+      <div class="close-row" style="gap:.5rem">
+        <button type="button" id="payCancel">Cancelar</button>
+        <button type="button" id="payConfirm" style="background:var(--gold);color:var(--ink);font-weight:800">Confirmar cobro</button>
+      </div>
+    </div>
+  </div>
+
   <div class="jornada-modal" id="jornadaModal" hidden role="dialog" aria-modal="true" aria-labelledby="jornadaModalTitle">
     <div class="jornada-card">
       <div class="jornada-card-h">
@@ -1428,6 +1460,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.min.js"></script>
+  <script src="carta.js"></script>
   <script src="tpv-data.js"></script>
   <script src="printService.js"></script>
   <script src="tpvSync.js"></script>
@@ -1525,15 +1558,15 @@
         } catch {}
       }
 
-      function unlockTpv() {
+      async function unlockTpv() {
         try { sessionStorage.removeItem(AUTH_KEY) } catch {}
         document.body.classList.remove('tpv-locked')
         const gate = $('gate')
         if (gate) gate.hidden = true
-        // Tras PIN: reintentar desbloqueo (el toque del pad ya lo armó)
         unlockTpvAudio()
         if (!tpvStarted) {
           tpvStarted = true
+          await bootTpvCatalog()
           startTpv()
         }
       }
@@ -1620,17 +1653,48 @@
         tpvStarted = false
       }
 
-      // Siempre pedir PIN al entrar en la página (cada carga / F5).
-      // No auto-desbloquear por cookie. No DELETE al abrir: no tumbar otras pestañas.
+      // Si ya hay cookie de sesión (p.ej. entraste por Gestión interna), no pedir PIN otra vez.
+      // Cocina kiosko / sala: sliding 24h en /api/tpv-auth.
+      async function tryResumeSession() {
+        try {
+          const r = await fetch('/api/tpv-auth', { credentials: 'same-origin', cache: 'no-store' })
+          const data = await r.json().catch(() => ({}))
+          if (data && data.ok) {
+            document.body.classList.remove('tpv-locked')
+            const gate = $('gate')
+            if (gate) gate.hidden = true
+            if (!tpvStarted) {
+              tpvStarted = true
+              await bootTpvCatalog()
+              startTpv()
+            }
+            return true
+          }
+        } catch {}
+        return false
+      }
+
+      async function bootTpvCatalog() {
+        try {
+          if (typeof window.CasaTorinoLoadTpvCatalog === 'function') {
+            await window.CasaTorinoLoadTpvCatalog()
+          }
+        } catch (err) {
+          console.warn('carta', err)
+          alert('No se pudo cargar la carta (data/carta.json). Revisa el deploy.')
+        }
+      }
+
       document.body.classList.add('tpv-locked')
       const gateBoot = $('gate')
       if (gateBoot) gateBoot.hidden = false
       pinBuf = ''
       paintPinDots()
       if ($('gateErr')) $('gateErr').textContent = ''
+      tryResumeSession()
 
       function startTpv() {
-      const catalog = window.TPV_CATALOG || []
+      let catalog = window.TPV_CATALOG || []
       const money = (n) => (Math.round((+n + Number.EPSILON) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
       const $ = (id) => document.getElementById(id)
       const KEY = 'casa-torino-tpv-mesas-v1'
@@ -1687,9 +1751,15 @@
         if (status === 'open') {
           el.classList.add('open')
           const t = j?.totals?.total
+          const ef = j?.totals?.byPayment?.efectivo?.total
+          const tj = j?.totals?.byPayment?.tarjeta?.total
+          const payHint =
+            Number.isFinite(ef) || Number.isFinite(tj)
+              ? ` · E ${money(ef || 0)} / T ${money(tj || 0)}`
+              : ''
           el.innerHTML = `Jornada: <strong>abierta</strong> · desde ${fmtHm(j.startedAt)}${
             Number.isFinite(t) ? ` · ${money(t)}` : ''
-          }`
+          }${payHint}`
           if (btnStart) btnStart.disabled = true
           if (btnEnd) btnEnd.disabled = false
         } else if (status === 'ended') {
@@ -2492,12 +2562,32 @@
         const { ls, total, count, base, iva } = totals()
         if (!count) return
         const m = normalizeMesa(state.mesa)
-        const mesaTxt = m ? `Mesa ${m}\n` : ''
-        if (!confirm(`${mesaTxt}Cobrar ${money(total)}\nIVA 10%: ${money(iva)}\n\n¿Registrar cobro, abrir cajón y cerrar esta cuenta?\n(No imprime: usa Ticket antes si hace falta)`)) return
+        const mesaTxt = m ? `Mesa ${m} · ` : ''
+        if ($('payGrand')) $('payGrand').textContent = money(total)
+        if ($('payModalSub')) $('payModalSub').textContent = `${mesaTxt}IVA 10%: ${money(iva)}`
+        if ($('payTip')) $('payTip').value = ''
+        window.__paySelected = 'efectivo'
+        ;['payEfectivo', 'payTarjeta'].forEach((id) => {
+          const el = $(id)
+          if (!el) return
+          el.style.outline = el.dataset.pay === 'efectivo' ? '2px solid var(--gold)' : 'none'
+        })
+        const modal = $('payModal')
+        if (modal) modal.hidden = false
+      }
+
+      async function confirmPay() {
+        const { ls, total, count, base, iva } = totals()
+        if (!count) return
+        const paymentMethod = window.__paySelected === 'tarjeta' ? 'tarjeta' : 'efectivo'
+        const tipRaw = Number(String($('payTip')?.value || '').replace(',', '.'))
+        const tip = Number.isFinite(tipRaw) && tipRaw > 0 ? Math.round(tipRaw * 100) / 100 : 0
+        const m = normalizeMesa(state.mesa)
+        const modal = $('payModal')
+        if (modal) modal.hidden = true
 
         if (!(await ensureJornadaOpenForSale())) return
 
-        // Snapshot para poder deshacer SOLO este cobro
         const saleLines = ls.map((l) => ({
           id: l.id,
           name: l.name,
@@ -2512,6 +2602,8 @@
           total,
           base,
           iva,
+          tip,
+          paymentMethod,
           notes: ($('notes')?.value || state.notes || '').trim(),
           paid: $('paid')?.value || '',
           cart: cloneJson(state.cart) || {},
@@ -2524,12 +2616,10 @@
             ? crypto.randomUUID()
             : 's-' + Date.now() + '-' + Math.random().toString(16).slice(2, 8)
 
-        // Abrir cajón sin reimprimir (el ticket se da antes con «Ticket»)
-        if (window.CasaTorinoPrint?.openCashDrawer) {
+        if (window.CasaTorinoPrint?.openCashDrawer && paymentMethod === 'efectivo') {
           await window.CasaTorinoPrint.openCashDrawer()
         }
 
-        // Registrar en total de jornada (comida / bebida / categorías)
         try {
           const sale = {
             id: saleId,
@@ -2538,6 +2628,8 @@
             total,
             base,
             iva,
+            tip,
+            paymentMethod,
             lines: saleLines,
           }
           const j = await window.CasaTorinoTpvJornada.addSale(sale)
@@ -2549,7 +2641,6 @@
             'Cobro hecho en la mesa, pero no se pudo guardar en el total de jornada.\n' +
               (err.message || err),
           )
-          // Sin saleId en jornada no hay nada que restar; no guardamos deshacer
           writeLastCharge(null)
         }
 
@@ -3122,6 +3213,9 @@
         if ($('jornadaModal')?.hidden === false && e.key === 'Escape') {
           e.preventDefault(); closeJornadaModal(); return
         }
+        if ($('payModal')?.hidden === false && e.key === 'Escape') {
+          e.preventDefault(); if ($('payModal')) $('payModal').hidden = true; return
+        }
         if (document.body.classList.contains('check-open') && e.key === 'Escape') {
           e.preventDefault(); closeTicket()
         }
@@ -3147,6 +3241,38 @@
       $('btnNextCourse').onclick = sendNextCourse
       $('btnTicket').onclick = printTicketOnly
       $('btnDone').onclick = done
+      $('payCancel')?.addEventListener('click', () => { if ($('payModal')) $('payModal').hidden = true })
+      $('payBack')?.addEventListener('click', () => { if ($('payModal')) $('payModal').hidden = true })
+      $('payConfirm')?.addEventListener('click', () => { confirmPay() })
+      ;['payEfectivo', 'payTarjeta'].forEach((id) => {
+        $(id)?.addEventListener('click', () => {
+          window.__paySelected = $(id).dataset.pay
+          ;['payEfectivo', 'payTarjeta'].forEach((oid) => {
+            const el = $(oid)
+            if (el) el.style.outline = el.dataset.pay === window.__paySelected ? '2px solid var(--gold)' : 'none'
+          })
+        })
+      })
+      $('payModal')?.addEventListener('click', (e) => {
+        if (e.target === $('payModal')) $('payModal').hidden = true
+      })
+      $('btnMenuSchedule')?.addEventListener('click', async () => {
+        window.TPV_MENU_FORCE_ALL = !window.TPV_MENU_FORCE_ALL
+        const btn = $('btnMenuSchedule')
+        if (btn) {
+          btn.innerHTML = window.TPV_MENU_FORCE_ALL
+            ? '<i class="fa-solid fa-calendar-week"></i> Menús: todos'
+            : '<i class="fa-solid fa-calendar-week"></i> Menús: auto'
+        }
+        try {
+          await window.CasaTorinoLoadTpvCatalog()
+          catalog = window.TPV_CATALOG || []
+          renderCats()
+          renderProducts()
+        } catch (err) {
+          console.warn(err)
+        }
+      })
       $('btnUndo').onclick = undo
       $('btnUndoCharge')?.addEventListener('click', () => { undoLastCharge() })
       $('fab').onclick = openTicket

@@ -59,11 +59,12 @@ export async function createReservation(input: {
   personas: number
   notas: string
   creadoPor: string
+  force?: boolean
 }): Promise<Reservation> {
   const res = await fetch(ONLINE_API_BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify({ ...input, force: input.force !== false }),
   })
   if (!res.ok) throw new Error(await parseError(res))
   return mapReservation((await res.json()) as RemoteReservation)

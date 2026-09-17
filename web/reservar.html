@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Reservar mesa · Casa Torino</title>
+  <meta name="description" content="Reserva mesa online en Casa Torino, Gijón." />
+  <meta name="theme-color" content="#fff8e8" />
+  <link rel="icon" type="image/jpeg" href="assets/logo.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .reserve-page { max-width: 480px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+    .reserve-page h1 { font-family: 'Playfair Display', Georgia, serif; font-size: 1.85rem; margin: .5rem 0 .35rem; }
+    .reserve-page .lead { color: var(--muted); margin-bottom: 1.25rem; }
+    .reserve-page label { display: block; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: .75rem 0 .35rem; }
+    .reserve-page input, .reserve-page select, .reserve-page textarea {
+      width: 100%; min-height: 48px; border-radius: 14px; border: 1px solid var(--line);
+      background: var(--card); padding: .65rem 1rem; font: inherit; font-weight: 600;
+    }
+    .reserve-page textarea { min-height: 90px; resize: vertical; }
+    .reserve-page .actions { display: grid; gap: .65rem; margin-top: 1.25rem; }
+    .reserve-page .msg { margin-top: 1rem; padding: .85rem 1rem; border-radius: 14px; font-weight: 650; font-size: .92rem; }
+    .reserve-page .msg.ok { background: rgba(16,185,129,.12); color: #047857; }
+    .reserve-page .msg.err { background: rgba(220,38,38,.1); color: var(--red); }
+    .reserve-page .cap { font-size: .82rem; color: var(--muted); font-weight: 600; margin-top: .35rem; }
+    .top-back { display: inline-flex; gap: .4rem; align-items: center; color: var(--muted); text-decoration: none; font-weight: 700; font-size: .9rem; margin-bottom: .75rem; }
+    .top-back:hover { color: var(--gold-2); }
+  </style>
+</head>
+<body>
+  <main class="reserve-page">
+    <a class="top-back" href="index.html"><i class="fa-solid fa-arrow-left"></i> Volver</a>
+    <img src="assets/logo.jpg" alt="Casa Torino" width="72" height="72" style="border-radius:50%;border:2px solid var(--gold);object-fit:cover" />
+    <h1>Reservar mesa</h1>
+    <p class="lead">Deja tu reserva online. También puedes escribirnos por WhatsApp.</p>
+
+    <form id="form" novalidate>
+      <label for="nombre">Nombre</label>
+      <input id="nombre" name="nombre" required autocomplete="name" maxlength="80" />
+
+      <label for="telefono">Teléfono</label>
+      <input id="telefono" name="telefono" type="tel" required autocomplete="tel" maxlength="20" />
+
+      <label for="fecha">Fecha</label>
+      <input id="fecha" name="fecha" type="date" required />
+
+      <label for="hora">Hora</label>
+      <select id="hora" name="hora" required></select>
+      <p class="cap" id="capHint">Aforo por franja: comprobamos plazas al enviar.</p>
+
+      <label for="personas">Personas</label>
+      <input id="personas" name="personas" type="number" min="1" max="12" value="2" required />
+
+      <label for="notas">Notas (opcional)</label>
+      <textarea id="notas" name="notas" maxlength="300" placeholder="Alergias, celebración…"></textarea>
+
+      <div class="actions">
+        <button class="btn btn-gold" type="submit"><i class="fa-solid fa-calendar-check"></i> Confirmar reserva</button>
+        <a class="btn btn-outline" href="https://wa.me/34612254719?text=Hola%2C%20quiero%20reservar%20mesa%20en%20Casa%20Torino" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>
+      </div>
+    </form>
+    <div id="msg" class="msg" hidden></div>
+  </main>
+
+  <script>
+    (() => {
+      const API = 'https://reservas-casatorino.vercel.app/api/reservas'
+      const CAP_API = 'https://reservas-casatorino.vercel.app/api/reservas-capacity'
+      const HORAS = ['12:00','12:30','13:00','13:30','14:00','14:30','15:00','19:00','19:30','20:00','20:30','21:00','21:30','22:00']
+      const horaSel = document.getElementById('hora')
+      HORAS.forEach((h) => {
+        const o = document.createElement('option')
+        o.value = h
+        o.textContent = h
+        horaSel.appendChild(o)
+      })
+      const fecha = document.getElementById('fecha')
+      const today = new Date()
+      const iso = today.toISOString().slice(0, 10)
+      fecha.min = iso
+      fecha.value = iso
+
+      async function refreshCap() {
+        const hint = document.getElementById('capHint')
+        try {
+          const u = new URL(CAP_API)
+          u.searchParams.set('fecha', fecha.value)
+          u.searchParams.set('hora', horaSel.value)
+          const r = await fetch(u.toString(), { cache: 'no-store' })
+          if (!r.ok) return
+          const d = await r.json()
+          hint.textContent = `Plazas libres en ${horaSel.value}: ${d.remaining} de ${d.capacity} (ocupadas ${d.used})`
+        } catch {
+          hint.textContent = 'Aforo por franja: comprobamos plazas al enviar.'
+        }
+      }
+      fecha.addEventListener('change', refreshCap)
+      horaSel.addEventListener('change', refreshCap)
+      refreshCap()
+
+      document.getElementById('form').addEventListener('submit', async (e) => {
+        e.preventDefault()
+        const msg = document.getElementById('msg')
+        msg.hidden = true
+        const payload = {
+          nombre: document.getElementById('nombre').value.trim(),
+          telefono: document.getElementById('telefono').value.trim(),
+          fecha: fecha.value,
+          hora: horaSel.value,
+          personas: Number(document.getElementById('personas').value) || 2,
+          notas: document.getElementById('notas').value.trim(),
+          creadoPor: 'web',
+        }
+        if (!payload.nombre || !payload.telefono) {
+          msg.className = 'msg err'
+          msg.textContent = 'Nombre y teléfono son obligatorios.'
+          msg.hidden = false
+          return
+        }
+        try {
+          const r = await fetch(API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+          const data = await r.json().catch(() => ({}))
+          if (!r.ok) throw new Error(data.error || 'No se pudo reservar')
+          msg.className = 'msg ok'
+          msg.textContent = `Reserva confirmada · código ${data.codigo}. Te esperamos.`
+          msg.hidden = false
+          e.target.reset()
+          fecha.value = iso
+          refreshCap()
+        } catch (err) {
+          msg.className = 'msg err'
+          msg.textContent = err.message || 'Error al reservar'
+          msg.hidden = false
+        }
+      })
+    })()
+  </script>
+</body>
+</html>
