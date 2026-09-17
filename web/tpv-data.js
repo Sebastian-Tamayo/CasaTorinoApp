@@ -12,8 +12,10 @@ window.CasaTorinoLoadTpvCatalog = async function CasaTorinoLoadTpvCatalog() {
   const data = await api.loadCarta()
   window.TPV_CARTA_META = data
   const cats = Array.isArray(data.categories) ? data.categories : []
+  window.TPV_MENU_DAY_INFO = api.isWeekendMenuDay(data)
   window.TPV_CATALOG = api.applyMenuSchedule(cats, {
     forceAll: Boolean(window.TPV_MENU_FORCE_ALL),
+    meta: data,
   })
   return window.TPV_CATALOG
 }

@@ -1256,7 +1256,7 @@
         <button class="btn-j total" id="btnJornadaTotal" type="button"><i class="fa-solid fa-chart-column"></i> Total de jornada</button>
         <button class="btn-j end" id="btnJornadaEnd" type="button" disabled><i class="fa-solid fa-flag-checkered"></i> Fin de sesión</button>
         <button class="btn-j print" id="btnPrintTest" type="button" title="Probar impresora POS-58"><i class="fa-solid fa-print"></i> Probar ticket</button>
-        <button class="btn-j" id="btnMenuSchedule" type="button" title="Mostrar menús de entre semana y fin de semana"><i class="fa-solid fa-calendar-week"></i> Menús: auto</button>
+        <button class="btn-j" id="btnMenuSchedule" type="button" title="Auto: finde + festivos Gijón · o mostrar todos"><i class="fa-solid fa-calendar-week"></i> Menús: auto</button>
       </div>
     </div>
 
@@ -3259,14 +3259,25 @@
       $('btnMenuSchedule')?.addEventListener('click', async () => {
         window.TPV_MENU_FORCE_ALL = !window.TPV_MENU_FORCE_ALL
         const btn = $('btnMenuSchedule')
-        if (btn) {
-          btn.innerHTML = window.TPV_MENU_FORCE_ALL
-            ? '<i class="fa-solid fa-calendar-week"></i> Menús: todos'
-            : '<i class="fa-solid fa-calendar-week"></i> Menús: auto'
-        }
         try {
           await window.CasaTorinoLoadTpvCatalog()
           catalog = window.TPV_CATALOG || []
+          const info = window.TPV_MENU_DAY_INFO
+          if (btn) {
+            if (window.TPV_MENU_FORCE_ALL) {
+              btn.innerHTML = '<i class="fa-solid fa-calendar-week"></i> Menús: todos'
+            } else if (info?.reason === 'holiday') {
+              const name = info.festivo?.name || 'festivo'
+              btn.innerHTML = `<i class="fa-solid fa-calendar-week"></i> Menús: festivo`
+              btn.title = `Hoy festivo Gijón: ${name} · precio fin de semana`
+            } else if (info?.weekend) {
+              btn.innerHTML = '<i class="fa-solid fa-calendar-week"></i> Menús: finde'
+              btn.title = 'Sábado/domingo · precio fin de semana'
+            } else {
+              btn.innerHTML = '<i class="fa-solid fa-calendar-week"></i> Menús: auto'
+              btn.title = 'Entre semana · override: mostrar todos'
+            }
+          }
           renderCats()
           renderProducts()
         } catch (err) {
@@ -3365,6 +3376,17 @@
       })
 
       load(); render(); tickClock()
+      ;(function paintMenuScheduleBtn() {
+        const btn = $('btnMenuSchedule')
+        const info = window.TPV_MENU_DAY_INFO
+        if (!btn || window.TPV_MENU_FORCE_ALL) return
+        if (info?.reason === 'holiday') {
+          btn.innerHTML = '<i class="fa-solid fa-calendar-week"></i> Menús: festivo'
+          btn.title = `Hoy festivo Gijón: ${info.festivo?.name || ''} · precio fin de semana`
+        } else if (info?.weekend) {
+          btn.innerHTML = '<i class="fa-solid fa-calendar-week"></i> Menús: finde'
+        }
+      })()
       setInterval(tickClock, 30000)
 
       window.CasaTorinoTpvJornada?.startPolling(

@@ -17,9 +17,17 @@
         <span class="mp-detail">Español <em>${w.es}\u00a0€</em> · Colombiano <em>${w.co}\u00a0€</em></span>
       </li>
       <li>
-        <span class="mp-label">Fin de semana</span>
+        <span class="mp-label">Fin de semana y festivos</span>
         <span class="mp-detail">Español <em>${e.es}\u00a0€</em> · Colombiano <em>${e.co}\u00a0€</em></span>
       </li>`
+    const copy = document.querySelector('.menu-dia-copy p')
+    if (copy && window.CasaTorinoCarta?.isWeekendMenuDay) {
+      const info = window.CasaTorinoCarta.isWeekendMenuDay(meta)
+      if (info.reason === 'holiday' && info.festivo?.name) {
+        copy.textContent =
+          `Hoy es festivo en Gijón (${info.festivo.name}): aplica tarifa de fin de semana.`
+      }
+    }
   }
 
   function fillCarta(data) {
