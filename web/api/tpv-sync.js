@@ -3,6 +3,7 @@
  * Persistencia: Vercel Blob (opsStore), clave `tpv`.
  */
 const { getJson, setJson } = require('./_opsStore')
+const { ensureMorningRollover } = require('./_opsRollover')
 
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'tpv'
@@ -47,6 +48,12 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    try {
+      await ensureMorningRollover()
+    } catch (err) {
+      console.warn('[tpv-sync] rollover', err)
+    }
+
     if (req.method === 'GET') {
       const state = (await getJson(ITEM_KEY, emptyState, { fresh: true })) || emptyState()
       res.statusCode = 200

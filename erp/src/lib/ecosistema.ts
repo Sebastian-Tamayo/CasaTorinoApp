@@ -7,4 +7,5 @@ export const ECOSISTEMA = {
   erpLogin: "https://casa-torino-app.vercel.app/login",
   erpApp: "https://casa-torino-app.vercel.app/gestion",
   cierresApi: "https://casa-torino-web.vercel.app/api/tpv-cierres",
+  consumoApi: "https://casa-torino-web.vercel.app/api/tpv-consumo",
 } as const;

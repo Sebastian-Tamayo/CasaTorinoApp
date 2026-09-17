@@ -11,13 +11,13 @@
  * - updateSale / updateLine / deleteSale: corregir errores (open u ended)
  * - reset: borra jornada (tras confirmación en cliente)
  */
-const EDGE_ID = process.env.TPV_EDGE_CONFIG_ID
-const TEAM_ID = process.env.TPV_TEAM_ID
-const VERCEL_TOKEN = process.env.TPV_VERCEL_TOKEN
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'jornada'
 const SALES_MAX = 500
 const { getJson, setJson, updateJson } = require('./_opsStore')
+const { businessDayId } = require('./_opsDay')
+const { upsertFromJornada } = require('./_opsConsumo')
+const { ensureMorningRollover } = require('./_opsRollover')
 
 function cors(req, res) {
   const origin = req.headers.origin || '*'
@@ -37,8 +37,17 @@ function emptyState() {
     status: 'closed', // closed | open | ended
     startedAt: null,
     endedAt: null,
+    businessDay: null,
     sales: [],
     updatedAt: 0,
+  }
+}
+
+async function syncConsumoSafe(state) {
+  try {
+    await upsertFromJornada(withTotals(state))
+  } catch (err) {
+    console.warn('[tpv-jornada] consumo', err)
   }
 }
 
@@ -85,7 +94,9 @@ function madridMonthDay(ts) {
 async function archiveToCierres(stateWithTotals) {
   const startedAt = Number(stateWithTotals.startedAt) || null
   const endedAt = Number(stateWithTotals.endedAt) || Date.now()
-  const { dayKey, monthKey } = madridMonthDay(endedAt)
+  const dayKey =
+    stateWithTotals.businessDay || madridMonthDay(endedAt).dayKey
+  const monthKey = String(dayKey).slice(0, 7)
   const totals = stateWithTotals.totals || buildTotals(stateWithTotals)
   const cierre = {
     id: `cierre-${startedAt || endedAt}`,
@@ -133,6 +144,7 @@ async function archiveToCierres(stateWithTotals) {
 async function syncKitchenJornada(phase, state) {
   try {
     const jId = `j-${state.startedAt || Date.now()}`
+    const day = state.businessDay || businessDayId(state.startedAt || Date.now())
     await updateJson(
       'kitchen',
       () => ({
@@ -150,15 +162,12 @@ async function syncKitchenJornada(phase, state) {
         if (phase === 'start') {
           kitchen.history = []
           kitchen.lastCompleted = null
-          kitchen.historyDay = new Date(state.startedAt || Date.now())
-            .toISOString()
-            .slice(0, 10)
+          kitchen.historyDay = day
           kitchen.jornadaId = jId
           kitchen.jornadaStartedAt = Number(state.startedAt) || Date.now()
         } else if (phase === 'end') {
           kitchen.jornadaId = jId
-          kitchen.historyDay =
-            kitchen.historyDay || new Date().toISOString().slice(0, 10)
+          kitchen.historyDay = kitchen.historyDay || day
         }
         kitchen.updatedAt = Date.now()
         return kitchen
@@ -306,6 +315,13 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    // Renovación diaria 09:00 (archiva consumo + limpia cocina/TPV)
+    try {
+      await ensureMorningRollover()
+    } catch (err) {
+      console.warn('[tpv-jornada] rollover', err)
+    }
+
     if (req.method === 'GET') {
       const state = await getState()
       res.statusCode = 200
@@ -338,6 +354,7 @@ module.exports = async function handler(req, res) {
           status: 'open',
           startedAt: now,
           endedAt: null,
+          businessDay: businessDayId(now),
           sales: [],
           updatedAt: now,
         }
@@ -510,13 +527,33 @@ module.exports = async function handler(req, res) {
         return res.end(JSON.stringify({ error: 'action inválida' }))
       }
 
+      // Asegurar businessDay en jornadas antiguas
+      if (!state.businessDay && state.startedAt) {
+        state.businessDay = businessDayId(state.startedAt)
+      }
+
       await writeEdge(state)
+
+      // Histórico mensual en vivo (gestión interna · Consumo) — no molesta al TPV
+      const full = withTotals(state)
+      if (
+        action === 'sale' ||
+        action === 'updatesale' ||
+        action === 'update_sale' ||
+        action === 'deletesale' ||
+        action === 'delete_sale' ||
+        action === 'updateline' ||
+        action === 'update_line' ||
+        action === 'end' ||
+        action === 'start'
+      ) {
+        await syncConsumoSafe(full)
+      }
 
       // Si la jornada está cerrada (fin de sesión o corrección), sincronizar al historial ERP
       let cierre = null
       if (state.status === 'ended') {
         try {
-          const full = withTotals(state)
           cierre = await archiveToCierres(full)
         } catch (err) {
           console.warn('[tpv-jornada] archive', err)
@@ -525,7 +562,7 @@ module.exports = async function handler(req, res) {
 
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify({ ...withTotals(state), cierre }))
+      return res.end(JSON.stringify({ ...full, cierre }))
     }
 
     res.statusCode = 405

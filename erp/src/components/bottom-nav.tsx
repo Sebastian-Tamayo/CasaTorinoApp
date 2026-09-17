@@ -14,6 +14,7 @@ const items = [
 
 const masPaths = [
   "/gestion/mas",
+  "/gestion/consumo",
   "/gestion/historial",
   "/gestion/documentos",
   "/gestion/proveedores",

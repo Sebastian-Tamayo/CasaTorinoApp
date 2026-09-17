@@ -9,6 +9,9 @@
  * concurrentes en jornada 24/7.
  */
 const { getJson, updateJson } = require('./_opsStore')
+const { businessDayId } = require('./_opsDay')
+const { upsertKitchenHistory } = require('./_opsConsumo')
+const { ensureMorningRollover } = require('./_opsRollover')
 
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'kitchen'
@@ -174,7 +177,7 @@ function publicPayload(state) {
     pickups,
     updatedAt: state.updatedAt || 0,
     canUndo: Boolean(state.lastCompleted),
-    purgeAt: 'Inicio / fin de jornada TPV',
+    purgeAt: '09:00 Europe/Madrid',
   }
 }
 
@@ -220,8 +223,25 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    try {
+      await ensureMorningRollover()
+    } catch (err) {
+      console.warn('[kitchen] rollover', err)
+    }
+
     if (req.method === 'GET') {
       const state = await loadState()
+      // Sincronizar consumo cocina del día vivo (sin vaciar)
+      try {
+        if (Array.isArray(state.history) && state.history.length) {
+          await upsertKitchenHistory(
+            state.historyDay || businessDayId(),
+            state.history,
+          )
+        }
+      } catch (err) {
+        console.warn('[kitchen] consumo', err)
+      }
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
       return res.end(JSON.stringify(publicPayload(state)))
@@ -551,18 +571,26 @@ module.exports = async function handler(req, res) {
           String(body.jornadaId || '').trim() ||
           `j-${body.startedAt || Date.now()}`
         const startedAt = Number(body.startedAt) || Date.now()
+        const day =
+          String(body.businessDay || '').trim() || businessDayId(startedAt)
 
         const { state } = await mutate((state) => {
           if (phase === 'start') {
+            // Archivar histórico antes de vaciar
+            if (Array.isArray(state.history) && state.history.length) {
+              upsertKitchenHistory(
+                state.historyDay || day,
+                state.history,
+              ).catch((err) => console.warn('[kitchen] archive before reset', err))
+            }
             state.history = []
             state.lastCompleted = null
             state.pickups = []
-            state.historyDay = new Date(startedAt).toISOString().slice(0, 10)
+            state.historyDay = day
             state.jornadaId = jId
             state.jornadaStartedAt = startedAt
           } else if (phase === 'end') {
-            state.historyDay =
-              state.historyDay || new Date().toISOString().slice(0, 10)
+            state.historyDay = state.historyDay || day
             state.jornadaId = jId || state.jornadaId
           }
           return { state }

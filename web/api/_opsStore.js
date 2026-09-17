@@ -2,7 +2,7 @@
  * Casa Torino — almacén operativo 24/7
  * Backend: Supabase (tabla public.ops_kv) — plan gratis
  *
- * Claves: kitchen | tpv | jornada | cierres
+ * Claves: kitchen | tpv | jornada | cierres | consumo
  *
  * Env (Vercel proyecto casa-torino-web):
  *   SUPABASE_URL

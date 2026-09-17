@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   Briefcase,
   Calculator,
+  BarChart3,
   Clock,
   FolderOpen,
   LayoutGrid,
@@ -12,6 +13,12 @@ import {
 } from "lucide-react";
 
 const modules = [
+  {
+    href: "/gestion/consumo",
+    label: "Consumo mensual",
+    desc: "Histórico diario editable · cobros TPV en vivo + cocina",
+    icon: BarChart3,
+  },
   {
     href: "/gestion/caja",
     label: "Caja TPV",
