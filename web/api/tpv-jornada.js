@@ -129,7 +129,7 @@ async function archiveToCierres(stateWithTotals) {
   return cierre
 }
 
-/** Alinea histórico KDS con inicio/fin de jornada (RMW, no pisa pedidos vivos). */
+/** Alinea KDS con inicio/fin de jornada (RMW). Al start vacía cola e histórico. */
 async function syncKitchenJornada(phase, state) {
   try {
     const jId = `j-${state.startedAt || Date.now()}`
@@ -142,14 +142,18 @@ async function syncKitchenJornada(phase, state) {
         historyDay: null,
         jornadaId: null,
         jornadaStartedAt: null,
+        pickups: [],
         updatedAt: 0,
       }),
       (kitchen) => {
         if (!Array.isArray(kitchen.orders)) kitchen.orders = []
         if (!Array.isArray(kitchen.history)) kitchen.history = []
+        if (!Array.isArray(kitchen.pickups)) kitchen.pickups = []
         if (phase === 'start') {
+          kitchen.orders = []
           kitchen.history = []
           kitchen.lastCompleted = null
+          kitchen.pickups = []
           kitchen.historyDay = new Date(state.startedAt || Date.now())
             .toISOString()
             .slice(0, 10)

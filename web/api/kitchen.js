@@ -3,10 +3,13 @@
  * Persistencia: Vercel Blob vía api/_opsStore.js (clave `kitchen`).
  *
  * GET  /api/kitchen
- * POST /api/kitchen  { action: create|complete|undo|resetHistory|syncJornada }
+ * POST /api/kitchen  { action: create|complete|undo|clear|resetHistory|syncJornada }
  *
  * Escrituras con updateJson (RMW + reintento) para no perder Listo/comandas
  * concurrentes en jornada 24/7.
+ *
+ * Panel / histórico: al iniciar jornada o con action `clear` se vacía.
+ * Pedidos anteriores a la jornada actual se purgan al leer (GET).
  */
 const { getJson, updateJson } = require('./_opsStore')
 
@@ -77,9 +80,65 @@ function normalizeState(value) {
   }
 }
 
+/** Instantes relevantes de un ticket (creación / restauraciones). */
+function orderActivityMs(order) {
+  if (!order || typeof order !== 'object') return 0
+  const times = [
+    order.createdAt,
+    order.restoredAt,
+    order.activatedSecondAt,
+    order.completedFirstAt,
+    order.completedAt,
+  ]
+  let max = 0
+  for (const t of times) {
+    const ms = Date.parse(String(t || '')) || 0
+    if (ms > max) max = ms
+  }
+  return max
+}
+
+/**
+ * Quita tickets de jornadas anteriores (p.ej. waiting_next fantasma).
+ * Devuelve { state, changed }.
+ */
+function purgeStaleOrders(state) {
+  const next = normalizeState(state)
+  const orders = Array.isArray(next.orders) ? next.orders : []
+  const jStart = Number(next.jornadaStartedAt) || 0
+  if (!jStart || !orders.length) {
+    return { state: next, changed: false }
+  }
+  const kept = orders.filter((o) => orderActivityMs(o) >= jStart)
+  if (kept.length === orders.length) {
+    return { state: next, changed: false }
+  }
+  next.orders = kept
+  if (
+    next.lastCompleted &&
+    orderActivityMs(next.lastCompleted) < jStart
+  ) {
+    next.lastCompleted = null
+  }
+  next.updatedAt = Date.now()
+  return { state: next, changed: true }
+}
+
 async function loadState() {
   const value = await getJson(ITEM_KEY, emptyState, { fresh: true })
-  return normalizeState(value)
+  const { state, changed } = purgeStaleOrders(value)
+  if (changed) {
+    try {
+      const written = await updateJson(ITEM_KEY, emptyState, (raw) => {
+        const again = purgeStaleOrders(raw)
+        return again.state
+      })
+      return normalizeState(written)
+    } catch (err) {
+      console.warn('[kitchen] purgeStale', err)
+    }
+  }
+  return normalizeState(state)
 }
 
 function sanitizeItems(raw) {
@@ -545,18 +604,34 @@ module.exports = async function handler(req, res) {
         }
       }
 
+      if (action === 'clear' || action === 'clearPanel') {
+        const { state } = await mutate((state) => {
+          state.orders = []
+          state.history = []
+          state.lastCompleted = null
+          state.pickups = []
+          state.historyDay = new Date().toISOString().slice(0, 10)
+          return { state }
+        })
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json')
+        return res.end(JSON.stringify({ ok: true, ...publicPayload(state) }))
+      }
+
       if (action === 'resetHistory' || action === 'syncJornada') {
         const phase = String(body.phase || 'start').toLowerCase()
         const jId =
           String(body.jornadaId || '').trim() ||
           `j-${body.startedAt || Date.now()}`
         const startedAt = Number(body.startedAt) || Date.now()
+        const clearOrders = body.clearOrders !== false
 
         const { state } = await mutate((state) => {
           if (phase === 'start') {
             state.history = []
             state.lastCompleted = null
             state.pickups = []
+            if (clearOrders) state.orders = []
             state.historyDay = new Date(startedAt).toISOString().slice(0, 10)
             state.jornadaId = jId
             state.jornadaStartedAt = startedAt
