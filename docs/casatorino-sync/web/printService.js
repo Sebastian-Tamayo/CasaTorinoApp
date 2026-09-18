@@ -242,6 +242,28 @@
     data.push(ESC.SIZE_NORMAL)
     data.push(ESC.BOLD_OFF)
 
+    const payments = Array.isArray(meta.payments)
+      ? meta.payments
+          .map((p) => {
+            if (!p || typeof p !== 'object') return null
+            const method = String(p.method || '').toLowerCase() === 'tarjeta' ? 'tarjeta' : 'efectivo'
+            const amount = Number(p.amount)
+            if (!Number.isFinite(amount) || amount <= 0) return null
+            return { method, amount }
+          })
+          .filter(Boolean)
+      : []
+    if (payments.length) {
+      data.push(line('-') + ESC.LF)
+      data.push(ESC.BOLD_ON)
+      data.push('Pagos:' + ESC.LF)
+      data.push(ESC.BOLD_OFF)
+      for (const p of payments) {
+        const label = p.method === 'tarjeta' ? 'Tarjeta' : 'Efectivo'
+        data.push(padRow(label, money(p.amount) + ' E') + ESC.LF)
+      }
+    }
+
     const paid =
       meta.paid !== undefined && meta.paid !== ''
         ? parseFloat(String(meta.paid).replace(',', '.'))

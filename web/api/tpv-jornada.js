@@ -193,6 +193,56 @@ function round2(n) {
   return Math.round((+n + Number.EPSILON) * 100) / 100
 }
 
+function normalizePaymentMethod(raw) {
+  const pm = String(raw || '').toLowerCase()
+  if (pm === 'tarjeta') return 'tarjeta'
+  if (pm === 'mixto') return 'mixto'
+  return 'efectivo'
+}
+
+/**
+ * Pagos 1→N por venta. Compat: si no hay `payments`, usa paymentMethod + total.
+ */
+function normalizePayments(raw, saleTotal) {
+  const out = []
+  const list = Array.isArray(raw?.payments) ? raw.payments : []
+  for (const p of list) {
+    if (!p || typeof p !== 'object') continue
+    const method = normalizePaymentMethod(p.method)
+    if (method === 'mixto') continue
+    const amount = round2(Number(p.amount))
+    if (!Number.isFinite(amount) || amount <= 0) continue
+    out.push({
+      id:
+        String(p.id || '').slice(0, 64) ||
+        'p-' + Date.now() + '-' + Math.random().toString(16).slice(2, 6),
+      method,
+      amount,
+    })
+  }
+  if (out.length) return out
+  const pm = normalizePaymentMethod(raw?.paymentMethod)
+  const method = pm === 'tarjeta' ? 'tarjeta' : 'efectivo'
+  const amount = round2(Number(saleTotal) || 0)
+  if (amount > 0) {
+    return [{ id: 'p-legacy', method, amount }]
+  }
+  return []
+}
+
+function derivePaymentMethod(payments) {
+  const methods = [
+    ...new Set(
+      (payments || [])
+        .map((p) => p.method)
+        .filter((m) => m === 'efectivo' || m === 'tarjeta'),
+    ),
+  ]
+  if (methods.length > 1) return 'mixto'
+  if (methods[0] === 'tarjeta') return 'tarjeta'
+  return 'efectivo'
+}
+
 function normalizeSale(raw) {
   if (!raw || typeof raw !== 'object') return null
   const linesIn = Array.isArray(raw.lines) ? raw.lines : []
@@ -227,11 +277,11 @@ function normalizeSale(raw) {
       ? Number(raw.total)
       : lines.reduce((a, l) => a + l.qty * l.price, 0),
   )
-  const pm = String(raw.paymentMethod || '').toLowerCase()
-  const paymentMethod = pm === 'tarjeta' ? 'tarjeta' : 'efectivo'
   const tipRaw = Number(raw.tip)
   const tip =
     Number.isFinite(tipRaw) && tipRaw >= 0 ? round2(tipRaw) : 0
+  const payments = normalizePayments(raw, total)
+  const paymentMethod = derivePaymentMethod(payments)
   return {
     id:
       String(raw.id || '').slice(0, 64) ||
@@ -242,6 +292,7 @@ function normalizeSale(raw) {
     base: Number.isFinite(Number(raw.base)) ? round2(Number(raw.base)) : undefined,
     iva: Number.isFinite(Number(raw.iva)) ? round2(Number(raw.iva)) : undefined,
     paymentMethod,
+    payments,
     tip,
     lines,
   }
@@ -267,10 +318,24 @@ function buildTotals(state) {
     tickets += 1
     const saleTotal = Number(sale.total) || 0
     grand = round2(grand + saleTotal)
-    const pm = sale.paymentMethod === 'tarjeta' ? 'tarjeta' : 'efectivo'
-    byPayment[pm].total = round2(byPayment[pm].total + saleTotal)
-    byPayment[pm].tickets += 1
     tipTotal = round2(tipTotal + (Number(sale.tip) || 0))
+
+    const payments = normalizePayments(sale, saleTotal)
+    const seen = { efectivo: false, tarjeta: false }
+    if (payments.length) {
+      for (const p of payments) {
+        const pm = p.method === 'tarjeta' ? 'tarjeta' : 'efectivo'
+        byPayment[pm].total = round2(byPayment[pm].total + (Number(p.amount) || 0))
+        seen[pm] = true
+      }
+    } else {
+      const pm = sale.paymentMethod === 'tarjeta' ? 'tarjeta' : 'efectivo'
+      byPayment[pm].total = round2(byPayment[pm].total + saleTotal)
+      seen[pm] = true
+    }
+    if (seen.efectivo) byPayment.efectivo.tickets += 1
+    if (seen.tarjeta) byPayment.tarjeta.tickets += 1
+
     for (const l of sale.lines || []) {
       const ctype = l.categoryType === 'bebida' ? 'bebida' : 'comida'
       const lineTotal = round2((Number(l.qty) || 0) * (Number(l.price) || 0))
