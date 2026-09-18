@@ -23,8 +23,12 @@
     name: 'CASA TORINO',
     subtitle: 'Bar · Restaurante',
     footer: '¡Gracias por su visita!',
-    /** Ancho útil aprox. en caracteres (fuente A, 58 mm) */
-    cols: 32,
+    /**
+     * Ancho útil en caracteres (fuente A, 58 mm).
+     * POS-58 suele cortar ~2–3 cols a la derecha si se usan 32;
+     * 30 deja el ticket entero visible y “corre” el texto a la izquierda.
+     */
+    cols: 30,
   }
 
   /** Comandos ESC/POS */
@@ -32,6 +36,8 @@
     INIT: '\x1B\x40',
     /** Página de códigos PC858 (Epson table 19) — € y tildes */
     CP858: '\x1B\x74\x13',
+    /** Margen izquierdo 0 dots (GS L) — aprovecha todo el ancho útil */
+    LEFT_MARGIN_0: '\x1D\x4C\x00\x00',
     ALIGN_LEFT: '\x1B\x61\x00',
     ALIGN_CENTER: '\x1B\x61\x01',
     BOLD_ON: '\x1B\x45\x01',
@@ -185,7 +191,8 @@
     const data = []
     data.push(ESC.INIT)
     data.push(ESC.CP858)
-    data.push(ESC.ALIGN_CENTER)
+    data.push(ESC.LEFT_MARGIN_0)
+    data.push(ESC.ALIGN_LEFT)
     data.push(ESC.SIZE_DOUBLE)
     data.push(ESC.BOLD_ON)
     data.push(BUSINESS.name + ESC.LF)
@@ -194,7 +201,6 @@
     data.push(BUSINESS.subtitle + ESC.LF)
     data.push(when + ESC.LF)
     if (meta.mesa) data.push(`Mesa ${meta.mesa}` + ESC.LF)
-    data.push(ESC.ALIGN_LEFT)
     data.push(line('=') + ESC.LF)
 
     for (const it of items) {
@@ -247,7 +253,7 @@
     }
 
     data.push(line('=') + ESC.LF)
-    data.push(ESC.ALIGN_CENTER)
+    data.push(ESC.ALIGN_LEFT)
     data.push(BUSINESS.footer + ESC.LF)
     data.push(ESC.LF)
     data.push(ESC.LF)
