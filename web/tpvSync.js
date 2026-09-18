@@ -13,6 +13,7 @@
 
   let lastLocalWrite = 0
   let lastRemoteUpdatedAt = 0
+  let lastOpsDay = ''
   let polling = false
   let pushTimer = null
   let pending = null
@@ -62,6 +63,7 @@
       kind: 'casa-torino-tpv',
       tables: tables || {},
       mesa: mesa || '',
+      opsDay: lastOpsDay || undefined,
       updatedAt,
       clientId: CLIENT_ID,
     }
@@ -83,6 +85,18 @@
         if (!r.ok) throw new Error('sync POST ' + r.status)
         const saved = await r.json().catch(() => body)
         lastRemoteUpdatedAt = Number(saved.updatedAt || updatedAt)
+        if (saved.opsDay) lastOpsDay = String(saved.opsDay)
+        // Si el servidor ya está en otro día, adoptar su estado (mesas vacías)
+        if (saved.opsDay && body.opsDay && saved.opsDay !== body.opsDay) {
+          if (typeof onRemote === 'function') {
+            onRemote({
+              tables: saved.tables || {},
+              mesa: saved.mesa || '',
+              updatedAt: lastRemoteUpdatedAt,
+              opsDay: saved.opsDay,
+            })
+          }
+        }
         refreshSession()
         return saved
       } catch (err) {
@@ -117,6 +131,22 @@
       const remote = await pull()
       const remoteAt = Number(remote?.updatedAt || 0)
       if (!remoteAt) return
+      const remoteDay = remote.opsDay ? String(remote.opsDay) : ''
+
+      if (remoteDay && lastOpsDay && remoteDay !== lastOpsDay) {
+        lastOpsDay = remoteDay
+        lastRemoteUpdatedAt = remoteAt
+        if (typeof onRemote === 'function') {
+          onRemote({
+            tables: remote.tables || {},
+            mesa: remote.mesa || '',
+            updatedAt: remoteAt,
+            opsDay: remoteDay,
+          })
+        }
+        return
+      }
+      if (remoteDay) lastOpsDay = remoteDay
 
       if (remote.clientId === CLIENT_ID) {
         if (remoteAt > lastRemoteUpdatedAt) lastRemoteUpdatedAt = remoteAt
@@ -130,6 +160,7 @@
             tables: remote.tables || {},
             mesa: remote.mesa || '',
             updatedAt: remoteAt,
+            opsDay: remoteDay,
           })
         }
       } else if (remoteAt > lastRemoteUpdatedAt) {

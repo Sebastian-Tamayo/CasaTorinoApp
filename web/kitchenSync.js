@@ -131,7 +131,7 @@
             updatedAt: remoteAt,
             newOrders,
             newPickups,
-            purgeAt: remote.purgeAt || 'Inicio / fin de jornada TPV',
+            purgeAt: remote.purgeAt || '09:00 Europe/Madrid',
           })
         }
         if (newPickups.length && typeof onPickup === 'function') {

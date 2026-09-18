@@ -6,6 +6,8 @@ Producción: https://casa-torino-web.vercel.app
 - **Gestión interna** (`interno.html`): PIN obligatorio
 - **TPV** (`tpv.html`): mesas, sync, cocina, jornada, impresión POS-58
 - **Cocina** (`cocina.html`): KDS + histórico diario (purge 09:00)
+- **Limpieza diaria 09:00 Madrid**: histórico cocina + mesas TPV  
+  (`/api/ops-daily-purge` + rollover al abrir TPV/Cocina; crons 07:00/08:00 UTC)
 
 ## Destacado TPV (15 sep 2026)
 
