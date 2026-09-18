@@ -627,12 +627,12 @@
           <span>·</span>
           <span>Día: <strong>${escapeHtml(dayLabel(historyDay))}</strong></span>
           <span>·</span>
-          <span>Se renueva con el <strong>Inicio de jornada</strong> del TPV</span>`
+          <span>Se borra a las <strong>09:00</strong></span>`
         if (!history.length) {
           list.innerHTML = `<div class="hist-empty"><div>
             <i class="fa-solid fa-clipboard-list"></i>
             <strong>Sin pedidos servidos aún</strong>
-            <div>El histórico se renueva con el <strong>Inicio de jornada</strong> del TPV (y se alinea al Fin de sesión).</div>
+            <div>Cuando pulses Listo, el pedido quedará aquí hasta las <strong>09:00</strong> del día siguiente.</div>
           </div></div>`
           return
         }

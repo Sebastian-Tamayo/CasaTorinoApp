@@ -8,10 +8,13 @@
  * Escrituras con updateJson (RMW + reintento) para no perder Listo/comandas
  * concurrentes en jornada 24/7.
  *
- * Panel / histórico: al iniciar jornada o con action `clear` se vacía.
- * Pedidos anteriores a la jornada actual se purgan al leer (GET).
+ * Panel / histórico:
+ *   - Limpieza diaria 09:00 Europe/Madrid (rollover + cron /api/ops-daily-purge)
+ *   - Al iniciar jornada o con action `clear` se vacía
+ *   - Pedidos anteriores a la jornada actual se purgan al leer (GET)
  */
 const { getJson, updateJson } = require('./_opsStore')
+const { applyKitchenDayRollover } = require('./_opsDay')
 
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'kitchen'
@@ -124,18 +127,26 @@ function purgeStaleOrders(state) {
   return { state: next, changed: true }
 }
 
+function scrubKitchenState(raw) {
+  const day = applyKitchenDayRollover(normalizeState(raw))
+  const stale = purgeStaleOrders(day.state)
+  return {
+    state: normalizeState(stale.state),
+    changed: day.changed || stale.changed,
+  }
+}
+
 async function loadState() {
   const value = await getJson(ITEM_KEY, emptyState, { fresh: true })
-  const { state, changed } = purgeStaleOrders(value)
+  const { state, changed } = scrubKitchenState(value)
   if (changed) {
     try {
       const written = await updateJson(ITEM_KEY, emptyState, (raw) => {
-        const again = purgeStaleOrders(raw)
-        return again.state
+        return scrubKitchenState(raw).state
       })
       return normalizeState(written)
     } catch (err) {
-      console.warn('[kitchen] purgeStale', err)
+      console.warn('[kitchen] day/purge', err)
     }
   }
   return normalizeState(state)
@@ -233,7 +244,7 @@ function publicPayload(state) {
     pickups,
     updatedAt: state.updatedAt || 0,
     canUndo: Boolean(state.lastCompleted),
-    purgeAt: 'Inicio / fin de jornada TPV',
+    purgeAt: '09:00 Europe/Madrid',
   }
 }
 

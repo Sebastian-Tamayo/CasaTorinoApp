@@ -3,6 +3,16 @@
   "installCommand": "npm install",
   "buildCommand": "echo static-web",
   "outputDirectory": ".",
+  "crons": [
+    {
+      "path": "/api/ops-daily-purge",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/ops-daily-purge",
+      "schedule": "0 8 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",
