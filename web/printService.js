@@ -11,6 +11,7 @@
  *    (ver assets/qz/LEEME-QUITAR-AVISO.txt)
  */
 (() => {
+  const BUILD_TICKET = 'cols28-left-20260918'
   const PRINTER_NAME = 'POS-58'
   const PRINTER_ALIASES = [
     /^POS-58$/i,

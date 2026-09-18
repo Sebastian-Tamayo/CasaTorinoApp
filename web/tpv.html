@@ -1424,27 +1424,41 @@
         <button type="button" class="btn-modal-back" id="payBack" aria-label="Volver">
           <i class="fa-solid fa-arrow-left"></i> Volver
         </button>
-        <h3 id="payModalTitle">Forma de pago</h3>
+        <h3 id="payModalTitle">Cobrar</h3>
       </div>
-      <p class="sub" id="payModalSub">Toca efectivo o tarjeta</p>
+      <p class="sub" id="payModalSub">Añade uno o varios pagos hasta cubrir el total</p>
       <div class="jornada-grand">
-        <span>Total</span>
+        <span>Total cuenta</span>
         <strong id="payGrand">0,00 €</strong>
       </div>
-      <div class="pay-methods">
-        <button type="button" class="pay-cash" id="payEfectivo" data-pay="efectivo">
-          <i class="fa-solid fa-money-bill-wave" aria-hidden="true"></i>
-          <strong>Efectivo</strong>
-          <em>Abre caja</em>
-        </button>
-        <button type="button" class="pay-card" id="payTarjeta" data-pay="tarjeta">
-          <i class="fa-solid fa-credit-card" aria-hidden="true"></i>
-          <strong>Tarjeta</strong>
-          <em>Sin abrir caja</em>
-        </button>
+      <div class="jornada-sec">
+        <h4>Pagos</h4>
+        <div id="payList" style="display:grid;gap:.45rem;margin-bottom:.65rem"></div>
+        <div style="display:flex;gap:.45rem;flex-wrap:wrap;align-items:stretch">
+          <select id="payAddMethod" style="flex:1;min-width:7rem;min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg-2);padding:.4rem .6rem;font-weight:700">
+            <option value="efectivo">Efectivo</option>
+            <option value="tarjeta">Tarjeta</option>
+          </select>
+          <input type="text" id="payAddAmount" inputmode="decimal" enterkeyhint="done" placeholder="Importe" autocomplete="off" spellcheck="false" style="flex:1;min-width:6rem;min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg-2);padding:.5rem .75rem;font-weight:800;font-size:1.05rem" />
+          <button type="button" class="btn-j start" id="payAddBtn" style="flex:0 0 auto"><i class="fa-solid fa-plus"></i> Añadir</button>
+        </div>
+        <div style="display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.55rem">
+          <button type="button" class="btn-j" id="payAllEfectivo" style="flex:1"><i class="fa-solid fa-money-bill"></i> Todo efectivo</button>
+          <button type="button" class="btn-j total" id="payAllTarjeta" style="flex:1"><i class="fa-solid fa-credit-card"></i> Todo tarjeta</button>
+          <button type="button" class="btn-j" id="payRestBtn" style="flex:1"><i class="fa-solid fa-equals"></i> Resto</button>
+        </div>
       </div>
-      <div class="close-row">
+      <div class="jornada-grand" style="margin-top:.35rem">
+        <span id="payRemainLabel">Falta</span>
+        <strong id="payRemain">0,00 €</strong>
+      </div>
+      <div class="jornada-sec">
+        <h4>Propina (opcional)</h4>
+        <input type="number" id="payTip" min="0" step="0.10" inputmode="decimal" placeholder="0,00" style="width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg-2);padding:.5rem .75rem;font-weight:700;font-size:1.05rem" />
+      </div>
+      <div class="close-row" style="gap:.5rem">
         <button type="button" id="payCancel">Cancelar</button>
+        <button type="button" id="payConfirm" style="background:var(--gold);color:var(--ink);font-weight:800" disabled>Cerrar mesa</button>
       </div>
     </div>
   </div>
@@ -2096,11 +2110,22 @@
       }
 
       const lines = () => Object.values(state.cart)
-      const round2 = (n) => Math.round((+n + Number.EPSILON) * 100) / 100
+      /** Céntimos enteros — sin residuos float tipo 19.99999999 */
+      const toCents = (n) => {
+        const x = Number(n)
+        if (!Number.isFinite(x)) return 0
+        return Math.round(x * 100)
+      }
+      const fromCents = (c) => Math.round(Number(c) || 0) / 100
+      const round2 = (n) => fromCents(toCents(n))
       const totals = () => {
         const ls = lines()
-        const total = round2(ls.reduce((a, x) => a + x.qty * x.price, 0))
-        // Precios de carta con IVA incluido → desglose fiscal
+        // Precio en céntimos × qty (enteros) → total estable
+        const totalCents = ls.reduce(
+          (a, x) => a + toCents(x.price) * (Number(x.qty) || 0),
+          0,
+        )
+        const total = fromCents(totalCents)
         const base = round2(total / (1 + IVA_RATE))
         const iva = round2(total - base)
         return {
@@ -2445,37 +2470,12 @@
         }
       }
 
-      function openPayModal(purpose) {
-        const { total, count, iva } = totals()
-        if (!count) {
-          alert('La cuenta está vacía.')
-          return
-        }
-        window.__payPurpose = purpose === 'ticket' ? 'ticket' : 'charge'
-        const m = normalizeMesa(state.mesa)
-        const mesaTxt = m ? `Mesa ${m} · ` : ''
-        if ($('payModalTitle')) {
-          $('payModalTitle').textContent = purpose === 'ticket' ? 'Ticket' : 'Cobrar'
-        }
-        if ($('payGrand')) $('payGrand').textContent = money(total)
-        if ($('payModalSub')) {
-          $('payModalSub').textContent =
-            purpose === 'ticket'
-              ? `${mesaTxt}¿Cómo pagan? El ticket es igual`
-              : `${mesaTxt}IVA 10%: ${money(iva)}`
-        }
-        const modal = $('payModal')
-        if (modal) modal.hidden = false
-        pushTpvHistory('pay')
-      }
-
-      async function printTicketOnly(paymentMethod) {
+      async function printTicketOnly() {
         const { ls, total, count, base, iva } = totals()
         if (!count) {
           alert('La cuenta está vacía.')
           return
         }
-        const pm = paymentMethod === 'tarjeta' ? 'tarjeta' : 'efectivo'
         const m = normalizeMesa(state.mesa)
         const notes = ($('notes')?.value || state.notes || '').trim()
         const cartItems = ls.map((l) => ({ name: l.name, qty: l.qty, price: l.price }))
@@ -2610,33 +2610,182 @@
         }
       }
 
-      function done() {
-        openPayModal('charge')
-      }
-
       function closePayModal() {
         const modal = $('payModal')
         if (modal) modal.hidden = true
       }
 
-      async function onPayMethod(method) {
-        const paymentMethod = method === 'tarjeta' ? 'tarjeta' : 'efectivo'
-        const purpose = window.__payPurpose === 'ticket' ? 'ticket' : 'charge'
-        closePayModal()
-        if (purpose === 'ticket') {
-          await printTicketOnly(paymentMethod)
-          return
-        }
-        await confirmPay(paymentMethod)
+      /** Estado del modal de cobro: pagos parciales 1→N (importes en céntimos) */
+      let payDraft = { totalCents: 0, payments: [] }
+
+      function parsePayAmount(raw) {
+        const n = parseFloat(String(raw || '').replace(',', '.'))
+        if (!Number.isFinite(n)) return NaN
+        return fromCents(toCents(n))
       }
 
-      async function confirmPay(method) {
+      function payPaidCents() {
+        return (payDraft.payments || []).reduce(
+          (a, p) => a + toCents(p.amount),
+          0,
+        )
+      }
+
+      function payRemainingCents() {
+        return Math.max(0, (Number(payDraft.totalCents) || 0) - payPaidCents())
+      }
+
+      function payPaidSum() {
+        return fromCents(payPaidCents())
+      }
+
+      function payRemaining() {
+        return fromCents(payRemainingCents())
+      }
+
+      function payExact() {
+        return (
+          (payDraft.payments || []).length > 0 &&
+          payPaidCents() === (Number(payDraft.totalCents) || 0)
+        )
+      }
+
+      function payOver() {
+        return payPaidCents() > (Number(payDraft.totalCents) || 0)
+      }
+
+      function paintPayModal() {
+        const list = $('payList')
+        if (list) {
+          if (!payDraft.payments.length) {
+            list.innerHTML =
+              '<div class="jornada-row" style="opacity:.75">Sin pagos aún. Añade efectivo y/o tarjeta.</div>'
+          } else {
+            list.innerHTML = payDraft.payments
+              .map((p, idx) => {
+                const label = p.method === 'tarjeta' ? 'Tarjeta' : 'Efectivo'
+                const icon =
+                  p.method === 'tarjeta' ? 'fa-credit-card' : 'fa-money-bill'
+                return `<div class="jornada-row" style="align-items:center">
+                  <span><i class="fa-solid ${icon}"></i> ${label}</span>
+                  <strong style="display:inline-flex;align-items:center;gap:.45rem">
+                    ${money(p.amount)}
+                    <button type="button" data-pay-del="${idx}" title="Quitar" style="border:0;background:transparent;color:var(--danger);font-size:1rem;cursor:pointer;padding:.15rem">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </strong>
+                </div>`
+              })
+              .join('')
+          }
+        }
+        const exact = payExact()
+        const over = payOver()
+        const remainCents = Math.abs(
+          (Number(payDraft.totalCents) || 0) - payPaidCents(),
+        )
+        if ($('payRemain')) {
+          $('payRemain').textContent = money(fromCents(exact ? 0 : remainCents))
+          $('payRemain').style.color = exact
+            ? 'var(--ok, #16a34a)'
+            : over
+              ? 'var(--danger)'
+              : 'inherit'
+        }
+        if ($('payRemainLabel')) {
+          $('payRemainLabel').textContent = exact
+            ? 'Cubierto'
+            : over
+              ? 'Sobra'
+              : 'Falta'
+        }
+        const btn = $('payConfirm')
+        if (btn) {
+          btn.disabled = !exact
+          btn.textContent = 'Cerrar mesa'
+        }
+        if ($('payAddAmount') && document.activeElement !== $('payAddAmount')) {
+          const rem = payRemaining()
+          if (rem > 0 && !($('payAddAmount').value || '').trim()) {
+            $('payAddAmount').placeholder = rem.toFixed(2).replace('.', ',')
+          }
+        }
+      }
+
+      function addPayDraft(method, amount) {
+        const m = method === 'tarjeta' ? 'tarjeta' : 'efectivo'
+        let amtCents = toCents(amount)
+        if (!Number.isFinite(amtCents) || amtCents <= 0) return false
+        const remain = payRemainingCents()
+        if (remain <= 0) return false
+        if (amtCents > remain) amtCents = remain
+        payDraft.payments.push({
+          id: 'p-' + Date.now() + '-' + Math.random().toString(16).slice(2, 6),
+          method: m,
+          amount: fromCents(amtCents),
+        })
+        paintPayModal()
+        return true
+      }
+
+      function setPayDraftSingle(method) {
+        const m = method === 'tarjeta' ? 'tarjeta' : 'efectivo'
+        const totalCents = Number(payDraft.totalCents) || 0
+        payDraft.payments = totalCents > 0
+          ? [{ id: 'p-full', method: m, amount: fromCents(totalCents) }]
+          : []
+        paintPayModal()
+      }
+
+      async function done() {
         const { ls, total, count, base, iva } = totals()
         if (!count) return
-        const paymentMethod = method === 'tarjeta' ? 'tarjeta' : 'efectivo'
-        const tip = 0
         const m = normalizeMesa(state.mesa)
-        closePayModal()
+        const mesaTxt = m ? `Mesa ${m} · ` : ''
+        if ($('payGrand')) $('payGrand').textContent = money(total)
+        if ($('payModalSub')) {
+          $('payModalSub').textContent =
+            `${mesaTxt}IVA 10%: ${money(iva)} · puedes dividir el cobro`
+        }
+        if ($('payTip')) $('payTip').value = ''
+        if ($('payAddAmount')) $('payAddAmount').value = ''
+        if ($('payAddMethod')) $('payAddMethod').value = 'efectivo'
+        payDraft = { totalCents: toCents(total), payments: [] }
+        paintPayModal()
+        const modal = $('payModal')
+        if (modal) modal.hidden = false
+        if (typeof pushTpvHistory === 'function') pushTpvHistory('pay')
+      }
+
+      async function confirmPay() {
+        const { ls, total, count, base, iva } = totals()
+        if (!count) return
+        if (!payExact() || !payDraft.payments.length) {
+          alert('Los pagos deben sumar exactamente el total de la cuenta.')
+          paintPayModal()
+          return
+        }
+        // Re-sincronizar céntimos por si el total de la cuenta cambió
+        if (toCents(total) !== (Number(payDraft.totalCents) || 0)) {
+          alert('El total de la cuenta ha cambiado. Vuelve a repartir los pagos.')
+          payDraft = { totalCents: toCents(total), payments: [] }
+          if ($('payGrand')) $('payGrand').textContent = money(total)
+          paintPayModal()
+          return
+        }
+        const payments = payDraft.payments.map((p) => ({
+          id: p.id,
+          method: p.method === 'tarjeta' ? 'tarjeta' : 'efectivo',
+          amount: fromCents(toCents(p.amount)),
+        }))
+        const methods = [...new Set(payments.map((p) => p.method))]
+        const paymentMethod =
+          methods.length > 1 ? 'mixto' : methods[0] === 'tarjeta' ? 'tarjeta' : 'efectivo'
+        const tipRaw = Number(String($('payTip')?.value || '').replace(',', '.'))
+        const tip = Number.isFinite(tipRaw) && tipRaw > 0 ? round2(tipRaw) : 0
+        const m = normalizeMesa(state.mesa)
+        const modal = $('payModal')
+        if (modal) modal.hidden = true
 
         if (!(await ensureJornadaOpenForSale())) return
 
@@ -2656,6 +2805,7 @@
           iva,
           tip,
           paymentMethod,
+          payments,
           notes: ($('notes')?.value || state.notes || '').trim(),
           paid: $('paid')?.value || '',
           cart: cloneJson(state.cart) || {},
@@ -2668,7 +2818,8 @@
             ? crypto.randomUUID()
             : 's-' + Date.now() + '-' + Math.random().toString(16).slice(2, 8)
 
-        if (window.CasaTorinoPrint?.openCashDrawer && paymentMethod === 'efectivo') {
+        const hasEfectivo = payments.some((p) => p.method === 'efectivo')
+        if (window.CasaTorinoPrint?.openCashDrawer && hasEfectivo) {
           await window.CasaTorinoPrint.openCashDrawer()
         }
 
@@ -2682,6 +2833,7 @@
             iva,
             tip,
             paymentMethod,
+            payments,
             lines: saleLines,
           }
           const j = await window.CasaTorinoTpvJornada.addSale(sale)
@@ -2696,10 +2848,31 @@
           writeLastCharge(null)
         }
 
+        // Si hay pago dividido, imprimir ticket con desglose.
+        // Pago único: el ticket se saca antes con el botón Ticket.
+        if (payments.length > 1 && window.CasaTorinoPrint?.printReceipt) {
+          try {
+            const cartItems = ls.map((l) => ({ name: l.name, qty: l.qty, price: l.price }))
+            const notes = ($('notes')?.value || state.notes || '').trim()
+            await window.CasaTorinoPrint.printReceipt(cartItems, total, {
+              mesa: m || undefined,
+              notes: notes || undefined,
+              base,
+              iva,
+              ivaRate: IVA_RATE,
+              payments,
+              openDrawer: false,
+            })
+          } catch (err) {
+            console.warn('print after split pay', err)
+          }
+        }
+
         state.cart = {}; state.hist = []; state.notes = ''
         if ($('notes')) $('notes').value = ''
         if ($('paid')) $('paid').value = ''
         if (m) state.tables[m] = { cart: {}, hist: [], notes: '', paid: '' }
+        payDraft = { totalCents: 0, payments: [] }
         persist(); render(); closeTicket()
         paintUndoChargeBtn()
       }
@@ -3336,12 +3509,46 @@
       $('btnClear2').onclick = clearCart
       $('btnKitchen').onclick = sendToKitchen
       $('btnNextCourse').onclick = sendNextCourse
-      $('btnTicket').onclick = () => openPayModal('ticket')
+      $('btnTicket').onclick = printTicketOnly
       $('btnDone').onclick = done
       $('payCancel')?.addEventListener('click', () => { closePayModal() })
       $('payBack')?.addEventListener('click', () => { closePayModal() })
-      $('payEfectivo')?.addEventListener('click', () => { onPayMethod('efectivo') })
-      $('payTarjeta')?.addEventListener('click', () => { onPayMethod('tarjeta') })
+      $('payConfirm')?.addEventListener('click', () => { confirmPay() })
+      $('payAddBtn')?.addEventListener('click', () => {
+        const method = $('payAddMethod')?.value || 'efectivo'
+        let amount = parsePayAmount($('payAddAmount')?.value)
+        if (!Number.isFinite(amount) || amount <= 0) {
+          amount = payRemaining()
+        }
+        if (!addPayDraft(method, amount)) {
+          alert('Introduce un importe válido (sin pasarte de lo que falta).')
+          return
+        }
+        if ($('payAddAmount')) $('payAddAmount').value = ''
+      })
+      $('payAddAmount')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          $('payAddBtn')?.click()
+        }
+      })
+      $('payAllEfectivo')?.addEventListener('click', () => setPayDraftSingle('efectivo'))
+      $('payAllTarjeta')?.addEventListener('click', () => setPayDraftSingle('tarjeta'))
+      $('payRestBtn')?.addEventListener('click', () => {
+        const method = $('payAddMethod')?.value || 'efectivo'
+        const rem = payRemaining()
+        if (rem <= 0) return
+        addPayDraft(method, rem)
+        if ($('payAddAmount')) $('payAddAmount').value = ''
+      })
+      $('payList')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-pay-del]')
+        if (!btn) return
+        const idx = Number(btn.getAttribute('data-pay-del'))
+        if (!Number.isFinite(idx)) return
+        payDraft.payments.splice(idx, 1)
+        paintPayModal()
+      })
       $('payModal')?.addEventListener('click', (e) => {
         if (e.target === $('payModal')) closePayModal()
       })
