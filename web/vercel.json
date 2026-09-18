@@ -3,11 +3,27 @@
   "installCommand": "npm install",
   "buildCommand": "echo static-web",
   "outputDirectory": ".",
+  "crons": [
+    {
+      "path": "/api/ops-daily-purge",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/ops-daily-purge",
+      "schedule": "0 8 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/(.*)\\.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
       ]
     }
   ]

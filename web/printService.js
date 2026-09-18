@@ -235,8 +235,8 @@
     let base = Number(meta.base)
     let iva = Number(meta.iva)
     if (!Number.isFinite(base) || !Number.isFinite(iva)) {
-      base = Math.round((total / (1 + ivaRate) + Number.EPSILON) * 100) / 100
-      iva = Math.round((total - base + Number.EPSILON) * 100) / 100
+      base = Math.round((total / (1 + ivaRate)) * 100) / 100
+      iva = Math.round((total - base) * 100) / 100
     }
     data.push(padRow('Base', money(base) + ' E') + ESC.LF)
     data.push(padRow('IVA ' + Math.round(ivaRate * 100) + '%', money(iva) + ' E') + ESC.LF)
@@ -245,6 +245,33 @@
     data.push(padRow('TOTAL', money(total)) + ESC.LF)
     data.push(ESC.SIZE_NORMAL)
     data.push(ESC.BOLD_OFF)
+
+    const payments = Array.isArray(meta.payments)
+      ? meta.payments
+          .map((p) => {
+            if (!p || typeof p !== 'object') return null
+            const method =
+              String(p.method || '').toLowerCase() === 'tarjeta' ? 'tarjeta' : 'efectivo'
+            const amount = Math.round(Number(p.amount) * 100) / 100
+            if (!Number.isFinite(amount) || amount <= 0) return null
+            return { method, amount }
+          })
+          .filter(Boolean)
+      : []
+    if (payments.length) {
+      data.push(line('-') + ESC.LF)
+      data.push(ESC.BOLD_ON)
+      data.push('Pagos:' + ESC.LF)
+      data.push(ESC.BOLD_OFF)
+      for (const p of payments) {
+        const label = p.method === 'tarjeta' ? 'Tarjeta' : 'Efectivo'
+        data.push(padRow(label, money(p.amount) + ' E') + ESC.LF)
+      }
+    } else if (meta.paymentMethod) {
+      const label =
+        String(meta.paymentMethod).toLowerCase() === 'tarjeta' ? 'Tarjeta' : 'Efectivo'
+      data.push(padRow('Pago', label) + ESC.LF)
+    }
 
     const paid =
       meta.paid !== undefined && meta.paid !== ''
@@ -257,7 +284,7 @@
     }
 
     data.push(line('=') + ESC.LF)
-    data.push(ESC.ALIGN_CENTER)
+    data.push(ESC.ALIGN_LEFT)
     data.push(BUSINESS.footer + ESC.LF)
     data.push(ESC.LF)
     data.push(ESC.LF)

@@ -2489,7 +2489,7 @@
           ivaRate: IVA_RATE,
           paid: Number.isFinite(paid) ? paid : undefined,
           change: Number.isFinite(paid) ? paid - total : undefined,
-          openDrawer: pm === 'efectivo',
+          openDrawer: false,
         }
         const btn = $('btnTicket')
         if (btn) btn.disabled = true
