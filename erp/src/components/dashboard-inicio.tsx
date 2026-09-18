@@ -14,6 +14,7 @@ import { MonthSelector } from "@/components/month-selector";
 import { createClient } from "@/lib/supabase/client";
 import { onMovimientosChanged } from "@/lib/movimientos-events";
 import { fetchCierres, type CierreItem } from "@/lib/cierres";
+import { round2 } from "@/lib/fiscal";
 import {
   esMesActual,
   labelMes,
@@ -24,7 +25,7 @@ import {
 import type { Gasto } from "@/types/database";
 
 function formatImporte(importe: number) {
-  return Number(importe).toLocaleString("es-ES", {
+  return round2(Number(importe) || 0).toLocaleString("es-ES", {
     style: "currency",
     currency: "EUR",
   });
@@ -115,12 +116,12 @@ export function DashboardInicio() {
     let laborales = 0;
     for (const g of gastosMes) {
       const base = Number(g.base_imponible ?? g.importe);
-      if (g.categoria === "Nóminas y SS") laborales += base;
-      else operativos += base;
+      if (g.categoria === "Nóminas y SS") laborales = round2(laborales + base);
+      else operativos = round2(operativos + base);
     }
     // Ingresos oficiales = cierres TPV (IVA incl. → base ≈ /1.1)
-    const ingresosBase = Math.round((monthTotal / 1.1) * 100) / 100;
-    const ebitda = ingresosBase - operativos - laborales;
+    const ingresosBase = round2(monthTotal / 1.1);
+    const ebitda = round2(ingresosBase - operativos - laborales);
     const hoyKey = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Europe/Madrid",
       year: "numeric",
@@ -128,9 +129,11 @@ export function DashboardInicio() {
       day: "2-digit",
     }).format(new Date());
     const hoyTotal = mesEsActual
-      ? cierres
-          .filter((c) => c.dayKey === hoyKey)
-          .reduce((a, c) => a + (Number(c.totals?.total) || 0), 0)
+      ? round2(
+          cierres
+            .filter((c) => c.dayKey === hoyKey)
+            .reduce((a, c) => a + (Number(c.totals?.total) || 0), 0),
+        )
       : 0;
 
     return { ingresosBase, operativos, laborales, ebitda, hoyTotal };

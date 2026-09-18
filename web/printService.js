@@ -55,8 +55,10 @@
   let trustedSetupDone = false
 
   function money(n) {
-    return (Math.round((+n + Number.EPSILON) * 100) / 100)
-      .toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    return (Math.round(Number(n) * 100) / 100).toLocaleString('es-ES', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
   }
 
   function line(char = '-') {
@@ -260,7 +262,8 @@
       data.push(ESC.BOLD_OFF)
       for (const p of payments) {
         const label = p.method === 'tarjeta' ? 'Tarjeta' : 'Efectivo'
-        data.push(padRow(label, money(p.amount) + ' E') + ESC.LF)
+        const amt = Math.round(Number(p.amount) * 100) / 100
+        data.push(padRow(label, money(amt) + ' E') + ESC.LF)
       }
     }
 

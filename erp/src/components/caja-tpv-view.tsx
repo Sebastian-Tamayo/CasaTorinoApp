@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { MonthSelector } from "@/components/month-selector";
 import { fetchCierres, type CierreItem } from "@/lib/cierres";
+import { round2 } from "@/lib/fiscal";
 import { labelMes, mesActualKey, type MesKey } from "@/lib/meses";
 
 function formatImporte(importe: number) {
-  return Number(importe).toLocaleString("es-ES", {
+  return round2(Number(importe) || 0).toLocaleString("es-ES", {
     style: "currency",
     currency: "EUR",
   });
@@ -38,9 +39,9 @@ function showCierrePaymentTip(totals?: CierreItem["totals"]) {
 function paymentTipLine(totals?: PaymentTipTotals | null) {
   if (!totals?.byPayment && !(totals?.tipTotal && totals.tipTotal > 0))
     return null;
-  const ef = totals.byPayment?.efectivo?.total ?? 0;
-  const tj = totals.byPayment?.tarjeta?.total ?? 0;
-  const tip = totals.tipTotal ?? 0;
+  const ef = round2(totals.byPayment?.efectivo?.total ?? 0);
+  const tj = round2(totals.byPayment?.tarjeta?.total ?? 0);
+  const tip = round2(totals.tipTotal ?? 0);
   return (
     <>
       {" · Efectivo "}
@@ -75,15 +76,28 @@ export function CajaTpvView() {
         const data = await fetchCierres(mesKey);
         if (cancelled) return;
         setItems(data.items || []);
-        setTotal(data.monthTotals?.total || 0);
+        setTotal(round2(data.monthTotals?.total || 0));
         setTickets(data.monthTotals?.tickets || 0);
-        setComida(data.monthTotals?.byType?.comida?.total || 0);
-        setBebida(data.monthTotals?.byType?.bebida?.total || 0);
+        setComida(round2(data.monthTotals?.byType?.comida?.total || 0));
+        setBebida(round2(data.monthTotals?.byType?.bebida?.total || 0));
         setMonthPayment(
           data.monthTotals?.byPayment
             ? {
-                byPayment: data.monthTotals.byPayment,
-                tipTotal: data.monthTotals.tipTotal ?? 0,
+                byPayment: {
+                  efectivo: {
+                    total: round2(
+                      data.monthTotals.byPayment.efectivo?.total ?? 0,
+                    ),
+                    tickets: data.monthTotals.byPayment.efectivo?.tickets ?? 0,
+                  },
+                  tarjeta: {
+                    total: round2(
+                      data.monthTotals.byPayment.tarjeta?.total ?? 0,
+                    ),
+                    tickets: data.monthTotals.byPayment.tarjeta?.tickets ?? 0,
+                  },
+                },
+                tipTotal: round2(data.monthTotals.tipTotal ?? 0),
               }
             : null,
         );

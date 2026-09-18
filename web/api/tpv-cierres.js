@@ -62,7 +62,9 @@ function madridParts(ts = Date.now()) {
 }
 
 function round2(n) {
-  return Math.round((+n + Number.EPSILON) * 100) / 100
+  const x = Number(n)
+  if (!Number.isFinite(x)) return 0
+  return Math.round(x * 100) / 100
 }
 
 function buildMonthTotals(items) {

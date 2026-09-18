@@ -190,7 +190,19 @@ async function getState() {
 }
 
 function round2(n) {
-  return Math.round((+n + Number.EPSILON) * 100) / 100
+  const x = Number(n)
+  if (!Number.isFinite(x)) return 0
+  return Math.round(x * 100) / 100
+}
+
+function toCents(n) {
+  const x = Number(n)
+  if (!Number.isFinite(x)) return 0
+  return Math.round(x * 100)
+}
+
+function fromCents(cents) {
+  return Math.round(Number(cents) || 0) / 100
 }
 
 function normalizePaymentMethod(raw) {
@@ -198,6 +210,31 @@ function normalizePaymentMethod(raw) {
   if (pm === 'tarjeta') return 'tarjeta'
   if (pm === 'mixto') return 'mixto'
   return 'efectivo'
+}
+
+/**
+ * Ajusta el último pago para que la suma en céntimos == total.
+ * Evita desfases de 1 céntimo por float.
+ */
+function reconcilePaymentsToTotal(payments, saleTotal) {
+  const list = (payments || [])
+    .map((p) => ({
+      ...p,
+      amount: round2(p.amount),
+    }))
+    .filter((p) => toCents(p.amount) > 0)
+  if (!list.length) return list
+  const target = toCents(saleTotal)
+  let sum = list.reduce((a, p) => a + toCents(p.amount), 0)
+  if (sum === target) return list
+  const diff = target - sum
+  // Solo corregimos micro-desfases (1–2 céntimos)
+  if (Math.abs(diff) > 2) return list
+  const last = list[list.length - 1]
+  const nextCents = toCents(last.amount) + diff
+  if (nextCents <= 0) return list
+  last.amount = fromCents(nextCents)
+  return list
 }
 
 /**
@@ -211,7 +248,7 @@ function normalizePayments(raw, saleTotal) {
     const method = normalizePaymentMethod(p.method)
     if (method === 'mixto') continue
     const amount = round2(Number(p.amount))
-    if (!Number.isFinite(amount) || amount <= 0) continue
+    if (!Number.isFinite(amount) || toCents(amount) <= 0) continue
     out.push({
       id:
         String(p.id || '').slice(0, 64) ||
@@ -220,11 +257,11 @@ function normalizePayments(raw, saleTotal) {
       amount,
     })
   }
-  if (out.length) return out
+  if (out.length) return reconcilePaymentsToTotal(out, saleTotal)
   const pm = normalizePaymentMethod(raw?.paymentMethod)
   const method = pm === 'tarjeta' ? 'tarjeta' : 'efectivo'
   const amount = round2(Number(saleTotal) || 0)
-  if (amount > 0) {
+  if (toCents(amount) > 0) {
     return [{ id: 'p-legacy', method, amount }]
   }
   return []

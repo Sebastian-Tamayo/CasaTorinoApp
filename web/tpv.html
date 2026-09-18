@@ -1709,7 +1709,11 @@
 
       function startTpv() {
       let catalog = window.TPV_CATALOG || []
-      const money = (n) => (Math.round((+n + Number.EPSILON) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
+      const money = (n) =>
+        (Math.round(Number(n) * 100) / 100).toLocaleString('es-ES', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }) + ' €'
       const $ = (id) => document.getElementById(id)
       const KEY = 'casa-torino-tpv-mesas-v1'
       const LAST_CHARGE_KEY = 'casa-torino-tpv-last-charge-v1'
@@ -2097,11 +2101,22 @@
       }
 
       const lines = () => Object.values(state.cart)
-      const round2 = (n) => Math.round((+n + Number.EPSILON) * 100) / 100
+      /** Céntimos enteros — sin residuos float tipo 19.99999999 */
+      const toCents = (n) => {
+        const x = Number(n)
+        if (!Number.isFinite(x)) return 0
+        return Math.round(x * 100)
+      }
+      const fromCents = (c) => Math.round(Number(c) || 0) / 100
+      const round2 = (n) => fromCents(toCents(n))
       const totals = () => {
         const ls = lines()
-        const total = round2(ls.reduce((a, x) => a + x.qty * x.price, 0))
-        // Precios de carta con IVA incluido → desglose fiscal
+        // Precio en céntimos × qty (enteros) → total estable
+        const totalCents = ls.reduce(
+          (a, x) => a + toCents(x.price) * (Number(x.qty) || 0),
+          0,
+        )
+        const total = fromCents(totalCents)
         const base = round2(total / (1 + IVA_RATE))
         const iva = round2(total - base)
         return {
@@ -2139,7 +2154,7 @@
       }
 
       function formatPriceInput(n) {
-        const v = Math.round((Number(n) + Number.EPSILON) * 100) / 100
+        const v = Math.round(Number(n) * 100) / 100
         if (!Number.isFinite(v)) return ''
         return v.toFixed(2).replace('.', ',')
       }
@@ -2147,7 +2162,7 @@
       function parsePriceInput(raw) {
         const n = parseFloat(String(raw || '').trim().replace(',', '.'))
         if (!Number.isFinite(n) || n < 0) return null
-        return Math.round((n + Number.EPSILON) * 100) / 100
+        return Math.round(n * 100) / 100
       }
 
       function setLinePrice(key, raw) {
@@ -2586,30 +2601,43 @@
         }
       }
 
-      /** Estado del modal de cobro: pagos parciales 1→N */
-      let payDraft = { total: 0, payments: [] }
-
-      function roundPay(n) {
-        return Math.round((+n + Number.EPSILON) * 100) / 100
-      }
+      /** Estado del modal de cobro: pagos parciales 1→N (importes en céntimos) */
+      let payDraft = { totalCents: 0, payments: [] }
 
       function parsePayAmount(raw) {
         const n = parseFloat(String(raw || '').replace(',', '.'))
-        return Number.isFinite(n) ? roundPay(n) : NaN
+        if (!Number.isFinite(n)) return NaN
+        return fromCents(toCents(n))
       }
 
-      function payPaidSum() {
-        return roundPay(
-          (payDraft.payments || []).reduce((a, p) => a + (Number(p.amount) || 0), 0),
+      function payPaidCents() {
+        return (payDraft.payments || []).reduce(
+          (a, p) => a + toCents(p.amount),
+          0,
         )
       }
 
+      function payRemainingCents() {
+        return Math.max(0, (Number(payDraft.totalCents) || 0) - payPaidCents())
+      }
+
+      function payPaidSum() {
+        return fromCents(payPaidCents())
+      }
+
       function payRemaining() {
-        return roundPay(Math.max(0, (Number(payDraft.total) || 0) - payPaidSum()))
+        return fromCents(payRemainingCents())
       }
 
       function payExact() {
-        return Math.abs(payPaidSum() - (Number(payDraft.total) || 0)) < 0.005
+        return (
+          (payDraft.payments || []).length > 0 &&
+          payPaidCents() === (Number(payDraft.totalCents) || 0)
+        )
+      }
+
+      function payOver() {
+        return payPaidCents() > (Number(payDraft.totalCents) || 0)
       }
 
       function paintPayModal() {
@@ -2637,11 +2665,13 @@
               .join('')
           }
         }
-        const remain = payRemaining()
         const exact = payExact()
-        const over = payPaidSum() - (Number(payDraft.total) || 0) > 0.005
+        const over = payOver()
+        const remainCents = Math.abs(
+          (Number(payDraft.totalCents) || 0) - payPaidCents(),
+        )
         if ($('payRemain')) {
-          $('payRemain').textContent = money(exact ? 0 : Math.abs(remain || (payPaidSum() - payDraft.total)))
+          $('payRemain').textContent = money(fromCents(exact ? 0 : remainCents))
           $('payRemain').style.color = exact
             ? 'var(--ok, #16a34a)'
             : over
@@ -2657,28 +2687,28 @@
         }
         const btn = $('payConfirm')
         if (btn) {
-          btn.disabled = !exact || !(payDraft.payments || []).length
-          btn.textContent = exact ? 'Cerrar mesa' : 'Cerrar mesa'
+          btn.disabled = !exact
+          btn.textContent = 'Cerrar mesa'
         }
         if ($('payAddAmount') && document.activeElement !== $('payAddAmount')) {
           const rem = payRemaining()
           if (rem > 0 && !($('payAddAmount').value || '').trim()) {
-            $('payAddAmount').placeholder = money(rem).replace(' €', '')
+            $('payAddAmount').placeholder = rem.toFixed(2).replace('.', ',')
           }
         }
       }
 
       function addPayDraft(method, amount) {
         const m = method === 'tarjeta' ? 'tarjeta' : 'efectivo'
-        let amt = roundPay(amount)
-        if (!Number.isFinite(amt) || amt <= 0) return false
-        const remain = payRemaining()
+        let amtCents = toCents(amount)
+        if (!Number.isFinite(amtCents) || amtCents <= 0) return false
+        const remain = payRemainingCents()
         if (remain <= 0) return false
-        if (amt > remain + 0.001) amt = remain
+        if (amtCents > remain) amtCents = remain
         payDraft.payments.push({
           id: 'p-' + Date.now() + '-' + Math.random().toString(16).slice(2, 6),
           method: m,
-          amount: amt,
+          amount: fromCents(amtCents),
         })
         paintPayModal()
         return true
@@ -2686,9 +2716,9 @@
 
       function setPayDraftSingle(method) {
         const m = method === 'tarjeta' ? 'tarjeta' : 'efectivo'
-        const total = roundPay(payDraft.total)
-        payDraft.payments = total > 0
-          ? [{ id: 'p-full', method: m, amount: total }]
+        const totalCents = Number(payDraft.totalCents) || 0
+        payDraft.payments = totalCents > 0
+          ? [{ id: 'p-full', method: m, amount: fromCents(totalCents) }]
           : []
         paintPayModal()
       }
@@ -2706,7 +2736,7 @@
         if ($('payTip')) $('payTip').value = ''
         if ($('payAddAmount')) $('payAddAmount').value = ''
         if ($('payAddMethod')) $('payAddMethod').value = 'efectivo'
-        payDraft = { total: roundPay(total), payments: [] }
+        payDraft = { totalCents: toCents(total), payments: [] }
         paintPayModal()
         const modal = $('payModal')
         if (modal) modal.hidden = false
@@ -2720,16 +2750,24 @@
           paintPayModal()
           return
         }
+        // Re-sincronizar céntimos por si el total de la cuenta cambió
+        if (toCents(total) !== (Number(payDraft.totalCents) || 0)) {
+          alert('El total de la cuenta ha cambiado. Vuelve a repartir los pagos.')
+          payDraft = { totalCents: toCents(total), payments: [] }
+          if ($('payGrand')) $('payGrand').textContent = money(total)
+          paintPayModal()
+          return
+        }
         const payments = payDraft.payments.map((p) => ({
           id: p.id,
           method: p.method === 'tarjeta' ? 'tarjeta' : 'efectivo',
-          amount: roundPay(p.amount),
+          amount: fromCents(toCents(p.amount)),
         }))
         const methods = [...new Set(payments.map((p) => p.method))]
         const paymentMethod =
           methods.length > 1 ? 'mixto' : methods[0] === 'tarjeta' ? 'tarjeta' : 'efectivo'
         const tipRaw = Number(String($('payTip')?.value || '').replace(',', '.'))
-        const tip = Number.isFinite(tipRaw) && tipRaw > 0 ? Math.round(tipRaw * 100) / 100 : 0
+        const tip = Number.isFinite(tipRaw) && tipRaw > 0 ? round2(tipRaw) : 0
         const m = normalizeMesa(state.mesa)
         const modal = $('payModal')
         if (modal) modal.hidden = true
@@ -2819,7 +2857,7 @@
         if ($('notes')) $('notes').value = ''
         if ($('paid')) $('paid').value = ''
         if (m) state.tables[m] = { cart: {}, hist: [], notes: '', paid: '' }
-        payDraft = { total: 0, payments: [] }
+        payDraft = { totalCents: 0, payments: [] }
         persist(); render(); closeTicket()
         paintUndoChargeBtn()
       }
