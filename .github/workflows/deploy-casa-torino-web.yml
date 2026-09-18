@@ -1,8 +1,7 @@
-# Fuerza deploy al alias de producción casa-torino-web.vercel.app
-# (el Git integration a veces marca success sin actualizar el alias).
+# Fuerza deploy al alias casa-torino-web.vercel.app
+# El proyecto Vercel tiene Root Directory = "web" → el CLI debe correr en la raíz del monorepo.
 #
-# Secreto requerido en el repo:
-#   VERCEL_TOKEN — https://vercel.com/account/tokens (scope sebas3212)
+# Secreto: VERCEL_TOKEN (Full Account / Deploy en team sebas3212)
 name: Deploy casa-torino-web
 
 on:
@@ -18,8 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Deploy web/ to Vercel production
-        working-directory: web
+      - name: Deploy to Vercel production
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: team_JNQ3Bn97PBn7QHSYkTZw7wXy
@@ -31,4 +29,4 @@ jobs:
           fi
           mkdir -p .vercel
           printf '%s\n' "{\"projectId\":\"$VERCEL_PROJECT_ID\",\"orgId\":\"$VERCEL_ORG_ID\",\"projectName\":\"casa-torino-web\"}" > .vercel/project.json
-          npx vercel@39 deploy --prod --yes --token "$VERCEL_TOKEN" --scope sebas3212
+          npx vercel@latest deploy --prod --yes --scope sebas3212 --token "$VERCEL_TOKEN"
