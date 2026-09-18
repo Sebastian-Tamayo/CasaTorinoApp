@@ -233,8 +233,8 @@
     let base = Number(meta.base)
     let iva = Number(meta.iva)
     if (!Number.isFinite(base) || !Number.isFinite(iva)) {
-      base = Math.round((total / (1 + ivaRate) + Number.EPSILON) * 100) / 100
-      iva = Math.round((total - base + Number.EPSILON) * 100) / 100
+      base = Math.round((total / (1 + ivaRate)) * 100) / 100
+      iva = Math.round((total - base) * 100) / 100
     }
     data.push(padRow('Base', money(base) + ' E') + ESC.LF)
     data.push(padRow('IVA ' + Math.round(ivaRate * 100) + '%', money(iva) + ' E') + ESC.LF)
