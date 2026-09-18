@@ -24,11 +24,10 @@
     subtitle: 'Bar · Restaurante',
     footer: '¡Gracias por su visita!',
     /**
-     * Ancho útil en caracteres (fuente A, 58 mm).
-     * POS-58 suele cortar ~2–3 cols a la derecha si se usan 32;
-     * 30 deja el ticket entero visible y “corre” el texto a la izquierda.
+     * Ancho útil POS-58 (58 mm). 32 corta la derecha en muchas unidades;
+     * 28 + margen 0 desplaza el bloque a la izquierda y cabe entero.
      */
-    cols: 30,
+    cols: 28,
   }
 
   /** Comandos ESC/POS */
@@ -36,8 +35,10 @@
     INIT: '\x1B\x40',
     /** Página de códigos PC858 (Epson table 19) — € y tildes */
     CP858: '\x1B\x74\x13',
-    /** Margen izquierdo 0 dots (GS L) — aprovecha todo el ancho útil */
+    /** Margen izquierdo 0 (GS L nL nH) */
     LEFT_MARGIN_0: '\x1D\x4C\x00\x00',
+    /** Área de impresión ~384 dots (58mm @ 203dpi) GS W */
+    PRINT_WIDTH: '\x1D\x57\x80\x01',
     ALIGN_LEFT: '\x1B\x61\x00',
     ALIGN_CENTER: '\x1B\x61\x01',
     BOLD_ON: '\x1B\x45\x01',
@@ -72,7 +73,7 @@
     return L + ' '.repeat(space) + R
   }
 
-  function wrapName(name, max = 20) {
+  function wrapName(name, max = BUSINESS.cols - 9) {
     const s = String(name || '')
     if (s.length <= max) return s
     return s.slice(0, max - 1) + '…'
@@ -194,6 +195,7 @@
     data.push(ESC.INIT)
     data.push(ESC.CP858)
     data.push(ESC.LEFT_MARGIN_0)
+    data.push(ESC.PRINT_WIDTH)
     data.push(ESC.ALIGN_LEFT)
     data.push(ESC.SIZE_DOUBLE)
     data.push(ESC.BOLD_ON)
@@ -233,8 +235,8 @@
     let base = Number(meta.base)
     let iva = Number(meta.iva)
     if (!Number.isFinite(base) || !Number.isFinite(iva)) {
-      base = Math.round((total / (1 + ivaRate)) * 100) / 100
-      iva = Math.round((total - base) * 100) / 100
+      base = Math.round((total / (1 + ivaRate) + Number.EPSILON) * 100) / 100
+      iva = Math.round((total - base + Number.EPSILON) * 100) / 100
     }
     data.push(padRow('Base', money(base) + ' E') + ESC.LF)
     data.push(padRow('IVA ' + Math.round(ivaRate * 100) + '%', money(iva) + ' E') + ESC.LF)
@@ -243,29 +245,6 @@
     data.push(padRow('TOTAL', money(total)) + ESC.LF)
     data.push(ESC.SIZE_NORMAL)
     data.push(ESC.BOLD_OFF)
-
-    const payments = Array.isArray(meta.payments)
-      ? meta.payments
-          .map((p) => {
-            if (!p || typeof p !== 'object') return null
-            const method = String(p.method || '').toLowerCase() === 'tarjeta' ? 'tarjeta' : 'efectivo'
-            const amount = Number(p.amount)
-            if (!Number.isFinite(amount) || amount <= 0) return null
-            return { method, amount }
-          })
-          .filter(Boolean)
-      : []
-    if (payments.length) {
-      data.push(line('-') + ESC.LF)
-      data.push(ESC.BOLD_ON)
-      data.push('Pagos:' + ESC.LF)
-      data.push(ESC.BOLD_OFF)
-      for (const p of payments) {
-        const label = p.method === 'tarjeta' ? 'Tarjeta' : 'Efectivo'
-        const amt = Math.round(Number(p.amount) * 100) / 100
-        data.push(padRow(label, money(amt) + ' E') + ESC.LF)
-      }
-    }
 
     const paid =
       meta.paid !== undefined && meta.paid !== ''
@@ -278,7 +257,7 @@
     }
 
     data.push(line('=') + ESC.LF)
-    data.push(ESC.ALIGN_LEFT)
+    data.push(ESC.ALIGN_CENTER)
     data.push(BUSINESS.footer + ESC.LF)
     data.push(ESC.LF)
     data.push(ESC.LF)
