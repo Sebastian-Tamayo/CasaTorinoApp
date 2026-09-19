@@ -1,33 +1,134 @@
-# Web Casa Torino (público + TPV + Cocina)
+# Web · TPV · Cocina — Casa Torino
 
-Producción: https://casa-torino-web.vercel.app
+Módulo de **sala y escaparate** del monorepo [CasaTorinoApp](https://github.com/Sebastian-Tamayo/CasaTorinoApp).
 
-- **Web pública**: tema claro crema (`#fff8e8`); menú del día y carta
-- **Gestión interna** (`interno.html`): PIN obligatorio
-- **TPV** (`tpv.html`): mesas, sync, cocina, jornada, impresión POS-58
-- **Cocina** (`cocina.html`): KDS + histórico diario (purge 09:00)
+Un solo deploy en Vercel (`casa-torino-web`) concentra:
 
-## Destacado TPV (15 sep 2026)
+| Superficie | Ruta | Quién la usa |
+|------------|------|--------------|
+| **Web pública** | [`/`](https://casa-torino-web.vercel.app/) | Clientes — carta, menú, contacto |
+| **Gestión interna** | [`/interno.html`](https://casa-torino-web.vercel.app/interno.html) | Personal (PIN) — puerta al resto |
+| **TPV** | [`/tpv.html`](https://casa-torino-web.vercel.app/tpv.html) | Caja / mesas / cobros |
+| **Cocina (KDS)** | [`/cocina.html`](https://casa-torino-web.vercel.app/cocina.html) | Cocina en tiempo real |
 
-- Precio editable en **cuenta** para menús y **Varios**
-- Categoría **Varios / libre** (producto + precio a mano)
-- Categoría **Cafés**; postres a barra
-- Menú español en 2 platos (cocina ↔ TPV)
-- Ticket vs Cobrar separados
-- Scroll táctil solo en layout de caja; móvil con scroll nativo
+[![Live](https://img.shields.io/badge/producción-casa--torino--web.vercel.app-000?logo=vercel&logoColor=white)](https://casa-torino-web.vercel.app)
+[![Stack](https://img.shields.io/badge/stack-HTML%20·%20JS%20·%20Vercel%20Functions-111827)](#stack)
 
-## Precios menú del día (TPV + web)
+---
+
+## Por qué existe
+
+Casa Torino necesita **una sola URL** para:
+
+1. Mostrar la carta (tema claro, móvil).
+2. Cobrar en barra/mesa con sincronización entre dispositivos.
+3. Mandar platos a cocina y marcar tiempos (menú español en 2 pases).
+4. Cerrar la **jornada de caja** y enviar totales al ERP.
+
+Sin apps nativas: el personal usa el navegador en tablet, PC de caja o móvil.
+
+---
+
+## Capacidades destacadas
+
+### Web pública
+- Tema claro/crema (`#fff8e8`)
+- Carta y menú del día alineados con precios del TPV
+- UX móvil sin scroll interno que bloquee el dedo
+
+### TPV
+- Mesas, cuenta, notas, cobro con cajón (QZ Tray / POS-58)
+- **Ticket** (imprime) vs **Cobrar** (registra jornada + limpia mesa)
+- Categorías: comida, bebidas, cafés, postres, **Varios** (precio libre)
+- Precio editable en cuenta para menús y productos libres
+- Sync multi-dispositivo + **Total de jornada** (corrección de tickets)
+- PIN obligatorio al entrar
+
+### Cocina (KDS)
+- Pedidos en vivo desde el TPV
+- Menú español: Listo 1º → recogida → Listo 2º
+- Histórico del día (purge ~09:00 Europe/Madrid)
+- Detalle: [`COCINA-KDS.md`](./COCINA-KDS.md)
+
+### Jornada de caja
+- Inicio / total / fin de sesión
+- Totales por tipo, categoría y producto
+- Corrección de tickets al final del día  
+- Detalle: [`TPV-JORNADA.md`](./TPV-JORNADA.md)
+
+---
+
+## Precios menú del día (referencia)
 
 | | Español | Colombiano |
 |--|---------|------------|
 | Entre semana | 14 € | 13 € |
 | Fin de semana | 18 € | 15 € |
 
-Refrescos: **2,50 €**
+Ejemplo: **Pincho 2 €** · **Bocata 3 €** · **Agua 1/2 1,20 €** · **Agua 1L 1,70 €** · refrescos 2,50 € · Chupito 2,50 € · Copa Albariño 3,60 €  
 
-## Deploy
+Fuente viva: Supabase `ops_kv` clave `carta` (`GET /api/carta`); fallback `data/carta.json` (TPV + web pública).
+
+---
+
+## Stack
+
+| Capa | Tecnología |
+|------|------------|
+| UI | HTML + CSS + JS (sin framework en sala — carga rápida) |
+| API | Vercel Serverless (`api/carta`, `api/tpv-*`, `api/kitchen`, …) |
+| Estado operativo | Supabase `ops_kv` (sync mesas, jornada, cocina, **carta**) |
+| Impresión | QZ Tray → POS-58 |
+| Hosting | Vercel proyecto `casa-torino-web` (Root Directory = `web`) |
+
+---
+
+## Estructura
+
+```text
+web/
+├── index.html          # Web pública
+├── interno.html        # Hub personal (PIN)
+├── tpv.html            # TPV
+├── cocina.html         # KDS
+├── data/carta.json     # Semilla / fallback de carta
+├── carta.js · carta-public.js  # Carga carta (API → JSON)
+├── tpv-data.js         # Arranque TPV desde carta
+├── tpvSync.js · tpvJornada.js · kitchenSync.js · printService.js
+├── api/                # Serverless
+├── assets/             # QZ / estáticos
+├── scripts/            # assert tema claro · deploy
+├── TPV-JORNADA.md
+├── COCINA-KDS.md
+├── DEPLOY.md
+└── README.md
+```
+
+---
+
+## Local y deploy
 
 ```bash
+# Desde la raíz del monorepo
+cd web
+# Revisar tema claro antes de publicar
 bash scripts/assert-light-theme.sh
-bash scripts/deploy-web.sh
 ```
+
+Deploy de producción (proyecto Vercel `casa-torino-web`): ver [`DEPLOY.md`](./DEPLOY.md).
+
+Secretos: `web/.env.example` → Vercel / `.env.local` (`TPV_PIN`, credenciales ops, etc.).
+
+---
+
+## Encaje en el monorepo
+
+- Reservas del personal → [`../reservas/`](../reservas/)
+- ERP (caja TPV, fiscal, RRHH) → [`../erp/`](../erp/)
+- Recuperación → [`../docs/RECUPERACION.md`](../docs/RECUPERACION.md)
+
+---
+
+## Autor
+
+Parte del ecosistema **Casa Torino** · uso real en Gijón · [CasaTorinoApp](https://github.com/Sebastian-Tamayo/CasaTorinoApp)

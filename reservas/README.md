@@ -1,11 +1,8 @@
-# Casa Torino — Reservas (extensión operativa)
+# Reservas — Casa Torino
 
-> Módulo del monorepo **[CasaTorinoApp](https://github.com/Sebastian-Tamayo/CasaTorinoApp)**  
-> Ecosistema: Web pública · ERP/back-office · Reservas de sala.
+Módulo de **reservas de sala** del monorepo [CasaTorinoApp](https://github.com/Sebastian-Tamayo/CasaTorinoApp).
 
-
-> **Caso real · negocio familiar · Gijón**  
-> Módulo de reservas para el personal de **Casa Torino**, pensado como **extensión** de la web pública ya publicada y del ERP / operativa interna del negocio.
+App **mobile-first** para el personal: anotar y gestionar mesas en segundos, con la misma agenda visible para todo el equipo.
 
 [![Live](https://img.shields.io/badge/demo-reservas--casatorino.vercel.app-000000?logo=vercel&logoColor=white)](https://reservas-casatorino.vercel.app)
 [![Stack](https://img.shields.io/badge/stack-React%20%7C%20TypeScript%20%7C%20Vite%20%7C%20Vercel-111827)](#stack-técnico)
@@ -13,91 +10,51 @@
 
 ---
 
-## Contexto del negocio
+## Contexto
 
-**Casa Torino** es un bar-restaurante familiar de **fusión Colombo-Asturiana** en Gijón (`Ctra. Ceares, 67`).
-
-Ya existían:
+**Casa Torino** (Gijón) ya tenía web pública y ERP. Faltaba una pieza **operativa en sala**:
 
 | Pieza | Rol |
 |--------|-----|
-| **Web pública** | Web principal (carta, menú, equipo) → [casa-torino-web.vercel.app](https://casa-torino-web.vercel.app) |
-| **ERP / operativa familiar** | Gestión interna del negocio (stock, caja, procesos del día a día) |
+| [Web pública](https://casa-torino-web.vercel.app) | Carta y demanda |
+| **Reservas (este módulo)** | Captura y agenda del personal |
+| [ERP](https://casa-torino-app.vercel.app) | Oficina / control |
 
-Este proyecto **no sustituye** esas piezas: las **complementa**.
-
-### Problema real
-Cuando un cliente se acerca a reservar, el personal necesita anotar la mesa **en segundos**, desde el móvil, sin fricción, y que las **4 personas del equipo** vean lo mismo al instante.
+### Problema
+Cuando un cliente pide mesa, el personal necesita apuntarla **en segundos** desde el móvil, sin fricción, y que las 4 personas del equipo vean lo mismo.
 
 ### Solución
-App web **mobile-first** para el personal:
+- Alta rápida (nombre, personas, día, hora, nota, teléfono opcional)
+- Edición y listados (hoy / todas)
+- Estados: confirmada · hecha · no vino · anulada
+- Acceso por **nombre + PIN** (sin OAuth: prioridad a velocidad en barra)
 
-- Alta rápida de reserva  
-- Edición (hora, personas, datos…)  
-- Lista del día / todas con fecha visible  
-- Estados: confirmada · hecha · no vino · anulada  
-- Acceso simple por nombre + PIN (sin cuentas complejas)
+**Producción:** https://reservas-casatorino.vercel.app  
 
-**Producción (Vercel):** https://reservas-casatorino.vercel.app  
-
-> Acceso del personal por nombre + PIN interno (no público).  
-> Guía de deploy: [`docs/DEPLOY.md`](docs/DEPLOY.md).
+> Acceso interno del personal (no es un booking público de clientes).
 
 ---
 
-## Encaje en el ecosistema Casa Torino
+## Encaje en el ecosistema
 
 ```text
-                    CLIENTES
-                       │
-                       ▼
-        ┌──────────────────────────┐
-        │  Web pública (Vercel)    │  Carta, menú del día, equipo, contacto
-        │  casa-torino-web…        │
-        └────────────┬─────────────┘
-                     │  canal / demanda
-                     ▼
-        ┌──────────────────────────┐
-        │  Reservas (este repo)    │  Captura operativa en sala
-        │  reservas-casatorino…    │  Móvil del personal (Vercel)
-        └────────────┬─────────────┘
-                     │  datos de ocupación / servicio
-                     ▼
-        ┌──────────────────────────┐
-        │  ERP familiar existente  │  Operativa, control interno,
-        │  (negocio)               │  continuidad del día a día
-        └──────────────────────────┘
+        Web pública  ──demanda──►  Reservas (sala)  ──ocupación──►  ERP
 ```
 
-**Para reclutadores:** es un ejemplo de producto **pequeño, desplegado y usado de verdad**, uniendo UX simple + API serverless + necesidad de negocio familiar.
-
----
-
-## Capturas / vídeo (pendiente)
-
-Las capturas y GIFs se añadirán aquí:
-
-| Media | Descripción | Archivo |
-|--------|-------------|---------|
-| Login personal | Selector de persona + PIN | `docs/assets/01-login.png` *(próximamente)* |
-| Alta rápida | Formulario móvil | `docs/assets/02-nueva-reserva.png` *(próximamente)* |
-| Lista “Todas” | Fecha + hora visibles | `docs/assets/03-lista-todas.png` *(próximamente)* |
-| Edición | Cambio de hora / personas | `docs/assets/04-editar.gif` *(próximamente)* |
-
-Plantilla y naming: [`docs/MEDIA.md`](docs/MEDIA.md).
+Para portfolio: producto **pequeño, desplegado y usado de verdad** (UX simple + API serverless + necesidad real).
 
 ---
 
 ## Funcionalidades
 
-- [x] Login local del personal (4 perfiles + PIN)
-- [x] Crear reserva (nombre, teléfono opcional, personas, día, hora, nota)
-- [x] Editar reserva existente
-- [x] Ver hoy / ver todas (con **fecha visible** en listado)
+- [x] Login local del personal (perfiles + PIN)
+- [x] Crear / editar reserva
+- [x] Ver hoy / ver todas (fecha visible)
 - [x] Cambiar estado (Hecha / No vino / Anular)
 - [x] Acceso WhatsApp al teléfono del cliente
-- [x] API serverless en Vercel (`/api/reservas`)
-- [x] Deploy en Vercel (producción)
+- [x] API serverless (`/api/reservas`)
+- [x] Persistencia estable (**Vercel Edge Config**)
+- [x] Healthcheck (`/api/reservas-health`)
 
 ---
 
@@ -106,83 +63,74 @@ Plantilla y naming: [`docs/MEDIA.md`](docs/MEDIA.md).
 | Capa | Tecnología |
 |------|------------|
 | UI | React 19 + TypeScript + Vite |
-| Estilos | CSS propio (mobile-first, identidad Casa Torino) |
+| Estilos | CSS propio (mobile-first) |
 | Routing | React Router |
-| API | Vercel Serverless Functions (`/api/reservas`) |
-| Persistencia | Store HTTP remoto (CrudCrud; sustituible por Blob/KV) |
-| Hosting | Vercel |
-| Auth personal | PIN por perfil (sin OAuth, a propósito: simplicidad en sala) |
+| API | Vercel Serverless (`api/`) |
+| Persistencia | **Vercel Edge Config** (clave `reservas`) |
+| Hosting | Vercel · proyecto `reservas-casatorino` · Root Directory = `reservas` |
+| Auth | PIN por perfil |
+
+> Nota histórica: se abandonó CrudCrud (límite ~100 req/día). Ver anti-regresión en [`../docs/reservas-ANTI-REGRESION.md`](../docs/reservas-ANTI-REGRESION.md).
 
 ---
 
-## Estructura del proyecto
+## Estructura
 
 ```text
-casa-torino-reservas/
-├── docs/                  # Producto, arquitectura, media
-├── api/                   # Vercel Serverless (listado, alta, edición)
-├── server/                # Helpers compartidos + API local Express
-├── public/                # Logo y estáticos
+reservas/
+├── docs/                 # Producto, arquitectura, deploy, media
+├── api/                  # Serverless Vercel
+├── server/               # Store Edge Config + servidor local
 ├── src/
-│   ├── components/        # Topbar
-│   ├── lib/api.ts         # Cliente HTTP
-│   ├── pages/StaffPage.tsx
-│   ├── config.ts          # Negocio + personal + PIN
-│   └── ...
+│   ├── components/
+│   ├── pages/
+│   ├── lib/api.ts
+│   └── config.ts
 ├── vercel.json
-└── README.md              # Este documento
+└── README.md
 ```
 
-Más detalle: [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) · [`docs/PRODUCTO.md`](docs/PRODUCTO.md) · [`docs/DEPLOY.md`](docs/DEPLOY.md)
+Detalle: [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) · [`docs/PRODUCTO.md`](docs/PRODUCTO.md) · [`docs/DEPLOY.md`](docs/DEPLOY.md)
 
 ---
 
-## Cómo ejecutarlo en local
+## Local
+
+Desde la raíz del monorepo:
 
 ```bash
-cd casa-torino-reservas
+cd reservas
 npm install
-npm run build
-npm run preview
+npm run dev          # Vite + API local
+# o
+npm run build && npm run preview
 ```
 
-Desarrollo con Vite + API local:
-
-```bash
-npm run dev
-```
-
-En producción la app llama a `/api/reservas` en el mismo dominio (Vercel).
-
-### Deploy en Vercel
-
-```bash
-cd casa-torino-reservas
-npx vercel login
-npx vercel --prod
-```
-
-Opcional: variable de entorno `RESERVAS_STORE_URL` para el endpoint de persistencia.
+Variables: `reservas/.env.example` → `.env.local` / Vercel  
+(`RESERVAS_EDGE_CONFIG_ID`, `RESERVAS_TEAM_ID`, `RESERVAS_VERCEL_TOKEN`).
 
 ---
 
-## Decisiones de diseño (resumen)
+## Deploy
 
-1. **Personal primero, no cliente final** → reduce pasos en el momento de la reserva presencial.  
-2. **PIN simple vs Google Auth** → prioridad a velocidad en barra/sala.  
-3. **Serverless + store remoto** → sin servidor que mantener para un negocio pequeño.  
-4. **Extensión, no monolito** → respeta web pública y ERP ya existentes.  
-5. **Web principal en Vercel** → la inauguración Netlify queda solo como archivo histórico.
+Proyecto Vercel: `reservas-casatorino` (Root Directory `reservas`).  
+Push a `main` en este monorepo redeploya solo si cambian archivos bajo `reservas/`.
+
+Guía: [`docs/DEPLOY.md`](docs/DEPLOY.md).
+
+---
+
+## Decisiones de diseño
+
+1. **Personal primero** — menos pasos en la reserva presencial.  
+2. **PIN simple** — velocidad en sala frente a OAuth.  
+3. **Serverless + Edge Config** — sin servidor que mantener.  
+4. **Extensión, no monolito** — respeta web y ERP.  
 
 ---
 
 ## Autor
 
-**Sebastián Olaya Tamayo** — módulo del ecosistema [`CasaTorinoApp`](https://github.com/Sebastian-Tamayo/CasaTorinoApp): transición L3 → DevOps/Cloud → producto/negocio.
+**Sebastián Olaya Tamayo** — módulo del ecosistema [CasaTorinoApp](https://github.com/Sebastian-Tamayo/CasaTorinoApp).
 
----
-
-## Licencia / uso
-
-Proyecto de portfolio y uso interno del negocio familiar Casa Torino.  
-No redistribuir credenciales de producción.
+Uso interno + portfolio. No redistribuir credenciales de producción.
