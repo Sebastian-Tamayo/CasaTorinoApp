@@ -120,6 +120,22 @@
           "categoryType": "comida"
         },
         {
+          "id": "picoteo-pincho",
+          "name": "Pincho",
+          "price": 2.0,
+          "desc": "",
+          "base": "Pincho",
+          "categoryType": "comida"
+        },
+        {
+          "id": "picoteo-bocata",
+          "name": "Bocata",
+          "price": 3.0,
+          "desc": "",
+          "base": "Bocata",
+          "categoryType": "comida"
+        },
+        {
           "id": "picoteo-papa-rellena",
           "name": "Papa rellena",
           "price": 3.0,
@@ -762,11 +778,19 @@
           "categoryType": "bebida"
         },
         {
-          "id": "bebidas-agua",
-          "name": "Agua",
-          "price": 1.5,
-          "desc": "Botella",
-          "base": "Agua",
+          "id": "bebidas-agua-media",
+          "name": "Agua 1/2",
+          "price": 1.2,
+          "desc": "Botella 1/2 L",
+          "base": "Agua 1/2",
+          "categoryType": "bebida"
+        },
+        {
+          "id": "bebidas-agua-1l",
+          "name": "Agua 1L",
+          "price": 1.7,
+          "desc": "Botella 1 L",
+          "base": "Agua 1L",
           "categoryType": "bebida"
         },
         {

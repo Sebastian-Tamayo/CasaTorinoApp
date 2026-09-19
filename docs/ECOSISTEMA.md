@@ -17,6 +17,6 @@ Cliente web (clara) → Gestión interna (PIN)
 | Reservas | Vercel Edge Config (`reservas/server/reservas-store.js`) |
 | ERP gastos/RRHH/docs | Supabase tablas ERP |
 
-Carta/precios: fuente única `web/data/carta.json` (web pública + TPV).
+Carta/precios: fuente viva **Supabase `ops_kv` clave `carta`** (`GET/POST /api/carta`); fallback y semilla en `web/data/carta.json` (web pública + TPV).
 
 Deploy: ver [`DEPLOY-CHECKLIST.md`](DEPLOY-CHECKLIST.md).

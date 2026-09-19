@@ -38,7 +38,7 @@
       --shadow: 0 18px 50px rgba(0,0,0,.45);
     }
     * { box-sizing: border-box; }
-    html { height: 100%; touch-action: pan-y; }
+    html { height: 100%; touch-action: pan-y; color-scheme: dark; }
     html, body { max-width: 100%; }
     body {
       margin: 0;
@@ -492,6 +492,7 @@
       padding: .55rem .65rem; border-radius: 12px;
       background: rgba(245,197,24,.07); border: 1px solid rgba(245,197,24,.28);
     }
+    .sel-summary[hidden] { display: none !important; }
     .sel-summary .tax-row { display: flex; justify-content: space-between; gap: .5rem; font-size: .82rem; font-weight: 700; }
     .sel-summary .tax-row strong { font-variant-numeric: tabular-nums; color: var(--gold); }
     .sel-summary .hint { margin: .15rem 0 0; font-size: .72rem; color: var(--muted); font-weight: 600; }
@@ -603,8 +604,14 @@
       text-transform: uppercase; letter-spacing: .04em; margin-bottom: .15rem;
     }
     .pay-box input {
-      width: 100%; border: 0; background: transparent; color: var(--ink);
+      width: 100%; border: 0; background: transparent;
+      color: var(--ink); -webkit-text-fill-color: var(--ink);
+      caret-color: var(--ink);
       font-weight: 800; font-size: 1.1rem; outline: none;
+      color-scheme: dark;
+    }
+    .pay-box input::placeholder {
+      color: var(--muted); -webkit-text-fill-color: var(--muted); opacity: 1;
     }
     .cambio strong { color: var(--ok); font-size: 1.15rem; font-variant-numeric: tabular-nums; }
     .actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .45rem; }
@@ -1176,6 +1183,65 @@
     }
     .jornada-row:last-child { border-bottom: 0; }
     .jornada-row em { color: var(--muted); font-style: normal; font-weight: 600; font-size: .78rem; }
+    .jornada-card input,
+    .jornada-card select,
+    .jornada-card textarea {
+      color: #f5f7fb !important;
+      -webkit-text-fill-color: #f5f7fb !important;
+      caret-color: #f5f7fb;
+      color-scheme: dark;
+    }
+    .jornada-card input::placeholder,
+    .jornada-card textarea::placeholder {
+      color: #8b98a8 !important;
+      -webkit-text-fill-color: #8b98a8 !important;
+      opacity: 1;
+    }
+    .jornada-card select option {
+      background: #151c26;
+      color: #f5f7fb;
+    }
+    /* Cobrar: método + importe (evitar texto negro del <select> nativo Windows) */
+    .pay-add-row {
+      display: flex; gap: .45rem; flex-wrap: wrap; align-items: stretch;
+    }
+    .pay-method-seg {
+      display: inline-flex; flex: 1 1 9rem; min-width: 9rem; min-height: 44px;
+      border-radius: 12px; border: 1px solid var(--line2); overflow: hidden;
+      background: #0b0f14;
+    }
+    .pay-method-seg button {
+      flex: 1; border: 0; margin: 0; padding: .45rem .55rem;
+      background: transparent; color: #f5f7fb !important;
+      -webkit-text-fill-color: #f5f7fb !important;
+      font: inherit; font-weight: 800; font-size: .9rem; cursor: pointer;
+    }
+    .pay-method-seg button.on {
+      background: var(--gold); color: #111 !important;
+      -webkit-text-fill-color: #111 !important;
+    }
+    #payAddAmount.pay-add-amount,
+    input#payAddAmount {
+      flex: 1 1 6rem; min-width: 6rem; min-height: 44px;
+      border-radius: 12px; border: 1px solid var(--line2);
+      background: #0b0f14 !important;
+      color: #ffffff !important;
+      -webkit-text-fill-color: #ffffff !important;
+      caret-color: #ffffff !important;
+      padding: .5rem .75rem; font-weight: 800; font-size: 1.05rem;
+      outline: none; color-scheme: dark;
+    }
+    #payAddAmount.pay-add-amount::placeholder,
+    input#payAddAmount::placeholder {
+      color: #8b98a8 !important;
+      -webkit-text-fill-color: #8b98a8 !important;
+      opacity: 1;
+    }
+    #payTip {
+      background: #0b0f14 !important;
+      color: #ffffff !important;
+      -webkit-text-fill-color: #ffffff !important;
+    }
     .jornada-hint {
       margin: 0 0 .65rem; padding: .55rem .7rem;
       border-radius: 12px; font-size: .78rem; font-weight: 650; line-height: 1.35;
@@ -1473,12 +1539,13 @@
       <div class="jornada-sec">
         <h4>Pagos</h4>
         <div id="payList" style="display:grid;gap:.45rem;margin-bottom:.65rem"></div>
-        <div style="display:flex;gap:.45rem;flex-wrap:wrap;align-items:stretch">
-          <select id="payAddMethod" style="flex:1;min-width:7rem;min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg-2);padding:.4rem .6rem;font-weight:700">
-            <option value="efectivo">Efectivo</option>
-            <option value="tarjeta">Tarjeta</option>
-          </select>
-          <input type="text" id="payAddAmount" inputmode="decimal" enterkeyhint="done" placeholder="Importe" autocomplete="off" spellcheck="false" style="flex:1;min-width:6rem;min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg-2);padding:.5rem .75rem;font-weight:800;font-size:1.05rem" />
+        <div class="pay-add-row">
+          <input type="hidden" id="payAddMethod" value="efectivo" />
+          <div class="pay-method-seg" role="group" aria-label="Forma de pago">
+            <button type="button" class="on" data-pay-method="efectivo">Efectivo</button>
+            <button type="button" data-pay-method="tarjeta">Tarjeta</button>
+          </div>
+          <input type="text" id="payAddAmount" class="pay-add-amount" inputmode="decimal" enterkeyhint="done" placeholder="Importe" autocomplete="off" spellcheck="false" />
           <button type="button" class="btn-j start" id="payAddBtn" style="flex:0 0 auto"><i class="fa-solid fa-plus"></i> Añadir</button>
         </div>
         <div style="display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.55rem">
@@ -1493,7 +1560,7 @@
       </div>
       <div class="jornada-sec">
         <h4>Propina (opcional)</h4>
-        <input type="number" id="payTip" min="0" step="0.10" inputmode="decimal" placeholder="0,00" style="width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg-2);padding:.5rem .75rem;font-weight:700;font-size:1.05rem" />
+        <input type="number" id="payTip" min="0" step="0.10" inputmode="decimal" placeholder="0,00" style="width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:#0b0f14;color:#fff;-webkit-text-fill-color:#fff;padding:.5rem .75rem;font-weight:700;font-size:1.05rem" />
       </div>
       <div class="close-row" style="gap:.5rem">
         <button type="button" id="payCancel">Cancelar</button>
@@ -2544,13 +2611,24 @@
         setQty(id, state.cart[id].qty - 1)
       }
 
+      function resetSelSummaryUi() {
+        if ($('selTotal')) $('selTotal').textContent = money(0)
+        if ($('selRemain')) $('selRemain').textContent = money(0)
+        if ($('selSummary')) $('selSummary').hidden = true
+      }
+
       function clearCart() {
-        if (!lines().length) return
+        if (!lines().length) {
+          clearPaySelect()
+          resetSelSummaryUi()
+          return
+        }
         const m = normalizeMesa(state.mesa)
         const label = m ? ` de la mesa ${m}` : ''
         if (!confirm(`¿Vaciar la cuenta${label}?`)) return
         state.cart = {}; state.hist = []; state.notes = ''
         clearPaySelect()
+        resetSelSummaryUi()
         if ($('notes')) $('notes').value = ''
         if ($('paid')) $('paid').value = ''
         persist(); render(); closeTicket()
@@ -2766,6 +2844,14 @@
         }
       }
 
+      function setPayAddMethod(method) {
+        const m = method === 'tarjeta' ? 'tarjeta' : 'efectivo'
+        if ($('payAddMethod')) $('payAddMethod').value = m
+        document.querySelectorAll('.pay-method-seg [data-pay-method]').forEach((btn) => {
+          btn.classList.toggle('on', btn.getAttribute('data-pay-method') === m)
+        })
+      }
+
       function closePayModal() {
         const modal = $('payModal')
         if (modal) modal.hidden = true
@@ -2915,7 +3001,7 @@
         }
         if ($('payTip')) $('payTip').value = ''
         if ($('payAddAmount')) $('payAddAmount').value = ''
-        if ($('payAddMethod')) $('payAddMethod').value = 'efectivo'
+        setPayAddMethod('efectivo')
         payDraft = {
           totalCents: toCents(scope.total),
           payments: [],
@@ -3219,8 +3305,9 @@
       function renderTicket() {
         clampPaySelect()
         const { ls, total, count, base, iva } = totals()
+        if (!count) clearPaySelect()
         const scope = chargeScope()
-        const hasSel = scope.mode === 'selection'
+        const hasSel = count > 0 && scope.mode === 'selection'
         const m = normalizeMesa(state.mesa || $('mesa')?.value)
         $('btnUndo').disabled = !state.hist.length
         $('fabCount').textContent = String(count)
@@ -3230,10 +3317,12 @@
         $('total').textContent = money(total)
         if ($('fabMesa')) $('fabMesa').textContent = m ? `Mesa ${m}` : ''
         if ($('selSummary')) {
-          $('selSummary').hidden = !hasSel
           if (hasSel) {
+            $('selSummary').hidden = false
             if ($('selTotal')) $('selTotal').textContent = money(scope.total)
             if ($('selRemain')) $('selRemain').textContent = money(scope.remainTotal)
+          } else {
+            resetSelSummaryUi()
           }
         }
         if ($('btnTicket')) {
@@ -3768,6 +3857,11 @@
       $('payCancel')?.addEventListener('click', () => { closePayModal() })
       $('payBack')?.addEventListener('click', () => { closePayModal() })
       $('payConfirm')?.addEventListener('click', () => { confirmPay() })
+      document.querySelector('.pay-method-seg')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-pay-method]')
+        if (!btn) return
+        setPayAddMethod(btn.getAttribute('data-pay-method'))
+      })
       $('payAddBtn')?.addEventListener('click', () => {
         const method = $('payAddMethod')?.value || 'efectivo'
         let amount = parsePayAmount($('payAddAmount')?.value)

@@ -56,4 +56,10 @@ No redirigir `git show ... > archivo` en PowerShell (escribe UTF-16 y rompe tild
 
 Fuente preferente: Supabase `ops_kv` clave `carta` vía `GET /api/carta`
 (fallback `web/data/carta.json`). TPV (`carta.js` + `tpv-data.js`) y web pública (`carta-public.js`).
-Para sembrar/actualizar sin redeploy (sesión TPV): `POST /api/carta` `{ "action":"seed" }` o `upsertItem`.
+
+Para actualizar en producción (header `X-Tpv-Key` o sesión TPV):
+- `POST /api/carta` `{ "action":"put", "carta": { ... } }` — reemplazo completo (altas/bajas)
+- `POST /api/carta` `{ "action":"seed" }` — copia el JSON del deploy a Supabase
+- `POST /api/carta` `{ "action":"upsertItem", "categoryId":"…", "item":{…} }` — un producto
+
+Tras cambiar `web/data/carta.json`, conviene `put`/`seed` + redeploy para alinear fallback HTML.

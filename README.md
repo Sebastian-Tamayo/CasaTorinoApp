@@ -25,19 +25,22 @@ El ecosistema se divide en los siguientes módulos para producción:
 
 > **Aviso:** Este repositorio es el backup continuo del software operativo. Nunca subas PINs, tokens ni `.env` reales a GitHub[cite: 1]. 
 
-### Estado actual (15 sep 2026)[cite: 1]
+### Estado actual (19 sep 2026)
 
-**Carta / precios**[cite: 1]
-- Menú entre semana: español 14 € · colombiano 13 €[cite: 1]
-- Fin de semana: español 18 € · colombiano 15 €[cite: 1]
-- Refrescos 2,50 €[cite: 1]
-- Categoría Cafés separada de bebidas (café, café con leche, infusión, té frío)[cite: 1]
+**Carta / precios**
+- Menú entre semana: español 14 € · colombiano 13 €
+- Fin de semana: español 18 € · colombiano 15 €
+- Refrescos 2,50 € · Chupito 2,50 €
+- Picoteo: Pincho 2 € · Bocata 3 €
+- Agua: 1/2 L a 1,20 € · 1 L a 1,70 € (retirada botella genérica a 1,50 €)
+- Categoría Cafés separada de bebidas (café, café con leche, infusión, té frío)
 
 **Operativa TPV**
 - Precio editable en la cuenta solo en menús y en productos Varios / libre
 - Sync / jornada / cocina vía Supabase `ops_kv` (`web/api/_opsStore.js`)
 - Carta única: Supabase `ops_kv` clave `carta` (`GET /api/carta`, fallback `web/data/carta.json`)
 - Cobro con efectivo/tarjeta (+ propina opcional) → cierres con desglose
+- Cobro parcial por selección de productos en mesa (pagos divididos)
 - Menús del día: filtro automático semana/finde (Europe/Madrid), override en TPV
 
 ### Histórico de cocina
