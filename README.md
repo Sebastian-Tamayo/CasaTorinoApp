@@ -36,7 +36,7 @@ El ecosistema se divide en los siguientes módulos para producción:
 **Operativa TPV**
 - Precio editable en la cuenta solo en menús y en productos Varios / libre
 - Sync / jornada / cocina vía Supabase `ops_kv` (`web/api/_opsStore.js`)
-- Carta única: `web/data/carta.json` (web pública + TPV)
+- Carta única: Supabase `ops_kv` clave `carta` (`GET /api/carta`, fallback `web/data/carta.json`)
 - Cobro con efectivo/tarjeta (+ propina opcional) → cierres con desglose
 - Menús del día: filtro automático semana/finde (Europe/Madrid), override en TPV
 
