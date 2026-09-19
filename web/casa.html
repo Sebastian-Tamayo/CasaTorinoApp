@@ -373,6 +373,63 @@
     </div>
   </footer>
 
+  <!-- Evento Día del Amor y la Amistad — visible hasta sáb 19 sep 2026 23:55 Madrid -->
+  <div id="eventoAmorAmistad" class="evento-amor" hidden>
+    <div class="evento-amor__backdrop" data-evento-close></div>
+    <div class="evento-amor__panel" role="dialog" aria-modal="true" aria-labelledby="eventoAmorTitle">
+      <button type="button" class="evento-amor__close" data-evento-close aria-label="Cerrar evento">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div class="evento-amor__media">
+        <video
+          id="eventoAmorVideo"
+          class="evento-amor__video"
+          poster="assets/evento-amor-amistad.jpg"
+          playsinline
+          muted
+          loop
+          preload="metadata"
+        >
+          <source src="assets/evento-amor-amistad.mp4" type="video/mp4" />
+        </video>
+        <img
+          class="evento-amor__poster"
+          src="assets/evento-amor-amistad.jpg"
+          alt="Día del Amor y la Amistad — Menú Colombiano especial en Casa Torino"
+          width="1080"
+          height="1920"
+        />
+      </div>
+      <div class="evento-amor__copy">
+        <p class="eyebrow gold">Hoy sábado</p>
+        <h2 id="eventoAmorTitle">Día del Amor y la Amistad</h2>
+        <p class="evento-amor__lead">
+          Menú Colombiano especial · <strong>22,50&nbsp;€</strong>.
+          Celebra con nosotros en Ceares hasta las 23:55.
+        </p>
+        <div class="evento-amor__actions">
+          <a
+            class="btn btn-gold"
+            href="https://wa.me/34612254719?text=Hola%2C%20quiero%20reservar%20para%20el%20D%C3%ADa%20del%20Amor%20y%20la%20Amistad"
+            target="_blank"
+            rel="noopener"
+          >
+            <i class="fa-brands fa-whatsapp"></i> Reservar mesa
+          </a>
+          <a
+            class="btn btn-outline"
+            href="https://www.facebook.com/profile.php?id=61572881816775"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <i class="fa-solid fa-play"></i> Ver el vídeo
+          </a>
+          <button type="button" class="btn btn-outline" data-evento-close>Entrar a la web</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="main.js"></script>
   <script src="carta.js"></script>
   <script src="carta-public.js"></script>

@@ -38,3 +38,60 @@ const initial =
   cartaBlocks[0]?.id
 
 if (initial) showCarta(initial)
+
+/* Día del Amor y la Amistad — activo hasta sáb 19 sep 2026 23:55 Madrid (CEST) */
+;(function initEventoAmorAmistad() {
+  const END_MS = Date.parse('2026-09-19T23:55:00+02:00')
+  const root = document.getElementById('eventoAmorAmistad')
+  if (!root) return
+
+  const video = document.getElementById('eventoAmorVideo')
+  const poster = root.querySelector('.evento-amor__poster')
+
+  function closeEvento() {
+    root.hidden = true
+    document.body.classList.remove('evento-amor-open')
+    if (video) {
+      try { video.pause() } catch (_) {}
+    }
+  }
+
+  function openEvento() {
+    root.hidden = false
+    document.body.classList.add('evento-amor-open')
+    if (video) {
+      const tryPlay = () => {
+        const p = video.play()
+        if (p && typeof p.then === 'function') {
+          p.then(() => {
+            if (poster) poster.hidden = true
+            video.classList.add('is-playing')
+          }).catch(() => {
+            /* sin autoplay o sin mp4: se queda el cartel */
+          })
+        }
+      }
+      video.addEventListener('loadeddata', tryPlay, { once: true })
+      if (video.readyState >= 2) tryPlay()
+    }
+  }
+
+  root.querySelectorAll('[data-evento-close]').forEach((el) => {
+    el.addEventListener('click', closeEvento)
+  })
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !root.hidden) closeEvento()
+  })
+
+  function sync() {
+    if (Date.now() >= END_MS) {
+      closeEvento()
+      return false
+    }
+    return true
+  }
+
+  if (sync()) openEvento()
+  setInterval(sync, 30000)
+})()

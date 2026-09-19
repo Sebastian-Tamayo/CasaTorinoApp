@@ -543,3 +543,80 @@ a { color: inherit; }
   .brand span { font-size: .92rem; }
   .hero-logo { width: 88px; height: 88px; }
 }
+
+/* —— Evento Día del Amor y la Amistad (hasta 2026-09-19 23:55 Madrid) —— */
+body.evento-amor-open { overflow: hidden; }
+.evento-amor {
+  position: fixed; inset: 0; z-index: 80;
+  display: grid; place-items: center;
+  padding: 1rem;
+}
+.evento-amor[hidden] { display: none !important; }
+.evento-amor__backdrop {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(700px 420px at 20% 10%, rgba(241,196,15,.22), transparent 55%),
+    radial-gradient(640px 380px at 90% 80%, rgba(200,16,46,.18), transparent 50%),
+    rgba(12, 28, 56, 0.72);
+  backdrop-filter: blur(6px);
+}
+.evento-amor__panel {
+  position: relative; z-index: 1;
+  width: min(920px, 100%);
+  max-height: min(92vh, 920px);
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 0;
+  background: linear-gradient(165deg, #fffdf6 0%, #fff8e8 55%, #f7f0e0 100%);
+  border: 1px solid rgba(241,196,15,.45);
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 28px 60px rgba(12, 28, 56, 0.35);
+  animation: eventoAmorIn .55s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes eventoAmorIn {
+  from { opacity: 0; transform: translateY(18px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+.evento-amor__close {
+  position: absolute; top: .75rem; right: .75rem; z-index: 2;
+  width: 2.4rem; height: 2.4rem; border-radius: 999px;
+  border: 1px solid var(--line); background: rgba(255,253,246,.92);
+  color: var(--ink); cursor: pointer; display: grid; place-items: center;
+}
+.evento-amor__close:hover { background: #fff; border-color: var(--gold-2); }
+.evento-amor__media {
+  position: relative; min-height: 280px; background: #0c1c38;
+  overflow: hidden;
+}
+.evento-amor__video,
+.evento-amor__poster {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+.evento-amor__video { opacity: 0; transition: opacity .35s ease; }
+.evento-amor__video.is-playing { opacity: 1; }
+.evento-amor__video.is-playing + .evento-amor__poster { opacity: 0; }
+.evento-amor__copy {
+  padding: 1.6rem 1.5rem 1.5rem;
+  display: flex; flex-direction: column; justify-content: center; gap: .85rem;
+}
+.evento-amor__copy h2 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(1.55rem, 3.2vw, 2.15rem);
+  line-height: 1.15; color: var(--ink);
+}
+.evento-amor__lead { color: var(--muted); font-size: .98rem; }
+.evento-amor__lead strong { color: var(--red); font-weight: 800; }
+.evento-amor__actions {
+  display: flex; flex-wrap: wrap; gap: .65rem; margin-top: .35rem;
+}
+@media (max-width: 760px) {
+  .evento-amor__panel {
+    grid-template-columns: 1fr;
+    max-height: min(94vh, 860px);
+  }
+  .evento-amor__media { min-height: 42vh; max-height: 48vh; }
+  .evento-amor__copy { padding: 1.15rem 1.1rem 1.25rem; }
+}
