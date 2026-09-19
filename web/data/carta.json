@@ -880,6 +880,14 @@
           "desc": "Cerveza de cañón",
           "base": "Cañón",
           "categoryType": "bebida"
+        },
+        {
+          "id": "bebidas-chupito",
+          "name": "Chupito",
+          "price": 2.5,
+          "desc": "",
+          "base": "Chupito",
+          "categoryType": "bebida"
         }
       ]
     },
