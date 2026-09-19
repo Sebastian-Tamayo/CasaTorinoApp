@@ -1,4 +1,4 @@
-/* Renderiza carta pública desde data/carta.json (misma fuente que el TPV). */
+/* Renderiza carta pública (misma fuente que el TPV: /api/carta → fallback JSON). */
 (() => {
   const money = (n) =>
     Number(n).toLocaleString('es-ES', {
@@ -84,11 +84,25 @@
     })
   }
 
+  async function loadCartaData() {
+    try {
+      const r = await fetch('/api/carta', {
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+      })
+      if (r.ok) return r.json()
+    } catch (err) {
+      console.warn('[carta pública] api', err)
+    }
+    const r2 = await fetch('data/carta.json', { cache: 'no-store' })
+    if (!r2.ok) return null
+    return r2.json()
+  }
+
   async function boot() {
     try {
-      const r = await fetch('data/carta.json', { cache: 'no-store' })
-      if (!r.ok) return
-      const data = await r.json()
+      const data = await loadCartaData()
+      if (!data) return
       fillMenuDia(data)
       fillCarta(data)
     } catch (err) {

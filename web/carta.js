@@ -1,8 +1,12 @@
 /**
- * Casa Torino — carga carta única (data/carta.json) + filtro menú semana/finde/festivo.
+ * Casa Torino — carga carta única + filtro menú semana/finde/festivo.
+ * Preferente: /api/carta (Supabase ops_kv). Fallback: data/carta.json.
  */
 (() => {
-  const CARTA_URL = 'data/carta.json'
+  const CARTA_API = '/api/carta'
+  const CARTA_FILE = 'data/carta.json'
+  /** @deprecated usar CARTA_API; se mantiene por compat */
+  const CARTA_URL = CARTA_API
 
   function madridParts(ts = Date.now()) {
     const fmt = new Intl.DateTimeFormat('en-CA', {
@@ -89,9 +93,18 @@
   }
 
   async function loadCarta() {
-    const r = await fetch(CARTA_URL, { cache: 'no-store' })
-    if (!r.ok) throw new Error('carta ' + r.status)
-    return r.json()
+    try {
+      const r = await fetch(CARTA_API, {
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+      })
+      if (r.ok) return r.json()
+    } catch (err) {
+      console.warn('[carta] api', err)
+    }
+    const r2 = await fetch(CARTA_FILE, { cache: 'no-store' })
+    if (!r2.ok) throw new Error('carta ' + r2.status)
+    return r2.json()
   }
 
   window.CasaTorinoCarta = {
@@ -103,5 +116,7 @@
     festivoSet,
     madridParts,
     CARTA_URL,
+    CARTA_API,
+    CARTA_FILE,
   }
 })()

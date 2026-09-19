@@ -54,4 +54,6 @@ No redirigir `git show ... > archivo` en PowerShell (escribe UTF-16 y rompe tild
 
 ## Carta única
 
-Fuente: `web/data/carta.json` → TPV (`carta.js` + `tpv-data.js`) y web pública (`carta-public.js`).
+Fuente preferente: Supabase `ops_kv` clave `carta` vía `GET /api/carta`
+(fallback `web/data/carta.json`). TPV (`carta.js` + `tpv-data.js`) y web pública (`carta-public.js`).
+Para sembrar/actualizar sin redeploy (sesión TPV): `POST /api/carta` `{ "action":"seed" }` o `upsertItem`.

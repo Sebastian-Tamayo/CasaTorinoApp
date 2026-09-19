@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    for (const key of ['kitchen', 'tpv', 'jornada', 'cierres']) {
+    for (const key of ['kitchen', 'tpv', 'jornada', 'cierres', 'carta']) {
       try {
         const v = await getJson(key, null, { fresh: true })
         report.keys[key] = {

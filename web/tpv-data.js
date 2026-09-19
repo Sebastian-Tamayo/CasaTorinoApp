@@ -1,5 +1,6 @@
 /**
- * Compat TPV: expone window.TPV_CATALOG desde data/carta.json.
+ * Compat TPV: expone window.TPV_CATALOG desde /api/carta (Supabase)
+ * con fallback a data/carta.json vía carta.js.
  * Debe cargarse antes del script inline de tpv.html (defer + await boot).
  */
 window.TPV_CATALOG = window.TPV_CATALOG || []
