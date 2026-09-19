@@ -38,20 +38,3 @@ const initial =
   cartaBlocks[0]?.id
 
 if (initial) showCarta(initial)
-
-/* Post Día del Amor y la Amistad — activo hasta sáb 19 sep 2026 23:55 Madrid (CEST) */
-;(function initEventoAmorAmistad() {
-  const END_MS = Date.parse('2026-09-19T23:55:00+02:00')
-  const root = document.getElementById('evento-amor-amistad')
-  if (!root) return
-
-  function sync() {
-    const active = Date.now() < END_MS
-    root.hidden = !active
-    document.body.classList.toggle('has-destacado-amor', active)
-    return active
-  }
-
-  sync()
-  setInterval(sync, 30000)
-})()
