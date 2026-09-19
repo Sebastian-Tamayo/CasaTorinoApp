@@ -1,11 +1,8 @@
 # Archivo — Web de inauguración
 
-Landing original de apertura (Netlify).
+Landing de apertura (también en Netlify histórico: https://casatorino.netlify.app).
 
-**Histórico:** https://casatorino.netlify.app  
+**Temporal en producción:** la home `https://casa-torino-web.vercel.app/` redirige aquí
+**hasta el sábado 19 de septiembre de 2026 a las 23:55 (hora Madrid)**.
 
-Ya **no** es la web principal del negocio. La web pública vigente está en la raíz de `web/` y en producción:
-
-https://casa-torino-web.vercel.app
-
-Se conserva aquí como archivo / portfolio de la inauguración.
+Después, la home pasa automáticamente a `casa.html` (web pública vigente).

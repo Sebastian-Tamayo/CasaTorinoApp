@@ -687,7 +687,7 @@
     <!-- Header / Navbar -->
     <header>
         <div class="nav-container">
-            <a href="#" class="logo-text"><img src="assets/logo.jpeg" alt="Casa Torino" class="logo-img"></a>
+            <a href="../../casa.html" class="logo-text"><img src="logo.jpeg" alt="Casa Torino" class="logo-img"></a>
             <div class="flags-badge">
                 🇨🇴 Colombia &nbsp;|&nbsp; 🇪🇸 España
             </div>
@@ -697,7 +697,7 @@
     <!-- Hero Section -->
     <section class="hero">
         <div class="hero-content">
-            <img src="assets/logo.jpeg" alt="Casa Torino - Sabor que deja huella" class="hero-logo">
+            <img src="logo.jpeg" alt="Casa Torino - Sabor que deja huella" class="hero-logo">
             <div class="badge-fusion">
                 <i class="fa-solid fa-utensils"></i> Fusión Colombo-Asturiana
             </div>
@@ -734,8 +734,11 @@
             </div>
 
             <div class="cta-group">
-                <a href="https://wa.me/34612254719?text=Hola,%20quiero%20reservar%20para%20la%20inauguracion%20del%2012%20de%20septiembre" class="btn-primary" target="_blank">
+                <a href="https://wa.me/34612254719?text=Hola,%20quiero%20reservar%20mesa%20en%20Casa%20Torino" class="btn-primary" target="_blank">
                     <i class="fa-brands fa-whatsapp"></i> Reservar por WhatsApp (612 254 719)
+                </a>
+                <a href="../../casa.html" class="btn-primary" style="background:transparent;border:2px solid #FFCD00;margin-left:.5rem">
+                    <i class="fa-solid fa-utensils"></i> Ver la carta / web
                 </a>
                 <a href="#historia" class="btn-secondary">
                     <i class="fa-solid fa-book-open"></i> Nuestra Historia
@@ -890,33 +893,44 @@
         </div>
     </footer>
 
-    <!-- JavaScript Countdown Logic -->
+    <!-- Disponible en la home hasta sáb 19 sep 2026 23:55 Madrid; luego → casa.html -->
     <script>
-        // Set target date to September 12 at 12:00 PM
-        const targetDate = new Date("September 12, 2026 12:00:00").getTime();
+        const PAGE_END_MS = Date.parse('2026-09-19T23:55:00+02:00')
 
-        function updateCountdown() {
-            const now = new Date().getTime();
-            const difference = targetDate - now;
-
-            if (difference > 0) {
-                const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-                const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-                const seconds = Math.floor((difference % (1000 * 60)) / 1000);
-
-                document.getElementById("days").innerText = days < 10 ? '0' + days : days;
-                document.getElementById("hours").innerText = hours < 10 ? '0' + hours : hours;
-                document.getElementById("minutes").innerText = minutes < 10 ? '0' + minutes : minutes;
-                document.getElementById("seconds").innerText = seconds < 10 ? '0' + seconds : seconds;
-            } else {
-                document.querySelector(".countdown-title").innerText = "¡HOY ES LA GRAN INAUGURACIÓN!";
-                document.querySelector(".countdown").innerHTML = "<h3 style='color:#FFCD00; font-size: 1.5rem;'>¡TE ESPERAMOS A PARTIR DE LAS 12:00H!</h3>";
+        function maybeExpireToCasa() {
+            if (Date.now() >= PAGE_END_MS) {
+                location.replace('../../casa.html')
             }
         }
 
-        setInterval(updateCountdown, 1000);
-        updateCountdown();
+        maybeExpireToCasa()
+        setInterval(maybeExpireToCasa, 30000)
+
+        const targetDate = PAGE_END_MS
+
+        function updateCountdown() {
+            const now = Date.now()
+            const difference = targetDate - now
+
+            if (difference > 0) {
+                const days = Math.floor(difference / (1000 * 60 * 60 * 24))
+                const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+                const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60))
+                const seconds = Math.floor((difference % (1000 * 60)) / 1000)
+
+                const title = document.querySelector('.countdown-title')
+                if (title) title.innerText = 'Esta página está activa hasta:'
+                document.getElementById('days').innerText = days < 10 ? '0' + days : String(days)
+                document.getElementById('hours').innerText = hours < 10 ? '0' + hours : String(hours)
+                document.getElementById('minutes').innerText = minutes < 10 ? '0' + minutes : String(minutes)
+                document.getElementById('seconds').innerText = seconds < 10 ? '0' + seconds : String(seconds)
+            } else {
+                location.replace('../../casa.html')
+            }
+        }
+
+        setInterval(updateCountdown, 1000)
+        updateCountdown()
     </script>
 </body>
 </html>
