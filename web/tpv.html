@@ -457,10 +457,44 @@
       padding: .35rem .75rem .75rem;
     }
     .line {
-      display: grid; grid-template-columns: 1fr auto; gap: .4rem .7rem;
+      display: grid; grid-template-columns: auto 1fr auto; gap: .4rem .55rem;
       padding: .75rem .55rem; border-radius: 14px;
       border-bottom: 1px solid rgba(255,255,255,.04);
+      align-items: start;
     }
+    .line.selected {
+      background: rgba(245,197,24,.08);
+      box-shadow: inset 0 0 0 1px rgba(245,197,24,.35);
+    }
+    .line-sel {
+      width: 2rem; height: 2rem; border-radius: 10px;
+      border: 1.5px solid var(--line2); background: #0f1620;
+      color: transparent; display: grid; place-items: center;
+      cursor: pointer; flex: 0 0 auto; margin-top: .15rem;
+      padding: 0;
+    }
+    .line.selected .line-sel {
+      background: var(--gold); border-color: var(--gold); color: #111;
+    }
+    .line-sel i { font-size: .85rem; }
+    .sel-qty {
+      display: inline-flex; align-items: center; gap: .35rem;
+      margin-top: .35rem; font-size: .72rem; font-weight: 700; color: var(--muted);
+    }
+    .sel-qty button {
+      width: 1.7rem; height: 1.7rem; border-radius: 8px;
+      border: 1px solid var(--line2); background: #0f1620; color: var(--ink);
+      font-weight: 800; cursor: pointer; padding: 0;
+    }
+    .sel-qty strong { color: var(--gold); font-variant-numeric: tabular-nums; min-width: 1rem; text-align: center; }
+    .sel-summary {
+      display: grid; gap: .25rem; margin: .35rem 0 .55rem;
+      padding: .55rem .65rem; border-radius: 12px;
+      background: rgba(245,197,24,.07); border: 1px solid rgba(245,197,24,.28);
+    }
+    .sel-summary .tax-row { display: flex; justify-content: space-between; gap: .5rem; font-size: .82rem; font-weight: 700; }
+    .sel-summary .tax-row strong { font-variant-numeric: tabular-nums; color: var(--gold); }
+    .sel-summary .hint { margin: .15rem 0 0; font-size: .72rem; color: var(--muted); font-weight: 600; }
     .line:nth-child(odd) { background: rgba(255,255,255,.02); }
     .line-name { font-weight: 700; font-size: .9rem; line-height: 1.25; }
     .line-meta { color: var(--muted); font-size: .72rem; font-weight: 600; margin-top: .15rem; }
@@ -1326,7 +1360,12 @@
             <div class="tax-row"><span>Base imponible</span><strong id="base">0,00 €</strong></div>
             <div class="tax-row"><span>IVA 10%</span><strong id="iva">0,00 €</strong></div>
           </div>
-          <div class="total-row main"><span>Total (IVA incl.)</span><strong id="total">0,00 €</strong></div>
+          <div class="total-row main"><span>Total mesa</span><strong id="total">0,00 €</strong></div>
+          <div class="sel-summary" id="selSummary" hidden>
+            <div class="tax-row"><span>Selección a cobrar</span><strong id="selTotal">0,00 €</strong></div>
+            <div class="tax-row"><span>Queda en mesa</span><strong id="selRemain">0,00 €</strong></div>
+            <p class="hint">Marca productos (puedes cobrar 1 de 2). Ticket y Cobrar actúan solo sobre la selección.</p>
+          </div>
           <div class="tender" id="tender">
             <button type="button" data-cash="10">10 €</button>
             <button type="button" data-cash="20">20 €</button>
@@ -1347,8 +1386,8 @@
             <button class="btn k" id="btnKitchen" type="button"><i class="fa-solid fa-fire-burner"></i> Enviar a Cocina</button>
             <button class="btn k" id="btnNextCourse" type="button" hidden style="background:linear-gradient(180deg,#f59e0b,#d97706);"><i class="fa-solid fa-bell"></i> Siguiente plato</button>
             <button class="btn g" id="btnClear2" type="button">Vaciar</button>
-            <button class="btn t" id="btnTicket" type="button"><i class="fa-solid fa-receipt"></i> Ticket</button>
-            <button class="btn p" id="btnDone" type="button">Cobrar</button>
+            <button class="btn t" id="btnTicket" type="button"><i class="fa-solid fa-receipt"></i> Ticket todo</button>
+            <button class="btn p" id="btnDone" type="button">Cobrar todo</button>
           </div>
         </div>
       </aside>
@@ -1763,6 +1802,8 @@
         hist: [],
         tables: {},
         jornada: null,
+        /** qty seleccionada por línea para ticket/cobro parcial { [cartKey]: number } */
+        paySelect: {},
       }
       const IVA_RATE = 0.10 // hostelería: comidas y bebidas 10%
 
@@ -2093,6 +2134,7 @@
         state.mesa = next
         syncMesaInputs(next)
         loadMesaIntoState(next)
+        clearPaySelect()
         persist()
         render()
       }
@@ -2136,6 +2178,116 @@
           iva,
           ivaRate: IVA_RATE,
         }
+      }
+
+      function lineKeyOf(l) {
+        return l.key || cartKeyFor(l.productId || l.id, l.note)
+      }
+
+      function clearPaySelect() {
+        state.paySelect = {}
+      }
+
+      function clampPaySelect() {
+        const next = {}
+        for (const l of lines()) {
+          const key = lineKeyOf(l)
+          const max = Math.max(0, Number(l.qty) || 0)
+          const sel = Math.min(Math.max(0, Number(state.paySelect[key]) || 0), max)
+          if (sel > 0) next[key] = sel
+        }
+        state.paySelect = next
+      }
+
+      function selectedQtyOf(key) {
+        return Math.max(0, Number(state.paySelect[key]) || 0)
+      }
+
+      function hasPaySelection() {
+        clampPaySelect()
+        return Object.keys(state.paySelect).length > 0
+      }
+
+      function togglePaySelect(key) {
+        const line = state.cart[key]
+        if (!line) return
+        const max = Math.max(0, Number(line.qty) || 0)
+        if (max <= 0) return
+        if (selectedQtyOf(key) > 0) delete state.paySelect[key]
+        else state.paySelect[key] = max
+        renderTicket()
+      }
+
+      function setPaySelectQty(key, qty) {
+        const line = state.cart[key]
+        if (!line) return
+        const max = Math.max(0, Number(line.qty) || 0)
+        const n = Math.max(0, Math.min(max, Math.round(Number(qty) || 0)))
+        if (n <= 0) delete state.paySelect[key]
+        else state.paySelect[key] = n
+        renderTicket()
+      }
+
+      /** Líneas + totales del cobro/ticket actual (selección o cuenta entera). */
+      function chargeScope() {
+        clampPaySelect()
+        const all = totals()
+        if (!hasPaySelection()) {
+          return {
+            mode: 'all',
+            ls: all.ls,
+            count: all.count,
+            total: all.total,
+            base: all.base,
+            iva: all.iva,
+            tableTotal: all.total,
+            remainTotal: 0,
+          }
+        }
+        const ls = []
+        for (const l of all.ls) {
+          const key = lineKeyOf(l)
+          const qty = selectedQtyOf(key)
+          if (qty <= 0) continue
+          ls.push({ ...l, key, qty })
+        }
+        const totalCents = ls.reduce(
+          (a, x) => a + toCents(x.price) * (Number(x.qty) || 0),
+          0,
+        )
+        const total = fromCents(totalCents)
+        const base = round2(total / (1 + IVA_RATE))
+        const iva = round2(total - base)
+        const remainCents = toCents(all.total) - totalCents
+        return {
+          mode: 'selection',
+          ls,
+          count: ls.reduce((a, x) => a + (Number(x.qty) || 0), 0),
+          total,
+          base,
+          iva,
+          tableTotal: all.total,
+          remainTotal: fromCents(Math.max(0, remainCents)),
+        }
+      }
+
+      /** Quita de la cuenta las uds cobradas (selección). */
+      function removeChargedFromCart(chargedLines) {
+        for (const cl of chargedLines || []) {
+          const key = lineKeyOf(cl)
+          const line = state.cart[key]
+          if (!line) continue
+          const payQty = Math.max(0, Number(cl.qty) || 0)
+          const left = Math.max(0, (Number(line.qty) || 0) - payQty)
+          if (left <= 0) {
+            delete state.cart[key]
+            state.hist = state.hist.filter((h) => h !== key)
+            continue
+          }
+          line.qty = left
+          if ((Number(line.sentQty) || 0) > left) line.sentQty = left
+        }
+        clearPaySelect()
       }
 
       function categoryTypeOf(itemOrLine) {
@@ -2374,12 +2526,15 @@
 
       function setQty(id, qty) {
         if (!state.cart[id]) return
-        if (qty <= 0) delete state.cart[id]
-        else {
+        if (qty <= 0) {
+          delete state.cart[id]
+          if (state.paySelect) delete state.paySelect[id]
+        } else {
           state.cart[id].qty = qty
           // Si bajan unidades ya enviadas, ajustar sentQty
           if ((state.cart[id].sentQty || 0) > qty) state.cart[id].sentQty = qty
         }
+        clampPaySelect()
         persist(); render()
       }
 
@@ -2395,6 +2550,7 @@
         const label = m ? ` de la mesa ${m}` : ''
         if (!confirm(`¿Vaciar la cuenta${label}?`)) return
         state.cart = {}; state.hist = []; state.notes = ''
+        clearPaySelect()
         if ($('notes')) $('notes').value = ''
         if ($('paid')) $('paid').value = ''
         persist(); render(); closeTicket()
@@ -2471,24 +2627,24 @@
       }
 
       async function printTicketOnly() {
-        const { ls, total, count, base, iva } = totals()
-        if (!count) {
+        const scope = chargeScope()
+        if (!scope.count) {
           alert('La cuenta está vacía.')
           return
         }
         const m = normalizeMesa(state.mesa)
         const notes = ($('notes')?.value || state.notes || '').trim()
-        const cartItems = ls.map((l) => ({ name: l.name, qty: l.qty, price: l.price }))
+        const cartItems = scope.ls.map((l) => ({ name: l.name, qty: l.qty, price: l.price }))
         const paidRaw = $('paid')?.value || ''
         const paid = parseFloat(String(paidRaw).replace(',', '.'))
         const meta = {
           mesa: m || undefined,
           notes: notes || undefined,
-          base,
-          iva,
+          base: scope.base,
+          iva: scope.iva,
           ivaRate: IVA_RATE,
           paid: Number.isFinite(paid) ? paid : undefined,
-          change: Number.isFinite(paid) ? paid - total : undefined,
+          change: Number.isFinite(paid) ? paid - scope.total : undefined,
           openDrawer: false,
         }
         const btn = $('btnTicket')
@@ -2498,7 +2654,7 @@
             alert('Servicio de impresión no cargado.\nRecarga la página.')
             return
           }
-          await window.CasaTorinoPrint.printReceipt(cartItems, total, meta)
+          await window.CasaTorinoPrint.printReceipt(cartItems, scope.total, meta)
         } finally {
           if (btn) btn.disabled = false
         }
@@ -2702,7 +2858,9 @@
         const btn = $('payConfirm')
         if (btn) {
           btn.disabled = !exact
-          btn.textContent = 'Cerrar mesa'
+          btn.textContent = payDraft.mode === 'selection' && Number(payDraft.remainCents || 0) > 0
+            ? 'Cobrar selección'
+            : 'Cerrar mesa'
         }
         if ($('payAddAmount') && document.activeElement !== $('payAddAmount')) {
           const rem = payRemaining()
@@ -2738,19 +2896,42 @@
       }
 
       async function done() {
-        const { ls, total, count, base, iva } = totals()
-        if (!count) return
+        const scope = chargeScope()
+        if (!scope.count) {
+          alert('La cuenta está vacía.')
+          return
+        }
         const m = normalizeMesa(state.mesa)
         const mesaTxt = m ? `Mesa ${m} · ` : ''
-        if ($('payGrand')) $('payGrand').textContent = money(total)
+        const isSel = scope.mode === 'selection'
+        if ($('payModalTitle')) {
+          $('payModalTitle').textContent = isSel ? 'Cobrar selección' : 'Cobrar'
+        }
+        if ($('payGrand')) $('payGrand').textContent = money(scope.total)
         if ($('payModalSub')) {
-          $('payModalSub').textContent =
-            `${mesaTxt}IVA 10%: ${money(iva)} · puedes dividir el cobro`
+          $('payModalSub').textContent = isSel
+            ? `${mesaTxt}${scope.count} ud. · queda en mesa ${money(scope.remainTotal)} · puedes dividir el cobro`
+            : `${mesaTxt}IVA 10%: ${money(scope.iva)} · puedes dividir el cobro`
         }
         if ($('payTip')) $('payTip').value = ''
         if ($('payAddAmount')) $('payAddAmount').value = ''
         if ($('payAddMethod')) $('payAddMethod').value = 'efectivo'
-        payDraft = { totalCents: toCents(total), payments: [] }
+        payDraft = {
+          totalCents: toCents(scope.total),
+          payments: [],
+          mode: scope.mode,
+          remainCents: toCents(scope.remainTotal),
+          lines: scope.ls.map((l) => ({
+            key: lineKeyOf(l),
+            id: l.id,
+            name: l.name,
+            qty: l.qty,
+            price: l.price,
+            catId: l.catId || '',
+            categoryType: categoryTypeOf(l),
+            note: l.note || '',
+          })),
+        }
         paintPayModal()
         const modal = $('payModal')
         if (modal) modal.hidden = false
@@ -2758,21 +2939,44 @@
       }
 
       async function confirmPay() {
-        const { ls, total, count, base, iva } = totals()
-        if (!count) return
         if (!payExact() || !payDraft.payments.length) {
-          alert('Los pagos deben sumar exactamente el total de la cuenta.')
+          alert('Los pagos deben sumar exactamente el importe a cobrar.')
           paintPayModal()
           return
         }
-        // Re-sincronizar céntimos por si el total de la cuenta cambió
-        if (toCents(total) !== (Number(payDraft.totalCents) || 0)) {
-          alert('El total de la cuenta ha cambiado. Vuelve a repartir los pagos.')
-          payDraft = { totalCents: toCents(total), payments: [] }
-          if ($('payGrand')) $('payGrand').textContent = money(total)
+        const scopeNow = chargeScope()
+        if (!scopeNow.count) {
+          alert('La cuenta está vacía.')
+          return
+        }
+        // La selección / total no debe haber cambiado desde que se abrió el modal
+        if (toCents(scopeNow.total) !== (Number(payDraft.totalCents) || 0)) {
+          alert('El importe a cobrar ha cambiado. Vuelve a repartir los pagos.')
+          payDraft.totalCents = toCents(scopeNow.total)
+          payDraft.payments = []
+          payDraft.mode = scopeNow.mode
+          payDraft.remainCents = toCents(scopeNow.remainTotal)
+          payDraft.lines = scopeNow.ls.map((l) => ({
+            key: lineKeyOf(l),
+            id: l.id,
+            name: l.name,
+            qty: l.qty,
+            price: l.price,
+            catId: l.catId || '',
+            categoryType: categoryTypeOf(l),
+            note: l.note || '',
+          }))
+          if ($('payGrand')) $('payGrand').textContent = money(scopeNow.total)
           paintPayModal()
           return
         }
+
+        const chargeLines = Array.isArray(payDraft.lines) && payDraft.lines.length
+          ? payDraft.lines
+          : scopeNow.ls
+        const total = fromCents(Number(payDraft.totalCents) || 0)
+        const base = round2(total / (1 + IVA_RATE))
+        const iva = round2(total - base)
         const payments = payDraft.payments.map((p) => ({
           id: p.id,
           method: p.method === 'tarjeta' ? 'tarjeta' : 'efectivo',
@@ -2784,17 +2988,18 @@
         const tipRaw = Number(String($('payTip')?.value || '').replace(',', '.'))
         const tip = Number.isFinite(tipRaw) && tipRaw > 0 ? round2(tipRaw) : 0
         const m = normalizeMesa(state.mesa)
+        const isPartial = payDraft.mode === 'selection' && (Number(payDraft.remainCents) || 0) > 0
         const modal = $('payModal')
         if (modal) modal.hidden = true
 
         if (!(await ensureJornadaOpenForSale())) return
 
-        const saleLines = ls.map((l) => ({
+        const saleLines = chargeLines.map((l) => ({
           id: l.id,
           name: l.name,
           qty: l.qty,
           price: l.price,
-          categoryType: categoryTypeOf(l),
+          categoryType: l.categoryType || categoryTypeOf(l),
           catId: l.catId || '',
           catName: catNameOf(l.catId),
         }))
@@ -2848,27 +3053,30 @@
           writeLastCharge(null)
         }
 
-        // Si hay pago dividido, imprimir ticket con desglose.
-        // Pago único: el ticket se saca antes con el botón Ticket.
-        if (payments.length > 1 && window.CasaTorinoPrint?.printReceipt) {
-          try {
-            const cartItems = ls.map((l) => ({ name: l.name, qty: l.qty, price: l.price }))
-            const notes = ($('notes')?.value || state.notes || '').trim()
-            await window.CasaTorinoPrint.printReceipt(cartItems, total, {
-              mesa: m || undefined,
-              notes: notes || undefined,
-              base,
-              iva,
-              ivaRate: IVA_RATE,
-              payments,
-              openDrawer: false,
-            })
-          } catch (err) {
-            console.warn('print after split pay', err)
+        // Ticket siempre opcional: usar el botón Ticket antes o después. No auto-imprimir.
+
+        if (isPartial || payDraft.mode === 'selection') {
+          removeChargedFromCart(chargeLines)
+          if ($('paid')) $('paid').value = ''
+          const still = Object.keys(state.cart).length > 0
+          if (m) {
+            state.tables[m] = {
+              cart: state.cart,
+              hist: state.hist,
+              notes: state.notes || '',
+              paid: '',
+            }
           }
+          payDraft = { totalCents: 0, payments: [] }
+          persist()
+          render()
+          if (!still) closeTicket()
+          paintUndoChargeBtn()
+          return
         }
 
         state.cart = {}; state.hist = []; state.notes = ''
+        clearPaySelect()
         if ($('notes')) $('notes').value = ''
         if ($('paid')) $('paid').value = ''
         if (m) state.tables[m] = { cart: {}, hist: [], notes: '', paid: '' }
@@ -3009,7 +3217,10 @@
       }
 
       function renderTicket() {
+        clampPaySelect()
         const { ls, total, count, base, iva } = totals()
+        const scope = chargeScope()
+        const hasSel = scope.mode === 'selection'
         const m = normalizeMesa(state.mesa || $('mesa')?.value)
         $('btnUndo').disabled = !state.hist.length
         $('fabCount').textContent = String(count)
@@ -3018,12 +3229,30 @@
         if ($('iva')) $('iva').textContent = money(iva)
         $('total').textContent = money(total)
         if ($('fabMesa')) $('fabMesa').textContent = m ? `Mesa ${m}` : ''
+        if ($('selSummary')) {
+          $('selSummary').hidden = !hasSel
+          if (hasSel) {
+            if ($('selTotal')) $('selTotal').textContent = money(scope.total)
+            if ($('selRemain')) $('selRemain').textContent = money(scope.remainTotal)
+          }
+        }
+        if ($('btnTicket')) {
+          $('btnTicket').innerHTML = hasSel
+            ? '<i class="fa-solid fa-receipt"></i> Ticket selección'
+            : '<i class="fa-solid fa-receipt"></i> Ticket todo'
+        }
+        if ($('btnDone')) {
+          $('btnDone').textContent = hasSel ? 'Cobrar selección' : 'Cobrar todo'
+        }
         updateNextCourseBtn()
         $('lines').innerHTML = ls.length
           ? ls.map((l) => {
               const ctype = categoryTypeOf(l)
               const sent = Number(l.sentQty || 0)
               const key = l.key || cartKeyFor(l.productId || l.id, l.note)
+              const selQty = selectedQtyOf(key)
+              const selected = selQty > 0
+              const sumQty = selected ? selQty : Number(l.qty) || 0
               const tags = [
                 ctype === 'bebida'
                   ? '<span class="tag-drink">barra</span>'
@@ -3049,15 +3278,27 @@
                     <em>€ / ud.</em>
                   </div>`
                 : `<div class="line-meta">${money(l.price)} · ud.</div>`
-              return `<div class="line" data-key="${key}">
+              const selQtyUi = selected && Number(l.qty) > 1
+                ? `<div class="sel-qty">Cobrar
+                    <button type="button" data-sel-act="-" data-sel-key="${key}" aria-label="Menos a cobrar">−</button>
+                    <strong>${selQty}</strong>
+                    <button type="button" data-sel-act="+" data-sel-key="${key}" aria-label="Más a cobrar">+</button>
+                    de ${l.qty}
+                  </div>`
+                : (selected ? `<div class="sel-qty">En selección</div>` : '')
+              return `<div class="line${selected ? ' selected' : ''}" data-key="${key}">
+              <button type="button" class="line-sel" data-sel-toggle="${key}" aria-label="Seleccionar para cobrar" aria-pressed="${selected ? 'true' : 'false'}">
+                <i class="fa-solid fa-check" aria-hidden="true"></i>
+              </button>
               <div>
                 <div class="line-name">${l.name}${tags}</div>
                 ${priceBlock}
                 ${note}
                 ${pickBtn}
+                ${selQtyUi}
               </div>
               <div class="line-right">
-                <div class="line-sum">${money(l.price * l.qty)}</div>
+                <div class="line-sum">${money(l.price * sumQty)}</div>
                 <div class="q">
                   <button type="button" data-act="-" data-id="${key}" aria-label="Quitar">−</button>
                   <span>${l.qty}</span>
@@ -3415,7 +3656,20 @@
         }
         const item = all().find((x) => x.id === b.dataset.id); if (item) add(item)
       })
-      bindTap($('lines'), '[data-pick], button[data-act]', (_e, el) => {
+      bindTap($('lines'), '[data-pick], button[data-act], [data-sel-toggle], [data-sel-act]', (_e, el) => {
+        if (el.hasAttribute('data-sel-toggle')) {
+          togglePaySelect(el.getAttribute('data-sel-toggle'))
+          return
+        }
+        if (el.hasAttribute('data-sel-act')) {
+          const key = el.getAttribute('data-sel-key')
+          const line = state.cart[key]
+          if (!line) return
+          const cur = selectedQtyOf(key) || Number(line.qty) || 0
+          const next = el.getAttribute('data-sel-act') === '+' ? cur + 1 : cur - 1
+          setPaySelectQty(key, next)
+          return
+        }
         if (el.hasAttribute('data-pick')) {
           const key = el.dataset.pick
           const line = state.cart[key]
