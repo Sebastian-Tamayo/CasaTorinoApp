@@ -11,7 +11,7 @@
  *    (ver assets/qz/LEEME-QUITAR-AVISO.txt)
  */
 (() => {
-  const BUILD_TICKET = 'cols28-left-20260918'
+  const BUILD_TICKET = 'cols28-total-below-20260919'
   const PRINTER_NAME = 'POS-58'
   const PRINTER_ALIASES = [
     /^POS-58$/i,
@@ -243,7 +243,9 @@
     data.push(padRow('IVA ' + Math.round(ivaRate * 100) + '%', money(iva) + ' E') + ESC.LF)
     data.push(ESC.BOLD_ON)
     data.push(ESC.SIZE_DOUBLE)
-    data.push(padRow('TOTAL', money(total)) + ESC.LF)
+    // En ancho doble (58 mm) no cabe label+importe a la derecha: importe debajo.
+    data.push('TOTAL' + ESC.LF)
+    data.push(money(total) + ESC.LF)
     data.push(ESC.SIZE_NORMAL)
     data.push(ESC.BOLD_OFF)
 

@@ -92,21 +92,13 @@ module.exports = async function handler(req, res) {
         const incomingDay = body.opsDay ? String(body.opsDay) : null
         const incomingTables =
           body.tables && typeof body.tables === 'object' ? body.tables : {}
-        const incomingCount = Object.keys(incomingTables).length
 
-        // Cliente de otro día (o legacy sin opsDay con mesas) no puede
-        // repoblar tras la limpieza de las 09:00.
+        // Cliente de otro día no puede repoblar tras la limpieza de las 09:00.
         if (incomingDay && incomingDay !== serverDay) {
           return { ...rolled, opsDay: serverDay }
         }
-        if (!incomingDay && incomingCount > 0 && serverDay === day) {
-          // Legacy: solo aceptar si el servidor aún no ha sellado un purge
-          // (mesas no vacías) o si gana LWW sobre estado no vacío.
-          const serverCount = Object.keys(rolled.tables || {}).length
-          if (serverCount === 0 && Number(rolled.updatedAt || 0) > 0) {
-            return { ...rolled, opsDay: serverDay }
-          }
-        }
+        // Si el cliente manda mesas del día actual (con o sin opsDay),
+        // aceptar por LWW — no bloquear restauración tras refresh.
 
         if (Number(rolled.updatedAt || 0) > incomingAt) {
           return { ...rolled, opsDay: serverDay }

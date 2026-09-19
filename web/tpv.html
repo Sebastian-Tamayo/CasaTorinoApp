@@ -1609,7 +1609,7 @@
   <script src="carta.js"></script>
   <script src="tpv-data.js"></script>
   <script src="printService.js"></script>
-  <script src="tpvSync.js"></script>
+  <script src="tpvSync.js?v=hydrate-20260919"></script>
   <script src="tpvJornada.js"></script>
   <script src="kitchenSync.js"></script>
   <script>
@@ -2146,9 +2146,32 @@
         if ($('mesaTop') && $('mesaTop').value !== val) $('mesaTop').value = val
       }
 
+      function readTablesStore() {
+        try {
+          const raw =
+            localStorage.getItem(KEY) ||
+            sessionStorage.getItem(KEY) ||
+            '{}'
+          const d = JSON.parse(raw)
+          return d && typeof d === 'object' ? d : {}
+        } catch {
+          return {}
+        }
+      }
+
+      function writeTablesStore(payload) {
+        const raw = JSON.stringify(payload)
+        try {
+          localStorage.setItem(KEY, raw)
+        } catch {}
+        try {
+          sessionStorage.setItem(KEY, raw)
+        } catch {}
+      }
+
       function load() {
         try {
-          const d = JSON.parse(sessionStorage.getItem(KEY) || '{}')
+          const d = readTablesStore()
           if (d.tables && typeof d.tables === 'object') state.tables = d.tables
           if (d.mesa) {
             state.mesa = normalizeMesa(d.mesa)
@@ -2168,7 +2191,7 @@
             paid: $('paid')?.value || '',
           }
         }
-        sessionStorage.setItem(KEY, JSON.stringify({ mesa: m, tables: state.tables }))
+        writeTablesStore({ mesa: m, tables: state.tables })
         // Sync entre móvil y PC (misma cuenta por nº de mesa)
         try {
           window.CasaTorinoTpvSync?.push(state.tables, m)
@@ -4049,19 +4072,74 @@
         () => lockTpvForPin('Sesión caducada — introduce el PIN'),
       )
 
-      window.CasaTorinoTpvSync?.start(
-        (remote) => {
-          const prevJson = JSON.stringify(state.tables)
-          const nextJson = JSON.stringify(remote.tables || {})
-          if (prevJson === nextJson) return
-          state.tables = remote.tables || {}
+      ;(async () => {
+        // Hidratar ANTES del polling: merge local↔remoto (no borrar mesas al refrescar)
+        try {
+          const hydrated = await window.CasaTorinoTpvSync?.hydrate?.(
+            state.tables,
+            normalizeMesa(state.mesa),
+          )
+          if (hydrated && hydrated.tables) {
+            state.tables = hydrated.tables
+            const m = normalizeMesa(state.mesa || hydrated.mesa)
+            if (m) {
+              state.mesa = m
+              syncMesaInputs(m)
+              loadMesaIntoState(m)
+            }
+            writeTablesStore({ mesa: m || '', tables: state.tables })
+            render()
+          }
+        } catch (err) {
+          console.warn('tpv hydrate', err)
+        }
+
+        window.CasaTorinoTpvSync?.start(
+          (remote) => {
+            const merged = window.CasaTorinoTpvSync.mergeTables
+              ? window.CasaTorinoTpvSync.mergeTables(state.tables, remote.tables || {})
+              : { tables: remote.tables || {}, keptLocal: false }
+            const nextTables = merged.tables || remote.tables || {}
+            const prevJson = JSON.stringify(state.tables)
+            const nextJson = JSON.stringify(nextTables)
+            if (prevJson === nextJson) return
+            state.tables = nextTables
+            const m = normalizeMesa(state.mesa)
+            if (m) loadMesaIntoState(m)
+            writeTablesStore({ mesa: m, tables: state.tables })
+            render()
+            if (merged.keptLocal) {
+              try {
+                window.CasaTorinoTpvSync?.push(state.tables, m)
+              } catch {}
+            }
+          },
+          () => lockTpvForPin('Sesión caducada — introduce el PIN'),
+          {
+            skipInitialTick: true,
+            getLocalSnapshot: () => ({
+              tables: state.tables,
+              mesa: normalizeMesa(state.mesa),
+            }),
+          },
+        )
+      })()
+
+      window.addEventListener('pagehide', () => {
+        try {
           const m = normalizeMesa(state.mesa)
-          if (m) loadMesaIntoState(m)
-          sessionStorage.setItem(KEY, JSON.stringify({ mesa: m, tables: state.tables }))
-          render()
-        },
-        () => lockTpvForPin('Sesión caducada — introduce el PIN'),
-      )
+          if (m) {
+            state.tables[m] = {
+              cart: state.cart,
+              hist: state.hist,
+              notes: ($('notes')?.value || state.notes || '').trim(),
+              paid: $('paid')?.value || '',
+            }
+          }
+          writeTablesStore({ mesa: m || '', tables: state.tables })
+          window.CasaTorinoTpvSync?.flush?.()
+        } catch {}
+      })
 
       // —— Avisos cocina Listo → recoger mesa (cualquier camarero) ——
       const activePickups = new Map() // id -> pickup

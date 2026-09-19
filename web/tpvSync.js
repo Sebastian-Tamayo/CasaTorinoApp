@@ -1,5 +1,8 @@
 /**
  * Casa Torino TPV — sync mesas móvil ↔ PC (endurecido 24/7)
+ * - Nunca deja que un remoto vacío borre mesas locales con productos
+ * - Envía opsDay (09:00 Madrid) para no chocar con el purge diario
+ * - flush() al salir/refrescar para no perder el push pendiente
  */
 (() => {
   const API_URL = '/api/tpv-sync'
@@ -20,9 +23,95 @@
   let heartbeat = null
   let onRemote = null
   let onAuthLost = null
+  let getLocalSnapshot = null
 
   function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms))
+  }
+
+  /** Mismo criterio que web/api/_opsDay.js (día operativo 09:00 Europe/Madrid). */
+  function opsDayId(now = new Date()) {
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Madrid',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      hourCycle: 'h23',
+    })
+    const parts = Object.fromEntries(
+      fmt
+        .formatToParts(now)
+        .filter((p) => p.type !== 'literal')
+        .map((p) => [p.type, p.value]),
+    )
+    let y = Number(parts.year)
+    let m = Number(parts.month)
+    let d = Number(parts.day)
+    const hour = Number(parts.hour)
+    if (hour < 9) {
+      const dt = new Date(Date.UTC(y, m - 1, d))
+      dt.setUTCDate(dt.getUTCDate() - 1)
+      y = dt.getUTCFullYear()
+      m = dt.getUTCMonth() + 1
+      d = dt.getUTCDate()
+    }
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  }
+
+  function cartQty(table) {
+    let n = 0
+    const cart = table && table.cart
+    if (!cart || typeof cart !== 'object') return 0
+    for (const line of Object.values(cart)) n += Math.max(0, Number(line?.qty) || 0)
+    return n
+  }
+
+  function tablesQty(tables) {
+    let n = 0
+    if (!tables || typeof tables !== 'object') return 0
+    for (const t of Object.values(tables)) n += cartQty(t)
+    return n
+  }
+
+  /**
+   * Fusiona mesas: un remoto vacío NUNCA borra mesas locales con productos.
+   * Por mesa: si una está vacía y la otra no, gana la que tiene cuenta.
+   */
+  function mergeTables(localTables, remoteTables) {
+    const local = localTables && typeof localTables === 'object' ? localTables : {}
+    const remote = remoteTables && typeof remoteTables === 'object' ? remoteTables : {}
+    const lTotal = tablesQty(local)
+    const rTotal = tablesQty(remote)
+
+    if (rTotal === 0 && lTotal > 0) {
+      return { tables: local, keptLocal: true }
+    }
+    if (lTotal === 0 && rTotal > 0) {
+      return { tables: remote, keptLocal: false }
+    }
+
+    const keys = new Set([...Object.keys(local), ...Object.keys(remote)])
+    const out = {}
+    let keptLocal = false
+    for (const k of keys) {
+      const L = local[k]
+      const R = remote[k]
+      const lq = cartQty(L)
+      const rq = cartQty(R)
+      if (rq === 0 && lq > 0) {
+        out[k] = L
+        keptLocal = true
+      } else if (lq === 0 && rq > 0) {
+        out[k] = R
+      } else if (R) {
+        out[k] = R
+      } else if (L) {
+        out[k] = L
+        keptLocal = true
+      }
+    }
+    return { tables: out, keptLocal }
   }
 
   async function refreshSession() {
@@ -62,6 +151,7 @@
       kind: 'casa-torino-tpv',
       tables: tables || {},
       mesa: mesa || '',
+      opsDay: opsDayId(),
       updatedAt,
       clientId: CLIENT_ID,
     }
@@ -110,6 +200,45 @@
     }, PUSH_DEBOUNCE_MS)
   }
 
+  /** Empuja al momento (antes de refresh/cerrar pestaña). */
+  async function flush() {
+    if (pushTimer) {
+      clearTimeout(pushTimer)
+      pushTimer = null
+    }
+    const job = pending
+    pending = null
+    if (!job) return null
+    try {
+      return await pushNow(job.tables, job.mesa)
+    } catch (err) {
+      console.warn('[tpvSync] flush', err)
+      return null
+    }
+  }
+
+  function applyRemotePayload(remote) {
+    const localSnap =
+      typeof getLocalSnapshot === 'function' ? getLocalSnapshot() : { tables: {}, mesa: '' }
+    const merged = mergeTables(localSnap.tables || {}, remote.tables || {})
+    const remoteAt = Number(remote?.updatedAt || 0)
+    if (remoteAt > lastRemoteUpdatedAt) lastRemoteUpdatedAt = remoteAt
+
+    if (typeof onRemote === 'function') {
+      onRemote({
+        tables: merged.tables,
+        mesa: remote.mesa || localSnap.mesa || '',
+        updatedAt: remoteAt,
+        keptLocal: merged.keptLocal,
+      })
+    }
+
+    if (merged.keptLocal) {
+      const m = localSnap.mesa || remote.mesa || ''
+      push(merged.tables, m)
+    }
+  }
+
   async function tick() {
     if (polling) return
     polling = true
@@ -124,14 +253,7 @@
       }
 
       if (remoteAt > lastRemoteUpdatedAt && remoteAt > lastLocalWrite) {
-        lastRemoteUpdatedAt = remoteAt
-        if (typeof onRemote === 'function') {
-          onRemote({
-            tables: remote.tables || {},
-            mesa: remote.mesa || '',
-            updatedAt: remoteAt,
-          })
-        }
+        applyRemotePayload(remote)
       } else if (remoteAt > lastRemoteUpdatedAt) {
         lastRemoteUpdatedAt = remoteAt
       }
@@ -142,15 +264,53 @@
     }
   }
 
-  function start(handler, authLostHandler) {
+  /**
+   * Arranque: merge local↔remoto ANTES del polling.
+   * Evita el wipe al refrescar (remoto vacío pisa sessionStorage).
+   */
+  async function hydrate(localTables, localMesa) {
+    try {
+      const remote = await pull()
+      const remoteAt = Number(remote?.updatedAt || 0)
+      if (remoteAt) lastRemoteUpdatedAt = remoteAt
+      const merged = mergeTables(localTables || {}, remote?.tables || {})
+      if (merged.keptLocal || tablesQty(merged.tables) > tablesQty(remote?.tables || {})) {
+        lastLocalWrite = Date.now()
+        try {
+          await pushNow(merged.tables, localMesa || remote?.mesa || '')
+        } catch (err) {
+          console.warn('[tpvSync] hydrate push', err)
+        }
+      }
+      return {
+        tables: merged.tables,
+        mesa: localMesa || remote?.mesa || '',
+        updatedAt: remoteAt,
+        keptLocal: merged.keptLocal,
+      }
+    } catch (err) {
+      console.warn('[tpvSync] hydrate', err)
+      return {
+        tables: localTables || {},
+        mesa: localMesa || '',
+        updatedAt: 0,
+        keptLocal: true,
+      }
+    }
+  }
+
+  function start(handler, authLostHandler, options = {}) {
     onRemote = handler
     onAuthLost = authLostHandler || null
-    tick()
+    getLocalSnapshot =
+      typeof options.getLocalSnapshot === 'function' ? options.getLocalSnapshot : null
     if (timer) clearInterval(timer)
     timer = setInterval(tick, POLL_MS)
     if (heartbeat) clearInterval(heartbeat)
     heartbeat = setInterval(refreshSession, 15 * 60 * 1000)
     refreshSession()
+    // tick inicial solo si no se hidrató fuera
+    if (!options.skipInitialTick) tick()
   }
 
   function stop() {
@@ -162,5 +322,31 @@
     heartbeat = null
   }
 
-  window.CasaTorinoTpvSync = { pull, push, start, stop, tick, refreshSession }
+  window.addEventListener('pagehide', () => {
+    try {
+      flush()
+    } catch {}
+  })
+  window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      try {
+        flush()
+      } catch {}
+    }
+  })
+
+  window.CasaTorinoTpvSync = {
+    pull,
+    push,
+    pushNow,
+    flush,
+    hydrate,
+    mergeTables,
+    tablesQty,
+    opsDayId,
+    start,
+    stop,
+    tick,
+    refreshSession,
+  }
 })()

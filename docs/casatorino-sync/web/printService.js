@@ -242,7 +242,8 @@
     data.push(padRow('IVA ' + Math.round(ivaRate * 100) + '%', money(iva) + ' E') + ESC.LF)
     data.push(ESC.BOLD_ON)
     data.push(ESC.SIZE_DOUBLE)
-    data.push(padRow('TOTAL', money(total)) + ESC.LF)
+    data.push('TOTAL' + ESC.LF)
+    data.push(money(total) + ESC.LF)
     data.push(ESC.SIZE_NORMAL)
     data.push(ESC.BOLD_OFF)
 
