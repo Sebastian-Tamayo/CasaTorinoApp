@@ -56,7 +56,9 @@
           .map((it) => {
             const price = money(it.price)
             const desc = it.desc ? `<span>${it.desc}</span>` : ''
-            return `<li><div class="dish-top"><strong>${it.name}</strong><b class="price">${price}</b></div>${desc}</li>`
+            const star = it.star ? ' class="dish-star"' : ''
+            const badge = it.star ? '<em class="star-badge">Siempre</em>' : ''
+            return `<li${star}><div class="dish-top"><strong>${badge}${it.name}</strong><b class="price">${price}</b></div>${desc}</li>`
           })
           .join('')
         return `<article class="carta-block${featured}${i === 0 ? ' is-active' : ''}" id="${id}">

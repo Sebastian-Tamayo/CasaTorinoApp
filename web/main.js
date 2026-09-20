@@ -38,3 +38,18 @@ const initial =
   cartaBlocks[0]?.id
 
 if (initial) showCarta(initial)
+
+.document.querySelectorAll('[data-carta]').forEach((el) => {
+  el.addEventListener('click', (e) => {
+    const id = el.getAttribute('data-carta')
+    if (!id) return
+    e.preventDefault()
+    const liveNav = document.getElementById('cartaNav')
+    const btn = liveNav?.querySelector(`button[data-target="${id}"]`)
+    if (btn) btn.click()
+    else {
+      showCarta(id)
+      document.getElementById('carta')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  })
+})

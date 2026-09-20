@@ -172,6 +172,112 @@ a { color: inherit; }
 }
 .hero-meta i { color: var(--red); margin-right: .35rem; }
 
+/* —— Estrellas + parking (venta) —— */
+.estrellas {
+  padding-top: 1.5rem;
+  background:
+    linear-gradient(180deg, rgba(241,196,15,.10), transparent 42%),
+    transparent;
+}
+.estrellas-list {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem 1.25rem;
+  margin: 0 0 1.5rem;
+}
+.estrellas-list li {
+  opacity: 0;
+  transform: translateY(14px);
+  animation: estrellaIn .55s ease forwards;
+  animation-delay: calc(var(--i, 0) * .12s + .08s);
+}
+@keyframes estrellaIn {
+  to { opacity: 1; transform: none; }
+}
+.estrellas-list a {
+  display: grid;
+  gap: .35rem;
+  text-decoration: none;
+  color: inherit;
+  padding: .15rem 0 .35rem;
+  border-bottom: 2px solid rgba(200,16,46,.22);
+  transition: border-color .2s ease, transform .2s ease;
+  min-height: 100%;
+}
+.estrellas-list a:hover,
+.estrellas-list a:focus-visible {
+  border-color: var(--red);
+  transform: translateY(-2px);
+  outline: none;
+}
+.estrellas-list em {
+  font-style: normal;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+.estrellas-list strong {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(1.25rem, 2.4vw, 1.55rem);
+  line-height: 1.15;
+  color: var(--ink);
+}
+.estrellas-list span {
+  color: var(--muted);
+  font-size: .88rem;
+  line-height: 1.4;
+}
+.estrellas-list b {
+  margin-top: .25rem;
+  color: var(--gold-2);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+}
+.parking-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+  text-align: center;
+  margin: 0 auto;
+  max-width: 640px;
+  padding: .95rem 1.15rem;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: .98rem;
+  animation: estrellaIn .6s ease .35s both;
+}
+.parking-line i {
+  font-size: 1.45rem;
+  color: var(--blue);
+}
+.parking-line strong { color: var(--blue); font-weight: 800; }
+
+.dish-star {
+  border-color: rgba(200,16,46,.28) !important;
+  background: linear-gradient(135deg, rgba(241,196,15,.14), transparent 55%);
+}
+.dish-star .star-badge,
+.dish-top .star-badge {
+  display: inline-block;
+  margin-right: .4rem;
+  padding: .12rem .4rem;
+  border-radius: 6px;
+  background: var(--red);
+  color: #fffdf8;
+  font-size: .65rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  font-style: normal;
+}
+
 .hero-photo {
   margin: 0;
   justify-self: center;
@@ -506,6 +612,8 @@ a { color: inherit; }
   .hero-logo { margin-left: auto; margin-right: auto; }
   .hero-actions, .hero-meta, .fusion-chips { justify-content: center; }
   .hero-photo, .terraza-media { width: min(100%, 340px); }
+  .estrellas-list { grid-template-columns: 1fr; gap: 1.15rem; }
+  .estrellas-list a { border-bottom-width: 1px; padding-bottom: .75rem; }
   .dish-list { grid-template-columns: 1fr; }
   .carta-nav {
     top: 68px;
