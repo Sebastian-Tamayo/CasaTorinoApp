@@ -1,6 +1,7 @@
 /**
  * Casa Torino TPV — sync mesas móvil ↔ PC (endurecido 24/7)
  * - Nunca deja que un remoto vacío borre mesas locales con productos
+ * - No hace push hasta completar hydrate (evita wipe al refrescar)
  * - Envía opsDay (09:00 Madrid) para no chocar con el purge diario
  * - flush() al salir/refrescar para no perder el push pendiente
  */
@@ -16,6 +17,7 @@
 
   let lastLocalWrite = 0
   let lastRemoteUpdatedAt = 0
+  let lastRemoteQty = 0
   let polling = false
   let pushTimer = null
   let pending = null
@@ -24,6 +26,8 @@
   let onRemote = null
   let onAuthLost = null
   let getLocalSnapshot = null
+  /** Bloquea push hasta hydrate(); evita POST {} al refrescar. */
+  let ready = false
 
   function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms))
@@ -144,7 +148,27 @@
     throw lastErr || new Error('sync GET failed')
   }
 
-  async function pushNow(tables, mesa) {
+  /**
+   * No enviar {} si el servidor (o el último remoto conocido) tiene cuentas.
+   * Los cobros reales mandan claves de mesa con cart vacío — eso sí se permite.
+   */
+  function shouldBlockEmptyPush(tables) {
+    const qty = tablesQty(tables)
+    const keys = tables && typeof tables === 'object' ? Object.keys(tables).length : 0
+    if (qty > 0) return false
+    if (lastRemoteQty > 0 && keys === 0) return true
+    return false
+  }
+
+  async function pushNow(tables, mesa, opts = {}) {
+    if (!ready && !opts.force) {
+      pending = { tables, mesa }
+      return null
+    }
+    if (shouldBlockEmptyPush(tables)) {
+      console.warn('[tpvSync] push bloqueado: no vaciar servidor con {}')
+      return null
+    }
     const updatedAt = Date.now()
     lastLocalWrite = updatedAt
     const body = {
@@ -163,6 +187,7 @@
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
+          keepalive: !!opts.keepalive,
         })
         if (r.status === 401) {
           if (typeof onAuthLost === 'function') onAuthLost()
@@ -173,7 +198,8 @@
         if (!r.ok) throw new Error('sync POST ' + r.status)
         const saved = await r.json().catch(() => body)
         lastRemoteUpdatedAt = Number(saved.updatedAt || updatedAt)
-        refreshSession()
+        lastRemoteQty = tablesQty(saved.tables || tables)
+        if (!opts.keepalive) refreshSession()
         return saved
       } catch (err) {
         lastErr = err
@@ -186,6 +212,7 @@
 
   function push(tables, mesa) {
     pending = { tables, mesa }
+    if (!ready) return
     if (pushTimer) clearTimeout(pushTimer)
     pushTimer = setTimeout(async () => {
       const job = pending
@@ -209,8 +236,9 @@
     const job = pending
     pending = null
     if (!job) return null
+    if (!ready) return null
     try {
-      return await pushNow(job.tables, job.mesa)
+      return await pushNow(job.tables, job.mesa, { keepalive: true })
     } catch (err) {
       console.warn('[tpvSync] flush', err)
       return null
@@ -223,6 +251,7 @@
     const merged = mergeTables(localSnap.tables || {}, remote.tables || {})
     const remoteAt = Number(remote?.updatedAt || 0)
     if (remoteAt > lastRemoteUpdatedAt) lastRemoteUpdatedAt = remoteAt
+    lastRemoteQty = tablesQty(remote.tables || {})
 
     if (typeof onRemote === 'function') {
       onRemote({
@@ -240,7 +269,7 @@
   }
 
   async function tick() {
-    if (polling) return
+    if (polling || !ready) return
     polling = true
     try {
       const remote = await pull()
@@ -249,6 +278,7 @@
 
       if (remote.clientId === CLIENT_ID) {
         if (remoteAt > lastRemoteUpdatedAt) lastRemoteUpdatedAt = remoteAt
+        lastRemoteQty = tablesQty(remote.tables || {})
         return
       }
 
@@ -256,6 +286,7 @@
         applyRemotePayload(remote)
       } else if (remoteAt > lastRemoteUpdatedAt) {
         lastRemoteUpdatedAt = remoteAt
+        lastRemoteQty = tablesQty(remote.tables || {})
       }
     } catch (err) {
       console.warn('[tpvSync]', err)
@@ -265,21 +296,32 @@
   }
 
   /**
-   * Arranque: merge local↔remoto ANTES del polling.
-   * Evita el wipe al refrescar (remoto vacío pisa sessionStorage).
+   * Arranque: merge local↔remoto ANTES del polling / cualquier push.
+   * Evita el wipe al refrescar (POST {} pisa Supabase).
    */
   async function hydrate(localTables, localMesa) {
     try {
       const remote = await pull()
       const remoteAt = Number(remote?.updatedAt || 0)
       if (remoteAt) lastRemoteUpdatedAt = remoteAt
+      lastRemoteQty = tablesQty(remote?.tables || {})
       const merged = mergeTables(localTables || {}, remote?.tables || {})
+      ready = true
       if (merged.keptLocal || tablesQty(merged.tables) > tablesQty(remote?.tables || {})) {
         lastLocalWrite = Date.now()
         try {
-          await pushNow(merged.tables, localMesa || remote?.mesa || '')
+          await pushNow(merged.tables, localMesa || remote?.mesa || '', { force: true })
         } catch (err) {
           console.warn('[tpvSync] hydrate push', err)
+        }
+      } else if (pending) {
+        // Empujar lo que quedó en cola durante el boot (si no era wipe)
+        const job = pending
+        pending = null
+        try {
+          await pushNow(job.tables, job.mesa, { force: true })
+        } catch (err) {
+          console.warn('[tpvSync] hydrate pending', err)
         }
       }
       return {
@@ -290,6 +332,8 @@
       }
     } catch (err) {
       console.warn('[tpvSync] hydrate', err)
+      // Sin remoto: permitir trabajo local, pero push vacío sigue bloqueado si hubo qty remota.
+      ready = true
       return {
         tables: localTables || {},
         mesa: localMesa || '',
@@ -348,5 +392,6 @@
     stop,
     tick,
     refreshSession,
+    isReady: () => ready,
   }
 })()

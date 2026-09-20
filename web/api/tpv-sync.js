@@ -34,6 +34,69 @@ function emptyState() {
   }
 }
 
+function cartQty(table) {
+  let n = 0
+  const cart = table && table.cart
+  if (!cart || typeof cart !== 'object') return 0
+  for (const line of Object.values(cart)) n += Math.max(0, Number(line?.qty) || 0)
+  return n
+}
+
+function tablesQty(tables) {
+  let n = 0
+  if (!tables || typeof tables !== 'object') return 0
+  for (const t of Object.values(tables)) n += cartQty(t)
+  return n
+}
+
+/**
+ * Fusiona mesas en servidor: un POST vacío NUNCA borra cuentas con productos.
+ * Por mesa, si una parte está vacía y la otra no, gana la que tiene cuenta.
+ * Si ambas tienen qty, gana `preferred` (LWW del cliente más reciente).
+ */
+function mergeTables(serverTables, incomingTables, preferIncoming) {
+  const server = serverTables && typeof serverTables === 'object' ? serverTables : {}
+  const incoming =
+    incomingTables && typeof incomingTables === 'object' ? incomingTables : {}
+  const sTotal = tablesQty(server)
+  const iTotal = tablesQty(incoming)
+
+  // Cliente sin mesas (refresh antes de hidratar) no puede vaciar el servidor.
+  if (Object.keys(incoming).length === 0 && sTotal > 0) {
+    return { tables: server, rejectedEmpty: true }
+  }
+  if (iTotal === 0 && sTotal > 0 && !preferIncoming) {
+    return { tables: server, rejectedEmpty: true }
+  }
+  // Preferencia LWW: si el cliente manda todo vacío CON claves de mesa
+  // (cobros reales), se acepta abajo mesa a mesa.
+
+  const keys = new Set([...Object.keys(server), ...Object.keys(incoming)])
+  const out = {}
+  for (const k of keys) {
+    const S = server[k]
+    const I = incoming[k]
+    const sq = cartQty(S)
+    const iq = cartQty(I)
+    if (iq === 0 && sq > 0 && !Object.prototype.hasOwnProperty.call(incoming, k)) {
+      // Mesa solo en servidor: conservar
+      out[k] = S
+    } else if (iq === 0 && sq > 0 && preferIncoming && Object.prototype.hasOwnProperty.call(incoming, k)) {
+      // Cliente vació esa mesa a propósito (cobro / vaciar cuenta)
+      out[k] = I
+    } else if (sq === 0 && iq > 0) {
+      out[k] = I
+    } else if (iq > 0 && sq > 0) {
+      out[k] = preferIncoming ? I : S
+    } else if (I) {
+      out[k] = I
+    } else if (S) {
+      out[k] = S
+    }
+  }
+  return { tables: out, rejectedEmpty: false }
+}
+
 function hasTpvSession(req) {
   const raw = req.headers.cookie || ''
   return raw.split(';').some((c) => c.trim() === 'ct_tpv_session=1')
@@ -97,16 +160,27 @@ module.exports = async function handler(req, res) {
         if (incomingDay && incomingDay !== serverDay) {
           return { ...rolled, opsDay: serverDay }
         }
-        // Si el cliente manda mesas del día actual (con o sin opsDay),
-        // aceptar por LWW — no bloquear restauración tras refresh.
 
-        if (Number(rolled.updatedAt || 0) > incomingAt) {
+        const serverAt = Number(rolled.updatedAt || 0)
+        const preferIncoming = !(serverAt > incomingAt)
+        const merged = mergeTables(rolled.tables, incomingTables, preferIncoming)
+
+        // POST {} vacío con reloj adelantado: mantener servidor intacto.
+        if (merged.rejectedEmpty) {
           return { ...rolled, opsDay: serverDay }
         }
+
+        if (!preferIncoming) {
+          return { ...rolled, opsDay: serverDay }
+        }
+
         return {
           kind: 'casa-torino-tpv',
-          tables: incomingTables,
-          mesa: typeof body.mesa === 'string' ? body.mesa : '',
+          tables: merged.tables,
+          mesa:
+            typeof body.mesa === 'string' && body.mesa
+              ? body.mesa
+              : rolled.mesa || '',
           opsDay: serverDay,
           updatedAt: incomingAt,
           clientId: body.clientId || null,
