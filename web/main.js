@@ -39,7 +39,7 @@ const initial =
 
 if (initial) showCarta(initial)
 
-.document.querySelectorAll('[data-carta]').forEach((el) => {
+document.querySelectorAll('[data-carta]').forEach((el) => {
   el.addEventListener('click', (e) => {
     const id = el.getAttribute('data-carta')
     if (!id) return
