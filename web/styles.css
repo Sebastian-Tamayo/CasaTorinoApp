@@ -339,7 +339,7 @@ a { color: inherit; }
   border: 1px solid var(--line); box-shadow: var(--shadow);
   object-fit: cover;
 }
-.about-media img { max-height: 460px; }
+.about-media img { max-height: none; width: 100%; object-fit: cover; aspect-ratio: 4 / 5; }
 .menu-dia-media img { max-height: 480px; }
 .caption { font-size: .85rem; margin-top: .65rem; }
 .pills { display: flex; flex-wrap: wrap; gap: .55rem; list-style: none; margin-top: 1.1rem; }
