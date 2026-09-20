@@ -552,6 +552,16 @@
     .line:nth-child(odd) { background: rgba(255,255,255,.02); }
     .line-name { font-weight: 700; font-size: .9rem; line-height: 1.25; }
     .line-meta { color: var(--muted); font-size: .72rem; font-weight: 600; margin-top: .15rem; }
+    .line-at {
+      display: inline-block;
+      margin-left: .25rem;
+      font-size: .62rem;
+      font-weight: 700;
+      letter-spacing: .02em;
+      color: #7a8796;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
     .line-right { text-align: right; display: grid; gap: .4rem; justify-items: end; align-content: start; }
     .line-sum { font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
     .line-price-edit {
@@ -1686,7 +1696,7 @@
   <script src="carta.js"></script>
   <script src="tpv-data.js"></script>
   <script src="printService.js"></script>
-  <script src="tpvSync.js?v=mesas-0800-20260920c"></script>
+  <script src="tpvSync.js?v=line-at-0800-20260920"></script>
   <script src="tpvJornada.js"></script>
   <script src="kitchenSync.js"></script>
   <script>
@@ -1979,6 +1989,7 @@
         cart: {},
         hist: [],
         tables: {},
+        opsDay: '',
         jornada: null,
         /** qty seleccionada por línea para ticket/cobro parcial { [cartKey]: number } */
         paySelect: {},
@@ -2283,7 +2294,19 @@
       function load() {
         try {
           const d = readTablesStore()
+          const today = window.CasaTorinoTpvSync?.opsDayId?.() || ''
+          // Si cambió el día operativo (purge 08:00), no reutilizar mesas de ayer
+          if (today && d.opsDay && d.opsDay !== today) {
+            state.tables = {}
+            state.mesa = ''
+            state.cart = {}
+            state.hist = []
+            state.opsDay = today
+            writeTablesStore({ mesa: '', tables: {}, opsDay: today })
+            return
+          }
           if (d.tables && typeof d.tables === 'object') state.tables = d.tables
+          state.opsDay = d.opsDay || today || ''
           if (d.mesa) {
             state.mesa = normalizeMesa(d.mesa)
             syncMesaInputs(state.mesa)
@@ -2302,7 +2325,10 @@
             paid: $('paid')?.value || '',
           }
         }
-        writeTablesStore({ mesa: m, tables: state.tables })
+        const opsDay =
+          state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || ''
+        state.opsDay = opsDay
+        writeTablesStore({ mesa: m, tables: state.tables, opsDay })
         // Sync entre móvil y PC — tpvSync ignora push hasta hydrate (anti-wipe)
         try {
           window.CasaTorinoTpvSync?.push(state.tables, m)
@@ -2725,8 +2751,11 @@
         if (!requireMesa()) return
         const ctype = categoryTypeOf(item)
         const key = cartKeyFor(item.id, note)
-        if (state.cart[key]) state.cart[key].qty += 1
-        else {
+        const now = Date.now()
+        if (state.cart[key]) {
+          state.cart[key].qty += 1
+          if (!state.cart[key].addedAt) state.cart[key].addedAt = now
+        } else {
           state.cart[key] = {
             id: item.id,
             productId: item.id,
@@ -2743,6 +2772,7 @@
             customProduct: Boolean(item.customProduct),
             primero: meta?.primero || '',
             segundo: meta?.segundo || '',
+            addedAt: now,
           }
         }
         if (!state.cart[key].categoryType) state.cart[key].categoryType = ctype
@@ -3583,14 +3613,16 @@
               const pickBtn = isMenuPick
                 ? `<button type="button" class="btn-pick" data-pick="${key}">Cambiar N1/N2</button>`
                 : ''
+              const atTs = Number(l.addedAt || l.at || 0)
+              const atLabel = atTs ? fmtHm(atTs) : ''
               const editable = isPriceEditable(l)
               const priceBlock = editable
                 ? `<div class="line-price-edit">
                     <label>Precio</label>
                     <input class="line-price" type="text" inputmode="decimal" enterkeyhint="done" data-price-key="${String(key).replace(/"/g, '&quot;')}" value="${formatPriceInput(l.price)}" aria-label="Precio unidad" />
-                    <em>€ / ud.</em>
+                    <em>€ / ud.</em>${atLabel ? ` <span class="line-at">${atLabel}</span>` : ''}
                   </div>`
-                : `<div class="line-meta">${money(l.price)} · ud.</div>`
+                : `<div class="line-meta">${money(l.price)} · ud.${atLabel ? ` <span class="line-at">${atLabel}</span>` : ''}</div>`
               const selQtyUi = selected && Number(l.qty) > 1
                 ? `<div class="sel-qty">Cobrar
                     <button type="button" data-sel-act="-" data-sel-key="${key}" aria-label="Menos a cobrar">−</button>
@@ -4311,7 +4343,7 @@
               syncMesaInputs(m)
               loadMesaIntoState(m)
             }
-            writeTablesStore({ mesa: m || '', tables: state.tables })
+            writeTablesStore({ mesa: m || '', tables: state.tables, opsDay: state.opsDay || '' })
             render()
             if (merged.keptLocal) {
               try {
@@ -4325,6 +4357,7 @@
             getLocalSnapshot: () => ({
               tables: state.tables,
               mesa: normalizeMesa(state.mesa),
+              opsDay: state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || '',
             }),
           },
         )
@@ -4344,17 +4377,31 @@
           const hydrated = await window.CasaTorinoTpvSync?.hydrate?.(
             state.tables,
             normalizeMesa(state.mesa),
+            state.opsDay || '',
           )
           if (hydrated && hydrated.tables && typeof hydrated.tables === 'object') {
-            // mergeTables ya protege {} vacío y acepta mesas cobradas (cart vacío)
+            // mergeTables ya protege {} vacío del mismo día y acepta purge 08:00
             state.tables = hydrated.tables
-            const m = normalizeMesa(state.mesa || hydrated.mesa)
-            if (m) {
-              state.mesa = m
-              syncMesaInputs(m)
-              loadMesaIntoState(m)
+            if (hydrated.opsDay) state.opsDay = hydrated.opsDay
+            else if (!state.opsDay) state.opsDay = window.CasaTorinoTpvSync?.opsDayId?.() || ''
+            if (hydrated.dayRollover) {
+              state.mesa = ''
+              state.cart = {}
+              state.hist = []
+              syncMesaInputs('')
+            } else {
+              const m = normalizeMesa(state.mesa || hydrated.mesa)
+              if (m) {
+                state.mesa = m
+                syncMesaInputs(m)
+                loadMesaIntoState(m)
+              }
             }
-            writeTablesStore({ mesa: m || state.mesa || '', tables: state.tables })
+            writeTablesStore({
+              mesa: state.mesa || '',
+              tables: state.tables,
+              opsDay: state.opsDay || '',
+            })
             render()
           }
         } catch (err) {
@@ -4375,7 +4422,7 @@
               paid: $('paid')?.value || '',
             }
           }
-          writeTablesStore({ mesa: m || '', tables: state.tables })
+          writeTablesStore({ mesa: m || '', tables: state.tables, opsDay: state.opsDay || '' })
           window.CasaTorinoTpvSync?.flush?.()
         } catch {}
       })

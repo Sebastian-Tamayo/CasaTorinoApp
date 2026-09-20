@@ -4,6 +4,8 @@
  *
  * Limpieza diaria 08:00 Europe/Madrid: vacía cuentas/histórico de mesas
  * (rollover en GET/POST + cron /api/ops-daily-purge).
+ * Tras el purge, un cliente con localStorage viejo NO puede repoblar el día nuevo
+ * (opsDay distinto → se descarta el push de mesas antiguas).
  */
 const { getJson, setJson, updateJson } = require('./_opsStore')
 const { opsDayId, applyTpvDayRollover } = require('./_opsDay')
@@ -156,6 +158,19 @@ module.exports = async function handler(req, res) {
 
         // Cliente de otro día no puede repoblar tras la limpieza de las 08:00.
         if (incomingDay && incomingDay !== serverDay) {
+          return { ...rolled, opsDay: serverDay }
+        }
+
+        // Tras purge del día: servidor vacío + cliente sin opsDay (app vieja)
+        // no puede volver a llenar con mesas de ayer.
+        const serverQty = tablesQty(rolled.tables)
+        const incomingQty = tablesQty(incomingTables)
+        if (
+          serverQty === 0 &&
+          incomingQty > 0 &&
+          !incomingDay &&
+          rolled.opsDay === serverDay
+        ) {
           return { ...rolled, opsDay: serverDay }
         }
 

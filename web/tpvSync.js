@@ -77,12 +77,30 @@
     return n
   }
 
-  function mergeTables(localTables, remoteTables) {
+  /**
+   * @param {object} localTables
+   * @param {object} remoteTables
+   * @param {{ remoteOpsDay?: string, localOpsDay?: string }} [opts]
+   * Tras el purge 08:00 el remoto viene {} — hay que aceptarlo si cambió el opsDay.
+   */
+  function mergeTables(localTables, remoteTables, opts = {}) {
     const local = localTables && typeof localTables === 'object' ? localTables : {}
     const remote = remoteTables && typeof remoteTables === 'object' ? remoteTables : {}
     const rKeys = Object.keys(remote)
     const lTotal = tablesQty(local)
+    const remoteOpsDay = opts.remoteOpsDay ? String(opts.remoteOpsDay) : ''
+    const localOpsDay = opts.localOpsDay ? String(opts.localOpsDay) : ''
+    const today = opsDayId()
+    const dayChanged =
+      (remoteOpsDay && localOpsDay && remoteOpsDay !== localOpsDay) ||
+      (remoteOpsDay && remoteOpsDay === today && localOpsDay && localOpsDay !== today)
 
+    // Nuevo día operativo (purge 08:00): el remoto gana aunque esté vacío.
+    if (dayChanged) {
+      return { tables: remote, keptLocal: false, dayRollover: true }
+    }
+
+    // Anti-wipe solo dentro del mismo día: remoto {} no pisa local con cuenta.
     if (rKeys.length === 0 && lTotal > 0) {
       return { tables: local, keptLocal: true }
     }
@@ -228,8 +246,11 @@
 
   function applyRemotePayload(remote) {
     const localSnap =
-      typeof getLocalSnapshot === 'function' ? getLocalSnapshot() : { tables: {}, mesa: '' }
-    const merged = mergeTables(localSnap.tables || {}, remote.tables || {})
+      typeof getLocalSnapshot === 'function' ? getLocalSnapshot() : { tables: {}, mesa: '', opsDay: '' }
+    const merged = mergeTables(localSnap.tables || {}, remote.tables || {}, {
+      remoteOpsDay: remote?.opsDay,
+      localOpsDay: localSnap.opsDay || '',
+    })
     const remoteAt = Number(remote?.updatedAt || 0)
     if (remoteAt > lastRemoteUpdatedAt) lastRemoteUpdatedAt = remoteAt
     lastRemoteQty = tablesQty(remote.tables || {})
@@ -276,14 +297,28 @@
     }
   }
 
-  async function hydrate(localTables, localMesa) {
+  async function hydrate(localTables, localMesa, localOpsDay) {
     try {
       const remote = await pull()
       const remoteAt = Number(remote?.updatedAt || 0)
       if (remoteAt) lastRemoteUpdatedAt = remoteAt
       lastRemoteQty = tablesQty(remote?.tables || {})
-      const merged = mergeTables(localTables || {}, remote?.tables || {})
+      const merged = mergeTables(localTables || {}, remote?.tables || {}, {
+        remoteOpsDay: remote?.opsDay,
+        localOpsDay: localOpsDay || '',
+      })
       ready = true
+      // Tras purge del día: no reenviar mesas viejas
+      if (merged.dayRollover) {
+        return {
+          tables: merged.tables,
+          mesa: remote?.mesa || '',
+          opsDay: remote?.opsDay || opsDayId(),
+          updatedAt: remoteAt,
+          keptLocal: false,
+          dayRollover: true,
+        }
+      }
       if (merged.keptLocal || tablesQty(merged.tables) > tablesQty(remote?.tables || {})) {
         lastLocalWrite = Date.now()
         try {
@@ -303,6 +338,7 @@
       return {
         tables: merged.tables,
         mesa: localMesa || remote?.mesa || '',
+        opsDay: remote?.opsDay || opsDayId(),
         updatedAt: remoteAt,
         keptLocal: merged.keptLocal,
       }
@@ -312,6 +348,7 @@
       return {
         tables: localTables || {},
         mesa: localMesa || '',
+        opsDay: localOpsDay || opsDayId(),
         updatedAt: 0,
         keptLocal: true,
       }
