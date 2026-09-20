@@ -195,46 +195,58 @@ a { color: inherit; }
   line-height: 1.35;
 }
 
-/* Mapa clicable */
-.hero-map {
-  position: relative;
-  display: block;
-  width: 100%;
-  max-width: 720px;
-  margin: 0 0 1.6rem;
-  border-radius: 20px;
-  overflow: hidden;
-  border: 3px solid #fff;
-  box-shadow:
-    0 0 0 2px rgba(0,56,147,.22),
-    0 18px 40px rgba(26,35,50,.12);
-  text-decoration: none;
-  color: inherit;
-  animation: estrellaIn .6s ease .18s both;
-}
-.hero-map iframe {
-  display: block;
-  width: 100%;
-  height: min(42vw, 280px);
-  min-height: 200px;
-  border: 0;
-  pointer-events: none; /* el click abre Maps */
-}
-.hero-map-label {
-  display: flex;
+/* Enlace Maps compacto (icono, no mapa embebido) */
+.maps-link {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: .45rem;
-  padding: .7rem .9rem;
-  background: linear-gradient(180deg, #fff, #fff8e8);
-  font-size: .88rem;
-  font-weight: 700;
+  margin: 0 0 1.25rem;
+  padding: .35rem .7rem;
+  text-decoration: none;
   color: var(--blue);
+  font-weight: 700;
+  font-size: .92rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0,56,147,.18);
+  background: rgba(255,255,255,.72);
+  transition: background .15s ease, border-color .15s ease;
+  animation: estrellaIn .55s ease .16s both;
 }
-.hero-map-label i { color: var(--red); }
-.hero-map:hover .hero-map-label,
-.hero-map:focus-visible .hero-map-label {
+.maps-link:hover,
+.maps-link:focus-visible {
   background: rgba(0,56,147,.08);
+  border-color: var(--blue);
+  outline: none;
+}
+.maps-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+.maps-icon svg { display: block; }
+
+/* Precios menú del día en la entrada */
+.hero-menus {
+  width: min(100%, 420px);
+  margin: 0 0 1.4rem;
+  text-align: left;
+  animation: estrellaIn .55s ease .2s both;
+}
+.hero-menus-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 .55rem;
+  text-align: center;
+}
+.hero-menus .menu-precios {
+  margin: 0;
+}
+.hero-entry .hero-menus .menu-precios li {
+  background: rgba(255,255,255,.78);
 }
 
 .hero-estrellas {
@@ -662,7 +674,7 @@ a { color: inherit; }
   }
   .hero-entry { padding-top: .6rem; }
   .parking-hook { width: 100%; }
-  .hero-map iframe { height: 220px; min-height: 200px; }
+  .hero-menus { width: 100%; }
   .hero-photo, .terraza-media { width: min(100%, 340px); }
   .estrellas-list { grid-template-columns: 1fr; gap: 1.15rem; }
   .estrellas-list a { border-bottom-width: 1px; padding-bottom: .75rem; }
