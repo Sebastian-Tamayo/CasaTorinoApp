@@ -9,7 +9,7 @@
  * concurrentes en jornada 24/7.
  *
  * Panel / histórico:
- *   - Limpieza diaria 09:00 Europe/Madrid (rollover + cron /api/ops-daily-purge)
+ *   - Limpieza diaria 08:00 Europe/Madrid (rollover + cron /api/ops-daily-purge)
  *   - Al iniciar jornada o con action `clear` se vacía
  *   - Pedidos anteriores a la jornada actual se purgan al leer (GET)
  */
@@ -244,7 +244,7 @@ function publicPayload(state) {
     pickups,
     updatedAt: state.updatedAt || 0,
     canUndo: Boolean(state.lastCompleted),
-    purgeAt: '09:00 Europe/Madrid',
+    purgeAt: '08:00 Europe/Madrid',
   }
 }
 
