@@ -1,16 +1,14 @@
 /**
- * Casa Torino TPV — sync mesas móvil ↔ PC (endurecido 24/7)
- * - POST {} sin claves no borra mesas locales (anti-wipe al refrescar)
- * - Mesas cobradas (cart vacío en remoto) NO se resucitan desde local
- * - No hace push hasta completar hydrate
- * - Envía opsDay (08:00 Madrid) para no chocar con el purge diario
- * - flush() al salir/refrescar para no perder el push pendiente
+ * Casa Torino TPV — sync mesas móvil ↔ PC
+ * - lastLocalWrite al instante al editar (evita que un poll viejo resucite mesas vaciadas)
+ * - opsDay 08:00 Madrid: purge diario sin resucitar
+ * - Mesas cobradas (cart vacío en remoto) no se resucitan
  */
 (() => {
   const API_URL = '/api/tpv-sync'
   const AUTH_URL = '/api/tpv-auth'
   const POLL_MS = 4000
-  const PUSH_DEBOUNCE_MS = 700
+  const PUSH_DEBOUNCE_MS = 400
   const CLIENT_ID =
     typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID()
@@ -77,11 +75,14 @@
     return n
   }
 
+  function touch() {
+    lastLocalWrite = Date.now()
+  }
+
   /**
-   * @param {object} localTables
-   * @param {object} remoteTables
-   * @param {{ remoteOpsDay?: string, localOpsDay?: string }} [opts]
-   * Tras el purge 08:00 el remoto viene {} — hay que aceptarlo si cambió el opsDay.
+   * Merge por mesa. Si el día cambió (purge 08:00), gana el remoto aunque esté vacío.
+   * Si remoto trae clave vacía (cobro/vaciar), gana el vacío.
+   * Si remoto {} sin claves y mismo día, no pisa local (anti-wipe refresh).
    */
   function mergeTables(localTables, remoteTables, opts = {}) {
     const local = localTables && typeof localTables === 'object' ? localTables : {}
@@ -95,12 +96,10 @@
       (remoteOpsDay && localOpsDay && remoteOpsDay !== localOpsDay) ||
       (remoteOpsDay && remoteOpsDay === today && localOpsDay && localOpsDay !== today)
 
-    // Nuevo día operativo (purge 08:00): el remoto gana aunque esté vacío.
     if (dayChanged) {
       return { tables: remote, keptLocal: false, dayRollover: true }
     }
 
-    // Anti-wipe solo dentro del mismo día: remoto {} no pisa local con cuenta.
     if (rKeys.length === 0 && lTotal > 0) {
       return { tables: local, keptLocal: true }
     }
@@ -112,11 +111,24 @@
       const L = local[k]
       const R = remote[k]
       const hasR = Object.prototype.hasOwnProperty.call(remote, k)
-      if (hasR) {
+      const hasL = Object.prototype.hasOwnProperty.call(local, k)
+      const lq = cartQty(L)
+      const rq = cartQty(R)
+
+      if (hasR && hasL) {
+        // Ambos tienen la mesa: preferir vacío local (acabamos de vaciar/cobrar)
+        // solo si el remoto aún no lo refleja y estamos en escritura local reciente.
+        if (lq === 0 && rq > 0 && opts.preferLocalClear) {
+          out[k] = L
+          keptLocal = true
+        } else {
+          out[k] = R
+        }
+      } else if (hasR) {
         out[k] = R
-      } else if (L) {
+      } else if (hasL) {
         out[k] = L
-        if (cartQty(L) > 0) keptLocal = true
+        if (lq > 0) keptLocal = true
       }
     }
     return { tables: out, keptLocal }
@@ -163,9 +175,10 @@
   async function pushNow(tables, mesa, opts = {}) {
     if (!ready && !opts.force) {
       pending = { tables, mesa }
+      touch()
       return null
     }
-    if (shouldBlockEmptyPush(tables)) {
+    if (shouldBlockEmptyPush(tables) && !opts.allowEmpty) {
       console.warn('[tpvSync] push bloqueado: no vaciar servidor con {}')
       return null
     }
@@ -212,6 +225,7 @@
 
   function push(tables, mesa) {
     pending = { tables, mesa }
+    touch() // inmediato: un poll viejo no puede pisar un vaciado
     if (!ready) return
     if (pushTimer) clearTimeout(pushTimer)
     pushTimer = setTimeout(async () => {
@@ -245,13 +259,20 @@
   }
 
   function applyRemotePayload(remote) {
+    // Si acabamos de escribir localmente, no aplicar remoto más viejo
+    const remoteAt = Number(remote?.updatedAt || 0)
+    if (remoteAt && remoteAt <= lastLocalWrite) {
+      if (remoteAt > lastRemoteUpdatedAt) lastRemoteUpdatedAt = remoteAt
+      return
+    }
+
     const localSnap =
       typeof getLocalSnapshot === 'function' ? getLocalSnapshot() : { tables: {}, mesa: '', opsDay: '' }
     const merged = mergeTables(localSnap.tables || {}, remote.tables || {}, {
       remoteOpsDay: remote?.opsDay,
       localOpsDay: localSnap.opsDay || '',
+      preferLocalClear: Date.now() - lastLocalWrite < 8000,
     })
-    const remoteAt = Number(remote?.updatedAt || 0)
     if (remoteAt > lastRemoteUpdatedAt) lastRemoteUpdatedAt = remoteAt
     lastRemoteQty = tablesQty(remote.tables || {})
 
@@ -261,6 +282,7 @@
         mesa: remote.mesa || localSnap.mesa || '',
         updatedAt: remoteAt,
         keptLocal: merged.keptLocal,
+        opsDay: remote?.opsDay,
       })
     }
 
@@ -308,7 +330,6 @@
         localOpsDay: localOpsDay || '',
       })
       ready = true
-      // Tras purge del día: no reenviar mesas viejas
       if (merged.dayRollover) {
         return {
           tables: merged.tables,
@@ -320,7 +341,7 @@
         }
       }
       if (merged.keptLocal || tablesQty(merged.tables) > tablesQty(remote?.tables || {})) {
-        lastLocalWrite = Date.now()
+        touch()
         try {
           await pushNow(merged.tables, localMesa || remote?.mesa || '', { force: true })
         } catch (err) {
@@ -395,6 +416,7 @@
     push,
     pushNow,
     flush,
+    touch,
     hydrate,
     mergeTables,
     tablesQty,

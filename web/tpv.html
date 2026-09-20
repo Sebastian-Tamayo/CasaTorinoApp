@@ -554,13 +554,17 @@
     .line-meta { color: var(--muted); font-size: .72rem; font-weight: 600; margin-top: .15rem; }
     .line-at {
       display: inline-block;
-      margin-left: .25rem;
-      font-size: .62rem;
-      font-weight: 700;
+      margin-left: .4rem;
+      padding: .05rem .35rem;
+      border-radius: 6px;
+      font-size: .7rem;
+      font-weight: 800;
       letter-spacing: .02em;
-      color: #7a8796;
+      color: var(--gold);
+      background: rgba(245,197,24,.12);
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
+      vertical-align: middle;
     }
     .line-right { text-align: right; display: grid; gap: .4rem; justify-items: end; align-content: start; }
     .line-sum { font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
@@ -1696,7 +1700,7 @@
   <script src="carta.js"></script>
   <script src="tpv-data.js"></script>
   <script src="printService.js"></script>
-  <script src="tpvSync.js?v=line-at-0800-20260920"></script>
+  <script src="tpvSync.js?v=fix-clear-time-20260920"></script>
   <script src="tpvJornada.js"></script>
   <script src="kitchenSync.js"></script>
   <script>
@@ -2329,8 +2333,8 @@
           state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || ''
         state.opsDay = opsDay
         writeTablesStore({ mesa: m, tables: state.tables, opsDay })
-        // Sync entre móvil y PC — tpvSync ignora push hasta hydrate (anti-wipe)
         try {
+          window.CasaTorinoTpvSync?.touch?.()
           window.CasaTorinoTpvSync?.push(state.tables, m)
         } catch (err) {
           console.warn('sync push', err)
@@ -2852,7 +2856,7 @@
           if (state.paySelect) delete state.paySelect[id]
         } else {
           state.cart[id].qty = qty
-          // Si bajan unidades ya enviadas, ajustar sentQty
+          if (!state.cart[id].addedAt) state.cart[id].addedAt = Date.now()
           if ((state.cart[id].sentQty || 0) > qty) state.cart[id].sentQty = qty
         }
         clampPaySelect()
@@ -2885,7 +2889,15 @@
         resetSelSummaryUi()
         if ($('notes')) $('notes').value = ''
         if ($('paid')) $('paid').value = ''
-        persist(); render(); closeTicket()
+        persist()
+        // Empujar YA para que un poll viejo no resucite la cuenta
+        try {
+          window.CasaTorinoTpvSync?.touch?.()
+          window.CasaTorinoTpvSync?.pushNow?.(state.tables, m)
+        } catch (err) {
+          console.warn('clearCart sync', err)
+        }
+        render(); closeTicket()
       }
 
       async function sendToKitchen() {
@@ -3421,7 +3433,14 @@
         if ($('paid')) $('paid').value = ''
         if (m) state.tables[m] = { cart: {}, hist: [], notes: '', paid: '' }
         payDraft = { totalCents: 0, payments: [] }
-        persist(); render(); closeTicket()
+        persist()
+        try {
+          window.CasaTorinoTpvSync?.touch?.()
+          window.CasaTorinoTpvSync?.pushNow?.(state.tables, m)
+        } catch (err) {
+          console.warn('confirmPay sync', err)
+        }
+        render(); closeTicket()
         paintUndoChargeBtn()
       }
 
@@ -3620,9 +3639,9 @@
                 ? `<div class="line-price-edit">
                     <label>Precio</label>
                     <input class="line-price" type="text" inputmode="decimal" enterkeyhint="done" data-price-key="${String(key).replace(/"/g, '&quot;')}" value="${formatPriceInput(l.price)}" aria-label="Precio unidad" />
-                    <em>€ / ud.</em>${atLabel ? ` <span class="line-at">${atLabel}</span>` : ''}
+                    <em>€ / ud.</em>
                   </div>`
-                : `<div class="line-meta">${money(l.price)} · ud.${atLabel ? ` <span class="line-at">${atLabel}</span>` : ''}</div>`
+                : `<div class="line-meta">${money(l.price)} · ud.</div>`
               const selQtyUi = selected && Number(l.qty) > 1
                 ? `<div class="sel-qty">Cobrar
                     <button type="button" data-sel-act="-" data-sel-key="${key}" aria-label="Menos a cobrar">−</button>
@@ -3636,7 +3655,7 @@
                 <i class="fa-solid fa-check" aria-hidden="true"></i>
               </button>
               <div>
-                <div class="line-name">${l.name}${tags}</div>
+                <div class="line-name">${l.name}${tags}${atLabel ? `<span class="line-at" title="Hora de añadido">${atLabel}</span>` : ''}</div>
                 ${priceBlock}
                 ${note}
                 ${pickBtn}
