@@ -195,22 +195,37 @@ a { color: inherit; }
   line-height: 1.35;
 }
 
-/* Enlace Maps compacto (icono, no mapa embebido) */
-.maps-link {
+/* Accesos rápidos: ubicación + carta */
+.hero-quick-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: .55rem;
+  margin: 0 0 1.25rem;
+  animation: estrellaIn .55s ease .16s both;
+}
+.maps-link,
+.carta-link {
   display: inline-flex;
   align-items: center;
   gap: .45rem;
-  margin: 0 0 1.25rem;
+  margin: 0;
   padding: .35rem .7rem;
   text-decoration: none;
-  color: var(--blue);
   font-weight: 700;
   font-size: .92rem;
   border-radius: 999px;
-  border: 1px solid rgba(0,56,147,.18);
   background: rgba(255,255,255,.72);
-  transition: background .15s ease, border-color .15s ease;
-  animation: estrellaIn .55s ease .16s both;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.maps-link {
+  color: var(--blue);
+  border: 1px solid rgba(0,56,147,.18);
+}
+.carta-link {
+  color: var(--red);
+  border: 1px solid rgba(206,17,38,.22);
 }
 .maps-link:hover,
 .maps-link:focus-visible {
@@ -218,7 +233,14 @@ a { color: inherit; }
   border-color: var(--blue);
   outline: none;
 }
-.maps-icon {
+.carta-link:hover,
+.carta-link:focus-visible {
+  background: rgba(206,17,38,.08);
+  border-color: var(--red);
+  outline: none;
+}
+.maps-icon,
+.carta-icon {
   display: grid;
   place-items: center;
   width: 22px;
@@ -226,6 +248,7 @@ a { color: inherit; }
   flex: 0 0 auto;
 }
 .maps-icon svg { display: block; }
+.carta-icon { font-size: .95rem; color: var(--red); }
 
 /* Precios menú del día en la entrada */
 .hero-menus {
