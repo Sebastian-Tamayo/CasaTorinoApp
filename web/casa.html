@@ -44,39 +44,34 @@
   <main>
     <section class="hero" id="inicio">
       <div class="flag-strip" aria-hidden="true"></div>
-      <div class="container hero-grid">
-        <div class="hero-content">
-          <img class="hero-logo" src="assets/logo.jpg" alt="Logo Casa Torino" />
-          <p class="eyebrow">Restaurante · Bar · Terraza · Gijón</p>
-          <h1>Sabor que <span>deja huella</span></h1>
-          <p class="hero-lead">
-            Siempre <strong>tamales</strong>, <strong>lechona</strong> y <strong>bandeja paisa</strong>.
-            Fusión Colombo-Asturiana en Ceares, con parking 24&nbsp;h.
-          </p>
-          <div class="hero-actions">
-            <a class="btn btn-gold" href="#estrellas"><i class="fa-solid fa-star"></i> Nuestras estrellas</a>
-            <a class="btn btn-outline" href="reservar.html"><i class="fa-solid fa-calendar-check"></i> Reservar mesa</a>
-          </div>
-          <div class="hero-meta">
-            <span><i class="fa-solid fa-square-parking"></i> Parking 24&nbsp;h</span>
-            <span><i class="fa-solid fa-location-dot"></i> Ctra. Ceares, 67</span>
-            <span><i class="fa-solid fa-phone"></i> 612 254 719</span>
-          </div>
-        </div>
-        <figure class="hero-photo">
-          <img src="assets/terraza-hero-v2.jpg" alt="Terraza de Casa Torino" />
-        </figure>
-      </div>
-    </section>
+      <div class="container hero-entry">
+        <img class="hero-logo" src="assets/logo.jpg" alt="Logo Casa Torino" />
+        <p class="eyebrow">Restaurante · Bar · Terraza · Gijón</p>
+        <h1>Sabor que <span>deja huella</span></h1>
 
-    <section class="section estrellas" id="estrellas">
-      <div class="container">
-        <div class="section-head">
-          <p class="eyebrow gold">Lo que no puede faltar</p>
-          <h2>Nuestras estrellas</h2>
-          <p>Tres clásicos colombianos disponibles todos los días. Ven cuando quieras: te esperan en mesa.</p>
-        </div>
-        <ul class="estrellas-list">
+        <a class="parking-hook" href="https://maps.google.com/?q=Ctra.+Ceares+67+Gijon" target="_blank" rel="noopener">
+          <span class="parking-badge" aria-hidden="true"><i class="fa-solid fa-square-parking"></i></span>
+          <span class="parking-copy">
+            <strong>Parking 24 h<span class="blue-o">o</span>ras</strong>
+            <em>llega en coche sin preocuparte por el aparcamiento</em>
+          </span>
+        </a>
+
+        <a class="hero-map" href="https://maps.google.com/?q=Ctra.+Ceares+67+Gijon" target="_blank" rel="noopener" aria-label="Abrir ubicación en Google Maps: Ctra. Ceares 67, Gijón">
+          <iframe
+            title="Mapa Casa Torino · Ctra. Ceares 67, Gijón"
+            src="https://maps.google.com/maps?q=Ctra.+Ceares+67,+Gij%C3%B3n&hl=es&z=16&output=embed"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+            tabindex="-1"
+          ></iframe>
+          <span class="hero-map-label">
+            <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+            Ctra. Ceares, 67 · Gijón · Abrir en Google Maps
+          </span>
+        </a>
+
+        <ul class="estrellas-list hero-estrellas">
           <li style="--i:0">
             <a href="#carta" data-carta="colombia">
               <em>Siempre</em>
@@ -102,10 +97,11 @@
             </a>
           </li>
         </ul>
-        <p class="parking-line">
-          <i class="fa-solid fa-square-parking" aria-hidden="true"></i>
-          <span><strong>Parking 24 horas</strong> · llega en coche sin preocuparte por el aparcamiento</span>
-        </p>
+
+        <div class="hero-actions">
+          <a class="btn btn-gold" href="reservar.html"><i class="fa-solid fa-calendar-check"></i> Reservar mesa</a>
+          <a class="btn btn-outline" href="https://wa.me/34612254719?text=Hola%2C%20quiero%20pedir%20en%20Casa%20Torino" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>
+        </div>
       </div>
     </section>
 

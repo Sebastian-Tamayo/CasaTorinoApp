@@ -108,23 +108,26 @@ a { color: inherit; }
 
 .hero {
   position: relative;
-  padding: 2.2rem 0 3.2rem;
+  padding: 1.6rem 0 2.8rem;
   background:
-    linear-gradient(180deg, rgba(255,248,232,.92), rgba(255,248,232,.55));
+    radial-gradient(720px 320px at 50% 0%, rgba(0,56,147,.10), transparent 60%),
+    radial-gradient(640px 280px at 80% 30%, rgba(241,196,15,.14), transparent 55%),
+    linear-gradient(180deg, rgba(255,248,232,.96), rgba(255,248,232,.5));
 }
-.hero-grid {
-  display: grid;
-  grid-template-columns: 1.05fr .95fr;
-  gap: 2rem;
+.hero-entry {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  padding-top: 1.2rem;
+  text-align: center;
+  max-width: 820px;
+  padding-top: 1rem;
 }
-.hero-content { text-align: left; max-width: 560px; }
 .hero-logo {
-  width: 108px; height: 108px; margin: 0 0 1rem;
+  width: 108px; height: 108px; margin: 0 0 .85rem;
   border-radius: 50%; object-fit: cover;
   border: 3px solid var(--gold);
   box-shadow: var(--shadow);
+  animation: estrellaIn .55s ease both;
 }
 .eyebrow {
   text-transform: uppercase; letter-spacing: .16em;
@@ -133,52 +136,122 @@ a { color: inherit; }
 .eyebrow.gold { color: var(--gold-2); }
 .hero h1 {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: clamp(2.2rem, 5vw, 3.5rem);
-  line-height: 1.08; margin: .55rem 0 1rem;
+  font-size: clamp(2.35rem, 6vw, 3.6rem);
+  line-height: 1.06; margin: .45rem 0 1.35rem;
   color: var(--ink);
+  animation: estrellaIn .55s ease .06s both;
 }
 .hero h1 span { color: var(--red); }
-.hero-lead {
-  color: var(--muted); font-size: 1.04rem;
-  margin: 0 0 1.1rem;
+
+/* Parking gancho visual */
+.parking-hook {
+  display: flex;
+  align-items: center;
+  gap: .9rem;
+  width: min(100%, 560px);
+  text-decoration: none;
+  color: inherit;
+  text-align: left;
+  padding: .95rem 1.1rem;
+  margin: 0 0 1.15rem;
+  border: 2px solid rgba(0,56,147,.28);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(0,56,147,.12), rgba(241,196,15,.12) 55%, transparent);
+  box-shadow: 0 12px 28px rgba(0,56,147,.10);
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+  animation: estrellaIn .55s ease .12s both;
 }
-.fusion-chips {
-  display: flex; flex-wrap: wrap; gap: .55rem;
-  margin: 0 0 1.25rem;
+.parking-hook:hover,
+.parking-hook:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--blue);
+  box-shadow: 0 16px 34px rgba(0,56,147,.16);
+  outline: none;
 }
-.chip {
-  display: inline-flex; align-items: center;
-  padding: .4rem .8rem; border-radius: 999px;
-  font-size: .82rem; font-weight: 800;
-  border: 1px solid var(--line);
-  background: var(--card);
+.parking-badge {
+  flex: 0 0 auto;
+  width: 3.1rem; height: 3.1rem;
+  border-radius: 12px;
+  display: grid; place-items: center;
+  background: var(--blue);
+  color: #fff;
+  font-size: 1.55rem;
+  box-shadow: 0 8px 18px rgba(0,56,147,.28);
 }
-.chip-co {
-  border-color: rgba(0,56,147,.25);
+.parking-copy { display: grid; gap: .15rem; min-width: 0; }
+.parking-copy strong {
+  font-size: 1.12rem;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
+.parking-copy .blue-o { color: var(--blue); }
+.parking-copy em {
+  font-style: normal;
+  color: var(--muted);
+  font-size: .9rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+/* Mapa clicable */
+.hero-map {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 0 1.6rem;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 3px solid #fff;
+  box-shadow:
+    0 0 0 2px rgba(0,56,147,.22),
+    0 18px 40px rgba(26,35,50,.12);
+  text-decoration: none;
+  color: inherit;
+  animation: estrellaIn .6s ease .18s both;
+}
+.hero-map iframe {
+  display: block;
+  width: 100%;
+  height: min(42vw, 280px);
+  min-height: 200px;
+  border: 0;
+  pointer-events: none; /* el click abre Maps */
+}
+.hero-map-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  padding: .7rem .9rem;
+  background: linear-gradient(180deg, #fff, #fff8e8);
+  font-size: .88rem;
+  font-weight: 700;
   color: var(--blue);
-  background: linear-gradient(90deg, rgba(241,196,15,.25), rgba(0,56,147,.08), rgba(200,16,46,.08));
 }
-.chip-es {
-  border-color: rgba(200,16,46,.25);
-  color: var(--red);
-  background: linear-gradient(90deg, rgba(200,16,46,.12), rgba(241,196,15,.22));
+.hero-map-label i { color: var(--red); }
+.hero-map:hover .hero-map-label,
+.hero-map:focus-visible .hero-map-label {
+  background: rgba(0,56,147,.08);
 }
+
+.hero-estrellas {
+  width: 100%;
+  margin: 0 0 1.35rem;
+  text-align: left;
+}
+.hero-entry .hero-actions {
+  justify-content: center;
+  animation: estrellaIn .55s ease .28s both;
+}
+
 .hero-actions, .contact-card .hero-actions {
   display: flex; gap: .8rem; justify-content: flex-start; flex-wrap: wrap;
 }
-.hero-meta {
-  margin-top: 1.25rem; display: flex; gap: 1.1rem; flex-wrap: wrap;
-  color: var(--muted); font-size: .92rem;
-}
-.hero-meta i { color: var(--red); margin-right: .35rem; }
 
-/* —— Estrellas + parking (venta) —— */
-.estrellas {
-  padding-top: 1.5rem;
-  background:
-    linear-gradient(180deg, rgba(241,196,15,.10), transparent 42%),
-    transparent;
-}
+/* —— Productos estrella —— */
 .estrellas-list {
   list-style: none;
   display: grid;
@@ -190,7 +263,7 @@ a { color: inherit; }
   opacity: 0;
   transform: translateY(14px);
   animation: estrellaIn .55s ease forwards;
-  animation-delay: calc(var(--i, 0) * .12s + .08s);
+  animation-delay: calc(var(--i, 0) * .12s + .22s);
 }
 @keyframes estrellaIn {
   to { opacity: 1; transform: none; }
@@ -236,27 +309,6 @@ a { color: inherit; }
   font-variant-numeric: tabular-nums;
   font-size: 1.05rem;
 }
-.parking-line {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: .75rem;
-  flex-wrap: wrap;
-  text-align: center;
-  margin: 0 auto;
-  max-width: 640px;
-  padding: .95rem 1.15rem;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  color: var(--ink);
-  font-size: .98rem;
-  animation: estrellaIn .6s ease .35s both;
-}
-.parking-line i {
-  font-size: 1.45rem;
-  color: var(--blue);
-}
-.parking-line strong { color: var(--blue); font-weight: 800; }
 
 .dish-star {
   border-color: rgba(200,16,46,.28) !important;
@@ -608,9 +660,9 @@ a { color: inherit; }
   .split, .split.reverse, .equipo-grid, .contact-card, .bebidas-grid, .terraza-stats {
     grid-template-columns: 1fr;
   }
-  .hero-content { text-align: center; max-width: none; }
-  .hero-logo { margin-left: auto; margin-right: auto; }
-  .hero-actions, .hero-meta, .fusion-chips { justify-content: center; }
+  .hero-entry { padding-top: .6rem; }
+  .parking-hook { width: 100%; }
+  .hero-map iframe { height: 220px; min-height: 200px; }
   .hero-photo, .terraza-media { width: min(100%, 340px); }
   .estrellas-list { grid-template-columns: 1fr; gap: 1.15rem; }
   .estrellas-list a { border-bottom-width: 1px; padding-bottom: .75rem; }
