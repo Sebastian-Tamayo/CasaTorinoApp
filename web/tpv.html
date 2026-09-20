@@ -440,9 +440,46 @@
       background: var(--card); border: 1px solid var(--line2); border-radius: 16px;
       padding: .45rem .55rem .45rem .75rem;
     }
-    .mesa-field label {
+    .mesa-field label,
+    .mesa-pick-btn {
       font-size: .72rem; font-weight: 800; letter-spacing: .05em;
       text-transform: uppercase; color: var(--gold);
+    }
+    .mesa-pick-btn {
+      border: 0; background: transparent; cursor: pointer; padding: .2rem .15rem;
+      display: inline-flex; align-items: center; gap: .35rem; border-radius: 10px;
+    }
+    .mesa-pick-btn:active { background: rgba(245,197,24,.12); }
+    .mesa-pick-btn i { font-size: .75rem; opacity: .9; }
+    .mesa-chip-btn {
+      border: 0; background: transparent; color: var(--gold); font: inherit;
+      font-size: .72rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+      cursor: pointer; padding: 0; display: inline-flex; align-items: center; gap: .25rem;
+    }
+    .mesas-list {
+      display: grid; gap: .45rem; max-height: min(52vh, 420px); overflow: auto;
+      padding: .15rem 0 .35rem; -webkit-overflow-scrolling: touch;
+    }
+    .mesas-list-item {
+      display: grid; grid-template-columns: auto 1fr auto; gap: .55rem; align-items: center;
+      width: 100%; text-align: left; border: 1px solid var(--line2); border-radius: 14px;
+      background: var(--card); color: var(--ink); padding: .7rem .8rem; cursor: pointer;
+      font: inherit;
+    }
+    .mesas-list-item:active { background: var(--card2); }
+    .mesas-list-item.on {
+      border-color: rgba(245,197,24,.55);
+      box-shadow: inset 0 0 0 1px rgba(245,197,24,.25);
+    }
+    .mesas-list-item .mesa-num {
+      width: 2.4rem; height: 2.4rem; border-radius: 12px; display: grid; place-items: center;
+      background: rgba(245,197,24,.14); color: var(--gold); font-weight: 800;
+    }
+    .mesas-list-item .mesa-meta { font-size: .78rem; color: var(--muted); font-weight: 600; }
+    .mesas-list-item .mesa-total { font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
+    .mesas-empty {
+      margin: .35rem 0; padding: .85rem; border-radius: 14px; border: 1px dashed var(--line2);
+      color: var(--muted); font-weight: 600; text-align: center;
     }
     .mesa-field input {
       width: 100%; border: 0; background: transparent; color: var(--ink);
@@ -1367,10 +1404,12 @@
           <i class="fa-solid fa-magnifying-glass"></i>
           <input id="search" type="search" inputmode="search" enterkeyhint="search" placeholder="Buscar producto…" autocomplete="off" spellcheck="false" />
         </div>
-        <label class="mesa-chip" for="mesaTop">
-          <span>Mesa</span>
+        <div class="mesa-chip">
+          <button type="button" class="mesa-chip-btn" id="btnMesasOpenTop" title="Mesas pendientes de cobro">
+            Mesa <i class="fa-solid fa-list-ul"></i>
+          </button>
           <input id="mesaTop" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" placeholder="nº" maxlength="4" autocomplete="off" spellcheck="false" />
-        </label>
+        </div>
         <button class="icon-btn" id="btnClear" type="button" title="Vaciar"><i class="fa-solid fa-trash"></i></button>
       </div>
     </header>
@@ -1412,7 +1451,9 @@
             <button class="link" id="btnUndo" type="button" disabled>Deshacer</button>
           </div>
           <div class="mesa-field">
-            <label for="mesa">Mesa</label>
+            <button type="button" class="mesa-pick-btn" id="btnMesasOpen" title="Mesas pendientes de cobro">
+              Mesa <i class="fa-solid fa-list-ul"></i>
+            </button>
             <input id="mesa" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" placeholder="nº de mesa" maxlength="4" autocomplete="off" spellcheck="false" />
           </div>
           <div class="notes-field">
@@ -1495,6 +1536,22 @@
       <div class="course-actions">
         <button type="button" class="cancel" id="courseCancel">Cancelar</button>
         <button type="button" class="ok" id="courseOk" disabled>Añadir a cuenta</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="course-modal" id="mesasModal" hidden role="dialog" aria-modal="true" aria-labelledby="mesasModalTitle">
+    <div class="course-card">
+      <div class="course-card-h">
+        <button type="button" class="btn-modal-back" id="mesasBack" aria-label="Volver">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </button>
+        <h3 id="mesasModalTitle">Mesas pendientes</h3>
+      </div>
+      <p class="sub">Toca una mesa con cuenta abierta para abrirla. Solo se listan las que aún tienen productos sin cobrar.</p>
+      <div class="mesas-list" id="mesasList"></div>
+      <div class="course-actions">
+        <button type="button" class="cancel" id="mesasCancel">Cerrar</button>
       </div>
     </div>
   </div>
@@ -1609,7 +1666,7 @@
   <script src="carta.js"></script>
   <script src="tpv-data.js"></script>
   <script src="printService.js"></script>
-  <script src="tpvSync.js?v=hydrate-20260920"></script>
+  <script src="tpvSync.js?v=mesas-0800-20260920"></script>
   <script src="tpvJornada.js"></script>
   <script src="kitchenSync.js"></script>
   <script>
@@ -2230,6 +2287,78 @@
         clearPaySelect()
         persist()
         render()
+      }
+
+      function tableCartQty(table) {
+        if (window.CasaTorinoTpvSync?.cartQty) return window.CasaTorinoTpvSync.cartQty(table)
+        let n = 0
+        const cart = table && table.cart
+        if (!cart || typeof cart !== 'object' || Array.isArray(cart)) return 0
+        for (const line of Object.values(cart)) n += Math.max(0, Number(line?.qty) || 0)
+        return n
+      }
+
+      function tableCartTotal(table) {
+        const cart = table && table.cart
+        if (!cart || typeof cart !== 'object' || Array.isArray(cart)) return 0
+        let cents = 0
+        for (const line of Object.values(cart)) {
+          cents += toCents(line?.price) * (Number(line?.qty) || 0)
+        }
+        return fromCents(cents)
+      }
+
+      /** Mesas con productos sin cobrar (qty > 0). */
+      function pendingMesas() {
+        const cur = normalizeMesa(state.mesa)
+        // Incluye la mesa activa en memoria por si aún no se ha persistido
+        const tables = { ...state.tables }
+        if (cur) {
+          tables[cur] = {
+            cart: state.cart,
+            hist: state.hist,
+            notes: ($('notes')?.value || state.notes || '').trim(),
+            paid: $('paid')?.value || '',
+          }
+        }
+        return Object.keys(tables)
+          .map((id) => {
+            const t = tables[id]
+            const qty = tableCartQty(t)
+            return {
+              id: normalizeMesa(id),
+              qty,
+              total: tableCartTotal(t),
+              active: normalizeMesa(id) === cur,
+            }
+          })
+          .filter((x) => x.id && x.qty > 0)
+          .sort((a, b) => Number(a.id) - Number(b.id) || String(a.id).localeCompare(String(b.id)))
+      }
+
+      function closeMesasModal() {
+        if ($('mesasModal')) $('mesasModal').hidden = true
+      }
+
+      function openMesasModal() {
+        const list = $('mesasList')
+        if (!list) return
+        const rows = pendingMesas()
+        if (!rows.length) {
+          list.innerHTML = '<p class="mesas-empty">No hay mesas pendientes de cobro.</p>'
+        } else {
+          list.innerHTML = rows.map((r) => `
+            <button type="button" class="mesas-list-item ${r.active ? 'on' : ''}" data-mesa="${r.id}">
+              <span class="mesa-num">${r.id}</span>
+              <span>
+                <strong>Mesa ${r.id}</strong>
+                <div class="mesa-meta">${r.qty} ud. sin cobrar</div>
+              </span>
+              <span class="mesa-total">${money(r.total)}</span>
+            </button>
+          `).join('')
+        }
+        if ($('mesasModal')) $('mesasModal').hidden = false
       }
 
       function requireMesa() {
@@ -3855,6 +3984,9 @@
         if ($('payModal')?.hidden === false && e.key === 'Escape') {
           e.preventDefault(); if ($('payModal')) $('payModal').hidden = true; return
         }
+        if ($('mesasModal')?.hidden === false && e.key === 'Escape') {
+          e.preventDefault(); closeMesasModal(); return
+        }
         if (document.body.classList.contains('check-open') && e.key === 'Escape') {
           e.preventDefault(); closeTicket()
         }
@@ -3868,6 +4000,22 @@
       })
       bindMesa($('mesa'))
       bindMesa($('mesaTop'))
+      $('btnMesasOpen')?.addEventListener('click', () => openMesasModal())
+      $('btnMesasOpenTop')?.addEventListener('click', () => openMesasModal())
+      $('mesasCancel')?.addEventListener('click', () => closeMesasModal())
+      $('mesasBack')?.addEventListener('click', () => closeMesasModal())
+      $('mesasModal')?.addEventListener('click', (e) => {
+        if (e.target === $('mesasModal')) closeMesasModal()
+      })
+      $('mesasList')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-mesa]')
+        if (!btn) return
+        const id = normalizeMesa(btn.getAttribute('data-mesa'))
+        if (!id) return
+        closeMesasModal()
+        switchMesa(id)
+        openTicket()
+      })
       if ($('notes')) {
         $('notes').addEventListener('input', () => {
           state.notes = $('notes').value
@@ -4082,10 +4230,6 @@
               ? window.CasaTorinoTpvSync.mergeTables(state.tables, remote.tables || {})
               : { tables: remote.tables || {}, keptLocal: false }
             const nextTables = merged.tables || remote.tables || {}
-            const localQty = window.CasaTorinoTpvSync?.tablesQty?.(state.tables) || 0
-            const nextQty = window.CasaTorinoTpvSync?.tablesQty?.(nextTables) || 0
-            // Nunca aplicar un remoto vacío sobre mesas locales con productos
-            if (nextQty === 0 && localQty > 0) return
             const prevJson = JSON.stringify(state.tables)
             const nextJson = JSON.stringify(nextTables)
             if (prevJson === nextJson) return
@@ -4126,16 +4270,13 @@
       ;(async () => {
         // Hidratar ANTES del polling: merge local↔remoto (no borrar mesas al refrescar)
         try {
-          const beforeQty = window.CasaTorinoTpvSync?.tablesQty?.(state.tables) || 0
           const hydrated = await window.CasaTorinoTpvSync?.hydrate?.(
             state.tables,
             normalizeMesa(state.mesa),
           )
           if (hydrated && hydrated.tables && typeof hydrated.tables === 'object') {
-            const nextQty = window.CasaTorinoTpvSync?.tablesQty?.(hydrated.tables) || 0
-            if (!(nextQty === 0 && beforeQty > 0)) {
-              state.tables = hydrated.tables
-            }
+            // mergeTables ya protege {} vacío y acepta mesas cobradas (cart vacío)
+            state.tables = hydrated.tables
             const m = normalizeMesa(state.mesa || hydrated.mesa)
             if (m) {
               state.mesa = m

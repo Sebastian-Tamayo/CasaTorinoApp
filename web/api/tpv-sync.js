@@ -2,7 +2,7 @@
  * Casa Torino TPV — sync de mesas entre dispositivos.
  * Persistencia: Supabase ops_kv (opsStore), clave `tpv`.
  *
- * Limpieza diaria 09:00 Europe/Madrid: vacía cuentas/histórico de mesas
+ * Limpieza diaria 08:00 Europe/Madrid: vacía cuentas/histórico de mesas
  * (rollover en GET/POST + cron /api/ops-daily-purge).
  */
 const { getJson, setJson, updateJson } = require('./_opsStore')
@@ -37,7 +37,7 @@ function emptyState() {
 function cartQty(table) {
   let n = 0
   const cart = table && table.cart
-  if (!cart || typeof cart !== 'object') return 0
+  if (!cart || typeof cart !== 'object' || Array.isArray(cart)) return 0
   for (const line of Object.values(cart)) n += Math.max(0, Number(line?.qty) || 0)
   return n
 }
@@ -50,46 +50,44 @@ function tablesQty(tables) {
 }
 
 /**
- * Fusiona mesas en servidor: un POST vacío NUNCA borra cuentas con productos.
- * Por mesa, si una parte está vacía y la otra no, gana la que tiene cuenta.
- * Si ambas tienen qty, gana `preferred` (LWW del cliente más reciente).
+ * Fusiona mesas en servidor.
+ * - POST {} (sin claves) NUNCA borra cuentas con productos (anti-wipe refresh).
+ * - Si el cliente manda una mesa con cart vacío (cobro), se acepta (LWW).
+ * - Un cliente viejo no puede reintroducir productos en una mesa ya cobrada.
  */
 function mergeTables(serverTables, incomingTables, preferIncoming) {
   const server = serverTables && typeof serverTables === 'object' ? serverTables : {}
   const incoming =
     incomingTables && typeof incomingTables === 'object' ? incomingTables : {}
   const sTotal = tablesQty(server)
-  const iTotal = tablesQty(incoming)
+  const incomingKeys = Object.keys(incoming)
 
-  // Cliente sin mesas (refresh antes de hidratar) no puede vaciar el servidor.
-  if (Object.keys(incoming).length === 0 && sTotal > 0) {
+  if (incomingKeys.length === 0 && sTotal > 0) {
     return { tables: server, rejectedEmpty: true }
   }
-  if (iTotal === 0 && sTotal > 0 && !preferIncoming) {
-    return { tables: server, rejectedEmpty: true }
-  }
-  // Preferencia LWW: si el cliente manda todo vacío CON claves de mesa
-  // (cobros reales), se acepta abajo mesa a mesa.
 
-  const keys = new Set([...Object.keys(server), ...Object.keys(incoming)])
+  const keys = new Set([...Object.keys(server), ...incomingKeys])
   const out = {}
   for (const k of keys) {
     const S = server[k]
     const I = incoming[k]
+    const hasI = Object.prototype.hasOwnProperty.call(incoming, k)
     const sq = cartQty(S)
     const iq = cartQty(I)
-    if (iq === 0 && sq > 0 && !Object.prototype.hasOwnProperty.call(incoming, k)) {
-      // Mesa solo en servidor: conservar
-      out[k] = S
-    } else if (iq === 0 && sq > 0 && preferIncoming && Object.prototype.hasOwnProperty.call(incoming, k)) {
-      // Cliente vació esa mesa a propósito (cobro / vaciar cuenta)
-      out[k] = I
-    } else if (sq === 0 && iq > 0) {
-      out[k] = I
-    } else if (iq > 0 && sq > 0) {
-      out[k] = preferIncoming ? I : S
-    } else if (I) {
-      out[k] = I
+
+    if (hasI) {
+      if (preferIncoming) {
+        out[k] = I
+      } else if (iq > 0 && sq === 0) {
+        // Cliente viejo no reintroduce productos en mesa ya cobrada
+        out[k] = S || { cart: {}, hist: [], notes: '', paid: '' }
+      } else if (sq > 0 && iq === 0) {
+        out[k] = S
+      } else if (iq > 0 && sq > 0) {
+        out[k] = S
+      } else {
+        out[k] = S || I
+      }
     } else if (S) {
       out[k] = S
     }
@@ -156,7 +154,7 @@ module.exports = async function handler(req, res) {
         const incomingTables =
           body.tables && typeof body.tables === 'object' ? body.tables : {}
 
-        // Cliente de otro día no puede repoblar tras la limpieza de las 09:00.
+        // Cliente de otro día no puede repoblar tras la limpieza de las 08:00.
         if (incomingDay && incomingDay !== serverDay) {
           return { ...rolled, opsDay: serverDay }
         }
@@ -165,13 +163,16 @@ module.exports = async function handler(req, res) {
         const preferIncoming = !(serverAt > incomingAt)
         const merged = mergeTables(rolled.tables, incomingTables, preferIncoming)
 
-        // POST {} vacío con reloj adelantado: mantener servidor intacto.
         if (merged.rejectedEmpty) {
           return { ...rolled, opsDay: serverDay }
         }
 
         if (!preferIncoming) {
-          return { ...rolled, opsDay: serverDay }
+          return {
+            ...rolled,
+            tables: merged.tables,
+            opsDay: serverDay,
+          }
         }
 
         return {

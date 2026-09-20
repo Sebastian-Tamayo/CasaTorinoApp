@@ -1,8 +1,9 @@
 /**
  * Casa Torino TPV — sync mesas móvil ↔ PC (endurecido 24/7)
- * - Nunca deja que un remoto vacío borre mesas locales con productos
- * - No hace push hasta completar hydrate (evita wipe al refrescar)
- * - Envía opsDay (09:00 Madrid) para no chocar con el purge diario
+ * - POST {} sin claves no borra mesas locales (anti-wipe al refrescar)
+ * - Mesas cobradas (cart vacío en remoto) NO se resucitan desde local
+ * - No hace push hasta completar hydrate
+ * - Envía opsDay (08:00 Madrid) para no chocar con el purge diario
  * - flush() al salir/refrescar para no perder el push pendiente
  */
 (() => {
@@ -26,14 +27,12 @@
   let onRemote = null
   let onAuthLost = null
   let getLocalSnapshot = null
-  /** Bloquea push hasta hydrate(); evita POST {} al refrescar. */
   let ready = false
 
   function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms))
   }
 
-  /** Mismo criterio que web/api/_opsDay.js (día operativo 09:00 Europe/Madrid). */
   function opsDayId(now = new Date()) {
     const fmt = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Europe/Madrid',
@@ -53,7 +52,7 @@
     let m = Number(parts.month)
     let d = Number(parts.day)
     const hour = Number(parts.hour)
-    if (hour < 9) {
+    if (hour < 8) {
       const dt = new Date(Date.UTC(y, m - 1, d))
       dt.setUTCDate(dt.getUTCDate() - 1)
       y = dt.getUTCFullYear()
@@ -66,7 +65,7 @@
   function cartQty(table) {
     let n = 0
     const cart = table && table.cart
-    if (!cart || typeof cart !== 'object') return 0
+    if (!cart || typeof cart !== 'object' || Array.isArray(cart)) return 0
     for (const line of Object.values(cart)) n += Math.max(0, Number(line?.qty) || 0)
     return n
   }
@@ -78,41 +77,28 @@
     return n
   }
 
-  /**
-   * Fusiona mesas: un remoto vacío NUNCA borra mesas locales con productos.
-   * Por mesa: si una está vacía y la otra no, gana la que tiene cuenta.
-   */
   function mergeTables(localTables, remoteTables) {
     const local = localTables && typeof localTables === 'object' ? localTables : {}
     const remote = remoteTables && typeof remoteTables === 'object' ? remoteTables : {}
+    const rKeys = Object.keys(remote)
     const lTotal = tablesQty(local)
-    const rTotal = tablesQty(remote)
 
-    if (rTotal === 0 && lTotal > 0) {
+    if (rKeys.length === 0 && lTotal > 0) {
       return { tables: local, keptLocal: true }
     }
-    if (lTotal === 0 && rTotal > 0) {
-      return { tables: remote, keptLocal: false }
-    }
 
-    const keys = new Set([...Object.keys(local), ...Object.keys(remote)])
+    const keys = new Set([...Object.keys(local), ...rKeys])
     const out = {}
     let keptLocal = false
     for (const k of keys) {
       const L = local[k]
       const R = remote[k]
-      const lq = cartQty(L)
-      const rq = cartQty(R)
-      if (rq === 0 && lq > 0) {
-        out[k] = L
-        keptLocal = true
-      } else if (lq === 0 && rq > 0) {
-        out[k] = R
-      } else if (R) {
+      const hasR = Object.prototype.hasOwnProperty.call(remote, k)
+      if (hasR) {
         out[k] = R
       } else if (L) {
         out[k] = L
-        keptLocal = true
+        if (cartQty(L) > 0) keptLocal = true
       }
     }
     return { tables: out, keptLocal }
@@ -148,10 +134,6 @@
     throw lastErr || new Error('sync GET failed')
   }
 
-  /**
-   * No enviar {} si el servidor (o el último remoto conocido) tiene cuentas.
-   * Los cobros reales mandan claves de mesa con cart vacío — eso sí se permite.
-   */
   function shouldBlockEmptyPush(tables) {
     const qty = tablesQty(tables)
     const keys = tables && typeof tables === 'object' ? Object.keys(tables).length : 0
@@ -227,7 +209,6 @@
     }, PUSH_DEBOUNCE_MS)
   }
 
-  /** Empuja al momento (antes de refresh/cerrar pestaña). */
   async function flush() {
     if (pushTimer) {
       clearTimeout(pushTimer)
@@ -295,10 +276,6 @@
     }
   }
 
-  /**
-   * Arranque: merge local↔remoto ANTES del polling / cualquier push.
-   * Evita el wipe al refrescar (POST {} pisa Supabase).
-   */
   async function hydrate(localTables, localMesa) {
     try {
       const remote = await pull()
@@ -315,7 +292,6 @@
           console.warn('[tpvSync] hydrate push', err)
         }
       } else if (pending) {
-        // Empujar lo que quedó en cola durante el boot (si no era wipe)
         const job = pending
         pending = null
         try {
@@ -332,7 +308,6 @@
       }
     } catch (err) {
       console.warn('[tpvSync] hydrate', err)
-      // Sin remoto: permitir trabajo local, pero push vacío sigue bloqueado si hubo qty remota.
       ready = true
       return {
         tables: localTables || {},
@@ -353,7 +328,6 @@
     if (heartbeat) clearInterval(heartbeat)
     heartbeat = setInterval(refreshSession, 15 * 60 * 1000)
     refreshSession()
-    // tick inicial solo si no se hidrató fuera
     if (!options.skipInitialTick) tick()
   }
 
@@ -387,6 +361,7 @@
     hydrate,
     mergeTables,
     tablesQty,
+    cartQty,
     opsDayId,
     start,
     stop,
