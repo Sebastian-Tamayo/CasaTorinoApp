@@ -1433,11 +1433,11 @@
     <div class="jornada-bar" id="jornadaBar" aria-label="Jornada de caja">
       <div class="jornada-status" id="jornadaStatus">Jornada: <strong>sin iniciar</strong></div>
       <div class="jornada-actions">
+        <button class="btn-j total" id="btnMesasOpenBar" type="button" title="Mesas pendientes de cobro"><i class="fa-solid fa-list-ul"></i> Mesas</button>
         <button class="btn-j start" id="btnJornadaStart" type="button"><i class="fa-solid fa-play"></i> Inicio de jornada</button>
         <button class="btn-j total" id="btnJornadaTotal" type="button"><i class="fa-solid fa-chart-column"></i> Total de jornada</button>
         <button class="btn-j end" id="btnJornadaEnd" type="button" disabled><i class="fa-solid fa-flag-checkered"></i> Fin de sesión</button>
         <button class="btn-j print" id="btnPrintTest" type="button" title="Probar impresora POS-58"><i class="fa-solid fa-print"></i> Probar ticket</button>
-        <button class="btn-j" id="btnMesasOpenBar" type="button" title="Mesas pendientes de cobro"><i class="fa-solid fa-list-ul"></i> Mesas</button>
         <button class="btn-j" id="btnMenuSchedule" type="button" title="Auto: finde + festivos Gijón · o mostrar todos"><i class="fa-solid fa-calendar-week"></i> Menús: auto</button>
       </div>
     </div>
@@ -1686,7 +1686,7 @@
   <script src="carta.js"></script>
   <script src="tpv-data.js"></script>
   <script src="printService.js"></script>
-  <script src="tpvSync.js?v=mesas-0800-20260920b"></script>
+  <script src="tpvSync.js?v=mesas-0800-20260920c"></script>
   <script src="tpvJornada.js"></script>
   <script src="kitchenSync.js"></script>
   <script>
@@ -1917,6 +1917,37 @@
       pinBuf = ''
       paintPinDots()
       if ($('gateErr')) $('gateErr').textContent = ''
+
+      // Delegación global: el botón Mesas debe abrir aunque falle parte del boot del TPV
+      document.addEventListener('click', (e) => {
+        const openBtn = e.target.closest?.(
+          '#btnMesasOpenBar, #btnMesasOpenHeader, #btnMesasOpen, #btnMesasOpenTop',
+        )
+        if (openBtn) {
+          e.preventDefault()
+          if (typeof window.__casaTorinoOpenMesas === 'function') {
+            window.__casaTorinoOpenMesas()
+          } else {
+            alert('Espera un segundo a que cargue el TPV e inténtalo de nuevo.')
+          }
+          return
+        }
+        if (e.target.closest?.('#mesasCancel, #mesasBack')) {
+          e.preventDefault()
+          if ($('mesasModal')) $('mesasModal').hidden = true
+          return
+        }
+        if (e.target === $('mesasModal')) {
+          if ($('mesasModal')) $('mesasModal').hidden = true
+          return
+        }
+        const pick = e.target.closest?.('#mesasList [data-mesa]')
+        if (pick && typeof window.__casaTorinoPickMesa === 'function') {
+          e.preventDefault()
+          window.__casaTorinoPickMesa(pick.getAttribute('data-mesa'))
+        }
+      })
+
       tryResumeSession()
 
       function startTpv() {
@@ -2362,23 +2393,41 @@
 
       function openMesasModal() {
         const list = $('mesasList')
-        if (!list) return
-        const rows = pendingMesas()
-        if (!rows.length) {
-          list.innerHTML = '<p class="mesas-empty">No hay mesas pendientes de cobro.</p>'
-        } else {
-          list.innerHTML = rows.map((r) => `
-            <button type="button" class="mesas-list-item ${r.active ? 'on' : ''}" data-mesa="${r.id}">
-              <span class="mesa-num">${r.id}</span>
-              <span>
-                <strong>Mesa ${r.id}</strong>
-                <div class="mesa-meta">${r.qty} ud. sin cobrar</div>
-              </span>
-              <span class="mesa-total">${money(r.total)}</span>
-            </button>
-          `).join('')
+        const modal = $('mesasModal')
+        if (!list || !modal) {
+          console.warn('mesas modal missing')
+          return
         }
-        if ($('mesasModal')) $('mesasModal').hidden = false
+        try {
+          const rows = pendingMesas()
+          if (!rows.length) {
+            list.innerHTML = '<p class="mesas-empty">No hay mesas pendientes de cobro.</p>'
+          } else {
+            list.innerHTML = rows.map((r) => `
+              <button type="button" class="mesas-list-item ${r.active ? 'on' : ''}" data-mesa="${r.id}">
+                <span class="mesa-num">${r.id}</span>
+                <span>
+                  <strong>Mesa ${r.id}</strong>
+                  <div class="mesa-meta">${r.qty} ud. sin cobrar</div>
+                </span>
+                <span class="mesa-total">${money(r.total)}</span>
+              </button>
+            `).join('')
+          }
+          modal.hidden = false
+        } catch (err) {
+          console.warn('openMesasModal', err)
+          alert('No se pudo abrir el listado de mesas.')
+        }
+      }
+
+      window.__casaTorinoOpenMesas = openMesasModal
+      window.__casaTorinoPickMesa = (raw) => {
+        const id = normalizeMesa(raw)
+        if (!id) return
+        closeMesasModal()
+        switchMesa(id)
+        try { openTicket() } catch {}
       }
 
       function requireMesa() {
