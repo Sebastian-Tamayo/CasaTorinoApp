@@ -6,11 +6,11 @@
   "crons": [
     {
       "path": "/api/ops-daily-purge",
-      "schedule": "0 7 * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/ops-daily-purge",
-      "schedule": "0 8 * * *"
+      "schedule": "0 7 * * *"
     }
   ],
   "headers": [
@@ -22,6 +22,12 @@
     },
     {
       "source": "/(.*)\\.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/(.*)\\.html",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
       ]

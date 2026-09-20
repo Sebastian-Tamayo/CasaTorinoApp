@@ -1,5 +1,5 @@
 /**
- * Día operativo Casa Torino: 09:00 → 09:00 (Europe/Madrid).
+ * Día operativo Casa Torino: 08:00 → 08:00 (Europe/Madrid).
  * Usado por cocina, TPV (mesas) y el cron /api/ops-daily-purge.
  */
 
@@ -22,7 +22,8 @@ function opsDayId(now = new Date()) {
   let m = Number(parts.month)
   let d = Number(parts.day)
   const hour = Number(parts.hour)
-  if (hour < 9) {
+  // Antes de las 08:00 Madrid sigue contando como el día operativo anterior.
+  if (hour < 8) {
     const dt = new Date(Date.UTC(y, m - 1, d))
     dt.setUTCDate(dt.getUTCDate() - 1)
     y = dt.getUTCFullYear()
@@ -32,7 +33,7 @@ function opsDayId(now = new Date()) {
   return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 }
 
-/** Vacía histórico + cola de cocina al cruzar las 09:00. */
+/** Vacía histórico + cola de cocina al cruzar las 08:00. */
 function applyKitchenDayRollover(state) {
   const day = opsDayId()
   const base =
@@ -76,7 +77,7 @@ function applyKitchenDayRollover(state) {
   }
 }
 
-/** Vacía mesas TPV (cuentas + hist) al cruzar las 09:00. */
+/** Vacía mesas TPV (cuentas + hist) al cruzar las 08:00. */
 function applyTpvDayRollover(state) {
   const day = opsDayId()
   const base =
