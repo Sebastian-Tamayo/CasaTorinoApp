@@ -1,8 +1,8 @@
 /**
- * Limpieza diaria 09:00 Europe/Madrid — cocina + mesas TPV.
+ * Limpieza diaria 08:00 Europe/Madrid — cocina + mesas TPV.
  *
  * GET|POST /api/ops-daily-purge
- * Invocado por Vercel Cron (07:00 y 08:00 UTC → cubre CEST/CET)
+ * Invocado por Vercel Cron (06:00 y 07:00 UTC → cubre CEST/CET = 08:00 Madrid)
  * y de forma idempotente: solo actúa si cambió el día operativo.
  *
  * Auth: header x-vercel-cron, Bearer CRON_SECRET / TPV_SYNC_KEY, o cookie TPV.
@@ -125,7 +125,7 @@ module.exports = async function handler(req, res) {
     const payload = {
       ok: true,
       day,
-      purgeAt: '09:00 Europe/Madrid',
+      purgeAt: '08:00 Europe/Madrid',
       kitchen,
       tpv,
       ranAt: new Date().toISOString(),

@@ -47,7 +47,7 @@ Sin apps nativas: el personal usa el navegador en tablet, PC de caja o móvil.
 ### Cocina (KDS)
 - Pedidos en vivo desde el TPV
 - Menú español: Listo 1º → recogida → Listo 2º
-- Histórico del día (purge ~09:00 Europe/Madrid)
+- Histórico del día (purge ~08:00 Europe/Madrid)
 - Detalle: [`COCINA-KDS.md`](./COCINA-KDS.md)
 
 ### Jornada de caja
