@@ -223,10 +223,13 @@
       position: relative;
       z-index: 61; /* por si un aviso se solapa, Mesa sigue usable */
     }
-    .mesa-chip span {
+    .mesa-chip span,
+    .mesa-chip-label {
       font-size: .72rem; font-weight: 800; letter-spacing: .04em;
       text-transform: uppercase; color: var(--gold); white-space: nowrap;
     }
+    /* En móvil el listado Mesas va en la barra de jornada; no aplastar el buscador */
+    .mesa-chip-label { display: none; }
     .mesa-chip input {
       width: 3.4rem; border: 0; background: transparent; color: var(--ink);
       font-weight: 800; font-size: 1.05rem; text-align: center; outline: none;
@@ -440,9 +443,62 @@
       background: var(--card); border: 1px solid var(--line2); border-radius: 16px;
       padding: .45rem .55rem .45rem .75rem;
     }
-    .mesa-field label {
+    .mesa-field label,
+    .mesa-pick-btn {
       font-size: .72rem; font-weight: 800; letter-spacing: .05em;
       text-transform: uppercase; color: var(--gold);
+    }
+    .mesa-pick-btn {
+      border: 0; background: transparent; cursor: pointer; padding: .2rem .15rem;
+      display: inline-flex; align-items: center; gap: .35rem; border-radius: 10px;
+    }
+    .mesa-pick-btn:active { background: rgba(245,197,24,.12); }
+    .mesa-pick-btn i { font-size: .75rem; opacity: .9; }
+    .btn-mesas-pending {
+      border: 1px solid rgba(245,197,24,.45);
+      background: rgba(245,197,24,.12);
+      color: var(--gold);
+      font: inherit;
+      font-size: .78rem;
+      font-weight: 800;
+      border-radius: 12px;
+      padding: .4rem .65rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      white-space: nowrap;
+    }
+    .btn-mesas-pending:active { background: rgba(245,197,24,.22); }
+    .mesa-chip-btn {
+      border: 0; background: transparent; color: var(--gold); font: inherit;
+      font-size: .72rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+      cursor: pointer; padding: 0; display: inline-flex; align-items: center; gap: .25rem;
+    }
+    .mesas-list {
+      display: grid; gap: .45rem; max-height: min(52vh, 420px); overflow: auto;
+      padding: .15rem 0 .35rem; -webkit-overflow-scrolling: touch;
+    }
+    .mesas-list-item {
+      display: grid; grid-template-columns: auto 1fr auto; gap: .55rem; align-items: center;
+      width: 100%; text-align: left; border: 1px solid var(--line2); border-radius: 14px;
+      background: var(--card); color: var(--ink); padding: .7rem .8rem; cursor: pointer;
+      font: inherit;
+    }
+    .mesas-list-item:active { background: var(--card2); }
+    .mesas-list-item.on {
+      border-color: rgba(245,197,24,.55);
+      box-shadow: inset 0 0 0 1px rgba(245,197,24,.25);
+    }
+    .mesas-list-item .mesa-num {
+      width: 2.4rem; height: 2.4rem; border-radius: 12px; display: grid; place-items: center;
+      background: rgba(245,197,24,.14); color: var(--gold); font-weight: 800;
+    }
+    .mesas-list-item .mesa-meta { font-size: .78rem; color: var(--muted); font-weight: 600; }
+    .mesas-list-item .mesa-total { font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
+    .mesas-empty {
+      margin: .35rem 0; padding: .85rem; border-radius: 14px; border: 1px dashed var(--line2);
+      color: var(--muted); font-weight: 600; text-align: center;
     }
     .mesa-field input {
       width: 100%; border: 0; background: transparent; color: var(--ink);
@@ -499,6 +555,20 @@
     .line:nth-child(odd) { background: rgba(255,255,255,.02); }
     .line-name { font-weight: 700; font-size: .9rem; line-height: 1.25; }
     .line-meta { color: var(--muted); font-size: .72rem; font-weight: 600; margin-top: .15rem; }
+    .line-at {
+      display: inline-block;
+      margin-left: .4rem;
+      padding: .05rem .35rem;
+      border-radius: 6px;
+      font-size: .7rem;
+      font-weight: 800;
+      letter-spacing: .02em;
+      color: var(--gold);
+      background: rgba(245,197,24,.12);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
     .line-right { text-align: right; display: grid; gap: .4rem; justify-items: end; align-content: start; }
     .line-sum { font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
     .line-price-edit {
@@ -961,19 +1031,54 @@
         -webkit-overflow-scrolling: touch;
         padding-bottom: calc(1.75rem + var(--safe-b) + 88px);
       }
-      .search { display: flex; flex: 1 1 auto; min-width: 0; width: auto; max-width: none; }
-      .search input { padding: .55rem .75rem .55rem 2rem; font-size: .9rem; }
-      .clock { display: none; }
-      .brand em { display: none; }
-      .brand strong { font-size: .86rem; }
-      .rail { padding: .65rem .55rem; position: sticky; top: 58px; z-index: 25; }
-      .cat { min-width: 72px; }
-      .fab { left: .65rem; right: .65rem; }
+      /*
+        Móvil: fila 1 salir+marca, fila 2 buscador a ancho útil.
+        El botón listado Mesas del chip aplastaba el buscador (~52px);
+        el listado sigue en la barra de jornada.
+      */
       .app {
         height: auto;
         min-height: 100dvh;
         grid-template-rows: auto auto auto;
+        align-content: start;
       }
+      .topbar {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-areas:
+          "leave brand"
+          "tools tools";
+        align-items: center;
+        gap: .4rem .5rem;
+      }
+      .topbar > #btnLeaveTpv { grid-area: leave; }
+      .topbar > .brand { grid-area: brand; max-width: none; min-width: 0; flex: unset; }
+      .top-tools {
+        grid-area: tools;
+        margin-left: 0;
+        width: 100%;
+        max-width: none;
+        gap: .35rem;
+      }
+      .mesa-chip-btn { display: none !important; }
+      .mesa-chip-label { display: inline; }
+      .mesa-chip { flex: 0 0 auto; padding: .28rem .4rem .28rem .55rem; }
+      .mesa-chip input { width: 2.75rem; font-size: 1rem; }
+      .search {
+        display: block; position: relative;
+        flex: 1 1 auto; min-width: 0; width: auto; max-width: none;
+      }
+      .search input {
+        display: block; width: 100%; box-sizing: border-box;
+        padding: .55rem .75rem .55rem 2rem; font-size: .9rem;
+        min-height: 40px;
+      }
+      .clock { display: none; }
+      .brand em { display: none; }
+      .brand strong { font-size: .86rem; }
+      .rail { padding: .65rem .55rem; position: sticky; top: 108px; z-index: 25; }
+      .cat { min-width: 72px; }
+      .fab { left: .65rem; right: .65rem; }
       .workspace {
         grid-template-rows: auto auto;
         height: auto;
@@ -981,12 +1086,13 @@
       }
       .menu { overflow: visible; }
       body { touch-action: pan-y; -ms-touch-action: pan-y; }
-      .jornada-bar { position: sticky; top: 56px; }
+      .jornada-bar { position: sticky; top: 108px; }
     }
     @media (max-width: 380px) {
       .brand strong { max-width: 7.5rem; }
-      .mesa-chip span { display: none; }
-      .mesa-chip { padding: .28rem .4rem; }
+      .mesa-chip span,
+      .mesa-chip-label { display: none; }
+      .mesa-chip { padding: .28rem .35rem; }
     }
 
     /* Landscape móvil / tablet baja */
@@ -1103,6 +1209,10 @@
       background: rgba(12, 18, 26, .92);
       position: sticky; top: 58px; z-index: 28;
       backdrop-filter: blur(12px);
+    }
+    @media (max-width: 1023px) {
+      /* topbar móvil = 2 filas (~108px); no tapar el buscador al hacer scroll */
+      .jornada-bar { top: 108px; }
     }
     .jornada-status {
       flex: 1 1 auto; min-width: 8rem;
@@ -1367,10 +1477,13 @@
           <i class="fa-solid fa-magnifying-glass"></i>
           <input id="search" type="search" inputmode="search" enterkeyhint="search" placeholder="Buscar producto…" autocomplete="off" spellcheck="false" />
         </div>
-        <label class="mesa-chip" for="mesaTop">
-          <span>Mesa</span>
+        <div class="mesa-chip">
+          <button type="button" class="mesa-chip-btn" id="btnMesasOpenTop" title="Mesas pendientes de cobro">
+            Mesa <i class="fa-solid fa-list-ul"></i>
+          </button>
+          <span class="mesa-chip-label">Mesa</span>
           <input id="mesaTop" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" placeholder="nº" maxlength="4" autocomplete="off" spellcheck="false" />
-        </label>
+        </div>
         <button class="icon-btn" id="btnClear" type="button" title="Vaciar"><i class="fa-solid fa-trash"></i></button>
       </div>
     </header>
@@ -1378,6 +1491,7 @@
     <div class="jornada-bar" id="jornadaBar" aria-label="Jornada de caja">
       <div class="jornada-status" id="jornadaStatus">Jornada: <strong>sin iniciar</strong></div>
       <div class="jornada-actions">
+        <button class="btn-j total" id="btnMesasOpenBar" type="button" title="Mesas pendientes de cobro"><i class="fa-solid fa-list-ul"></i> Mesas</button>
         <button class="btn-j start" id="btnJornadaStart" type="button"><i class="fa-solid fa-play"></i> Inicio de jornada</button>
         <button class="btn-j total" id="btnJornadaTotal" type="button"><i class="fa-solid fa-chart-column"></i> Total de jornada</button>
         <button class="btn-j end" id="btnJornadaEnd" type="button" disabled><i class="fa-solid fa-flag-checkered"></i> Fin de sesión</button>
@@ -1409,10 +1523,15 @@
               </button>
               <h2><i class="fa-solid fa-receipt"></i> Cuenta</h2>
             </div>
+            <button type="button" class="btn-mesas-pending" id="btnMesasOpenHeader" title="Mesas pendientes de cobro">
+              <i class="fa-solid fa-list-ul"></i> Mesas
+            </button>
             <button class="link" id="btnUndo" type="button" disabled>Deshacer</button>
           </div>
           <div class="mesa-field">
-            <label for="mesa">Mesa</label>
+            <button type="button" class="mesa-pick-btn" id="btnMesasOpen" title="Mesas pendientes de cobro">
+              Mesa <i class="fa-solid fa-list-ul"></i>
+            </button>
             <input id="mesa" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" placeholder="nº de mesa" maxlength="4" autocomplete="off" spellcheck="false" />
           </div>
           <div class="notes-field">
@@ -1495,6 +1614,22 @@
       <div class="course-actions">
         <button type="button" class="cancel" id="courseCancel">Cancelar</button>
         <button type="button" class="ok" id="courseOk" disabled>Añadir a cuenta</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="course-modal" id="mesasModal" hidden role="dialog" aria-modal="true" aria-labelledby="mesasModalTitle">
+    <div class="course-card">
+      <div class="course-card-h">
+        <button type="button" class="btn-modal-back" id="mesasBack" aria-label="Volver">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </button>
+        <h3 id="mesasModalTitle">Mesas pendientes</h3>
+      </div>
+      <p class="sub">Toca una mesa con cuenta abierta para abrirla. Solo se listan las que aún tienen productos sin cobrar.</p>
+      <div class="mesas-list" id="mesasList"></div>
+      <div class="course-actions">
+        <button type="button" class="cancel" id="mesasCancel">Cerrar</button>
       </div>
     </div>
   </div>
@@ -1609,7 +1744,7 @@
   <script src="carta.js"></script>
   <script src="tpv-data.js"></script>
   <script src="printService.js"></script>
-  <script src="tpvSync.js?v=hydrate-20260919"></script>
+  <script src="tpvSync.js?v=mesa-clear-sticky-20260920"></script>
   <script src="tpvJornada.js"></script>
   <script src="kitchenSync.js"></script>
   <script>
@@ -1714,6 +1849,9 @@
           tpvStarted = true
           await bootTpvCatalog()
           startTpv()
+        } else if (typeof window.__casaTorinoTpvResume === 'function') {
+          // Re-PIN tras 401: no reiniciar startTpv (duplicaba listeners y podía pisar mesas)
+          try { window.__casaTorinoTpvResume() } catch (err) { console.warn('tpv resume', err) }
         }
       }
 
@@ -1796,7 +1934,7 @@
         try { window.CasaTorinoTpvSync?.stop?.() } catch {}
         try { window.CasaTorinoTpvJornada?.stopPolling?.() } catch {}
         try { window.CasaTorinoKitchenSync?.stop?.() } catch {}
-        tpvStarted = false
+        // Mantener tpvStarted: al desbloquear se reanuda sync sin recrear el runtime
       }
 
       // Si ya hay cookie de sesión (p.ej. entraste por Gestión interna), no pedir PIN otra vez.
@@ -1837,6 +1975,37 @@
       pinBuf = ''
       paintPinDots()
       if ($('gateErr')) $('gateErr').textContent = ''
+
+      // Delegación global: el botón Mesas debe abrir aunque falle parte del boot del TPV
+      document.addEventListener('click', (e) => {
+        const openBtn = e.target.closest?.(
+          '#btnMesasOpenBar, #btnMesasOpenHeader, #btnMesasOpen, #btnMesasOpenTop',
+        )
+        if (openBtn) {
+          e.preventDefault()
+          if (typeof window.__casaTorinoOpenMesas === 'function') {
+            window.__casaTorinoOpenMesas()
+          } else {
+            alert('Espera un segundo a que cargue el TPV e inténtalo de nuevo.')
+          }
+          return
+        }
+        if (e.target.closest?.('#mesasCancel, #mesasBack')) {
+          e.preventDefault()
+          if ($('mesasModal')) $('mesasModal').hidden = true
+          return
+        }
+        if (e.target === $('mesasModal')) {
+          if ($('mesasModal')) $('mesasModal').hidden = true
+          return
+        }
+        const pick = e.target.closest?.('#mesasList [data-mesa]')
+        if (pick && typeof window.__casaTorinoPickMesa === 'function') {
+          e.preventDefault()
+          window.__casaTorinoPickMesa(pick.getAttribute('data-mesa'))
+        }
+      })
+
       tryResumeSession()
 
       function startTpv() {
@@ -1868,6 +2037,7 @@
         cart: {},
         hist: [],
         tables: {},
+        opsDay: '',
         jornada: null,
         /** qty seleccionada por línea para ticket/cobro parcial { [cartKey]: number } */
         paySelect: {},
@@ -2172,7 +2342,19 @@
       function load() {
         try {
           const d = readTablesStore()
+          const today = window.CasaTorinoTpvSync?.opsDayId?.() || ''
+          // Si cambió el día operativo (purge 08:00), no reutilizar mesas de ayer
+          if (today && d.opsDay && d.opsDay !== today) {
+            state.tables = {}
+            state.mesa = ''
+            state.cart = {}
+            state.hist = []
+            state.opsDay = today
+            writeTablesStore({ mesa: '', tables: {}, opsDay: today })
+            return
+          }
           if (d.tables && typeof d.tables === 'object') state.tables = d.tables
+          state.opsDay = d.opsDay || today || ''
           if (d.mesa) {
             state.mesa = normalizeMesa(d.mesa)
             syncMesaInputs(state.mesa)
@@ -2181,19 +2363,33 @@
         } catch {}
       }
 
+      function stampMesa(m, data) {
+        const now = Date.now()
+        return {
+          cart: data.cart || {},
+          hist: data.hist || [],
+          notes: data.notes || '',
+          paid: data.paid || '',
+          updatedAt: now,
+        }
+      }
+
       function persist() {
         const m = normalizeMesa(state.mesa)
         if (m) {
-          state.tables[m] = {
+          state.tables[m] = stampMesa(m, {
             cart: state.cart,
             hist: state.hist,
             notes: ($('notes')?.value || state.notes || '').trim(),
             paid: $('paid')?.value || '',
-          }
+          })
         }
-        writeTablesStore({ mesa: m, tables: state.tables })
-        // Sync entre móvil y PC (misma cuenta por nº de mesa)
+        const opsDay =
+          state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || ''
+        state.opsDay = opsDay
+        writeTablesStore({ mesa: m, tables: state.tables, opsDay })
         try {
+          window.CasaTorinoTpvSync?.touch?.()
           window.CasaTorinoTpvSync?.push(state.tables, m)
         } catch (err) {
           console.warn('sync push', err)
@@ -2214,12 +2410,12 @@
         const next = normalizeMesa(nextRaw)
         const prev = normalizeMesa(state.mesa)
         if (prev && prev !== next) {
-          state.tables[prev] = {
+          state.tables[prev] = stampMesa(prev, {
             cart: state.cart,
             hist: state.hist,
             notes: ($('notes')?.value || state.notes || '').trim(),
             paid: $('paid')?.value || '',
-          }
+          })
         }
         state.mesa = next
         syncMesaInputs(next)
@@ -2227,6 +2423,96 @@
         clearPaySelect()
         persist()
         render()
+      }
+
+      function tableCartQty(table) {
+        if (window.CasaTorinoTpvSync?.cartQty) return window.CasaTorinoTpvSync.cartQty(table)
+        let n = 0
+        const cart = table && table.cart
+        if (!cart || typeof cart !== 'object' || Array.isArray(cart)) return 0
+        for (const line of Object.values(cart)) n += Math.max(0, Number(line?.qty) || 0)
+        return n
+      }
+
+      function tableCartTotal(table) {
+        const cart = table && table.cart
+        if (!cart || typeof cart !== 'object' || Array.isArray(cart)) return 0
+        let cents = 0
+        for (const line of Object.values(cart)) {
+          cents += toCents(line?.price) * (Number(line?.qty) || 0)
+        }
+        return fromCents(cents)
+      }
+
+      /** Mesas con productos sin cobrar (qty > 0). */
+      function pendingMesas() {
+        const cur = normalizeMesa(state.mesa)
+        // Incluye la mesa activa en memoria por si aún no se ha persistido
+        const tables = { ...state.tables }
+        if (cur) {
+          tables[cur] = {
+            cart: state.cart,
+            hist: state.hist,
+            notes: ($('notes')?.value || state.notes || '').trim(),
+            paid: $('paid')?.value || '',
+          }
+        }
+        return Object.keys(tables)
+          .map((id) => {
+            const t = tables[id]
+            const qty = tableCartQty(t)
+            return {
+              id: normalizeMesa(id),
+              qty,
+              total: tableCartTotal(t),
+              active: normalizeMesa(id) === cur,
+            }
+          })
+          .filter((x) => x.id && x.qty > 0)
+          .sort((a, b) => Number(a.id) - Number(b.id) || String(a.id).localeCompare(String(b.id)))
+      }
+
+      function closeMesasModal() {
+        if ($('mesasModal')) $('mesasModal').hidden = true
+      }
+
+      function openMesasModal() {
+        const list = $('mesasList')
+        const modal = $('mesasModal')
+        if (!list || !modal) {
+          console.warn('mesas modal missing')
+          return
+        }
+        try {
+          const rows = pendingMesas()
+          if (!rows.length) {
+            list.innerHTML = '<p class="mesas-empty">No hay mesas pendientes de cobro.</p>'
+          } else {
+            list.innerHTML = rows.map((r) => `
+              <button type="button" class="mesas-list-item ${r.active ? 'on' : ''}" data-mesa="${r.id}">
+                <span class="mesa-num">${r.id}</span>
+                <span>
+                  <strong>Mesa ${r.id}</strong>
+                  <div class="mesa-meta">${r.qty} ud. sin cobrar</div>
+                </span>
+                <span class="mesa-total">${money(r.total)}</span>
+              </button>
+            `).join('')
+          }
+          modal.hidden = false
+        } catch (err) {
+          console.warn('openMesasModal', err)
+          alert('No se pudo abrir el listado de mesas.')
+        }
+      }
+
+      window.__casaTorinoOpenMesas = openMesasModal
+      window.__casaTorinoPickMesa = (raw) => {
+        const id = normalizeMesa(raw)
+        if (!id) return
+        closeMesasModal()
+        switchMesa(id)
+        try { openTicket() } catch {}
       }
 
       function requireMesa() {
@@ -2524,8 +2810,11 @@
         if (!requireMesa()) return
         const ctype = categoryTypeOf(item)
         const key = cartKeyFor(item.id, note)
-        if (state.cart[key]) state.cart[key].qty += 1
-        else {
+        const now = Date.now()
+        if (state.cart[key]) {
+          state.cart[key].qty += 1
+          if (!state.cart[key].addedAt) state.cart[key].addedAt = now
+        } else {
           state.cart[key] = {
             id: item.id,
             productId: item.id,
@@ -2542,6 +2831,7 @@
             customProduct: Boolean(item.customProduct),
             primero: meta?.primero || '',
             segundo: meta?.segundo || '',
+            addedAt: now,
           }
         }
         if (!state.cart[key].categoryType) state.cart[key].categoryType = ctype
@@ -2621,7 +2911,7 @@
           if (state.paySelect) delete state.paySelect[id]
         } else {
           state.cart[id].qty = qty
-          // Si bajan unidades ya enviadas, ajustar sentQty
+          if (!state.cart[id].addedAt) state.cart[id].addedAt = Date.now()
           if ((state.cart[id].sentQty || 0) > qty) state.cart[id].sentQty = qty
         }
         clampPaySelect()
@@ -2654,7 +2944,25 @@
         resetSelSummaryUi()
         if ($('notes')) $('notes').value = ''
         if ($('paid')) $('paid').value = ''
-        persist(); render(); closeTicket()
+        if (m) {
+          state.tables[m] = stampMesa(m, {
+            cart: {},
+            hist: [],
+            notes: '',
+            paid: '',
+          })
+        }
+        const opsDay =
+          state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || ''
+        state.opsDay = opsDay
+        writeTablesStore({ mesa: m || '', tables: state.tables, opsDay })
+        try {
+          window.CasaTorinoTpvSync?.touch?.()
+          window.CasaTorinoTpvSync?.pushNow?.(state.tables, m)
+        } catch (err) {
+          console.warn('clearCart sync', err)
+        }
+        render(); closeTicket()
       }
 
       async function sendToKitchen() {
@@ -3188,9 +3496,26 @@
         clearPaySelect()
         if ($('notes')) $('notes').value = ''
         if ($('paid')) $('paid').value = ''
-        if (m) state.tables[m] = { cart: {}, hist: [], notes: '', paid: '' }
+        if (m) {
+          state.tables[m] = stampMesa(m, {
+            cart: {},
+            hist: [],
+            notes: '',
+            paid: '',
+          })
+        }
         payDraft = { totalCents: 0, payments: [] }
-        persist(); render(); closeTicket()
+        const opsDay =
+          state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || ''
+        state.opsDay = opsDay
+        writeTablesStore({ mesa: m || '', tables: state.tables, opsDay })
+        try {
+          window.CasaTorinoTpvSync?.touch?.()
+          window.CasaTorinoTpvSync?.pushNow?.(state.tables, m)
+        } catch (err) {
+          console.warn('confirmPay sync', err)
+        }
+        render(); closeTicket()
         paintUndoChargeBtn()
       }
 
@@ -3382,6 +3707,8 @@
               const pickBtn = isMenuPick
                 ? `<button type="button" class="btn-pick" data-pick="${key}">Cambiar N1/N2</button>`
                 : ''
+              const atTs = Number(l.addedAt || l.at || 0)
+              const atLabel = atTs ? fmtHm(atTs) : ''
               const editable = isPriceEditable(l)
               const priceBlock = editable
                 ? `<div class="line-price-edit">
@@ -3403,7 +3730,7 @@
                 <i class="fa-solid fa-check" aria-hidden="true"></i>
               </button>
               <div>
-                <div class="line-name">${l.name}${tags}</div>
+                <div class="line-name">${l.name}${tags}${atLabel ? `<span class="line-at" title="Hora de añadido">${atLabel}</span>` : ''}</div>
                 ${priceBlock}
                 ${note}
                 ${pickBtn}
@@ -3852,6 +4179,9 @@
         if ($('payModal')?.hidden === false && e.key === 'Escape') {
           e.preventDefault(); if ($('payModal')) $('payModal').hidden = true; return
         }
+        if ($('mesasModal')?.hidden === false && e.key === 'Escape') {
+          e.preventDefault(); closeMesasModal(); return
+        }
         if (document.body.classList.contains('check-open') && e.key === 'Escape') {
           e.preventDefault(); closeTicket()
         }
@@ -3865,6 +4195,24 @@
       })
       bindMesa($('mesa'))
       bindMesa($('mesaTop'))
+      $('btnMesasOpen')?.addEventListener('click', () => openMesasModal())
+      $('btnMesasOpenTop')?.addEventListener('click', () => openMesasModal())
+      $('btnMesasOpenHeader')?.addEventListener('click', () => openMesasModal())
+      $('btnMesasOpenBar')?.addEventListener('click', () => openMesasModal())
+      $('mesasCancel')?.addEventListener('click', () => closeMesasModal())
+      $('mesasBack')?.addEventListener('click', () => closeMesasModal())
+      $('mesasModal')?.addEventListener('click', (e) => {
+        if (e.target === $('mesasModal')) closeMesasModal()
+      })
+      $('mesasList')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-mesa]')
+        if (!btn) return
+        const id = normalizeMesa(btn.getAttribute('data-mesa'))
+        if (!id) return
+        closeMesasModal()
+        switchMesa(id)
+        openTicket()
+      })
       if ($('notes')) {
         $('notes').addEventListener('input', () => {
           state.notes = $('notes').value
@@ -4072,28 +4420,7 @@
         () => lockTpvForPin('Sesión caducada — introduce el PIN'),
       )
 
-      ;(async () => {
-        // Hidratar ANTES del polling: merge local↔remoto (no borrar mesas al refrescar)
-        try {
-          const hydrated = await window.CasaTorinoTpvSync?.hydrate?.(
-            state.tables,
-            normalizeMesa(state.mesa),
-          )
-          if (hydrated && hydrated.tables) {
-            state.tables = hydrated.tables
-            const m = normalizeMesa(state.mesa || hydrated.mesa)
-            if (m) {
-              state.mesa = m
-              syncMesaInputs(m)
-              loadMesaIntoState(m)
-            }
-            writeTablesStore({ mesa: m || '', tables: state.tables })
-            render()
-          }
-        } catch (err) {
-          console.warn('tpv hydrate', err)
-        }
-
+      function startTpvSyncPolling() {
         window.CasaTorinoTpvSync?.start(
           (remote) => {
             const merged = window.CasaTorinoTpvSync.mergeTables
@@ -4104,9 +4431,13 @@
             const nextJson = JSON.stringify(nextTables)
             if (prevJson === nextJson) return
             state.tables = nextTables
-            const m = normalizeMesa(state.mesa)
-            if (m) loadMesaIntoState(m)
-            writeTablesStore({ mesa: m, tables: state.tables })
+            const m = normalizeMesa(state.mesa || remote.mesa)
+            if (m) {
+              state.mesa = m
+              syncMesaInputs(m)
+              loadMesaIntoState(m)
+            }
+            writeTablesStore({ mesa: m || '', tables: state.tables, opsDay: state.opsDay || '' })
             render()
             if (merged.keptLocal) {
               try {
@@ -4120,9 +4451,58 @@
             getLocalSnapshot: () => ({
               tables: state.tables,
               mesa: normalizeMesa(state.mesa),
+              opsDay: state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || '',
             }),
           },
         )
+      }
+
+      window.__casaTorinoTpvResume = () => {
+        startTpvSyncPolling()
+        window.CasaTorinoTpvJornada?.startPolling(
+          (j) => paintJornadaStatus(j),
+          () => lockTpvForPin('Sesión caducada — introduce el PIN'),
+        )
+      }
+
+      ;(async () => {
+        // Hidratar ANTES del polling: merge local↔remoto (no borrar mesas al refrescar)
+        try {
+          const hydrated = await window.CasaTorinoTpvSync?.hydrate?.(
+            state.tables,
+            normalizeMesa(state.mesa),
+            state.opsDay || '',
+          )
+          if (hydrated && hydrated.tables && typeof hydrated.tables === 'object') {
+            // mergeTables ya protege {} vacío del mismo día y acepta purge 08:00
+            state.tables = hydrated.tables
+            if (hydrated.opsDay) state.opsDay = hydrated.opsDay
+            else if (!state.opsDay) state.opsDay = window.CasaTorinoTpvSync?.opsDayId?.() || ''
+            if (hydrated.dayRollover) {
+              state.mesa = ''
+              state.cart = {}
+              state.hist = []
+              syncMesaInputs('')
+            } else {
+              const m = normalizeMesa(state.mesa || hydrated.mesa)
+              if (m) {
+                state.mesa = m
+                syncMesaInputs(m)
+                loadMesaIntoState(m)
+              }
+            }
+            writeTablesStore({
+              mesa: state.mesa || '',
+              tables: state.tables,
+              opsDay: state.opsDay || '',
+            })
+            render()
+          }
+        } catch (err) {
+          console.warn('tpv hydrate', err)
+        }
+
+        startTpvSyncPolling()
       })()
 
       window.addEventListener('pagehide', () => {
@@ -4136,7 +4516,7 @@
               paid: $('paid')?.value || '',
             }
           }
-          writeTablesStore({ mesa: m || '', tables: state.tables })
+          writeTablesStore({ mesa: m || '', tables: state.tables, opsDay: state.opsDay || '' })
           window.CasaTorinoTpvSync?.flush?.()
         } catch {}
       })
