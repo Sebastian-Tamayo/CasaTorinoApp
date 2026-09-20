@@ -223,10 +223,13 @@
       position: relative;
       z-index: 61; /* por si un aviso se solapa, Mesa sigue usable */
     }
-    .mesa-chip span {
+    .mesa-chip span,
+    .mesa-chip-label {
       font-size: .72rem; font-weight: 800; letter-spacing: .04em;
       text-transform: uppercase; color: var(--gold); white-space: nowrap;
     }
+    /* En móvil el listado Mesas va en la barra de jornada; no aplastar el buscador */
+    .mesa-chip-label { display: none; }
     .mesa-chip input {
       width: 3.4rem; border: 0; background: transparent; color: var(--ink);
       font-weight: 800; font-size: 1.05rem; text-align: center; outline: none;
@@ -1028,19 +1031,54 @@
         -webkit-overflow-scrolling: touch;
         padding-bottom: calc(1.75rem + var(--safe-b) + 88px);
       }
-      .search { display: flex; flex: 1 1 auto; min-width: 0; width: auto; max-width: none; }
-      .search input { padding: .55rem .75rem .55rem 2rem; font-size: .9rem; }
-      .clock { display: none; }
-      .brand em { display: none; }
-      .brand strong { font-size: .86rem; }
-      .rail { padding: .65rem .55rem; position: sticky; top: 58px; z-index: 25; }
-      .cat { min-width: 72px; }
-      .fab { left: .65rem; right: .65rem; }
+      /*
+        Móvil: fila 1 salir+marca, fila 2 buscador a ancho útil.
+        El botón listado Mesas del chip aplastaba el buscador (~52px);
+        el listado sigue en la barra de jornada.
+      */
       .app {
         height: auto;
         min-height: 100dvh;
         grid-template-rows: auto auto auto;
+        align-content: start;
       }
+      .topbar {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-areas:
+          "leave brand"
+          "tools tools";
+        align-items: center;
+        gap: .4rem .5rem;
+      }
+      .topbar > #btnLeaveTpv { grid-area: leave; }
+      .topbar > .brand { grid-area: brand; max-width: none; min-width: 0; flex: unset; }
+      .top-tools {
+        grid-area: tools;
+        margin-left: 0;
+        width: 100%;
+        max-width: none;
+        gap: .35rem;
+      }
+      .mesa-chip-btn { display: none !important; }
+      .mesa-chip-label { display: inline; }
+      .mesa-chip { flex: 0 0 auto; padding: .28rem .4rem .28rem .55rem; }
+      .mesa-chip input { width: 2.75rem; font-size: 1rem; }
+      .search {
+        display: block; position: relative;
+        flex: 1 1 auto; min-width: 0; width: auto; max-width: none;
+      }
+      .search input {
+        display: block; width: 100%; box-sizing: border-box;
+        padding: .55rem .75rem .55rem 2rem; font-size: .9rem;
+        min-height: 40px;
+      }
+      .clock { display: none; }
+      .brand em { display: none; }
+      .brand strong { font-size: .86rem; }
+      .rail { padding: .65rem .55rem; position: sticky; top: 108px; z-index: 25; }
+      .cat { min-width: 72px; }
+      .fab { left: .65rem; right: .65rem; }
       .workspace {
         grid-template-rows: auto auto;
         height: auto;
@@ -1048,12 +1086,13 @@
       }
       .menu { overflow: visible; }
       body { touch-action: pan-y; -ms-touch-action: pan-y; }
-      .jornada-bar { position: sticky; top: 56px; }
+      .jornada-bar { position: sticky; top: 108px; }
     }
     @media (max-width: 380px) {
       .brand strong { max-width: 7.5rem; }
-      .mesa-chip span { display: none; }
-      .mesa-chip { padding: .28rem .4rem; }
+      .mesa-chip span,
+      .mesa-chip-label { display: none; }
+      .mesa-chip { padding: .28rem .35rem; }
     }
 
     /* Landscape móvil / tablet baja */
@@ -1170,6 +1209,10 @@
       background: rgba(12, 18, 26, .92);
       position: sticky; top: 58px; z-index: 28;
       backdrop-filter: blur(12px);
+    }
+    @media (max-width: 1023px) {
+      /* topbar móvil = 2 filas (~108px); no tapar el buscador al hacer scroll */
+      .jornada-bar { top: 108px; }
     }
     .jornada-status {
       flex: 1 1 auto; min-width: 8rem;
@@ -1438,6 +1481,7 @@
           <button type="button" class="mesa-chip-btn" id="btnMesasOpenTop" title="Mesas pendientes de cobro">
             Mesa <i class="fa-solid fa-list-ul"></i>
           </button>
+          <span class="mesa-chip-label">Mesa</span>
           <input id="mesaTop" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" placeholder="nº" maxlength="4" autocomplete="off" spellcheck="false" />
         </div>
         <button class="icon-btn" id="btnClear" type="button" title="Vaciar"><i class="fa-solid fa-trash"></i></button>
