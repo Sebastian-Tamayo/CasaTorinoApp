@@ -51,11 +51,15 @@ function tablesQty(tables) {
   return n
 }
 
+function tableAt(t) {
+  return Math.max(0, Number(t && t.updatedAt) || 0)
+}
+
 /**
- * Fusiona mesas en servidor.
- * - POST {} (sin claves) NUNCA borra cuentas con productos (anti-wipe refresh).
- * - Si el cliente manda una mesa con cart vacío (cobro), se acepta (LWW).
- * - Un cliente viejo no puede reintroducir productos en una mesa ya cobrada.
+ * Fusiona mesas en servidor con updatedAt POR MESA.
+ * - POST {} sin claves: no borra (anti-wipe refresh).
+ * - Vaciar/cobrar (cart vacío + updatedAt nuevo) GANA siempre frente a datos viejos.
+ * - Un cliente viejo NO puede rellenar una mesa ya vaciada.
  */
 function mergeTables(serverTables, incomingTables, preferIncoming) {
   const server = serverTables && typeof serverTables === 'object' ? serverTables : {}
@@ -74,23 +78,32 @@ function mergeTables(serverTables, incomingTables, preferIncoming) {
     const S = server[k]
     const I = incoming[k]
     const hasI = Object.prototype.hasOwnProperty.call(incoming, k)
+    const hasS = Object.prototype.hasOwnProperty.call(server, k)
     const sq = cartQty(S)
     const iq = cartQty(I)
+    const sAt = tableAt(S)
+    const iAt = tableAt(I)
 
-    if (hasI) {
-      if (preferIncoming) {
-        out[k] = I
-      } else if (iq > 0 && sq === 0) {
-        // Cliente viejo no reintroduce productos en mesa ya cobrada
-        out[k] = S || { cart: {}, hist: [], notes: '', paid: '' }
-      } else if (sq > 0 && iq === 0) {
-        out[k] = S
-      } else if (iq > 0 && sq > 0) {
-        out[k] = S
-      } else {
-        out[k] = S || I
+    if (hasI && hasS) {
+      // Mesa vaciada en servidor: solo se rellena si el incoming es MÁS NUEVO
+      if (sq === 0 && iq > 0) {
+        out[k] = iAt > sAt ? I : S
+        continue
       }
-    } else if (S) {
+      // Incoming vacía la mesa: aceptar si es más nuevo o LWW global
+      if (iq === 0 && sq > 0) {
+        out[k] = iAt >= sAt || preferIncoming ? I : S
+        continue
+      }
+      // Ambos con/sin qty: gana el updatedAt de mesa más reciente
+      if (iAt !== sAt) {
+        out[k] = iAt > sAt ? I : S
+      } else {
+        out[k] = preferIncoming ? I : S
+      }
+    } else if (hasI) {
+      out[k] = I
+    } else if (hasS) {
       out[k] = S
     }
   }

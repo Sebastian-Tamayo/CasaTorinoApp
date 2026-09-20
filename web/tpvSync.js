@@ -84,6 +84,10 @@
    * Si remoto trae clave vacía (cobro/vaciar), gana el vacío.
    * Si remoto {} sin claves y mismo día, no pisa local (anti-wipe refresh).
    */
+  function tableAt(t) {
+    return Math.max(0, Number(t && t.updatedAt) || 0)
+  }
+
   function mergeTables(localTables, remoteTables, opts = {}) {
     const local = localTables && typeof localTables === 'object' ? localTables : {}
     const remote = remoteTables && typeof remoteTables === 'object' ? remoteTables : {}
@@ -114,13 +118,37 @@
       const hasL = Object.prototype.hasOwnProperty.call(local, k)
       const lq = cartQty(L)
       const rq = cartQty(R)
+      const lAt = tableAt(L)
+      const rAt = tableAt(R)
 
       if (hasR && hasL) {
-        // Ambos tienen la mesa: preferir vacío local (acabamos de vaciar/cobrar)
-        // solo si el remoto aún no lo refleja y estamos en escritura local reciente.
-        if (lq === 0 && rq > 0 && opts.preferLocalClear) {
-          out[k] = L
-          keptLocal = true
+        // Mesa vaciada localmente: no dejar que un remoto viejo la rellene
+        if (lq === 0 && rq > 0) {
+          if (lAt >= rAt || opts.preferLocalClear) {
+            out[k] = L
+            keptLocal = true
+          } else {
+            out[k] = R
+          }
+          continue
+        }
+        // Remoto vació la mesa (cobro en otro dispositivo)
+        if (rq === 0 && lq > 0) {
+          if (rAt >= lAt) {
+            out[k] = R
+          } else {
+            out[k] = L
+            keptLocal = true
+          }
+          continue
+        }
+        // Ambos con contenido: gana updatedAt de mesa
+        if (rAt !== lAt) {
+          if (rAt > lAt) out[k] = R
+          else {
+            out[k] = L
+            keptLocal = true
+          }
         } else {
           out[k] = R
         }

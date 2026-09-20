@@ -1700,7 +1700,7 @@
   <script src="carta.js"></script>
   <script src="tpv-data.js"></script>
   <script src="printService.js"></script>
-  <script src="tpvSync.js?v=fix-clear-time-20260920"></script>
+  <script src="tpvSync.js?v=mesa-clear-sticky-20260920"></script>
   <script src="tpvJornada.js"></script>
   <script src="kitchenSync.js"></script>
   <script>
@@ -2319,15 +2319,26 @@
         } catch {}
       }
 
+      function stampMesa(m, data) {
+        const now = Date.now()
+        return {
+          cart: data.cart || {},
+          hist: data.hist || [],
+          notes: data.notes || '',
+          paid: data.paid || '',
+          updatedAt: now,
+        }
+      }
+
       function persist() {
         const m = normalizeMesa(state.mesa)
         if (m) {
-          state.tables[m] = {
+          state.tables[m] = stampMesa(m, {
             cart: state.cart,
             hist: state.hist,
             notes: ($('notes')?.value || state.notes || '').trim(),
             paid: $('paid')?.value || '',
-          }
+          })
         }
         const opsDay =
           state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || ''
@@ -2355,12 +2366,12 @@
         const next = normalizeMesa(nextRaw)
         const prev = normalizeMesa(state.mesa)
         if (prev && prev !== next) {
-          state.tables[prev] = {
+          state.tables[prev] = stampMesa(prev, {
             cart: state.cart,
             hist: state.hist,
             notes: ($('notes')?.value || state.notes || '').trim(),
             paid: $('paid')?.value || '',
-          }
+          })
         }
         state.mesa = next
         syncMesaInputs(next)
@@ -2889,8 +2900,18 @@
         resetSelSummaryUi()
         if ($('notes')) $('notes').value = ''
         if ($('paid')) $('paid').value = ''
-        persist()
-        // Empujar YA para que un poll viejo no resucite la cuenta
+        if (m) {
+          state.tables[m] = stampMesa(m, {
+            cart: {},
+            hist: [],
+            notes: '',
+            paid: '',
+          })
+        }
+        const opsDay =
+          state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || ''
+        state.opsDay = opsDay
+        writeTablesStore({ mesa: m || '', tables: state.tables, opsDay })
         try {
           window.CasaTorinoTpvSync?.touch?.()
           window.CasaTorinoTpvSync?.pushNow?.(state.tables, m)
@@ -3431,9 +3452,19 @@
         clearPaySelect()
         if ($('notes')) $('notes').value = ''
         if ($('paid')) $('paid').value = ''
-        if (m) state.tables[m] = { cart: {}, hist: [], notes: '', paid: '' }
+        if (m) {
+          state.tables[m] = stampMesa(m, {
+            cart: {},
+            hist: [],
+            notes: '',
+            paid: '',
+          })
+        }
         payDraft = { totalCents: 0, payments: [] }
-        persist()
+        const opsDay =
+          state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || ''
+        state.opsDay = opsDay
+        writeTablesStore({ mesa: m || '', tables: state.tables, opsDay })
         try {
           window.CasaTorinoTpvSync?.touch?.()
           window.CasaTorinoTpvSync?.pushNow?.(state.tables, m)
