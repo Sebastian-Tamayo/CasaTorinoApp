@@ -48,6 +48,36 @@ h1, h2, .brand strong {
   background: rgba(10, 18, 36, 0.85);
 }
 
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.btn-leave {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--gold);
+  text-decoration: none;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.btn-leave:hover,
+.btn-leave:focus-visible {
+  background: rgba(212, 175, 55, 0.14);
+  outline: none;
+}
+
 .brand { display: flex; align-items: center; gap: 0.65rem; }
 .brand img, .login-box img {
   width: 44px; height: 44px; border-radius: 50%;

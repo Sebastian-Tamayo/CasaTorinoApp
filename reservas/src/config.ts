@@ -9,6 +9,9 @@ export const BUSINESS = {
   minPartySize: 1,
 } as const
 
+/** Hub de personal (TPV, cocina, reservas, ERP). */
+export const GESTION_INTERNA_URL = 'https://casa-torino-web.vercel.app/interno.html'
+
 /**
  * API en el mismo dominio (Vercel Serverless).
  */
