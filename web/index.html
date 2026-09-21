@@ -88,11 +88,11 @@
           <ul class="menu-precios">
             <li>
               <span class="mp-label">Entre semana</span>
-              <span class="mp-detail">Español <em>14&nbsp;€</em> · Colombiano <em>13&nbsp;€</em></span>
+              <span class="mp-detail">Colombiano <em>13&nbsp;€</em> · Español <em>14&nbsp;€</em></span>
             </li>
             <li>
               <span class="mp-label">Fin de semana</span>
-              <span class="mp-detail">Español <em>18&nbsp;€</em> · Colombiano <em>15&nbsp;€</em></span>
+              <span class="mp-detail">Colombiano <em>15&nbsp;€</em> · Español <em>18&nbsp;€</em></span>
             </li>
           </ul>
         </div>
@@ -169,8 +169,8 @@
         </div>
 
         <div class="carta-nav" id="cartaNav">
-          <button data-target="picoteo" class="active">Picoteo</button>
-          <button data-target="colombia">Colombia</button>
+          <button data-target="colombia" class="active sello">Colombia <em>Sello</em></button>
+          <button data-target="picoteo">Picoteo</button>
           <button data-target="espana">España</button>
           <button data-target="combinados">Combinados</button>
           <button data-target="infantil">Infantil</button>
@@ -180,27 +180,8 @@
         </div>
 
         <div class="carta-grid">
-          <article class="carta-block is-active" id="picoteo">
-            <h3><i class="fa-solid fa-bowl-food"></i> Picoteo y entrantes</h3>
-            <div class="carta-scroll">
-            <ul class="dish-list">
-              <li><div class="dish-top"><strong>Empanada</strong><b class="price">2,00&nbsp;€</b></div><span>Carne de vacuno desmechada, cebolla y patata</span></li>
-              <li><div class="dish-top"><strong>Pincho</strong><b class="price">2,00&nbsp;€</b></div></li>
-              <li><div class="dish-top"><strong>Bocata</strong><b class="price">3,00&nbsp;€</b></div></li>
-              <li><div class="dish-top"><strong>Papa rellena</strong><b class="price">3,00&nbsp;€</b></div><span>Patata rellena de carne desmechada de vacuno y huevo cocido</span></li>
-              <li><div class="dish-top"><strong>Yuca frita</strong><b class="price">8,00&nbsp;€</b></div><span>Acompañada de guacamole o pico de gallo</span></li>
-              <li><div class="dish-top"><strong>Patacón</strong><b class="price">8,00&nbsp;€</b></div><span>Acompañado de pico de gallo o guacamole</span></li>
-              <li><div class="dish-top"><strong>Pimientos del Padrón</strong><b class="price">5,00&nbsp;€</b></div><span>Pimientos fritos con sal gorda</span></li>
-              <li><div class="dish-top"><strong>Champiñones</strong><b class="price">5,00&nbsp;€</b></div><span>Champiñones salteados</span></li>
-              <li><div class="dish-top"><strong>Patatas Casa Torino</strong><b class="price">10,00&nbsp;€</b></div><span>Patatas especialidad de la casa</span></li>
-              <li><div class="dish-top"><strong>Croquetas</strong><b class="price">8,00&nbsp;€</b></div><span>Ración de croquetas caseras</span></li>
-              <li><div class="dish-top"><strong>Aborrajado</strong><b class="price">4,00&nbsp;€</b></div><span>Plátano maduro frito relleno de queso</span></li>
-              <li><div class="dish-top"><strong>Plato jamón Casa Torino</strong><b class="price">14,00&nbsp;€</b></div><span>Jamón ibérico, pan tostado, aceitunas y aceite de oliva</span></li>
-            </ul>
-            </div>
-          </article>
-
-          <article class="carta-block featured" id="colombia">
+          <article class="carta-block featured sello-block is-active" id="colombia">
+            <p class="carta-sello"><i class="fa-solid fa-certificate" aria-hidden="true"></i> Nuestro sello · especialidad de la casa</p>
             <h3><i class="fa-solid fa-pepper-hot"></i> Especialidades colombianas</h3>
             
             <div class="carta-scroll">
@@ -221,6 +202,26 @@
               <li><div class="dish-top"><strong>Arroz oriental</strong><b class="price">14,00&nbsp;€</b></div><span>Cerdo, pollo, verduras, maíz, brotes, jamón y salsas</span></li>
               <li><div class="dish-top"><strong>Mojarra</strong><b class="price">18,00&nbsp;€</b></div><span>Mojarra roja frita, arroz, plátano macho y ensalada</span></li>
               <li><div class="dish-top"><strong>Cazuela de mariscos</strong><b class="price">18,00&nbsp;€</b></div><span>Calamares, mejillones, palitos de cangrejo, gambas y patacón</span></li>
+            </ul>
+            </div>
+          </article>
+
+          <article class="carta-block" id="picoteo">
+            <h3><i class="fa-solid fa-bowl-food"></i> Picoteo y entrantes</h3>
+            <div class="carta-scroll">
+            <ul class="dish-list">
+              <li><div class="dish-top"><strong>Empanada</strong><b class="price">2,00&nbsp;€</b></div><span>Carne de vacuno desmechada, cebolla y patata</span></li>
+              <li><div class="dish-top"><strong>Pincho</strong><b class="price">2,00&nbsp;€</b></div></li>
+              <li><div class="dish-top"><strong>Bocata</strong><b class="price">3,00&nbsp;€</b></div></li>
+              <li><div class="dish-top"><strong>Papa rellena</strong><b class="price">3,00&nbsp;€</b></div><span>Patata rellena de carne desmechada de vacuno y huevo cocido</span></li>
+              <li><div class="dish-top"><strong>Yuca frita</strong><b class="price">8,00&nbsp;€</b></div><span>Acompañada de guacamole o pico de gallo</span></li>
+              <li><div class="dish-top"><strong>Patacón</strong><b class="price">8,00&nbsp;€</b></div><span>Acompañado de pico de gallo o guacamole</span></li>
+              <li><div class="dish-top"><strong>Pimientos del Padrón</strong><b class="price">5,00&nbsp;€</b></div><span>Pimientos fritos con sal gorda</span></li>
+              <li><div class="dish-top"><strong>Champiñones</strong><b class="price">5,00&nbsp;€</b></div><span>Champiñones salteados</span></li>
+              <li><div class="dish-top"><strong>Patatas Casa Torino</strong><b class="price">10,00&nbsp;€</b></div><span>Patatas especialidad de la casa</span></li>
+              <li><div class="dish-top"><strong>Croquetas</strong><b class="price">8,00&nbsp;€</b></div><span>Ración de croquetas caseras</span></li>
+              <li><div class="dish-top"><strong>Aborrajado</strong><b class="price">4,00&nbsp;€</b></div><span>Plátano maduro frito relleno de queso</span></li>
+              <li><div class="dish-top"><strong>Plato jamón Casa Torino</strong><b class="price">14,00&nbsp;€</b></div><span>Jamón ibérico, pan tostado, aceitunas y aceite de oliva</span></li>
             </ul>
             </div>
           </article>

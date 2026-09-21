@@ -14,11 +14,11 @@
     ul.innerHTML = `
       <li>
         <span class="mp-label">Entre semana</span>
-        <span class="mp-detail">Español <em>${w.es}\u00a0€</em> · Colombiano <em>${w.co}\u00a0€</em></span>
+        <span class="mp-detail">Colombiano <em>${w.co}\u00a0€</em> · Español <em>${w.es}\u00a0€</em></span>
       </li>
       <li>
         <span class="mp-label">Fin de semana y festivos</span>
-        <span class="mp-detail">Español <em>${e.es}\u00a0€</em> · Colombiano <em>${e.co}\u00a0€</em></span>
+        <span class="mp-detail">Colombiano <em>${e.co}\u00a0€</em> · Español <em>${e.es}\u00a0€</em></span>
       </li>`
     const copy = document.querySelector('.menu-dia-copy p')
     if (copy && window.CasaTorinoCarta?.isWeekendMenuDay) {
@@ -42,7 +42,9 @@
       .filter((id) => byId[id])
       .map((id, i) => {
         const c = byId[id]
-        return `<button type="button" data-target="${id}" class="${i === 0 ? 'active' : ''}">${c.name}</button>`
+        const sello = id === 'colombia' ? ' sello' : ''
+        const label = id === 'colombia' ? 'Colombia <em>Sello</em>' : c.name
+        return `<button type="button" data-target="${id}" class="${i === 0 ? 'active' : ''}${sello}">${label}</button>`
       })
       .join('')
 
@@ -50,7 +52,13 @@
       .filter((id) => byId[id])
       .map((id, i) => {
         const c = byId[id]
-        const featured = id === 'colombia' ? ' featured' : ''
+        const featured = id === 'colombia' ? ' featured sello-block' : ''
+        const selloLine =
+          id === 'colombia'
+            ? '<p class="carta-sello"><i class="fa-solid fa-certificate" aria-hidden="true"></i> Nuestro sello · especialidad de la casa</p>'
+            : ''
+        const title =
+          id === 'colombia' ? 'Especialidades colombianas' : c.name
         const items = (c.items || [])
           .filter((it) => !it.customProduct)
           .map((it) => {
@@ -62,7 +70,8 @@
           })
           .join('')
         return `<article class="carta-block${featured}${i === 0 ? ' is-active' : ''}" id="${id}">
-          <h3>${c.name}</h3>
+          ${selloLine}
+          <h3>${title}</h3>
           <div class="carta-scroll"><ul>${items}</ul></div>
         </article>`
       })
