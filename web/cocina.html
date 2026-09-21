@@ -272,16 +272,17 @@
     @media (max-width: 720px) {
       .top {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: auto minmax(0, 1fr) auto;
         grid-template-areas:
-          "brand actions"
-          "meta meta";
+          "leave brand actions"
+          "meta meta meta";
         gap: .55rem .5rem;
         padding: .65rem .7rem;
         align-items: center;
         flex-wrap: unset;
         overflow: visible;
       }
+      .btn-leave { grid-area: leave; }
       .brand { grid-area: brand; }
       .brand img { width: 36px; height: 36px; }
       .brand strong { font-size: .98rem; }
@@ -370,6 +371,7 @@
 
   <div class="app">
     <header class="top">
+      <a class="btn-icon btn-leave" href="interno.html" aria-label="Salir a gestión interna" title="Salir"><i class="fa-solid fa-arrow-left"></i></a>
       <div class="brand">
         <img src="assets/logo.jpg" alt="" />
         <div>
@@ -393,7 +395,6 @@
           <i class="fa-solid fa-rotate-left"></i>
           <span class="btn-label">Deshacer</span>
         </button>
-        <a class="btn-icon" href="interno.html" aria-label="Volver"><i class="fa-solid fa-arrow-left"></i></a>
       </div>
     </header>
     <main class="board">
