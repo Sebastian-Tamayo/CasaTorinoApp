@@ -31,15 +31,19 @@
   }
 
   function fillCarta(data) {
-    const sections = data.publicSections || []
     const cats = data.categories || []
     const nav = document.getElementById('cartaNav')
     const grid = document.querySelector('.carta-grid')
     if (!nav || !grid) return
 
     const byId = Object.fromEntries(cats.map((c) => [c.id, c]))
+    // Colombia es el sello: siempre primero en la carta pública.
+    let sections = (data.publicSections || []).filter((id) => byId[id])
+    if (byId.colombia) {
+      sections = ['colombia', ...sections.filter((id) => id !== 'colombia')]
+    }
+
     nav.innerHTML = sections
-      .filter((id) => byId[id])
       .map((id, i) => {
         const c = byId[id]
         const sello = id === 'colombia' ? ' sello' : ''
@@ -49,7 +53,6 @@
       .join('')
 
     grid.innerHTML = sections
-      .filter((id) => byId[id])
       .map((id, i) => {
         const c = byId[id]
         const featured = id === 'colombia' ? ' featured sello-block' : ''
