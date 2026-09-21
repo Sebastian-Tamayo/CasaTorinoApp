@@ -308,6 +308,15 @@
           "star": true
         },
         {
+          "id": "colombia-tamal-tolimense",
+          "name": "Tamal tolimense",
+          "price": 11.0,
+          "desc": "Masa de maíz, carne de cerdo y pollo, arveja, zanahoria, huevo y arepa · Llevar 9,00 €",
+          "base": "Tamal tolimense",
+          "categoryType": "comida",
+          "star": true
+        },
+        {
           "id": "colombia-lechona",
           "name": "Lechona",
           "price": 14.0,
