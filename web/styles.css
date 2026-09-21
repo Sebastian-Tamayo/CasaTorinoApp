@@ -450,12 +450,33 @@ a { color: inherit; }
   display: grid; grid-template-columns: 1.05fr .95fr; gap: 2rem; align-items: center;
 }
 .split.reverse { grid-template-columns: .95fr 1.05fr; }
+.about-media {
+  margin: 0;
+  position: relative;
+}
 .about-media img, .menu-dia-media img, .equipo-grid img {
   width: 100%; border-radius: var(--radius);
   border: 1px solid var(--line); box-shadow: var(--shadow);
   object-fit: cover;
 }
-.about-media img { max-height: none; width: 100%; object-fit: cover; aspect-ratio: 4 / 5; }
+.about-media img { max-height: none; width: 100%; object-fit: cover; aspect-ratio: 4 / 5; display: block; }
+.about-media figcaption {
+  margin-top: .75rem;
+  text-align: center;
+  display: grid;
+  gap: .15rem;
+}
+.about-media figcaption strong {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.about-media figcaption span {
+  color: var(--muted);
+  font-size: .88rem;
+  font-weight: 600;
+}
 .menu-dia-media img { max-height: 480px; }
 .caption { font-size: .85rem; margin-top: .65rem; }
 .pills { display: flex; flex-wrap: wrap; gap: .55rem; list-style: none; margin-top: 1.1rem; }
