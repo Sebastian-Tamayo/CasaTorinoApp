@@ -257,13 +257,43 @@ a { color: inherit; }
   text-align: left;
   animation: estrellaIn .55s ease .2s both;
 }
+.hero-menus-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: .55rem .75rem;
+  margin: 0 0 .55rem;
+}
 .hero-menus-title {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 1.2rem;
   font-weight: 700;
   color: var(--ink);
-  margin: 0 0 .55rem;
+  margin: 0;
   text-align: center;
+}
+.menu-wa-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .32rem .7rem;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 800;
+  font-size: .82rem;
+  color: #065f46;
+  background: rgba(37, 211, 102, .16);
+  border: 1px solid rgba(37, 211, 102, .45);
+  transition: background .15s ease, border-color .15s ease, transform .15s ease;
+}
+.menu-wa-btn i { font-size: 1rem; color: #25d366; }
+.menu-wa-btn:hover,
+.menu-wa-btn:focus-visible {
+  background: rgba(37, 211, 102, .28);
+  border-color: #25d366;
+  transform: translateY(-1px);
+  outline: none;
 }
 .hero-menus .menu-precios {
   margin: 0;
