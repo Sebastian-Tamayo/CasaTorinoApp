@@ -188,7 +188,12 @@ function deleteItemInCarta(carta, categoryId, itemId) {
 }
 
 function expectedEditPin() {
-  return String(process.env.CARTA_EDIT_PIN || '2908').trim()
+  // CARTA_EDIT_PIN en Vercel; default 2908 (mismo criterio que ERP admin)
+  return String(process.env.CARTA_EDIT_PIN || '2908')
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/\r|\n/g, '')
+    .trim()
 }
 
 module.exports = async function handler(req, res) {
