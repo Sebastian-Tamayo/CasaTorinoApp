@@ -107,8 +107,26 @@
     return r2.json()
   }
 
+  async function postCarta(action, payload = {}) {
+    const r = await fetch(CARTA_API, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ action, ...payload }),
+    })
+    const data = await r.json().catch(() => ({}))
+    if (!r.ok) {
+      const err = new Error(data.error || 'carta POST ' + r.status)
+      err.status = r.status
+      err.data = data
+      throw err
+    }
+    return data
+  }
+
   window.CasaTorinoCarta = {
     loadCarta,
+    postCarta,
     applyMenuSchedule,
     madridIsWeekend,
     isWeekendMenuDay,

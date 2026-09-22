@@ -128,10 +128,32 @@ function upsertItemInCarta(carta, categoryId, item) {
   if (item.schedule) normalized.schedule = item.schedule
   if (item.customProduct) normalized.customProduct = true
   if (item.priceEditable) normalized.priceEditable = true
+  if (item.coursePick) normalized.coursePick = true
   if (idx >= 0) cat.items[idx] = { ...cat.items[idx], ...normalized }
   else cat.items.push(normalized)
   next.updatedAt = Date.now()
   return next
+}
+
+function deleteItemInCarta(carta, categoryId, itemId) {
+  const catId = String(categoryId || '').trim()
+  const id = String(itemId || '').trim()
+  if (!catId || !id) throw new Error('categoryId e itemId son obligatorios')
+  const next = JSON.parse(JSON.stringify(carta))
+  const cats = Array.isArray(next.categories) ? next.categories : []
+  const cat = cats.find((c) => c.id === catId)
+  if (!cat || !Array.isArray(cat.items)) {
+    throw new Error('categoría no encontrada')
+  }
+  const before = cat.items.length
+  cat.items = cat.items.filter((it) => it && it.id !== id)
+  if (cat.items.length === before) throw new Error('producto no encontrado')
+  next.updatedAt = Date.now()
+  return next
+}
+
+function expectedEditPin() {
+  return String(process.env.CARTA_EDIT_PIN || '1234').trim()
 }
 
 module.exports = async function handler(req, res) {
@@ -235,6 +257,20 @@ module.exports = async function handler(req, res) {
         )
       }
 
+      if (action === 'verifyEditPin') {
+        const pin = String(body.pin || '').trim()
+        const ok = Boolean(pin && pin === expectedEditPin())
+        res.statusCode = ok ? 200 : 401
+        res.setHeader('Content-Type', 'application/json')
+        return res.end(
+          JSON.stringify(
+            ok
+              ? { ok: true, action: 'verifyEditPin' }
+              : { ok: false, error: 'PIN incorrecto' },
+          ),
+        )
+      }
+
       if (action === 'upsertItem') {
         if (!hasSupabase()) {
           res.statusCode = 503
@@ -260,6 +296,37 @@ module.exports = async function handler(req, res) {
             categoryId: body.categoryId,
             itemId: body.item && body.item.id,
             updatedAt: next.updatedAt,
+            carta: withMeta(next, 'supabase'),
+          }),
+        )
+      }
+
+      if (action === 'deleteItem') {
+        if (!hasSupabase()) {
+          res.statusCode = 503
+          return res.end(JSON.stringify({ error: 'supabase no configurado' }))
+        }
+        let current = await loadFromStore()
+        if (!current) {
+          const seeded = await seedFromFile()
+          current = seeded.carta
+        }
+        const next = deleteItemInCarta(
+          current,
+          body.categoryId,
+          body.itemId || (body.item && body.item.id),
+        )
+        await setJson(CARTA_KEY, next)
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json')
+        return res.end(
+          JSON.stringify({
+            ok: true,
+            action: 'deleteItem',
+            categoryId: body.categoryId,
+            itemId: body.itemId || (body.item && body.item.id),
+            updatedAt: next.updatedAt,
+            carta: withMeta(next, 'supabase'),
           }),
         )
       }
@@ -268,7 +335,7 @@ module.exports = async function handler(req, res) {
       res.setHeader('Content-Type', 'application/json')
       return res.end(
         JSON.stringify({
-          error: 'action inválida (seed|put|upsertItem)',
+          error: 'action inválida (seed|put|upsertItem|deleteItem|verifyEditPin)',
         }),
       )
     } catch (err) {

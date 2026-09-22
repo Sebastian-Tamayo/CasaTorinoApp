@@ -1290,6 +1290,75 @@
     .jornada-actions .btn-j.total { border-color: rgba(245,197,24,.45); color: var(--gold); }
     .jornada-actions .btn-j.end { border-color: rgba(251,113,133,.45); color: #fda4af; }
     .jornada-actions .btn-j.print { border-color: rgba(147,197,253,.45); color: #93c5fd; }
+    .jornada-actions .btn-j.edit-carta {
+      border-color: rgba(167,139,250,.5); color: #c4b5fd;
+    }
+    .jornada-actions .btn-j.add-plato {
+      border-color: rgba(52,211,153,.5); color: #86efac;
+    }
+    .jornada-actions .btn-j.close-edit {
+      border-color: rgba(248,113,113,.55); color: #fecaca;
+      background: rgba(127,29,29,.35);
+    }
+    body.carta-editing .jornada-status::after {
+      content: ' · EDITANDO CARTA';
+      color: #fde68a;
+      font-weight: 800;
+    }
+    body.carta-editing .prod {
+      border-color: rgba(250,204,21,.45);
+      box-shadow: inset 0 0 0 1px rgba(250,204,21,.18);
+    }
+    body.carta-editing .prod .edit-hint {
+      display: block;
+      margin-top: .2rem;
+      font-size: .68rem;
+      font-weight: 700;
+      color: #fde68a;
+    }
+    .prod .edit-hint { display: none; }
+    .carta-edit-fields {
+      display: grid;
+      gap: .75rem;
+    }
+    .carta-edit-fields label {
+      display: grid;
+      gap: .35rem;
+      font-size: .72rem;
+      font-weight: 800;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .carta-edit-fields input,
+    .carta-edit-fields select {
+      width: 100%;
+      border: 1px solid var(--line2);
+      border-radius: 12px;
+      background: var(--card);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 700;
+      padding: .7rem .8rem;
+      outline: none;
+    }
+    .carta-edit-fields input:focus,
+    .carta-edit-fields select:focus {
+      border-color: rgba(245,197,24,.55);
+      box-shadow: 0 0 0 3px var(--gold-dim);
+    }
+    .course-actions .danger {
+      border: 0;
+      border-radius: 12px;
+      padding: .7rem 1rem;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      background: linear-gradient(180deg, #ef4444, #b91c1c);
+      color: #fff;
+      margin-right: auto;
+    }
+    .course-actions .danger:disabled { opacity: .45; cursor: not-allowed; }
     .jornada-modal {
       position: fixed; inset: 0; z-index: 80;
       display: grid; place-items: center; padding: 1rem;
@@ -1554,6 +1623,9 @@
         <button class="btn-j end" id="btnJornadaEnd" type="button" disabled><i class="fa-solid fa-flag-checkered"></i> Fin de sesión</button>
         <button class="btn-j print" id="btnPrintTest" type="button" title="Probar impresora POS-58"><i class="fa-solid fa-print"></i> Probar ticket</button>
         <button class="btn-j" id="btnMenuSchedule" type="button" title="Auto: finde + festivos Gijón · o mostrar todos"><i class="fa-solid fa-calendar-week"></i> Menús: auto</button>
+        <button class="btn-j edit-carta" id="btnEditarCarta" type="button" title="Editar productos y precios"><i class="fa-solid fa-pen-to-square"></i> Editar Carta</button>
+        <button class="btn-j add-plato" id="btnAddPlato" type="button" hidden title="Añadir plato nuevo"><i class="fa-solid fa-plus"></i> Añadir plato</button>
+        <button class="btn-j close-edit" id="btnCerrarEdicion" type="button" hidden title="Volver al modo comandas"><i class="fa-solid fa-xmark"></i> Cerrar Edición</button>
       </div>
     </div>
 
@@ -1688,6 +1760,40 @@
       <div class="mesas-list" id="mesasList"></div>
       <div class="course-actions">
         <button type="button" class="cancel" id="mesasCancel">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="course-modal" id="cartaEditModal" hidden role="dialog" aria-modal="true" aria-labelledby="cartaEditTitle">
+    <div class="course-card">
+      <div class="course-card-h">
+        <button type="button" class="btn-modal-back" id="cartaEditBack" aria-label="Volver">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </button>
+        <h3 id="cartaEditTitle">Editar plato</h3>
+      </div>
+      <p class="sub" id="cartaEditSub">Cambia nombre y precio. Se guarda en Supabase (carta del TPV y web).</p>
+      <div class="carta-edit-fields">
+        <label>Categoría
+          <select id="cartaEditCat"></select>
+        </label>
+        <label>Nombre
+          <input id="cartaEditName" type="text" maxlength="80" autocomplete="off" spellcheck="true" />
+        </label>
+        <label>Precio (€)
+          <input id="cartaEditPrice" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off" spellcheck="false" />
+        </label>
+        <label>Tipo
+          <select id="cartaEditType">
+            <option value="comida">Comida (cocina)</option>
+            <option value="bebida">Bebida (barra)</option>
+          </select>
+        </label>
+      </div>
+      <div class="course-actions" style="margin-top:1rem;flex-wrap:wrap;gap:.5rem">
+        <button type="button" class="danger" id="cartaEditDelete" hidden>Borrar plato</button>
+        <button type="button" class="cancel" id="cartaEditCancel">Cancelar</button>
+        <button type="button" class="ok" id="cartaEditSave">Guardar</button>
       </div>
     </div>
   </div>
@@ -2101,7 +2207,10 @@
         jornada: null,
         /** qty seleccionada por línea para ticket/cobro parcial { [cartKey]: number } */
         paySelect: {},
+        /** Edición de carta (nombre/precio en Supabase) */
+        modoEdicion: false,
       }
+      let cartaEditDraft = null // { mode: 'create'|'edit', id?, catId? }
       const IVA_RATE = 0.10 // hostelería: comidas y bebidas 10%
 
       const all = () => catalog.flatMap((c) => c.items.map((i) => ({ ...i, catId: c.id, catName: c.name })))
@@ -3683,15 +3792,16 @@
             </button>`
           return
         }
-        $('menuCount').textContent = `${items.length} producto${items.length === 1 ? '' : 's'}`
+        $('menuCount').textContent = `${items.length} producto${items.length === 1 ? '' : 's'}${state.modoEdicion ? ' · edición' : ''}`
         $('products').innerHTML = items.length
           ? items.map((i) => {
               const q = qtyOfProduct(i.id)
               const accent = accentFor(i.catId)
               return `<button class="prod" data-id="${i.id}" type="button" style="--accent:${accent}">
-                <div class="name"><span>${i.name}</span>${q ? `<span class="qty">×${q}</span>` : ''}</div>
+                <div class="name"><span>${i.name}</span>${!state.modoEdicion && q ? `<span class="qty">×${q}</span>` : ''}</div>
                 ${i.desc ? `<div class="desc">${i.desc}</div>` : '<div></div>'}
                 <div class="price">${i.customProduct ? 'precio libre' : money(i.price)}</div>
+                <span class="edit-hint"><i class="fa-solid fa-pen"></i> tocar para editar</span>
               </button>`
             }).join('')
           : `<p class="empty">Sin resultados.</p>`
@@ -4150,10 +4260,17 @@
       })
       bindTap($('products'), '.prod', (_e, b) => {
         if (b.dataset.extra || b.id === 'btnOpenExtra') {
+          if (state.modoEdicion) return
           openExtraModal()
           return
         }
-        const item = all().find((x) => x.id === b.dataset.id); if (item) add(item)
+        const item = all().find((x) => x.id === b.dataset.id)
+        if (!item) return
+        if (state.modoEdicion) {
+          openCartaEditModal(item)
+          return
+        }
+        add(item)
       })
       bindTap($('lines'), '[data-pick], button[data-act], [data-sel-toggle], [data-sel-act]', (_e, el) => {
         if (el.hasAttribute('data-sel-toggle')) {
@@ -4218,6 +4335,232 @@
       $('extraName')?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); $('extraPrice')?.focus() }
       })
+
+      function slugifyCartaId(name) {
+        const base = String(name || 'plato')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+          .slice(0, 40)
+        return `${base || 'plato'}-${Date.now().toString(36).slice(-4)}`
+      }
+
+      function paintCartaEditChrome() {
+        const editing = Boolean(state.modoEdicion)
+        document.body.classList.toggle('carta-editing', editing)
+        if ($('btnEditarCarta')) $('btnEditarCarta').hidden = editing
+        if ($('btnAddPlato')) $('btnAddPlato').hidden = !editing
+        if ($('btnCerrarEdicion')) $('btnCerrarEdicion').hidden = !editing
+      }
+
+      async function reloadCatalogFromStore() {
+        const userForce = Boolean(window.TPV_MENU_FORCE_ALL_USER)
+        window.TPV_MENU_FORCE_ALL = Boolean(state.modoEdicion) || userForce
+        await window.CasaTorinoLoadTpvCatalog()
+        catalog = window.TPV_CATALOG || []
+        render()
+      }
+
+      function fillCartaEditCategories(selectedId) {
+        const sel = $('cartaEditCat')
+        if (!sel) return
+        const cats = (window.TPV_CARTA_META?.categories || catalog || []).filter(
+          (c) => c && c.id && c.id !== 'extras',
+        )
+        sel.innerHTML = cats
+          .map(
+            (c) =>
+              `<option value="${String(c.id).replace(/"/g, '')}">${String(c.name || c.id).replace(/</g, '&lt;')}</option>`,
+          )
+          .join('')
+        if (selectedId && [...sel.options].some((o) => o.value === selectedId)) {
+          sel.value = selectedId
+        } else if (state.cat && state.cat !== 'all' && state.cat !== 'extras') {
+          sel.value = state.cat
+        }
+      }
+
+      function closeCartaEditModal() {
+        const modal = $('cartaEditModal')
+        if (modal) modal.hidden = true
+        cartaEditDraft = null
+      }
+
+      function openCartaEditModal(item) {
+        const isNew = !item
+        cartaEditDraft = isNew
+          ? { mode: 'create' }
+          : { mode: 'edit', id: item.id, catId: item.catId }
+        fillCartaEditCategories(item?.catId || state.cat)
+        if ($('cartaEditTitle')) {
+          $('cartaEditTitle').textContent = isNew ? 'Añadir plato' : 'Editar plato'
+        }
+        if ($('cartaEditSub')) {
+          $('cartaEditSub').textContent = isNew
+            ? 'Nuevo producto en la carta (Supabase).'
+            : 'Cambia nombre y precio. Se guarda en Supabase (carta del TPV y web).'
+        }
+        if ($('cartaEditName')) $('cartaEditName').value = item?.name || ''
+        if ($('cartaEditPrice')) {
+          $('cartaEditPrice').value = item
+            ? String(item.price ?? '').replace('.', ',')
+            : ''
+        }
+        if ($('cartaEditType')) {
+          $('cartaEditType').value =
+            item?.categoryType === 'bebida' ? 'bebida' : 'comida'
+        }
+        if ($('cartaEditDelete')) $('cartaEditDelete').hidden = isNew
+        if ($('cartaEditModal')) $('cartaEditModal').hidden = false
+        setTimeout(() => $('cartaEditName')?.focus(), 50)
+      }
+
+      async function setModoEdicion(on) {
+        state.modoEdicion = Boolean(on)
+        paintCartaEditChrome()
+        try {
+          await reloadCatalogFromStore()
+        } catch (err) {
+          console.warn('reload catalog', err)
+          render()
+        }
+      }
+
+      async function tryEnterModoEdicion() {
+        const pin = window.prompt('PIN para editar la carta')
+        if (pin == null) return
+        try {
+          await window.CasaTorinoCarta.postCarta('verifyEditPin', {
+            pin: String(pin).trim(),
+          })
+          await setModoEdicion(true)
+        } catch (err) {
+          if (err && err.status === 401) {
+            alert('PIN incorrecto')
+            return
+          }
+          // Fallback local si el endpoint no responde (p.ej. sin sesión)
+          if (String(pin).trim() === '1234') {
+            await setModoEdicion(true)
+            return
+          }
+          alert(err.message || 'No se pudo activar la edición')
+        }
+      }
+
+      async function saveCartaEdit() {
+        const name = String($('cartaEditName')?.value || '').trim()
+        const priceRaw = String($('cartaEditPrice')?.value || '').replace(',', '.')
+        const price = Number(priceRaw)
+        const categoryId = String($('cartaEditCat')?.value || '').trim()
+        const categoryType =
+          $('cartaEditType')?.value === 'bebida' ? 'bebida' : 'comida'
+        if (!name) {
+          alert('Pon un nombre')
+          return
+        }
+        if (!Number.isFinite(price) || price < 0) {
+          alert('Precio no válido')
+          return
+        }
+        if (!categoryId) {
+          alert('Elige categoría')
+          return
+        }
+        const existing =
+          cartaEditDraft?.mode === 'edit'
+            ? all().find((x) => x.id === cartaEditDraft.id)
+            : null
+        const item = {
+          id:
+            cartaEditDraft?.mode === 'edit' && cartaEditDraft.id
+              ? cartaEditDraft.id
+              : slugifyCartaId(name),
+          name,
+          price,
+          desc: existing?.desc || '',
+          base: existing?.base || name,
+          categoryType,
+        }
+        if (existing?.schedule) item.schedule = existing.schedule
+        if (existing?.coursePick || /menu-dia/i.test(item.id)) item.coursePick = true
+        const btn = $('cartaEditSave')
+        if (btn) btn.disabled = true
+        try {
+          // Si cambió de categoría en edición, borrar del origen y crear en destino
+          if (
+            cartaEditDraft?.mode === 'edit' &&
+            cartaEditDraft.catId &&
+            cartaEditDraft.catId !== categoryId
+          ) {
+            await window.CasaTorinoCarta.postCarta('deleteItem', {
+              categoryId: cartaEditDraft.catId,
+              itemId: cartaEditDraft.id,
+            })
+          }
+          await window.CasaTorinoCarta.postCarta('upsertItem', {
+            categoryId,
+            item,
+          })
+          closeCartaEditModal()
+          await reloadCatalogFromStore()
+        } catch (err) {
+          console.warn('saveCartaEdit', err)
+          if (err && err.status === 401) {
+            lockTpvForPin('Sesión caducada — introduce el PIN')
+            return
+          }
+          alert('No se pudo guardar.\n' + (err.message || err))
+        } finally {
+          if (btn) btn.disabled = false
+        }
+      }
+
+      async function deleteCartaEdit() {
+        if (!cartaEditDraft || cartaEditDraft.mode !== 'edit') return
+        if (!window.confirm(`¿Borrar «${$('cartaEditName')?.value || 'plato'}» de la carta?`)) {
+          return
+        }
+        const btn = $('cartaEditDelete')
+        if (btn) btn.disabled = true
+        try {
+          await window.CasaTorinoCarta.postCarta('deleteItem', {
+            categoryId: cartaEditDraft.catId || $('cartaEditCat')?.value,
+            itemId: cartaEditDraft.id,
+          })
+          closeCartaEditModal()
+          await reloadCatalogFromStore()
+        } catch (err) {
+          console.warn('deleteCartaEdit', err)
+          if (err && err.status === 401) {
+            lockTpvForPin('Sesión caducada — introduce el PIN')
+            return
+          }
+          alert('No se pudo borrar.\n' + (err.message || err))
+        } finally {
+          if (btn) btn.disabled = false
+        }
+      }
+
+      $('btnEditarCarta')?.addEventListener('click', () => {
+        void tryEnterModoEdicion()
+      })
+      $('btnCerrarEdicion')?.addEventListener('click', () => {
+        closeCartaEditModal()
+        void setModoEdicion(false)
+      })
+      $('btnAddPlato')?.addEventListener('click', () => openCartaEditModal(null))
+      $('cartaEditCancel')?.addEventListener('click', () => closeCartaEditModal())
+      $('cartaEditBack')?.addEventListener('click', () => closeCartaEditModal())
+      $('cartaEditSave')?.addEventListener('click', () => void saveCartaEdit())
+      $('cartaEditDelete')?.addEventListener('click', () => void deleteCartaEdit())
+      $('cartaEditModal')?.addEventListener('click', (e) => {
+        if (e.target === $('cartaEditModal')) closeCartaEditModal()
+      })
+      paintCartaEditChrome()
+
       ;['coursePrimero', 'courseSegundo'].forEach((id) => {
         $(id)?.addEventListener('click', (e) => {
           const btn = e.target.closest('button[data-course]')
@@ -4343,14 +4686,16 @@
         history.pushState({ ct: TPV_HIST, layer: 'root' }, '')
       } catch {}
       $('btnMenuSchedule')?.addEventListener('click', async () => {
-        window.TPV_MENU_FORCE_ALL = !window.TPV_MENU_FORCE_ALL
+        window.TPV_MENU_FORCE_ALL_USER = !Boolean(window.TPV_MENU_FORCE_ALL_USER)
+        window.TPV_MENU_FORCE_ALL =
+          Boolean(state.modoEdicion) || Boolean(window.TPV_MENU_FORCE_ALL_USER)
         const btn = $('btnMenuSchedule')
         try {
           await window.CasaTorinoLoadTpvCatalog()
           catalog = window.TPV_CATALOG || []
           const info = window.TPV_MENU_DAY_INFO
           if (btn) {
-            if (window.TPV_MENU_FORCE_ALL) {
+            if (window.TPV_MENU_FORCE_ALL_USER) {
               btn.innerHTML = '<i class="fa-solid fa-calendar-week"></i> Menús: todos'
             } else if (info?.reason === 'holiday') {
               const name = info.festivo?.name || 'festivo'
