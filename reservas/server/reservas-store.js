@@ -52,7 +52,14 @@ async function readEdgeKey(key) {
   })
   if (r.status === 404) return null
   if (!r.ok) throw new Error('edge GET ' + r.status)
-  const data = await r.json()
+  const text = await r.text().catch(() => '')
+  if (!text || !String(text).trim()) return null
+  let data
+  try {
+    data = JSON.parse(text)
+  } catch {
+    return null
+  }
   // API may return value directly or { key, value }
   if (data && typeof data === 'object' && 'value' in data && data.key === key) {
     return data.value
