@@ -70,33 +70,34 @@
   }
 
   function listHtml(items, listClass) {
-    const lis = (items || [])
-      .filter((it) => it && !it.customProduct)
-      .map(dishLi)
-      .join('')
+    const clean = (items || []).filter((it) => it && !it.customProduct)
+    if (!clean.length) {
+      return `<p class="carta-empty">No hay platos en esta sección.</p>`
+    }
+    const lis = clean.map(dishLi).join('')
     return `<ul class="${listClass}">${lis}</ul>`
   }
 
   function bebidasBody(items) {
     const clean = (items || []).filter((it) => it && !it.customProduct)
+    if (!clean.length) {
+      return `<p class="carta-empty">No hay bebidas en carta.</p>`
+    }
     const especiales = clean.filter(
       (it) =>
         BEBIDAS_ESPECIALES.has(it.id) ||
         String(it.group || '').toLowerCase() === 'especiales',
     )
     const barra = clean.filter((it) => !especiales.includes(it))
-    const left = especiales.length ? especiales : clean.slice(0, 6)
-    const right = especiales.length ? barra : clean.slice(6)
-    return `<div class="bebidas-grid">
-      <div>
-        <h4>Especiales</h4>
-        ${listHtml(left, 'dish-list compact single-col')}
-      </div>
-      <div>
-        <h4>Barra</h4>
-        ${listHtml(right, 'dish-list compact single-col')}
-      </div>
-    </div>`
+    const left = especiales.length ? especiales : clean.slice(0, Math.min(6, clean.length))
+    const right = especiales.length ? barra : clean.slice(left.length)
+    const leftBlock = left.length
+      ? `<div><h4>Especiales</h4>${listHtml(left, 'dish-list compact single-col')}</div>`
+      : ''
+    const rightBlock = right.length
+      ? `<div><h4>Barra</h4>${listHtml(right, 'dish-list compact single-col')}</div>`
+      : ''
+    return `<div class="bebidas-grid">${leftBlock}${rightBlock}</div>`
   }
 
   function fillCarta(data) {
@@ -115,6 +116,17 @@
     }
     if (byId.colombia) {
       sections = ['colombia', ...sections.filter((id) => id !== 'colombia')]
+    }
+    // Ocultar secciones sin platos públicos (p.ej. tras borrar todo en el TPV)
+    sections = sections.filter((id) => {
+      const items = (byId[id]?.items || []).filter((it) => it && !it.customProduct)
+      return items.length > 0
+    })
+    if (!sections.length) {
+      nav.innerHTML = ''
+      grid.innerHTML =
+        '<p class="carta-empty" style="padding:1.25rem">La carta se está actualizando. Vuelve en un momento.</p>'
+      return
     }
 
     nav.innerHTML = sections

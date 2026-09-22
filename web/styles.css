@@ -728,6 +728,16 @@ a { color: inherit; }
   flex: 0 0 auto;
 }
 .dish-list span { color: var(--muted); font-size: .8rem; line-height: 1.35; }
+.carta-empty {
+  margin: 0;
+  padding: .85rem 1rem;
+  border-radius: 12px;
+  background: #fffaf0;
+  border: 1px dashed rgba(241,196,15,.35);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: .9rem;
+}
 .bebidas-grid {
   display: grid; grid-template-columns: 1.05fr .95fr; gap: 1.1rem;
 }

@@ -4370,22 +4370,38 @@
         render()
       }
 
-      function fillCartaEditCategories(selectedId) {
+      function fillCartaEditCategories(selectedId, { forCreate = false } = {}) {
         const sel = $('cartaEditCat')
         if (!sel) return
-        const cats = (window.TPV_CARTA_META?.categories || catalog || []).filter(
+        const meta = window.TPV_CARTA_META || {}
+        const publicIds = Array.isArray(meta.publicSections)
+          ? meta.publicSections
+          : ['colombia', 'picoteo', 'espana', 'combinados', 'infantil', 'postres', 'bebidas', 'cafes']
+        const publicSet = new Set(publicIds)
+        let cats = (meta.categories || catalog || []).filter(
           (c) => c && c.id && c.id !== 'extras',
         )
+        // Alta nueva: solo categorías que salen en la web (misma carta pública)
+        if (forCreate) {
+          cats = cats.filter((c) => publicSet.has(c.id))
+        }
         sel.innerHTML = cats
-          .map(
-            (c) =>
-              `<option value="${String(c.id).replace(/"/g, '')}">${String(c.name || c.id).replace(/</g, '&lt;')}</option>`,
-          )
+          .map((c) => {
+            const web = publicSet.has(c.id) ? '' : ' (solo TPV)'
+            return `<option value="${String(c.id).replace(/"/g, '')}">${String(c.name || c.id).replace(/</g, '&lt;')}${web}</option>`
+          })
           .join('')
         if (selectedId && [...sel.options].some((o) => o.value === selectedId)) {
           sel.value = selectedId
-        } else if (state.cat && state.cat !== 'all' && state.cat !== 'extras') {
+        } else if (
+          state.cat &&
+          state.cat !== 'all' &&
+          state.cat !== 'extras' &&
+          [...sel.options].some((o) => o.value === state.cat)
+        ) {
           sel.value = state.cat
+        } else if (forCreate && sel.options.length) {
+          sel.value = sel.options[0].value
         }
       }
 
@@ -4400,14 +4416,14 @@
         cartaEditDraft = isNew
           ? { mode: 'create' }
           : { mode: 'edit', id: item.id, catId: item.catId }
-        fillCartaEditCategories(item?.catId || state.cat)
+        fillCartaEditCategories(item?.catId || state.cat, { forCreate: isNew })
         if ($('cartaEditTitle')) {
           $('cartaEditTitle').textContent = isNew ? 'Añadir plato' : 'Editar plato'
         }
         if ($('cartaEditSub')) {
           $('cartaEditSub').textContent = isNew
-            ? 'Nuevo producto en la carta (Supabase).'
-            : 'Cambia nombre y precio. Se guarda en Supabase (carta del TPV y web).'
+            ? 'Nuevo producto: se guarda en Supabase y se muestra en la carta web.'
+            : 'Cambia nombre, precio o descripción. Se actualiza en TPV y en la web.'
         }
         if ($('cartaEditName')) $('cartaEditName').value = item?.name || ''
         if ($('cartaEditPrice')) {
