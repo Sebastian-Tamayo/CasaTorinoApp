@@ -37,7 +37,7 @@ curl -fsSL -o reservas/api/reservas/\[id\].js "$SYNC_RAW_BASE/reservas/api/reser
 curl -fsSL -o reservas/api/reservas-health.js "$SYNC_RAW_BASE/reservas/api/reservas-health.js"
 curl -fsSL -o reservas/vercel.json "$SYNC_RAW_BASE/reservas/vercel.json"
 curl -fsSL -o reservas/.env.example "$SYNC_RAW_BASE/reservas/.env.example" || true
-curl -fsSL -o docs/TECNICO.md "$SYNC_RAW_BASE/RECUPERACION.md" || true
+# No sobrescribir docs/TECNICO.md desde espejos antiguos (RECUPERACION.md).
 if ! grep -q "Edge Config" reservas/server/reservas-store.js; then
   echo "ERROR: reservas-store.js no es la versión Edge Config — abortando" >&2
   exit 1
