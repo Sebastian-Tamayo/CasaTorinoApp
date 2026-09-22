@@ -13,6 +13,9 @@ const TEAM_ID = process.env.RESERVAS_TEAM_ID || process.env.TPV_TEAM_ID || ''
 const VERCEL_TOKEN =
   process.env.RESERVAS_VERCEL_TOKEN || process.env.TPV_VERCEL_TOKEN || ''
 const ITEM_KEY = 'reservas'
+const ALERTS_KEY = 'tpvReservaAlerts'
+const ALERTS_MAX = 30
+const ALERT_TTL_MS = 24 * 60 * 60 * 1000
 
 /** @type {null | { items: any[], updatedAt: number }} */
 let memory = null
@@ -38,29 +41,26 @@ function assertConfig() {
   }
 }
 
-async function readEdge() {
+async function readEdgeKey(key) {
   assertConfig()
   const url =
-    `https://api.vercel.com/v1/edge-config/${EDGE_ID}/item/${ITEM_KEY}` +
+    `https://api.vercel.com/v1/edge-config/${EDGE_ID}/item/${key}` +
     (TEAM_ID ? `?teamId=${TEAM_ID}` : '')
   const r = await fetch(url, {
     headers: { Authorization: `Bearer ${VERCEL_TOKEN}` },
     cache: 'no-store',
   })
-  if (r.status === 404) return []
+  if (r.status === 404) return null
   if (!r.ok) throw new Error('edge GET ' + r.status)
   const data = await r.json()
   // API may return value directly or { key, value }
-  const value =
-    data && typeof data === 'object' && 'value' in data && data.key === ITEM_KEY
-      ? data.value
-      : data
-  if (Array.isArray(value)) return value
-  if (value && Array.isArray(value.items)) return value.items
-  return []
+  if (data && typeof data === 'object' && 'value' in data && data.key === key) {
+    return data.value
+  }
+  return data
 }
 
-async function writeEdge(items) {
+async function writeEdgeKey(key, value) {
   assertConfig()
   const url =
     `https://api.vercel.com/v1/edge-config/${EDGE_ID}/items` +
@@ -69,8 +69,8 @@ async function writeEdge(items) {
     items: [
       {
         operation: 'upsert',
-        key: ITEM_KEY,
-        value: { items, updatedAt: Date.now() },
+        key,
+        value,
       },
     ],
   }
@@ -93,6 +93,37 @@ async function writeEdge(items) {
     await new Promise((resolve) => setTimeout(resolve, 120 * attempt))
   }
   throw lastErr || new Error('edge PATCH failed')
+}
+
+async function readEdge() {
+  const value = await readEdgeKey(ITEM_KEY)
+  if (Array.isArray(value)) return value
+  if (value && Array.isArray(value.items)) return value.items
+  return []
+}
+
+async function writeEdge(items) {
+  await writeEdgeKey(ITEM_KEY, { items, updatedAt: Date.now() })
+}
+
+function normalizeAlerts(value) {
+  const raw = Array.isArray(value?.alerts)
+    ? value.alerts
+    : Array.isArray(value)
+      ? value
+      : []
+  const now = Date.now()
+  const alerts = raw
+    .filter((a) => a && a.id)
+    .filter((a) => {
+      const created = Date.parse(String(a.createdAt || '')) || 0
+      return !created || now - created < ALERT_TTL_MS
+    })
+    .slice(0, ALERTS_MAX)
+  return {
+    alerts,
+    updatedAt: Number(value?.updatedAt) || now,
+  }
 }
 
 async function loadItems() {
@@ -141,6 +172,49 @@ export async function updateReserva(id, patch) {
   next[idx] = nextItem
   await saveItems(next)
   return mapItem(nextItem)
+}
+
+async function loadAlerts() {
+  const value = await readEdgeKey(ALERTS_KEY)
+  return normalizeAlerts(value)
+}
+
+async function saveAlerts(alerts) {
+  const payload = {
+    alerts: alerts.slice(0, ALERTS_MAX),
+    updatedAt: Date.now(),
+  }
+  await writeEdgeKey(ALERTS_KEY, payload)
+  return payload
+}
+
+/** Avisos TPV: reserva hecha desde la web */
+export async function listTpvReservaAlerts() {
+  const { alerts, updatedAt } = await loadAlerts()
+  return { alerts, updatedAt }
+}
+
+export async function pushTpvReservaAlert(alert) {
+  if (!alert || !alert.id) throw new Error('alert.id requerido')
+  const { alerts } = await loadAlerts()
+  const next = [alert, ...alerts.filter((a) => a && a.id !== alert.id)].slice(
+    0,
+    ALERTS_MAX,
+  )
+  const saved = await saveAlerts(next)
+  return { alert, ...saved }
+}
+
+export async function ackTpvReservaAlert(id) {
+  const alertId = String(id || '').trim()
+  const { alerts } = await loadAlerts()
+  if (!alertId) {
+    const saved = await saveAlerts([])
+    return { ok: true, removed: alerts.length, ...saved }
+  }
+  const next = alerts.filter((a) => a && a.id !== alertId)
+  const saved = await saveAlerts(next)
+  return { ok: true, removed: alerts.length - next.length, ...saved }
 }
 
 /** Compat: algunos scripts antiguos importaban STORE */

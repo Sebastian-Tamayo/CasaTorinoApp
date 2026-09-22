@@ -342,7 +342,11 @@ export function StaffPage() {
                   {r.codigo}
                   {r.telefono ? ` · ${r.telefono}` : ''}
                   {r.notas ? ` · ${r.notas}` : ''}
-                  {r.creadoPor ? ` · por ${r.creadoPor}` : ''}
+                  {r.creadoPor
+                    ? r.creadoPor === 'web'
+                      ? ' · desde la web'
+                      : ` · por ${r.creadoPor}`
+                    : ''}
                   {' · '}
                   <span className={`badge badge-${r.estado}`}>{STATUS_LABELS[r.estado]}</span>
                 </div>

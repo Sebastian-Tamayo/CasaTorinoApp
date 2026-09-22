@@ -61,6 +61,7 @@
     }
     /* Controles: manipulation = toque rápido; el scroll lo hace el contenedor nativo */
     button, a, .cat, .prod, .fab, .btn, .icon-btn, .link, .pickup-card,
+    .reserva-card,
     .q button, .tender button, .btn-pick, .btn-j, .chip, .gate-key,
     summary {
       touch-action: manipulation;
@@ -879,6 +880,62 @@
       body.check-open .pickup-alert { bottom: 1rem; }
     }
 
+    /* Aviso reserva web → TPV (amarillo, encima de recogidas cocina) */
+    .reserva-alert {
+      position: fixed;
+      left: 50%;
+      right: auto;
+      top: auto;
+      bottom: calc(9.1rem + env(safe-area-inset-bottom, 0px));
+      transform: translateX(-50%);
+      z-index: 97;
+      width: min(520px, calc(100% - 1.2rem));
+      display: none;
+      flex-direction: column;
+      gap: .4rem;
+      pointer-events: none;
+    }
+    .reserva-alert.show { display: flex; }
+    .reserva-card {
+      pointer-events: auto;
+      display: flex; align-items: center; gap: .65rem;
+      padding: .7rem .85rem;
+      border-radius: 16px;
+      border: 2px solid #fde047;
+      background: linear-gradient(135deg, #a16207, #ca8a04 45%, #eab308);
+      color: #fffbeb;
+      box-shadow: 0 14px 40px rgba(0,0,0,.45);
+      animation: reservaBlink 1s ease-in-out infinite;
+      cursor: pointer;
+      font-weight: 800;
+    }
+    .reserva-card i { font-size: 1.2rem; color: #fef08a; flex: 0 0 auto; }
+    .reserva-card strong { display: block; font-size: 1.05rem; letter-spacing: .01em; }
+    .reserva-card span { display: block; font-size: .74rem; font-weight: 700; opacity: .92; }
+    .reserva-card .x {
+      margin-left: auto; border: 0; background: rgba(0,0,0,.25);
+      color: #fff; width: 38px; height: 38px; border-radius: 50%;
+      font-size: 1rem; cursor: pointer; flex: 0 0 auto;
+    }
+    @keyframes reservaBlink {
+      0%, 100% { filter: brightness(1); box-shadow: 0 14px 40px rgba(0,0,0,.45), 0 0 0 0 rgba(250,204,21,.55); }
+      50% { filter: brightness(1.2); box-shadow: 0 14px 40px rgba(0,0,0,.45), 0 0 0 6px rgba(250,204,21,.38); }
+    }
+    body.tpv-locked .reserva-alert { display: none !important; }
+    body.check-open .reserva-alert {
+      bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
+    }
+    @media (min-width: 1024px) {
+      .reserva-alert {
+        left: auto;
+        right: 1rem;
+        transform: none;
+        width: min(360px, calc(var(--check-w, 400px) - 1.5rem));
+        bottom: calc(1rem + 5.2rem);
+      }
+      body.check-open .reserva-alert { bottom: calc(1rem + 5.2rem); }
+    }
+
     /* Teléfonos grandes / landscape: 2 columnas ya legibles */
     @media (min-width: 560px) and (max-width: 1023px) {
       .products { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
@@ -1586,6 +1643,7 @@
     </button>
   </div>
   <div class="backdrop" id="backdrop" hidden></div>
+  <div class="reserva-alert" id="reservaAlert" aria-live="assertive"></div>
   <div class="pickup-alert" id="pickupAlert" aria-live="assertive"></div>
 
   <div class="course-modal" id="courseModal" hidden role="dialog" aria-modal="true" aria-labelledby="courseModalTitle">
@@ -1747,6 +1805,7 @@
   <script src="tpvSync.js?v=mesa-clear-sticky-20260920"></script>
   <script src="tpvJornada.js"></script>
   <script src="kitchenSync.js"></script>
+  <script src="reservaAlertSync.js"></script>
   <script>
     (() => {
       const AUTH_KEY = 'casa-torino-tpv-auth-v1'
@@ -1934,6 +1993,7 @@
         try { window.CasaTorinoTpvSync?.stop?.() } catch {}
         try { window.CasaTorinoTpvJornada?.stopPolling?.() } catch {}
         try { window.CasaTorinoKitchenSync?.stop?.() } catch {}
+        try { window.CasaTorinoReservaAlertSync?.stop?.() } catch {}
         // Mantener tpvStarted: al desbloquear se reanuda sync sin recrear el runtime
       }
 
@@ -4669,6 +4729,109 @@
             if (p && p.id) activePickups.set(p.id, p)
           }
           renderPickupAlert()
+          playPickupSound()
+        },
+      )
+
+      // —— Avisos reserva web → TPV (amarillo) ——
+      const activeReservaAlerts = new Map()
+      let reservaAlarmTimer = null
+
+      function startReservaAlarmLoop() {
+        if (reservaAlarmTimer) return
+        reservaAlarmTimer = setInterval(() => {
+          if (!activeReservaAlerts.size) {
+            clearInterval(reservaAlarmTimer)
+            reservaAlarmTimer = null
+            return
+          }
+          playPickupSound()
+        }, 3500)
+      }
+
+      function stopReservaAlarmLoop() {
+        if (reservaAlarmTimer) {
+          clearInterval(reservaAlarmTimer)
+          reservaAlarmTimer = null
+        }
+      }
+
+      function renderReservaAlert() {
+        const box = $('reservaAlert')
+        if (!box) return
+        const list = [...activeReservaAlerts.values()]
+        if (!list.length) {
+          box.classList.remove('show')
+          box.innerHTML = ''
+          stopReservaAlarmLoop()
+          return
+        }
+        box.classList.add('show')
+        box.innerHTML = list
+          .map((a) => {
+            const id = String(a.id || '').replace(/"/g, '')
+            const title = String(
+              a.message ||
+                `Se ha hecho una reserva · ${a.nombre || '?'} · ${a.fecha || ''} ${a.hora || ''} · ${a.personas || '?'}p`,
+            ).replace(/</g, '&lt;')
+            const sub = String(
+              a.codigo
+                ? `${a.codigo} · toca para confirmar`
+                : 'Reserva web · toca para confirmar',
+            ).replace(/</g, '&lt;')
+            return `<div class="reserva-card" data-reserva-alert="${id}" role="button" tabindex="0">
+              <i class="fa-solid fa-calendar-check"></i>
+              <div>
+                <strong>${title}</strong>
+                <span>${sub}</span>
+              </div>
+              <button type="button" class="x" data-reserva-alert-x="${id}" aria-label="Cerrar">✕</button>
+            </div>`
+          })
+          .join('')
+        startReservaAlarmLoop()
+      }
+
+      async function dismissReservaAlert(id) {
+        if (!id) return
+        activeReservaAlerts.delete(id)
+        renderReservaAlert()
+        try {
+          await window.CasaTorinoReservaAlertSync?.ack?.(id)
+        } catch (err) {
+          console.warn('ackReservaAlert', err)
+        }
+      }
+
+      $('reservaAlert')?.addEventListener('click', (e) => {
+        unlockTpvAudio()
+        const x = e.target.closest('[data-reserva-alert-x]')
+        const card = e.target.closest('[data-reserva-alert]')
+        const id =
+          (x || card)?.dataset?.reservaAlertX || (x || card)?.dataset?.reservaAlert
+        if (id) dismissReservaAlert(id)
+      })
+
+      window.CasaTorinoReservaAlertSync?.start(
+        (payload) => {
+          const remote = Array.isArray(payload.alerts) ? payload.alerts : []
+          const remoteIds = new Set(remote.map((a) => a && a.id).filter(Boolean))
+          for (const id of [...activeReservaAlerts.keys()]) {
+            if (!remoteIds.has(id)) activeReservaAlerts.delete(id)
+          }
+          for (const a of remote) {
+            if (a && a.id && !activeReservaAlerts.has(a.id)) {
+              activeReservaAlerts.set(a.id, a)
+            }
+          }
+          renderReservaAlert()
+        },
+        (newAlerts) => {
+          if (!newAlerts?.length) return
+          for (const a of newAlerts) {
+            if (a && a.id) activeReservaAlerts.set(a.id, a)
+          }
+          renderReservaAlert()
           playPickupSound()
         },
       )
