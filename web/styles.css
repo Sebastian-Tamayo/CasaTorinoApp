@@ -716,6 +716,8 @@ a { color: inherit; }
   min-width: 0;
   line-height: 1.25;
   color: var(--ink);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .price {
   color: var(--red);
