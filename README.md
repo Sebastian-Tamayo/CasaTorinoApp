@@ -21,22 +21,10 @@ Sin cuotas mensuales de TPV comercial · sync en tiempo real · PIN en zonas int
 ## Demostración
 
 ### Web pública
-![Demo web Casa Torino](docs/media/web/web-demo.gif)
 
-### ERP — oficina mobile-first
-![Demo ERP Casa Torino](docs/media/erp/demo-video.gif)
-
-![Recorrido ERP](docs/media/erp/ezgif-5fa456c539e0fea6.gif)
 
 ### Capturas ERP
 
-| Inicio / balance | Pérdidas y ganancias |
-|:---:|:---:|
-| ![Inicio ERP](docs/media/erp/Captura2.png) | ![P&L ERP](docs/media/erp/Captura3.png) |
-
-| Documentos | Perfil |
-|:---:|:---:|
-| ![Documentos](docs/media/erp/Captura4.png) | ![Perfil](docs/media/erp/Captura5.png) |
 
 ---
 
