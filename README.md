@@ -56,7 +56,7 @@ Cliente → Web pública
 | `/web` | Web clara, interno, TPV, cocina (KDS), fichaje / horas |
 | `/reservas` | Agenda del personal (React + Vite + Edge Config) |
 | `/erp` | Back-office Next.js 15 + Supabase (P&L, fiscal, RRHH, documentos) |
-| `/docs` | Guías, seguridad, brief comercial, media |
+| `/docs` | Comercial + técnico + media |
 
 ---
 
@@ -92,7 +92,7 @@ Cliente → Web pública
 | Datos ops | Supabase `ops_kv` / `time_logs` |
 | Hosting | Vercel Hobby |
 
-Seguridad baseline 2026: [`docs/SEGURIDAD-2026.md`](docs/SEGURIDAD-2026.md)
+Docs: [`docs/COMERCIAL.md`](docs/COMERCIAL.md) · [`docs/TECNICO.md`](docs/TECNICO.md) (seguridad, deploy, backup).
 
 ---
 
@@ -104,8 +104,7 @@ bash scripts/assert-light-theme.sh
 bash scripts/deploy-web.sh
 ```
 
-Checklist: [`docs/DEPLOY-CHECKLIST.md`](docs/DEPLOY-CHECKLIST.md)  
-Nunca subir `.env`, PINs reales ni tokens a GitHub.
+Detalle: [`docs/TECNICO.md`](docs/TECNICO.md). Nunca subir `.env`, PINs reales ni tokens a GitHub.
 
 ---
 

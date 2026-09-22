@@ -48,13 +48,11 @@ Sin apps nativas: el personal usa el navegador en tablet, PC de caja o móvil.
 - Pedidos en vivo desde el TPV
 - Menú español: Listo 1º → recogida → Listo 2º
 - Histórico del día (purge ~09:00 Europe/Madrid)
-- Detalle: [`COCINA-KDS.md`](./COCINA-KDS.md)
 
 ### Jornada de caja
 - Inicio / total / fin de sesión
 - Totales por tipo, categoría y producto
-- Corrección de tickets al final del día  
-- Detalle: [`TPV-JORNADA.md`](./TPV-JORNADA.md)
+- Corrección de tickets al final del día
 
 ---
 
@@ -98,9 +96,6 @@ web/
 ├── api/                # Serverless
 ├── assets/             # QZ / estáticos
 ├── scripts/            # assert tema claro · deploy
-├── TPV-JORNADA.md
-├── COCINA-KDS.md
-├── DEPLOY-PROD.md
 └── README.md
 ```
 
@@ -115,7 +110,7 @@ cd web
 bash scripts/assert-light-theme.sh
 ```
 
-Deploy de producción (proyecto Vercel `casa-torino-web`): ver [`DEPLOY-PROD.md`](./DEPLOY-PROD.md).
+Deploy de producción (proyecto Vercel `casa-torino-web`): [`../docs/TECNICO.md`](../docs/TECNICO.md) §4.
 
 Secretos: `web/.env.example` → Vercel / `.env.local` (`TPV_PIN`, credenciales ops, etc.).
 
@@ -125,7 +120,7 @@ Secretos: `web/.env.example` → Vercel / `.env.local` (`TPV_PIN`, credenciales 
 
 - Reservas del personal → [`../reservas/`](../reservas/)
 - ERP (caja TPV, fiscal, RRHH) → [`../erp/`](../erp/)
-- Recuperación → [`../docs/RECUPERACION.md`](../docs/RECUPERACION.md)
+- Docs → [`../docs/TECNICO.md`](../docs/TECNICO.md) · [`../docs/COMERCIAL.md`](../docs/COMERCIAL.md)
 
 ---
 
