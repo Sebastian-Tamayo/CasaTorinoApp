@@ -12,6 +12,7 @@
  * Requiere sesión TPV (cookie) o X-Tpv-Key.
  */
 const { getJson, setJson, hasSupabase } = require('./_opsStore')
+const { applySecurityHeaders } = require('./_securityHeaders')
 
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const OPS_KEY = 'time_logs'
@@ -49,6 +50,7 @@ const SUPABASE_KEY = cleanToken(
 )
 
 function cors(res) {
+  applySecurityHeaders(res)
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
   res.setHeader(

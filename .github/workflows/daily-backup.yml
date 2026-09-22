@@ -1,0 +1,128 @@
+# Respaldo diario completo del monorepo CasaTorinoApp
+# Hora objetivo: 03:00 Europe/Madrid (sin tocar main ni producción Vercel).
+#
+# GitHub Actions solo entiende UTC:
+#   - 01:00 UTC ≈ 03:00 CEST (verano)
+#   - 02:00 UTC ≈ 03:00 CET (invierno)
+# Ambos crons están; si el backup del día Madrid ya existe, el segundo no hace nada.
+#
+# Retención: KEEP_DAYS ramas backup/daily-YYYY-MM-DD (por defecto 14).
+# Nunca hace force-push a main, nunca despliega, nunca borra secretos/Vercel.
+
+name: Daily project backup
+
+on:
+  schedule:
+    - cron: '0 1 * * *'
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      keep_days:
+        description: 'Días de retención de ramas backup/daily-*'
+        required: false
+        default: '14'
+
+concurrency:
+  group: daily-project-backup
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Rama por defecto del repo (main). No usa ramas de feature.
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Compute Madrid date + retention
+        id: meta
+        run: |
+          set -euo pipefail
+          DAY=$(TZ=Europe/Madrid date +%F)
+          KEEP="${{ github.event.inputs.keep_days }}"
+          KEEP="${KEEP:-14}"
+          BRANCH="backup/daily-${DAY}"
+          echo "madrid_day=${DAY}" >> "$GITHUB_OUTPUT"
+          echo "keep_days=${KEEP}" >> "$GITHUB_OUTPUT"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "Madrid day=${DAY} branch=${BRANCH} keep=${KEEP}"
+
+      - name: Skip if today's backup already exists
+        id: skip
+        run: |
+          set -euo pipefail
+          BRANCH="${{ steps.meta.outputs.branch }}"
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Backup ya existe: $BRANCH — no se toca producción."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create and push daily backup branch
+        if: steps.skip.outputs.exists != 'true'
+        run: |
+          set -euo pipefail
+          BRANCH="${{ steps.meta.outputs.branch }}"
+          DAY="${{ steps.meta.outputs.madrid_day }}"
+          git config user.name "casa-torino-backup[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Puntero inmutable al tip de main del momento (sin reescribir historial)
+          git branch "$BRANCH" HEAD
+          git push origin "refs/heads/${BRANCH}"
+          # Tag ligero del mismo día (idempotente)
+          TAG="backup-${DAY}"
+          if ! git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            git tag -a "$TAG" -m "Respaldo diario ${DAY} Europe/Madrid (tip de ${{ github.event.repository.default_branch }})"
+            git push origin "refs/tags/${TAG}"
+          fi
+          echo "OK pushed ${BRANCH} and tag ${TAG}"
+
+      - name: Prune old daily backup branches (keep N days)
+        run: |
+          set -euo pipefail
+          KEEP="${{ steps.meta.outputs.keep_days }}"
+          CUTOFF=$(TZ=Europe/Madrid date -d "${KEEP} days ago" +%F)
+          echo "Deleting backup/daily-* older than ${CUTOFF} (keeping ${KEEP} days)"
+          git fetch origin --prune
+          # Solo ramas backup/daily-YYYY-MM-DD — nunca main, nunca cursor/*, nunca production
+          mapfile -t REMOTES < <(git branch -r | sed 's|^[[:space:]]*||' | grep -E '^origin/backup/daily-[0-9]{4}-[0-9]{2}-[0-9]{2}$' || true)
+          for ref in "${REMOTES[@]}"; do
+            name="${ref#origin/}"
+            day="${name#backup/daily-}"
+            if [[ "$day" < "$CUTOFF" ]]; then
+              echo "Prune branch $name (day $day)"
+              git push origin --delete "$name" || echo "warn: could not delete $name"
+            else
+              echo "Keep $name"
+            fi
+          done
+          # Tags backup-YYYY-MM-DD antiguos
+          mapfile -t TAGS < <(git tag -l 'backup-????-??-??' || true)
+          for tag in "${TAGS[@]}"; do
+            day="${tag#backup-}"
+            if [[ "$day" < "$CUTOFF" ]]; then
+              echo "Prune tag $tag"
+              git push origin --delete "refs/tags/${tag}" || true
+              git tag -d "$tag" || true
+            fi
+          done
+
+      - name: Summary
+        run: |
+          {
+            echo "## Respaldo diario"
+            echo ""
+            echo "- Día Madrid: \`${{ steps.meta.outputs.madrid_day }}\`"
+            echo "- Rama: \`${{ steps.meta.outputs.branch }}\`"
+            echo "- Retención: ${{ steps.meta.outputs.keep_days }} días"
+            echo "- Ya existía: \`${{ steps.skip.outputs.exists }}\`"
+            echo "- Producción / \`main\` / Vercel: **no modificados**"
+          } >> "$GITHUB_STEP_SUMMARY"

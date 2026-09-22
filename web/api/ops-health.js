@@ -3,8 +3,10 @@
  * GET /api/ops-health
  */
 const { getJson, getBackend, hasSupabase } = require('./_opsStore')
+const { applySecurityHeaders } = require('./_securityHeaders')
 
 module.exports = async function handler(req, res) {
+  applySecurityHeaders(res)
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Cache-Control', 'no-store')
   if (req.method === 'OPTIONS') {
