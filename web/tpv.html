@@ -1783,11 +1783,18 @@
         <label>Precio (€)
           <input id="cartaEditPrice" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off" spellcheck="false" />
         </label>
+        <label>Descripción (web)
+          <input id="cartaEditDesc" type="text" maxlength="220" placeholder="Opcional · se muestra en la carta web" autocomplete="off" spellcheck="true" />
+        </label>
         <label>Tipo
           <select id="cartaEditType">
             <option value="comida">Comida (cocina)</option>
             <option value="bebida">Bebida (barra)</option>
           </select>
+        </label>
+        <label style="display:flex;align-items:center;gap:.5rem;text-transform:none;letter-spacing:0;font-size:.88rem">
+          <input id="cartaEditStar" type="checkbox" style="width:auto;margin:0" />
+          Destacado «Siempre» en la web
         </label>
       </div>
       <div class="course-actions" style="margin-top:1rem;flex-wrap:wrap;gap:.5rem">
@@ -4408,10 +4415,12 @@
             ? String(item.price ?? '').replace('.', ',')
             : ''
         }
+        if ($('cartaEditDesc')) $('cartaEditDesc').value = item?.desc || ''
         if ($('cartaEditType')) {
           $('cartaEditType').value =
             item?.categoryType === 'bebida' ? 'bebida' : 'comida'
         }
+        if ($('cartaEditStar')) $('cartaEditStar').checked = Boolean(item?.star)
         if ($('cartaEditDelete')) $('cartaEditDelete').hidden = isNew
         if ($('cartaEditModal')) $('cartaEditModal').hidden = false
         setTimeout(() => $('cartaEditName')?.focus(), 50)
@@ -4457,6 +4466,8 @@
         const categoryId = String($('cartaEditCat')?.value || '').trim()
         const categoryType =
           $('cartaEditType')?.value === 'bebida' ? 'bebida' : 'comida'
+        const desc = String($('cartaEditDesc')?.value || '').trim()
+        const star = Boolean($('cartaEditStar')?.checked)
         if (!name) {
           alert('Pon un nombre')
           return
@@ -4480,12 +4491,15 @@
               : slugifyCartaId(name),
           name,
           price,
-          desc: existing?.desc || '',
+          desc,
           base: existing?.base || name,
           categoryType,
         }
         if (existing?.schedule) item.schedule = existing.schedule
+        if (existing?.group) item.group = existing.group
         if (existing?.coursePick || /menu-dia/i.test(item.id)) item.coursePick = true
+        if (star) item.star = true
+        else if (existing?.star) item.star = false
         const btn = $('cartaEditSave')
         if (btn) btn.disabled = true
         try {

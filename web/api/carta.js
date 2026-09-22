@@ -129,10 +129,45 @@ function upsertItemInCarta(carta, categoryId, item) {
   if (item.customProduct) normalized.customProduct = true
   if (item.priceEditable) normalized.priceEditable = true
   if (item.coursePick) normalized.coursePick = true
-  if (idx >= 0) cat.items[idx] = { ...cat.items[idx], ...normalized }
-  else cat.items.push(normalized)
+  if (item.star) normalized.star = true
+  if (item.group) normalized.group = String(item.group)
+  if (idx >= 0) {
+    const prev = cat.items[idx] || {}
+    cat.items[idx] = { ...prev, ...normalized }
+    // Si el cliente no manda star:true, no borrar la estrella existente
+    if (!item.star && prev.star && item.star !== false) {
+      cat.items[idx].star = true
+    }
+    if (item.star === false) delete cat.items[idx].star
+  } else {
+    cat.items.push(normalized)
+  }
   next.updatedAt = Date.now()
+  syncMenuDayFromItems(next)
   return next
+}
+
+/** Mantén precios del bloque «Menú del día» de la web alineados con los platos. */
+function syncMenuDayFromItems(carta) {
+  const menus = (carta.categories || []).find((c) => c && c.id === 'menus-dia')
+  if (!menus || !Array.isArray(menus.items)) return
+  const find = (id) => menus.items.find((it) => it && it.id === id)
+  const esW = find('menu-dia-es-semana')
+  const coW = find('menu-dia-co-semana')
+  const esE = find('menu-dia-es-finde')
+  const coE = find('menu-dia-co-finde')
+  if (!carta.menuDay || typeof carta.menuDay !== 'object') {
+    carta.menuDay = {
+      weekday: { label: 'Entre semana', es: 14, co: 13 },
+      weekend: { label: 'Fin de semana / festivo', es: 18, co: 15 },
+    }
+  }
+  if (!carta.menuDay.weekday) carta.menuDay.weekday = { label: 'Entre semana' }
+  if (!carta.menuDay.weekend) carta.menuDay.weekend = { label: 'Fin de semana / festivo' }
+  if (esW && Number.isFinite(Number(esW.price))) carta.menuDay.weekday.es = Number(esW.price)
+  if (coW && Number.isFinite(Number(coW.price))) carta.menuDay.weekday.co = Number(coW.price)
+  if (esE && Number.isFinite(Number(esE.price))) carta.menuDay.weekend.es = Number(esE.price)
+  if (coE && Number.isFinite(Number(coE.price))) carta.menuDay.weekend.co = Number(coE.price)
 }
 
 function deleteItemInCarta(carta, categoryId, itemId) {
