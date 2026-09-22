@@ -188,7 +188,7 @@ function deleteItemInCarta(carta, categoryId, itemId) {
 }
 
 function expectedEditPin() {
-  return String(process.env.CARTA_EDIT_PIN || '1234').trim()
+  return String(process.env.CARTA_EDIT_PIN || '2908').trim()
 }
 
 module.exports = async function handler(req, res) {
