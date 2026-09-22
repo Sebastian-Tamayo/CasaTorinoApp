@@ -50,7 +50,7 @@ export function PerfilView() {
               Personal autorizado
             </p>
             <p className="mt-1 font-sans text-sm text-ink/55">
-              Dueñas / administración
+              Acceso completo · dueñas / administración
             </p>
           </div>
         </div>

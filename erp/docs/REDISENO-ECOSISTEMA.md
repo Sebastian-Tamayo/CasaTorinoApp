@@ -6,7 +6,7 @@
 - **Ya no** se registran ingresos manuales (venta local / domicilios)
 
 ## Acceso
-PIN `3212` (variable `ERP_PIN`, mismo criterio que TPV).
+PIN `2908` (variable `ERP_PIN`, acceso completo de administración).
 
 ## Colores
 Crema `#fff8e8` · oro `#f5c518` · alineado con web/TPV.

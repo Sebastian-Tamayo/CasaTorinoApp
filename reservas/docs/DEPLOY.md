@@ -34,4 +34,4 @@ Root del proyecto en Vercel: carpeta `casa-torino-reservas` (no la raíz del mon
 
 ## PIN demo
 
-Personal: Lorena / Yuli / Dayana / Claribel — PIN `1234` (`src/config.ts`).
+Personal: Lorena / Yuli / Dayana / Claribel — PIN `3212` (`src/config.ts`).

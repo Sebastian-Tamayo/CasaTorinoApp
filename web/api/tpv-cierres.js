@@ -35,10 +35,13 @@ function authorized(req) {
   const key = req.headers['x-tpv-key']
   if (SYNC_KEY && key && key === SYNC_KEY) return true
   const pin = String(req.headers['x-erp-pin'] || '').trim()
-  const expected = String(
-    process.env.ERP_PIN || process.env.TPV_PIN || '',
-  ).trim()
-  if (expected && pin && pin === expected) return true
+  const allowedPins = [
+    process.env.ERP_PIN,
+    process.env.TPV_PIN,
+  ]
+    .map((s) => String(s || '').trim())
+    .filter(Boolean)
+  if (pin && allowedPins.includes(pin)) return true
   return false
 }
 

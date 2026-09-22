@@ -6,8 +6,7 @@ export const ERP_PIN_MAX_AGE = 60 * 60 * 24; // 24 h ecosistema
 export function expectedErpPin() {
   return (
     process.env.ERP_PIN ||
-    process.env.TPV_PIN ||
-    "3212"
+    "2908"
   ).trim();
 }
 
