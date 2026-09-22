@@ -90,7 +90,7 @@ reservas/
 └── README.md
 ```
 
-Detalle: [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) · [`docs/PRODUCTO.md`](docs/PRODUCTO.md) · [`docs/DEPLOY.md`](docs/DEPLOY.md)
+Docs del monorepo: [`../docs/ECOSISTEMA.md`](../docs/ECOSISTEMA.md) · [`../docs/reservas-ANTI-REGRESION.md`](../docs/reservas-ANTI-REGRESION.md) · [`../docs/DEPLOY-CHECKLIST.md`](../docs/DEPLOY-CHECKLIST.md)
 
 ---
 
