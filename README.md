@@ -18,14 +18,6 @@ Sin cuotas mensuales de TPV comercial · sync en tiempo real · PIN en zonas int
 
 ---
 
-## Demostración
-
-### Web pública
-
-
-### Capturas ERP
-
-
 ---
 
 ## Arquitectura (monorepo)
