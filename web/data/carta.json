@@ -18,41 +18,125 @@
     "note": "Calendario laboral Gijón (nacionales + autonómicos + locales). En estos días se aplica menú de fin de semana.",
     "source": "Calendarios Ideal / BOPA fiestas locales Asturias",
     "2026": [
-      { "date": "2026-01-01", "name": "Año Nuevo" },
-      { "date": "2026-01-06", "name": "Epifanía del Señor" },
-      { "date": "2026-02-17", "name": "Martes de Carnaval (Antroxu)" },
-      { "date": "2026-04-02", "name": "Jueves Santo" },
-      { "date": "2026-04-03", "name": "Viernes Santo" },
-      { "date": "2026-05-01", "name": "Fiesta del Trabajo" },
-      { "date": "2026-06-29", "name": "San Pedro (local)" },
-      { "date": "2026-08-15", "name": "Asunción de la Virgen" },
-      { "date": "2026-09-08", "name": "Día de Asturias" },
-      { "date": "2026-10-12", "name": "Fiesta Nacional de España" },
-      { "date": "2026-11-02", "name": "Todos los Santos (traslado)" },
-      { "date": "2026-12-07", "name": "Día de la Constitución (traslado)" },
-      { "date": "2026-12-08", "name": "Inmaculada Concepción" },
-      { "date": "2026-12-25", "name": "Natividad del Señor" }
+      {
+        "date": "2026-01-01",
+        "name": "Año Nuevo"
+      },
+      {
+        "date": "2026-01-06",
+        "name": "Epifanía del Señor"
+      },
+      {
+        "date": "2026-02-17",
+        "name": "Martes de Carnaval (Antroxu)"
+      },
+      {
+        "date": "2026-04-02",
+        "name": "Jueves Santo"
+      },
+      {
+        "date": "2026-04-03",
+        "name": "Viernes Santo"
+      },
+      {
+        "date": "2026-05-01",
+        "name": "Fiesta del Trabajo"
+      },
+      {
+        "date": "2026-06-29",
+        "name": "San Pedro (local)"
+      },
+      {
+        "date": "2026-08-15",
+        "name": "Asunción de la Virgen"
+      },
+      {
+        "date": "2026-09-08",
+        "name": "Día de Asturias"
+      },
+      {
+        "date": "2026-10-12",
+        "name": "Fiesta Nacional de España"
+      },
+      {
+        "date": "2026-11-02",
+        "name": "Todos los Santos (traslado)"
+      },
+      {
+        "date": "2026-12-07",
+        "name": "Día de la Constitución (traslado)"
+      },
+      {
+        "date": "2026-12-08",
+        "name": "Inmaculada Concepción"
+      },
+      {
+        "date": "2026-12-25",
+        "name": "Natividad del Señor"
+      }
     ],
     "2027": [
-      { "date": "2027-01-01", "name": "Año Nuevo" },
-      { "date": "2027-01-06", "name": "Epifanía del Señor" },
-      { "date": "2027-02-09", "name": "Martes de Carnaval (Antroxu)" },
-      { "date": "2027-03-25", "name": "Jueves Santo" },
-      { "date": "2027-03-26", "name": "Viernes Santo" },
-      { "date": "2027-05-01", "name": "Fiesta del Trabajo" },
-      { "date": "2027-06-29", "name": "San Pedro (local)" },
-      { "date": "2027-08-15", "name": "Asunción de la Virgen" },
-      { "date": "2027-09-08", "name": "Día de Asturias" },
-      { "date": "2027-10-12", "name": "Fiesta Nacional de España" },
-      { "date": "2027-11-01", "name": "Todos los Santos" },
-      { "date": "2027-12-06", "name": "Día de la Constitución" },
-      { "date": "2027-12-08", "name": "Inmaculada Concepción" },
-      { "date": "2027-12-25", "name": "Natividad del Señor" }
+      {
+        "date": "2027-01-01",
+        "name": "Año Nuevo"
+      },
+      {
+        "date": "2027-01-06",
+        "name": "Epifanía del Señor"
+      },
+      {
+        "date": "2027-02-09",
+        "name": "Martes de Carnaval (Antroxu)"
+      },
+      {
+        "date": "2027-03-25",
+        "name": "Jueves Santo"
+      },
+      {
+        "date": "2027-03-26",
+        "name": "Viernes Santo"
+      },
+      {
+        "date": "2027-05-01",
+        "name": "Fiesta del Trabajo"
+      },
+      {
+        "date": "2027-06-29",
+        "name": "San Pedro (local)"
+      },
+      {
+        "date": "2027-08-15",
+        "name": "Asunción de la Virgen"
+      },
+      {
+        "date": "2027-09-08",
+        "name": "Día de Asturias"
+      },
+      {
+        "date": "2027-10-12",
+        "name": "Fiesta Nacional de España"
+      },
+      {
+        "date": "2027-11-01",
+        "name": "Todos los Santos"
+      },
+      {
+        "date": "2027-12-06",
+        "name": "Día de la Constitución"
+      },
+      {
+        "date": "2027-12-08",
+        "name": "Inmaculada Concepción"
+      },
+      {
+        "date": "2027-12-25",
+        "name": "Natividad del Señor"
+      }
     ]
   },
   "publicSections": [
-    "picoteo",
     "colombia",
+    "picoteo",
     "espana",
     "combinados",
     "infantil",
@@ -215,20 +299,40 @@
       "icon": "fa-pepper-hot",
       "items": [
         {
-          "id": "colombia-lechona",
-          "name": "Lechona",
-          "price": 14.0,
-          "desc": "Cerdo, guisantes secos, cebolla, ajo y especias",
-          "base": "Lechona",
-          "categoryType": "comida"
-        },
-        {
           "id": "colombia-tamal-valluno",
           "name": "Tamal valluno",
           "price": 11.0,
           "desc": "Arroz, guisantes, zanahoria, patata, huevo, cerdo, pollo, chocolate y arepa · Llevar 9,00 €",
           "base": "Tamal valluno",
-          "categoryType": "comida"
+          "categoryType": "comida",
+          "star": true
+        },
+        {
+          "id": "colombia-tamal-tolimense",
+          "name": "Tamal tolimense",
+          "price": 11.0,
+          "desc": "Masa de maíz, carne de cerdo y pollo, arveja, zanahoria, huevo y arepa · Llevar 9,00 €",
+          "base": "Tamal tolimense",
+          "categoryType": "comida",
+          "star": true
+        },
+        {
+          "id": "colombia-lechona",
+          "name": "Lechona",
+          "price": 14.0,
+          "desc": "Cerdo, guisantes secos, cebolla, ajo y especias",
+          "base": "Lechona",
+          "categoryType": "comida",
+          "star": true
+        },
+        {
+          "id": "colombia-bandeja-paisa",
+          "name": "Bandeja paisa",
+          "price": 14.0,
+          "desc": "Frijoles, arroz, chorizo, carne molida, huevo, panceta, aguacate, plátano maduro y arepa",
+          "base": "Bandeja paisa",
+          "categoryType": "comida",
+          "star": true
         },
         {
           "id": "colombia-arepa-rellena",
@@ -308,14 +412,6 @@
           "price": 20.0,
           "desc": "Vacuno, cerdo, pollo, chorizo, morcilla, panceta, criolla, arepa y yuca",
           "base": "Picadas",
-          "categoryType": "comida"
-        },
-        {
-          "id": "colombia-bandeja-paisa",
-          "name": "Bandeja paisa",
-          "price": 14.0,
-          "desc": "Frijoles, arroz, chorizo, carne molida, huevo, panceta, aguacate, plátano maduro y arepa",
-          "base": "Bandeja paisa",
           "categoryType": "comida"
         },
         {

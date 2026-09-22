@@ -5,3 +5,4 @@
 !.env.example
 node_modules
 _prod_snap/
+.env.local

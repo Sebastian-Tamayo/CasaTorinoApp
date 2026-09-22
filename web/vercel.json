@@ -6,14 +6,25 @@
   "crons": [
     {
       "path": "/api/ops-daily-purge",
-      "schedule": "0 7 * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/ops-daily-purge",
-      "schedule": "0 8 * * *"
+      "schedule": "0 7 * * *"
     }
   ],
   "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=()" },
+        { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" },
+        { "key": "X-DNS-Prefetch-Control", "value": "off" }
+      ]
+    },
     {
       "source": "/assets/(.*)",
       "headers": [
@@ -24,6 +35,19 @@
       "source": "/(.*)\\.js",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/(.*)\\.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
       ]
     }
   ]

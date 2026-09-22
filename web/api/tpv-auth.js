@@ -12,7 +12,10 @@ const COOKIE = 'ct_tpv_session'
 // Cookie 24h + sliding renewal (heartbeat cliente cada 15 min)
 const MAX_AGE = 60 * 60 * 24 // 24 h
 
+const { applySecurityHeaders } = require('./_securityHeaders')
+
 function cors(res) {
+  applySecurityHeaders(res)
   res.setHeader('Access-Control-Allow-Origin', res.req?.headers?.origin || '*')
   res.setHeader('Access-Control-Allow-Credentials', 'true')
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS')

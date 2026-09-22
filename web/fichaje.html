@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Horas trabajadas · Casa Torino</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#fff8e8" />
+  <link rel="icon" type="image/jpeg" href="assets/logo.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body.interno-locked .fichaje-page { display: none; }
+    body:not(.interno-locked) .gate { display: none; }
+
+    .gate {
+      min-height: 100dvh; display: grid; place-items: center;
+      padding: 1.5rem 1rem 2rem;
+      background:
+        radial-gradient(900px 420px at 50% -10%, rgba(241,196,15,.18), transparent 55%),
+        var(--bg);
+    }
+    .gate-card {
+      width: min(380px, 100%);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.45rem 1.25rem 1.35rem;
+      text-align: center;
+    }
+    .gate-card img {
+      width: 84px; height: 84px; border-radius: 50%;
+      object-fit: cover; border: 2px solid var(--gold);
+      margin: 0 auto .85rem;
+    }
+    .gate-card h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.7rem; margin: 0 0 .3rem;
+    }
+    .gate-card p { margin: 0 0 1rem; color: var(--muted); font-size: .92rem; }
+    .gate-dots { display: flex; gap: .55rem; justify-content: center; margin-bottom: 1rem; }
+    .gate-dots i {
+      width: 12px; height: 12px; border-radius: 50%;
+      border: 2px solid rgba(26,35,50,.25); display: block;
+    }
+    .gate-dots i.on { background: var(--gold); border-color: var(--gold); }
+    .gate-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: .55rem; }
+    .gate-pad button {
+      height: 56px; border-radius: 14px; border: 1px solid var(--line);
+      background: var(--bg-2); color: var(--ink);
+      font-size: 1.25rem; font-weight: 800; cursor: pointer;
+    }
+    .gate-pad button.ghost { font-size: .85rem; color: var(--muted); }
+    .gate-err {
+      min-height: 1.2rem; margin-top: .7rem;
+      color: var(--red); font-weight: 700; font-size: .9rem;
+    }
+    .gate-back {
+      display: inline-block; margin-top: .9rem;
+      color: var(--muted); text-decoration: none; font-weight: 600; font-size: .88rem;
+    }
+
+    .fichaje-page {
+      min-height: 100dvh;
+      padding: 1.25rem 1rem 2.5rem;
+      background:
+        radial-gradient(900px 420px at 50% -10%, rgba(241,196,15,.12), transparent 55%),
+        var(--bg);
+    }
+    .fichaje-wrap {
+      width: min(920px, 100%);
+      margin: 0 auto;
+    }
+    .fichaje-head {
+      display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .fichaje-head img {
+      width: 52px; height: 52px; border-radius: 50%;
+      object-fit: cover; border: 2px solid var(--gold);
+    }
+    .fichaje-head h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.65rem; margin: 0;
+    }
+    .fichaje-head p { margin: .15rem 0 0; color: var(--muted); font-size: .88rem; }
+    .fichaje-nav { margin-left: auto; display: flex; gap: .5rem; flex-wrap: wrap; }
+    .fichaje-nav a, .fichaje-nav button {
+      text-decoration: none; border: 1px solid var(--line);
+      background: var(--card); color: var(--ink);
+      border-radius: 999px; padding: .45rem .85rem;
+      font-weight: 700; font-size: .82rem; cursor: pointer;
+    }
+
+    .filters {
+      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: .65rem; margin-bottom: 1rem;
+    }
+    @media (max-width: 720px) {
+      .filters { grid-template-columns: 1fr 1fr; }
+    }
+    .filters label {
+      display: grid; gap: .3rem;
+      font-size: .72rem; font-weight: 800; text-transform: uppercase;
+      letter-spacing: .04em; color: var(--muted);
+    }
+    .filters input, .filters select {
+      border: 1px solid var(--line); border-radius: 12px;
+      background: var(--card); color: var(--ink);
+      padding: .65rem .75rem; font: inherit; font-weight: 600;
+    }
+    .filters .btn-go {
+      align-self: end;
+      border: 0; border-radius: 12px; background: var(--gold);
+      color: #1a1200; font-weight: 800; padding: .7rem 1rem; cursor: pointer;
+    }
+
+    .banner {
+      border-radius: 14px; padding: .85rem 1rem; margin-bottom: 1rem;
+      background: #fff7ed; border: 1px solid #fdba74; color: #9a3412;
+      font-size: .88rem; font-weight: 600; line-height: 1.4;
+    }
+    .banner code {
+      display: block; margin-top: .45rem; font-size: .78rem;
+      background: rgba(255,255,255,.65); padding: .45rem .55rem; border-radius: 8px;
+    }
+
+    .cards {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: .65rem; margin-bottom: 1.1rem;
+    }
+    .card-emp {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 14px; padding: .85rem .9rem;
+      box-shadow: var(--shadow);
+    }
+    .card-emp strong { display: block; font-size: 1rem; }
+    .card-emp em {
+      display: block; margin-top: .35rem; font-style: normal;
+      font-size: 1.25rem; font-weight: 800; color: var(--gold-2);
+    }
+    .card-emp span { color: var(--muted); font-size: .78rem; font-weight: 600; }
+
+    .panel {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 16px; padding: 1rem; box-shadow: var(--shadow);
+      margin-bottom: 1rem;
+    }
+    .panel h2 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.2rem; margin: 0 0 .75rem;
+    }
+    table {
+      width: 100%; border-collapse: collapse; font-size: .88rem;
+    }
+    th, td {
+      text-align: left; padding: .55rem .4rem;
+      border-bottom: 1px solid var(--line);
+    }
+    th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+    .open { color: #b45309; font-weight: 800; }
+    .muted { color: var(--muted); }
+    .err-box {
+      color: var(--red); font-weight: 700; padding: .75rem; text-align: center;
+    }
+  </style>
+</head>
+<body class="interno-locked">
+  <div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+    <div class="gate-card">
+      <img src="assets/logo.jpg" alt="Casa Torino" />
+      <h1 id="gateTitle">Horas trabajadas</h1>
+      <p>PIN del personal</p>
+      <div class="gate-dots" id="gateDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div class="gate-pad" id="gatePad">
+        <button type="button" data-k="1">1</button>
+        <button type="button" data-k="2">2</button>
+        <button type="button" data-k="3">3</button>
+        <button type="button" data-k="4">4</button>
+        <button type="button" data-k="5">5</button>
+        <button type="button" data-k="6">6</button>
+        <button type="button" data-k="7">7</button>
+        <button type="button" data-k="8">8</button>
+        <button type="button" data-k="9">9</button>
+        <button type="button" class="ghost" data-k="clear">Borrar</button>
+        <button type="button" data-k="0">0</button>
+        <button type="button" class="ghost" data-k="ok">Entrar</button>
+      </div>
+      <div class="gate-err" id="gateErr" aria-live="polite"></div>
+      <a class="gate-back" href="interno.html"><i class="fa-solid fa-arrow-left"></i> Volver</a>
+    </div>
+  </div>
+
+  <main class="fichaje-page" id="fichajePage" hidden>
+    <div class="fichaje-wrap">
+      <div class="fichaje-head">
+        <img src="assets/logo.jpg" alt="" />
+        <div>
+          <h1>Horas trabajadas</h1>
+          <p>Registro de jornada · Europe/Madrid · conservación 4 años</p>
+        </div>
+        <div class="fichaje-nav">
+          <a href="interno.html"><i class="fa-solid fa-arrow-left"></i> Interna</a>
+          <a href="tpv.html"><i class="fa-solid fa-fingerprint"></i> Fichar en TPV</a>
+        </div>
+      </div>
+
+      <div class="filters">
+        <label>Desde<input type="date" id="fromDate" /></label>
+        <label>Hasta<input type="date" id="toDate" /></label>
+        <label>Camarera
+          <select id="employee">
+            <option value="">Todas</option>
+            <option>Lorena</option>
+            <option>Claribel</option>
+            <option>Yuli</option>
+            <option>Dayana</option>
+            <option>Alison</option>
+            <option>Sharif</option>
+          </select>
+        </label>
+        <button type="button" class="btn-go" id="btnLoad">Ver horas</button>
+      </div>
+
+      <div class="banner" id="setupBanner" hidden>
+        Estás usando el almacén temporal (ops_kv). Para la tabla oficial <strong>time_logs</strong> (recomendada para Inspección), ejecuta en Supabase → SQL Editor el archivo:
+        <code>web/supabase/007_time_logs.sql</code>
+      </div>
+
+      <div class="cards" id="summaryCards"></div>
+
+      <section class="panel">
+        <h2>Por día</h2>
+        <div id="byDay"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Detalle de fichajes</h2>
+        <div id="sessions"></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      const $ = (id) => document.getElementById(id)
+      let pinBuf = ''
+
+      function paintPinDots() {
+        ;($('gateDots')?.querySelectorAll('i') || []).forEach((d, i) => {
+          d.classList.toggle('on', i < pinBuf.length)
+        })
+      }
+
+      function unlock() {
+        document.body.classList.remove('interno-locked')
+        if ($('gate')) $('gate').hidden = true
+        if ($('fichajePage')) $('fichajePage').hidden = false
+        loadHours()
+      }
+
+      function lock() {
+        document.body.classList.add('interno-locked')
+        if ($('gate')) $('gate').hidden = false
+        if ($('fichajePage')) $('fichajePage').hidden = true
+        pinBuf = ''
+        paintPinDots()
+        if ($('gateErr')) $('gateErr').textContent = ''
+      }
+
+      async function tryPin() {
+        const err = $('gateErr')
+        if (pinBuf.length < 4) {
+          if (err) err.textContent = 'PIN incompleto'
+          return
+        }
+        try {
+          const r = await fetch('/api/tpv-auth', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pin: pinBuf }),
+          })
+          const data = await r.json().catch(() => ({}))
+          if (!r.ok || !data.ok) throw new Error('bad')
+          unlock()
+        } catch {
+          if (err) err.textContent = 'PIN incorrecto'
+          pinBuf = ''
+          paintPinDots()
+        }
+      }
+
+      function ymdMadrid(d = new Date()) {
+        return new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Europe/Madrid',
+          year: 'numeric', month: '2-digit', day: '2-digit',
+        }).format(d)
+      }
+
+      function fmtMin(m) {
+        if (m == null || !Number.isFinite(m)) return '—'
+        const h = Math.floor(m / 60)
+        const min = m % 60
+        return `${h}h ${String(min).padStart(2, '0')}m`
+      }
+
+      function initDates() {
+        const today = ymdMadrid()
+        const monthStart = today.slice(0, 7) + '-01'
+        if ($('fromDate')) $('fromDate').value = monthStart
+        if ($('toDate')) $('toDate').value = today
+      }
+
+      async function loadHours() {
+        const from = $('fromDate')?.value
+        const to = $('toDate')?.value
+        const employee = $('employee')?.value || ''
+        const q = new URLSearchParams({ from, to })
+        if (employee) q.set('employee', employee)
+        ;['summaryCards', 'byDay', 'sessions'].forEach((id) => {
+          if ($(id)) $(id).innerHTML = '<p class="muted">Cargando…</p>'
+        })
+        try {
+          const r = await fetch('/api/time-logs?' + q.toString(), {
+            credentials: 'same-origin',
+            cache: 'no-store',
+          })
+          const data = await r.json().catch(() => ({}))
+          if (!r.ok || !data.ok) throw new Error(data.error || 'No se pudo cargar')
+
+          if ($('setupBanner')) $('setupBanner').hidden = !data.needsTableSetup
+
+          const cards = $('summaryCards')
+          const rows = data.summary?.byEmployee || []
+          if (!rows.length) {
+            cards.innerHTML = '<p class="muted">Sin fichajes en este periodo.</p>'
+          } else {
+            cards.innerHTML = rows.map((e) => `
+              <article class="card-emp">
+                <strong>${e.employee}</strong>
+                <em>${fmtMin(e.minutes)}</em>
+                <span>${e.sessions} tramo(s)${e.open ? ' · ' + e.open + ' abierto(s)' : ''}</span>
+              </article>
+            `).join('')
+          }
+
+          const byDay = data.summary?.byDay || []
+          $('byDay').innerHTML = byDay.length
+            ? `<table><thead><tr><th>Día</th><th>Camarera</th><th>Horas</th><th>Tramos</th></tr></thead><tbody>
+                ${byDay.map((d) => `<tr>
+                  <td>${d.date.split('-').reverse().join('/')}</td>
+                  <td>${d.employee}</td>
+                  <td><strong>${fmtMin(d.minutes)}</strong></td>
+                  <td>${d.sessions}${d.open ? ' <span class="open">(' + d.open + ' abierto)</span>' : ''}</td>
+                </tr>`).join('')}
+              </tbody></table>`
+            : '<p class="muted">Sin datos diarios.</p>'
+
+          const sessions = data.sessions || []
+          $('sessions').innerHTML = sessions.length
+            ? `<table><thead><tr><th>Camarera</th><th>Entrada</th><th>Salida</th><th>Duración</th></tr></thead><tbody>
+                ${sessions.map((s) => `<tr>
+                  <td>${s.employee}</td>
+                  <td>${s.entradaLabel || '—'}</td>
+                  <td>${s.salidaLabel || (s.open ? '<span class="open">En curso</span>' : '—')}</td>
+                  <td>${fmtMin(s.minutes)}</td>
+                </tr>`).join('')}
+              </tbody></table>`
+            : '<p class="muted">Sin tramos.</p>'
+        } catch (err) {
+          ;['summaryCards', 'byDay', 'sessions'].forEach((id) => {
+            if ($(id)) $(id).innerHTML = `<p class="err-box">${err.message || 'Error'}</p>`
+          })
+        }
+      }
+
+      $('gatePad')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-k]')
+        if (!btn) return
+        const k = btn.dataset.k
+        if ($('gateErr')) $('gateErr').textContent = ''
+        if (k === 'clear') pinBuf = ''
+        else if (k === 'ok') return tryPin()
+        else if (pinBuf.length < 4) pinBuf += k
+        paintPinDots()
+        if (pinBuf.length === 4) tryPin()
+      })
+
+      $('btnLoad')?.addEventListener('click', loadHours)
+      initDates()
+      lock()
+    })()
+  </script>
+</body>
+</html>

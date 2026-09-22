@@ -29,7 +29,9 @@ No es solo un contador de gastos: centraliza el control del bar-restaurante:
 
 ## Demostración
 
-<img width="1280" height="611" alt="demo ERP Casa Torino" src="https://github.com/user-attachments/assets/90d1f6e7-e8b2-45ba-916b-a6959f7b08c3" />
+![Demo ERP Casa Torino](../docs/media/erp/demo-video.gif)
+
+![Recorrido ERP](../docs/media/erp/ezgif-5fa456c539e0fea6.gif)
 
 ---
 
@@ -64,13 +66,13 @@ Migraciones en `erp/supabase/migrations/`.
 
 ## Pantallas
 
-![Dashboard](../docs/media/erp/Captura1.png)
+| Inicio / balance | P&L |
+|:---:|:---:|
+| ![Inicio](../docs/media/erp/Captura2.png) | ![P&L](../docs/media/erp/Captura3.png) |
 
-![Documentos](../docs/media/erp/Captura2.png)
-
-![Fiscal](../docs/media/erp/Captura3.png)
-
-![RRHH](../docs/media/erp/Captura4.png)
+| Documentos | Perfil |
+|:---:|:---:|
+| ![Documentos](../docs/media/erp/Captura4.png) | ![Perfil](../docs/media/erp/Captura5.png) |
 
 ---
 
@@ -110,7 +112,7 @@ Abre `http://localhost:3000`.
 |--------|--------|
 | Web + TPV + Cocina | [`../web/README.md`](../web/README.md) |
 | Reservas | [`../reservas/README.md`](../reservas/README.md) |
-| Docs / recuperación | [`../docs/README.md`](../docs/README.md) |
+| Docs | [`../docs/COMERCIAL.md`](../docs/COMERCIAL.md) · [`../docs/TECNICO.md`](../docs/TECNICO.md) |
 
 ---
 

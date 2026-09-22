@@ -77,24 +77,65 @@ app.post('/api/reservas', (req, res) => {
     return res.status(400).json({ error: 'Nombre obligatorio' })
   }
   const now = new Date().toISOString()
+  const rawOrigen = String(body.creadoPor || body.source || body.origen || 'personal').trim()
+  const creadoPor = rawOrigen.toLowerCase() === 'web' ? 'web' : rawOrigen || 'personal'
   const item = {
     id: makeId(),
     codigo: makeCodigo(),
-    nombre: String(body.nombre).trim(),
-    telefono: String(body.telefono || '').trim(),
-    fecha: String(body.fecha || now.slice(0, 10)),
-    hora: String(body.hora || '14:00'),
-    personas: Math.max(1, Math.min(12, Number(body.personas) || 2)),
-    notas: String(body.notas || '').trim(),
+    nombre: String(body.nombre || body.name || '').trim(),
+    telefono: String(body.telefono || body.phone || body.tel || '').trim(),
+    fecha: String(body.fecha || body.date || now.slice(0, 10)).slice(0, 10),
+    hora: String(body.hora || body.time || '14:00').slice(0, 5),
+    personas: Math.max(1, Math.min(12, Number(body.personas ?? body.guests ?? body.pax) || 2)),
+    notas: String(body.notas || body.notes || '').trim(),
     estado: 'confirmada',
     createdAt: now,
     updatedAt: now,
-    creadoPor: String(body.creadoPor || 'personal'),
+    creadoPor,
   }
   const items = readJson(dataFile, [])
   items.unshift(item)
   writeReservas(items)
+
+  if (creadoPor === 'web') {
+    const alertsFile = path.join(root, 'data', 'tpv-reserva-alerts.json')
+    const alerts = readJson(alertsFile, [])
+    alerts.unshift({
+      id: item.id,
+      reservaId: item.id,
+      codigo: item.codigo,
+      nombre: item.nombre,
+      telefono: item.telefono,
+      fecha: item.fecha,
+      hora: item.hora,
+      personas: item.personas,
+      notas: item.notas,
+      message: `Nueva reserva web · ${item.nombre} · ${item.fecha} ${item.hora} · ${item.personas}p`,
+      createdAt: now,
+    })
+    fs.mkdirSync(path.dirname(alertsFile), { recursive: true })
+    fs.writeFileSync(alertsFile, JSON.stringify(alerts.slice(0, 30), null, 2))
+  }
+
   res.status(201).json(item)
+})
+
+app.get('/api/reservas-alerts', (_req, res) => {
+  const alertsFile = path.join(root, 'data', 'tpv-reserva-alerts.json')
+  const alerts = readJson(alertsFile, [])
+  res.json({ alerts, updatedAt: Date.now() })
+})
+
+app.post('/api/reservas-alerts', (req, res) => {
+  const alertsFile = path.join(root, 'data', 'tpv-reserva-alerts.json')
+  const body = req.body || {}
+  const id = String(body.id || '').trim()
+  let alerts = readJson(alertsFile, [])
+  if (!id) alerts = []
+  else alerts = alerts.filter((a) => a && a.id !== id)
+  fs.mkdirSync(path.dirname(alertsFile), { recursive: true })
+  fs.writeFileSync(alertsFile, JSON.stringify(alerts, null, 2))
+  res.json({ ok: true, alerts, updatedAt: Date.now() })
 })
 
 app.patch('/api/reservas/:id', (req, res) => {

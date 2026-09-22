@@ -100,7 +100,7 @@ export function LoginForm() {
       ) : null}
 
       <p className="text-center text-xs text-ink/45">
-        Mismo acceso que TPV / cocina · se pide PIN en cada entrada
+        Acceso administración · PIN propio del ERP · se pide en cada entrada
       </p>
     </div>
   );

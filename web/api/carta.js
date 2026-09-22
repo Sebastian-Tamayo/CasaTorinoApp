@@ -128,10 +128,72 @@ function upsertItemInCarta(carta, categoryId, item) {
   if (item.schedule) normalized.schedule = item.schedule
   if (item.customProduct) normalized.customProduct = true
   if (item.priceEditable) normalized.priceEditable = true
-  if (idx >= 0) cat.items[idx] = { ...cat.items[idx], ...normalized }
-  else cat.items.push(normalized)
+  if (item.coursePick) normalized.coursePick = true
+  if (item.star) normalized.star = true
+  if (item.group) normalized.group = String(item.group)
+  if (idx >= 0) {
+    const prev = cat.items[idx] || {}
+    cat.items[idx] = { ...prev, ...normalized }
+    // Si el cliente no manda star:true, no borrar la estrella existente
+    if (!item.star && prev.star && item.star !== false) {
+      cat.items[idx].star = true
+    }
+    if (item.star === false) delete cat.items[idx].star
+  } else {
+    cat.items.push(normalized)
+  }
+  next.updatedAt = Date.now()
+  syncMenuDayFromItems(next)
+  return next
+}
+
+/** Mantén precios del bloque «Menú del día» de la web alineados con los platos. */
+function syncMenuDayFromItems(carta) {
+  const menus = (carta.categories || []).find((c) => c && c.id === 'menus-dia')
+  if (!menus || !Array.isArray(menus.items)) return
+  const find = (id) => menus.items.find((it) => it && it.id === id)
+  const esW = find('menu-dia-es-semana')
+  const coW = find('menu-dia-co-semana')
+  const esE = find('menu-dia-es-finde')
+  const coE = find('menu-dia-co-finde')
+  if (!carta.menuDay || typeof carta.menuDay !== 'object') {
+    carta.menuDay = {
+      weekday: { label: 'Entre semana', es: 14, co: 13 },
+      weekend: { label: 'Fin de semana / festivo', es: 18, co: 15 },
+    }
+  }
+  if (!carta.menuDay.weekday) carta.menuDay.weekday = { label: 'Entre semana' }
+  if (!carta.menuDay.weekend) carta.menuDay.weekend = { label: 'Fin de semana / festivo' }
+  if (esW && Number.isFinite(Number(esW.price))) carta.menuDay.weekday.es = Number(esW.price)
+  if (coW && Number.isFinite(Number(coW.price))) carta.menuDay.weekday.co = Number(coW.price)
+  if (esE && Number.isFinite(Number(esE.price))) carta.menuDay.weekend.es = Number(esE.price)
+  if (coE && Number.isFinite(Number(coE.price))) carta.menuDay.weekend.co = Number(coE.price)
+}
+
+function deleteItemInCarta(carta, categoryId, itemId) {
+  const catId = String(categoryId || '').trim()
+  const id = String(itemId || '').trim()
+  if (!catId || !id) throw new Error('categoryId e itemId son obligatorios')
+  const next = JSON.parse(JSON.stringify(carta))
+  const cats = Array.isArray(next.categories) ? next.categories : []
+  const cat = cats.find((c) => c.id === catId)
+  if (!cat || !Array.isArray(cat.items)) {
+    throw new Error('categoría no encontrada')
+  }
+  const before = cat.items.length
+  cat.items = cat.items.filter((it) => it && it.id !== id)
+  if (cat.items.length === before) throw new Error('producto no encontrado')
   next.updatedAt = Date.now()
   return next
+}
+
+function expectedEditPin() {
+  // CARTA_EDIT_PIN en Vercel; default 2908 (mismo criterio que ERP admin)
+  return String(process.env.CARTA_EDIT_PIN || '2908')
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/\r|\n/g, '')
+    .trim()
 }
 
 module.exports = async function handler(req, res) {
@@ -235,6 +297,20 @@ module.exports = async function handler(req, res) {
         )
       }
 
+      if (action === 'verifyEditPin') {
+        const pin = String(body.pin || '').trim()
+        const ok = Boolean(pin && pin === expectedEditPin())
+        res.statusCode = ok ? 200 : 401
+        res.setHeader('Content-Type', 'application/json')
+        return res.end(
+          JSON.stringify(
+            ok
+              ? { ok: true, action: 'verifyEditPin' }
+              : { ok: false, error: 'PIN incorrecto' },
+          ),
+        )
+      }
+
       if (action === 'upsertItem') {
         if (!hasSupabase()) {
           res.statusCode = 503
@@ -260,6 +336,37 @@ module.exports = async function handler(req, res) {
             categoryId: body.categoryId,
             itemId: body.item && body.item.id,
             updatedAt: next.updatedAt,
+            carta: withMeta(next, 'supabase'),
+          }),
+        )
+      }
+
+      if (action === 'deleteItem') {
+        if (!hasSupabase()) {
+          res.statusCode = 503
+          return res.end(JSON.stringify({ error: 'supabase no configurado' }))
+        }
+        let current = await loadFromStore()
+        if (!current) {
+          const seeded = await seedFromFile()
+          current = seeded.carta
+        }
+        const next = deleteItemInCarta(
+          current,
+          body.categoryId,
+          body.itemId || (body.item && body.item.id),
+        )
+        await setJson(CARTA_KEY, next)
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json')
+        return res.end(
+          JSON.stringify({
+            ok: true,
+            action: 'deleteItem',
+            categoryId: body.categoryId,
+            itemId: body.itemId || (body.item && body.item.id),
+            updatedAt: next.updatedAt,
+            carta: withMeta(next, 'supabase'),
           }),
         )
       }
@@ -268,7 +375,7 @@ module.exports = async function handler(req, res) {
       res.setHeader('Content-Type', 'application/json')
       return res.end(
         JSON.stringify({
-          error: 'action inválida (seed|put|upsertItem)',
+          error: 'action inválida (seed|put|upsertItem|deleteItem|verifyEditPin)',
         }),
       )
     } catch (err) {

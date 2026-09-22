@@ -70,7 +70,7 @@ Para portfolio: producto **pequeño, desplegado y usado de verdad** (UX simple +
 | Hosting | Vercel · proyecto `reservas-casatorino` · Root Directory = `reservas` |
 | Auth | PIN por perfil |
 
-> Nota histórica: se abandonó CrudCrud (límite ~100 req/día). Ver anti-regresión en [`../docs/reservas-ANTI-REGRESION.md`](../docs/reservas-ANTI-REGRESION.md).
+> Nota histórica: se abandonó CrudCrud (límite ~100 req/día). Anti-regresión: [`../docs/TECNICO.md`](../docs/TECNICO.md) §6.
 
 ---
 
@@ -90,7 +90,7 @@ reservas/
 └── README.md
 ```
 
-Detalle: [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) · [`docs/PRODUCTO.md`](docs/PRODUCTO.md) · [`docs/DEPLOY.md`](docs/DEPLOY.md)
+Docs del monorepo: [`../docs/COMERCIAL.md`](../docs/COMERCIAL.md) · [`../docs/TECNICO.md`](../docs/TECNICO.md)
 
 ---
 
@@ -116,7 +116,7 @@ Variables: `reservas/.env.example` → `.env.local` / Vercel
 Proyecto Vercel: `reservas-casatorino` (Root Directory `reservas`).  
 Push a `main` en este monorepo redeploya solo si cambian archivos bajo `reservas/`.
 
-Guía: [`docs/DEPLOY.md`](docs/DEPLOY.md).
+Guía: [`../docs/TECNICO.md`](../docs/TECNICO.md) §4 y §6.
 
 ---
 
