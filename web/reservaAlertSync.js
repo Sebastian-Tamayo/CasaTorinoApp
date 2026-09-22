@@ -24,7 +24,6 @@
       try {
         const r = await fetch(API_URL, {
           cache: 'no-store',
-          headers: { 'Cache-Control': 'no-store' },
         })
         if (!r.ok) throw new Error('reservas-alerts GET ' + r.status)
         return await r.json()

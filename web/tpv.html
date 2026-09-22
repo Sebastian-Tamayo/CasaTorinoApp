@@ -4709,30 +4709,6 @@
         if (id) dismissPickup(id)
       })
 
-      window.CasaTorinoKitchenSync?.start(
-        (payload) => {
-          // Sync completo de avisos pendientes (también si otro TPV no los ha ack)
-          const remote = Array.isArray(payload.pickups) ? payload.pickups : []
-          const remoteIds = new Set(remote.map((p) => p && p.id).filter(Boolean))
-          for (const id of [...activePickups.keys()]) {
-            if (!remoteIds.has(id)) activePickups.delete(id)
-          }
-          for (const p of remote) {
-            if (p && p.id && !activePickups.has(p.id)) activePickups.set(p.id, p)
-          }
-          renderPickupAlert()
-        },
-        () => lockTpvForPin('Sesión caducada — introduce el PIN'),
-        (newPickups) => {
-          if (!newPickups?.length) return
-          for (const p of newPickups) {
-            if (p && p.id) activePickups.set(p.id, p)
-          }
-          renderPickupAlert()
-          playPickupSound()
-        },
-      )
-
       // —— Avisos reserva web → TPV (amarillo) ——
       const activeReservaAlerts = new Map()
       let reservaAlarmTimer = null
@@ -4812,29 +4788,63 @@
         if (id) dismissReservaAlert(id)
       })
 
-      window.CasaTorinoReservaAlertSync?.start(
-        (payload) => {
-          const remote = Array.isArray(payload.alerts) ? payload.alerts : []
-          const remoteIds = new Set(remote.map((a) => a && a.id).filter(Boolean))
-          for (const id of [...activeReservaAlerts.keys()]) {
-            if (!remoteIds.has(id)) activeReservaAlerts.delete(id)
-          }
-          for (const a of remote) {
-            if (a && a.id && !activeReservaAlerts.has(a.id)) {
-              activeReservaAlerts.set(a.id, a)
+      function startPickupAndReservaPolling() {
+        window.CasaTorinoKitchenSync?.start(
+          (payload) => {
+            // Sync completo de avisos pendientes (también si otro TPV no los ha ack)
+            const remote = Array.isArray(payload.pickups) ? payload.pickups : []
+            const remoteIds = new Set(remote.map((p) => p && p.id).filter(Boolean))
+            for (const id of [...activePickups.keys()]) {
+              if (!remoteIds.has(id)) activePickups.delete(id)
             }
-          }
-          renderReservaAlert()
-        },
-        (newAlerts) => {
-          if (!newAlerts?.length) return
-          for (const a of newAlerts) {
-            if (a && a.id) activeReservaAlerts.set(a.id, a)
-          }
-          renderReservaAlert()
-          playPickupSound()
-        },
-      )
+            for (const p of remote) {
+              if (p && p.id && !activePickups.has(p.id)) activePickups.set(p.id, p)
+            }
+            renderPickupAlert()
+          },
+          () => lockTpvForPin('Sesión caducada — introduce el PIN'),
+          (newPickups) => {
+            if (!newPickups?.length) return
+            for (const p of newPickups) {
+              if (p && p.id) activePickups.set(p.id, p)
+            }
+            renderPickupAlert()
+            playPickupSound()
+          },
+        )
+        window.CasaTorinoReservaAlertSync?.start(
+          (payload) => {
+            const remote = Array.isArray(payload.alerts) ? payload.alerts : []
+            const remoteIds = new Set(remote.map((a) => a && a.id).filter(Boolean))
+            for (const id of [...activeReservaAlerts.keys()]) {
+              if (!remoteIds.has(id)) activeReservaAlerts.delete(id)
+            }
+            for (const a of remote) {
+              if (a && a.id && !activeReservaAlerts.has(a.id)) {
+                activeReservaAlerts.set(a.id, a)
+              }
+            }
+            renderReservaAlert()
+          },
+          (newAlerts) => {
+            if (!newAlerts?.length) return
+            for (const a of newAlerts) {
+              if (a && a.id) activeReservaAlerts.set(a.id, a)
+            }
+            renderReservaAlert()
+            playPickupSound()
+          },
+        )
+      }
+
+      startPickupAndReservaPolling()
+
+      // Tras re-PIN: reanudar también avisos cocina/reservas (lock los para)
+      const prevResume = window.__casaTorinoTpvResume
+      window.__casaTorinoTpvResume = () => {
+        if (typeof prevResume === 'function') prevResume()
+        startPickupAndReservaPolling()
+      }
 
       setTimeout(() => {
         if (!$('mesa').value) {

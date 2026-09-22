@@ -23,7 +23,7 @@ let memory = null
 export function cors(res, methods = 'GET,POST,PUT,OPTIONS') {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', methods)
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Cache-Control')
   res.setHeader('Cache-Control', 'no-store')
 }
 
@@ -50,7 +50,7 @@ async function readEdgeKey(key) {
     headers: { Authorization: `Bearer ${VERCEL_TOKEN}` },
     cache: 'no-store',
   })
-  if (r.status === 404) return null
+  if (r.status === 404 || r.status === 204) return null
   if (!r.ok) throw new Error('edge GET ' + r.status)
   const text = await r.text().catch(() => '')
   if (!text || !String(text).trim()) return null
