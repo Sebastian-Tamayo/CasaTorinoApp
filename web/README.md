@@ -100,7 +100,7 @@ web/
 ├── scripts/            # assert tema claro · deploy
 ├── TPV-JORNADA.md
 ├── COCINA-KDS.md
-├── DEPLOY.md
+├── DEPLOY-PROD.md
 └── README.md
 ```
 
@@ -115,7 +115,7 @@ cd web
 bash scripts/assert-light-theme.sh
 ```
 
-Deploy de producción (proyecto Vercel `casa-torino-web`): ver [`DEPLOY.md`](./DEPLOY.md).
+Deploy de producción (proyecto Vercel `casa-torino-web`): ver [`DEPLOY-PROD.md`](./DEPLOY-PROD.md).
 
 Secretos: `web/.env.example` → Vercel / `.env.local` (`TPV_PIN`, credenciales ops, etc.).
 

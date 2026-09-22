@@ -38,7 +38,7 @@ Repo: https://github.com/Sebastian-Tamayo/Proyeccion/tree/backup/casa-torino-app
 
 Contiene el árbol del ecosistema (sin secretos) alineado con producción web/TPV.
 
-También se actualiza `docs/casatorino-sync/web/` en `main` de Proyeccion cuando se sincroniza la web.
+El espejo histórico `docs/casatorino-sync/` se retiró de este repo (tarballs y copias obsoletas). Recuperación: rama `backup/casa-torino-app` en Proyeccion o ramas `backup/daily-*` de este repo.
 
 ## Qué no subir
 - `.env`, tokens, PINs reales

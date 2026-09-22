@@ -159,8 +159,8 @@ Dueñas o quien lleve los números, no el camarero en pleno servicio.
 **Frase útil:**  
 > “Es la parte de oficina: caja, gastos, papeles, personal e impuestos… para ver cómo va el negocio, no para tomar comandas.”
 
-> Propuesta completa para el cliente (Word + Markdown):  
-> `docs/Casa-Torino-Propuesta-Ecosistema-Cliente.docx` · `docs/PROPUESTA-ECOSISTEMA-CLIENTE.md`
+> Brief comercial / venta:  
+> `docs/BRIEF-PRODUCTO-PARA-GEMINI-PUBLICAR-Y-VENDER.md` · guía dueñas: `docs/GUIA-DUENAS-CASA-TORINO.md`
 
 ---
 

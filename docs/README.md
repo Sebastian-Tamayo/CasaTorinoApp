@@ -1,38 +1,32 @@
 # Documentación — Casa Torino App
 
-Índice de guías del monorepo. El código vive en `web/`, `reservas/` y `erp/`; aquí está la **operación**, la **recuperación** y el **contexto de negocio**.
+Índice breve. El código vive en `web/`, `reservas/` y `erp/`.
 
-Para exposición de producto, empieza por los README de cada herramienta:
-
-| Herramienta | README de exposición |
-|-------------|----------------------|
+| Herramienta | README |
+|-------------|--------|
+| Monorepo | [`../README.md`](../README.md) |
 | Web + TPV + Cocina | [`../web/README.md`](../web/README.md) |
 | Reservas | [`../reservas/README.md`](../reservas/README.md) |
 | ERP | [`../erp/README.md`](../erp/README.md) |
-| Monorepo (mapa) | [`../README.md`](../README.md) |
 
----
-
-## Operación y recuperación
+## Operación
 
 | Documento | Contenido |
 |-----------|-----------|
-| [`RECUPERACION.md`](./RECUPERACION.md) | Restaurar módulos / secreto / Vercel Root Directory |
-| [`SUBIR-GITHUB.md`](./SUBIR-GITHUB.md) | Cómo publicar respaldo a este repo |
-| [`DEPLOY-CHECKLIST.md`](./DEPLOY-CHECKLIST.md) | Checklist post-deploy web / carta / TPV |
-| [`ECOSISTEMA.md`](./ECOSISTEMA.md) | Mapa técnico del ecosistema |
-| [`casatorino-sync/`](./casatorino-sync/) | Espejo de recuperación (TPV sync, cocina, tema claro…) |
-| [`reservas-ANTI-REGRESION.md`](./reservas-ANTI-REGRESION.md) | Historial de incidencias reservas + Edge Config |
-| [`reservas/ANTI-REGRESION.md`](./reservas/ANTI-REGRESION.md) | Copia de la guía anti-regresión |
+| [`RECUPERACION.md`](./RECUPERACION.md) | Restaurar módulos / Vercel |
+| [`SUBIR-GITHUB.md`](./SUBIR-GITHUB.md) | Publicar respaldo a GitHub |
+| [`DEPLOY-CHECKLIST.md`](./DEPLOY-CHECKLIST.md) | Checklist post-deploy |
+| [`ECOSISTEMA.md`](./ECOSISTEMA.md) | Mapa técnico |
+| [`SEGURIDAD-2026.md`](./SEGURIDAD-2026.md) | Auditoría seguridad / OWASP |
+| [`reservas-ANTI-REGRESION.md`](./reservas-ANTI-REGRESION.md) | Incidencias reservas + Edge Config |
 
-## Negocio / cliente
+## Negocio / venta
 
 | Documento | Contenido |
 |-----------|-----------|
-| [`GUIA-DUENAS-CASA-TORINO.md`](./GUIA-DUENAS-CASA-TORINO.md) | Guía práctica para dueñas / equipo |
-| [`PROPUESTA-ECOSISTEMA-CLIENTE.md`](./PROPUESTA-ECOSISTEMA-CLIENTE.md) | Propuesta / narrativa de producto |
-| [`Casa-Torino-Hoja-Plan-Ecosistema-Cliente.md`](./Casa-Torino-Hoja-Plan-Ecosistema-Cliente.md) | Hoja de plan |
+| [`GUIA-DUENAS-CASA-TORINO.md`](./GUIA-DUENAS-CASA-TORINO.md) | Guía para dueñas / equipo |
+| [`BRIEF-PRODUCTO-PARA-GEMINI-PUBLICAR-Y-VENDER.md`](./BRIEF-PRODUCTO-PARA-GEMINI-PUBLICAR-Y-VENDER.md) | Brief para publicar y vender |
 
 ## Media
 
-Capturas y materiales en [`media/`](./media/) (si están versionados).
+Capturas y GIFs: [`media/`](./media/).

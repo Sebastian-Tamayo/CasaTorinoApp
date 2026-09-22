@@ -32,4 +32,4 @@
 
 ## Código canónico (copia de respaldo)
 
-En este repo Proyeccion: `docs/casatorino-sync/reservas/`
+Código vivo: carpetas `reservas/` de este monorepo. Espejo de emergencia: repo Proyeccion → rama `backup/casa-torino-app`.
