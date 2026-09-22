@@ -272,9 +272,9 @@
     @media (max-width: 720px) {
       .top {
         display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1fr) auto auto;
         grid-template-areas:
-          "leave brand actions"
+          "brand actions leave"
           "meta meta meta";
         gap: .55rem .5rem;
         padding: .65rem .7rem;
@@ -371,7 +371,6 @@
 
   <div class="app">
     <header class="top">
-      <a class="btn-icon btn-leave" href="interno.html" aria-label="Salir a gestión interna" title="Salir"><i class="fa-solid fa-arrow-left"></i></a>
       <div class="brand">
         <img src="assets/logo.jpg" alt="" />
         <div>
@@ -396,6 +395,7 @@
           <span class="btn-label">Deshacer</span>
         </button>
       </div>
+      <a class="btn-icon btn-leave" href="interno.html" aria-label="Salir a gestión interna" title="Salir"><i class="fa-solid fa-arrow-left"></i></a>
     </header>
     <main class="board">
       <div class="grid" id="grid"></div>

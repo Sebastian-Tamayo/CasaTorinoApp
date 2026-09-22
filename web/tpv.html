@@ -1101,9 +1101,9 @@
       }
       .topbar {
         display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr) auto;
         grid-template-areas:
-          "leave brand"
+          "brand leave"
           "tools tools";
         align-items: center;
         gap: .4rem .5rem;
@@ -1589,7 +1589,6 @@
 
   <div class="app">
     <header class="topbar">
-      <button type="button" class="icon-btn" id="btnLeaveTpv" aria-label="Salir a gestión interna" title="Salir"><i class="fa-solid fa-arrow-left"></i></button>
       <div class="brand">
         <img src="assets/logo.jpg" alt="" />
         <div>
@@ -1612,6 +1611,7 @@
         </div>
         <button class="icon-btn" id="btnClear" type="button" title="Vaciar"><i class="fa-solid fa-trash"></i></button>
       </div>
+      <button type="button" class="icon-btn" id="btnLeaveTpv" aria-label="Salir a gestión interna" title="Salir"><i class="fa-solid fa-arrow-left"></i></button>
     </header>
 
     <div class="jornada-bar" id="jornadaBar" aria-label="Jornada de caja">

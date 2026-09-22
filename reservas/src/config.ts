@@ -25,6 +25,9 @@ export const STAFF = [
 /** PIN común del personal (reservas / TPV / cocina / interno). */
 export const STAFF_PIN = '3212' as const
 
+/** Gestión interna (hub del personal en la web). */
+export const INTERNO_URL = 'https://casa-torino-web.vercel.app/interno.html' as const
+
 export const STATUS_LABELS: Record<import('./types').ReservationStatus, string> = {
   confirmada: 'Confirmada',
   cancelada: 'Cancelada',
