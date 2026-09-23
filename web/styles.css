@@ -356,11 +356,6 @@ a { color: inherit; }
   font-variant-numeric: tabular-nums;
   font-size: 1.02rem;
 }
-.menu-dia-foto-cta {
-  font-size: .84rem;
-  font-weight: 800;
-  color: var(--blue);
-}
 @media (max-width: 900px) {
   .menu-dia-gallery { grid-template-columns: 1fr; }
   .menu-dia-foto img {
