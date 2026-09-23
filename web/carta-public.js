@@ -112,14 +112,18 @@
     ul.style.setProperty('--estrella-cols', String(Math.min(4, Math.max(2, stars.length))))
     ul.innerHTML = stars
       .map((it, i) => {
-        const photo = it.image_url
+        const hasPhoto = Boolean(it.image_url)
+        const photo = hasPhoto
           ? `<img class="estrella-photo" src="${escapeHtml(it.image_url)}" alt="${escapeHtml(it.name)}" loading="lazy" decoding="async" />`
           : ''
         const desc = it.desc
           ? `<span>${escapeHtml(it.desc)}</span>`
           : ''
+        // Sin data-carta / #carta: el click abre el modal de foto (como en la carta), no hace scroll
+        const cls = hasPhoto ? ' class="has-photo"' : ''
+        const role = hasPhoto ? ' role="button" tabindex="0"' : ''
         return `<li style="--i:${i}">
-          <a href="#carta" data-carta="colombia" data-dish-id="${escapeHtml(it.id)}"${it.image_url ? ' class="has-photo"' : ''}>
+          <a href="#"${cls}${role} data-dish-id="${escapeHtml(it.id)}">
             ${photo}
             <em>Siempre</em>
             <strong>${escapeHtml(it.name)}</strong>
@@ -129,21 +133,18 @@
         </li>`
       })
       .join('')
-    // Rebind data-carta (main.js pudo haber corrido antes)
-    ul.querySelectorAll('[data-carta]').forEach((el) => {
-      el.addEventListener('click', (e) => {
-        const id = el.getAttribute('data-carta')
-        if (!id) return
+    ul.querySelectorAll('a[data-dish-id]').forEach((el) => {
+      const open = (e) => {
+        e.preventDefault()
+        e.stopPropagation()
         const dishId = el.getAttribute('data-dish-id')
         const it = dishId ? dishById.get(dishId) : null
-        if (it?.image_url) {
-          e.preventDefault()
-          openDishModal(it)
-          return
-        }
-        document.getElementById('carta')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        const btn = document.querySelector(`.carta-nav button[data-target="${id}"]`)
-        btn?.click()
+        if (it?.image_url) openDishModal(it)
+      }
+      el.addEventListener('click', open)
+      el.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return
+        open(e)
       })
     })
   }
