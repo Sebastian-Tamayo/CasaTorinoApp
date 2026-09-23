@@ -65,21 +65,87 @@
   function dishLi(it) {
     const price = money(it.price)
     const desc = it.desc
-      ? `<span>${escapeHtml(it.desc)}</span>`
+      ? `<span class="dish-desc">${escapeHtml(it.desc)}</span>`
       : ''
     const star = it.star ? ' dish-star' : ''
     const badge = it.star ? '<em class="star-badge">Siempre</em>' : ''
     const hasPhoto = Boolean(it.image_url)
-    const cam = hasPhoto
-      ? '<i class="fa-solid fa-camera dish-cam" aria-hidden="true" title="Ver foto"></i>'
+    const thumb = hasPhoto
+      ? `<img class="dish-thumb" src="${escapeHtml(it.image_url)}" alt="" loading="lazy" decoding="async" />`
       : ''
     const clickable = hasPhoto ? ' dish-has-photo' : ''
     const attrs = hasPhoto
-      ? ` class="${star.trim()}${clickable}" data-dish-id="${escapeHtml(it.id)}" role="button" tabindex="0"`
+      ? ` class="${(star + clickable).trim()}" data-dish-id="${escapeHtml(it.id)}" role="button" tabindex="0"`
       : star
         ? ` class="${star.trim()}"`
         : ''
-    return `<li${attrs}><div class="dish-top"><strong>${badge}${cam}${escapeHtml(it.name)}</strong><b class="price">${price}</b></div>${desc}</li>`
+    return `<li${attrs}>${thumb}<div class="dish-body"><div class="dish-top"><strong>${badge}${escapeHtml(it.name)}</strong><b class="price">${price}</b></div>${desc}</div></li>`
+  }
+
+  /** Hero «Siempre»: estrellas de Colombia (tamales separados + fotos si hay image_url). */
+  function fillHeroEstrellas(data) {
+    const ul = document.querySelector('.hero-estrellas')
+    if (!ul) return
+    const colombia = (data.categories || []).find((c) => c && c.id === 'colombia')
+    let stars = (colombia?.items || []).filter(
+      (it) => it && it.star && !it.customProduct,
+    )
+    if (!stars.length) {
+      stars = (data.categories || [])
+        .flatMap((c) => c.items || [])
+        .filter((it) => it && it.star && !it.customProduct)
+    }
+    // Preferir orden: valluno, tolimense, lechona, bandeja, resto
+    const order = [
+      'colombia-tamal-valluno',
+      'colombia-tamal-tolimense',
+      'colombia-lechona',
+      'colombia-bandeja-paisa',
+    ]
+    stars = [...stars].sort((a, b) => {
+      const ia = order.indexOf(a.id)
+      const ib = order.indexOf(b.id)
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
+    })
+    if (!stars.length) return
+    ul.classList.toggle('has-photos', stars.some((it) => it.image_url))
+    ul.style.setProperty('--estrella-cols', String(Math.min(4, Math.max(2, stars.length))))
+    ul.innerHTML = stars
+      .map((it, i) => {
+        const photo = it.image_url
+          ? `<img class="estrella-photo" src="${escapeHtml(it.image_url)}" alt="${escapeHtml(it.name)}" loading="lazy" decoding="async" />`
+          : ''
+        const desc = it.desc
+          ? `<span>${escapeHtml(it.desc)}</span>`
+          : ''
+        return `<li style="--i:${i}">
+          <a href="#carta" data-carta="colombia" data-dish-id="${escapeHtml(it.id)}"${it.image_url ? ' class="has-photo"' : ''}>
+            ${photo}
+            <em>Siempre</em>
+            <strong>${escapeHtml(it.name)}</strong>
+            ${desc}
+            <b>${money(it.price)}</b>
+          </a>
+        </li>`
+      })
+      .join('')
+    // Rebind data-carta (main.js pudo haber corrido antes)
+    ul.querySelectorAll('[data-carta]').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        const id = el.getAttribute('data-carta')
+        if (!id) return
+        const dishId = el.getAttribute('data-dish-id')
+        const it = dishId ? dishById.get(dishId) : null
+        if (it?.image_url) {
+          e.preventDefault()
+          openDishModal(it)
+          return
+        }
+        document.getElementById('carta')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        const btn = document.querySelector(`.carta-nav button[data-target="${id}"]`)
+        btn?.click()
+      })
+    })
   }
 
   function listHtml(items, listClass) {
@@ -322,6 +388,8 @@
       const data = await loadCartaData()
       if (!data) return
       fillMenuDia(data)
+      indexDishes(data)
+      fillHeroEstrellas(data)
       fillCarta(data)
     } catch (err) {
       console.warn('[carta pública]', err)
