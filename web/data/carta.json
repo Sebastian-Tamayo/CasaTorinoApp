@@ -302,7 +302,7 @@
           "id": "colombia-tamal-valluno",
           "name": "Tamal valluno",
           "price": 11.0,
-          "desc": "Arroz, guisantes, zanahoria, patata, huevo, cerdo, pollo, chocolate y arepa · Llevar 9,00 €",
+          "desc": "Arroz, guisantes, zanahoria, patata, huevo, cerdo, pollo, chocolate y arepa",
           "base": "Tamal valluno",
           "categoryType": "comida",
           "star": true
@@ -311,7 +311,7 @@
           "id": "colombia-tamal-tolimense",
           "name": "Tamal tolimense",
           "price": 11.0,
-          "desc": "Masa de maíz, carne de cerdo y pollo, arveja, zanahoria, huevo y arepa · Llevar 9,00 €",
+          "desc": "Masa de maíz, carne de cerdo y pollo, arveja, zanahoria, huevo y arepa",
           "base": "Tamal tolimense",
           "categoryType": "comida",
           "star": true
