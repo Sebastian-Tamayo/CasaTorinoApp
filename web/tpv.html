@@ -1379,6 +1379,70 @@
       text-transform: none;
       letter-spacing: 0;
     }
+
+    /* Editar plato: scroll en móvil para llegar a Guardar (foto alarga el form) */
+    #cartaEditModal.course-modal {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      padding:
+        max(.45rem, env(safe-area-inset-top, 0px))
+        .7rem
+        max(.85rem, env(safe-area-inset-bottom, 0px));
+    }
+    #cartaEditModal .course-card {
+      width: min(420px, 100%);
+      max-height: min(94dvh, 920px);
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding-bottom: .75rem;
+    }
+    #cartaEditModal .carta-edit-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      padding-right: .1rem;
+    }
+    #cartaEditModal .course-actions.carta-edit-actions {
+      flex: 0 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin-top: .65rem;
+      padding-top: .7rem;
+      border-top: 1px solid var(--line2);
+      background: var(--panel, #151c26);
+      position: sticky;
+      bottom: 0;
+      z-index: 2;
+    }
+    #cartaEditModal .course-actions.carta-edit-actions .ok,
+    #cartaEditModal .course-actions.carta-edit-actions .cancel,
+    #cartaEditModal .course-actions.carta-edit-actions .danger {
+      flex: 1 1 auto;
+      min-width: 5.5rem;
+    }
+    @media (max-width: 640px) {
+      #cartaEditModal .carta-edit-photo img {
+        max-height: 110px;
+      }
+      #cartaEditModal .course-card {
+        max-height: min(96dvh, 100%);
+        border-radius: 16px;
+      }
+    }
+
     .course-actions .danger {
       border: 0;
       border-radius: 12px;
@@ -1854,43 +1918,45 @@
         </button>
         <h3 id="cartaEditTitle">Editar plato</h3>
       </div>
-      <p class="sub" id="cartaEditSub">Cambia nombre y precio. Se guarda en Supabase (carta del TPV y web).</p>
-      <div class="carta-edit-fields">
-        <label>Categoría
-          <select id="cartaEditCat"></select>
-        </label>
-        <label>Nombre
-          <input id="cartaEditName" type="text" maxlength="80" autocomplete="off" spellcheck="true" />
-        </label>
-        <label>Precio (€)
-          <input id="cartaEditPrice" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off" spellcheck="false" />
-        </label>
-        <label>Descripción (web)
-          <input id="cartaEditDesc" type="text" maxlength="220" placeholder="Opcional · se muestra en la carta web" autocomplete="off" spellcheck="true" />
-        </label>
-        <label>Tipo
-          <select id="cartaEditType">
-            <option value="comida">Comida (cocina)</option>
-            <option value="bebida">Bebida (barra)</option>
-          </select>
-        </label>
-        <label style="display:flex;align-items:center;gap:.5rem;text-transform:none;letter-spacing:0;font-size:.88rem">
-          <input id="cartaEditStar" type="checkbox" style="width:auto;margin:0" />
-          Destacado «Siempre» en la web
-        </label>
-        <label>Foto (solo carta web)
-          <input id="cartaEditImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
-        </label>
-        <div class="carta-edit-photo" id="cartaEditPhotoBox" hidden>
-          <img id="cartaEditPhotoPreview" alt="Vista previa del plato" />
-          <label style="display:flex;align-items:center;gap:.5rem;text-transform:none;letter-spacing:0;font-size:.82rem;font-weight:600;color:var(--muted)">
-            <input id="cartaEditImageRemove" type="checkbox" style="width:auto;margin:0" />
-            Quitar foto al guardar
+      <div class="carta-edit-scroll">
+        <p class="sub" id="cartaEditSub">Cambia nombre y precio. Se guarda en Supabase (carta del TPV y web).</p>
+        <div class="carta-edit-fields">
+          <label>Categoría
+            <select id="cartaEditCat"></select>
           </label>
+          <label>Nombre
+            <input id="cartaEditName" type="text" maxlength="80" autocomplete="off" spellcheck="true" />
+          </label>
+          <label>Precio (€)
+            <input id="cartaEditPrice" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off" spellcheck="false" />
+          </label>
+          <label>Descripción (web)
+            <input id="cartaEditDesc" type="text" maxlength="220" placeholder="Opcional · se muestra en la carta web" autocomplete="off" spellcheck="true" />
+          </label>
+          <label>Tipo
+            <select id="cartaEditType">
+              <option value="comida">Comida (cocina)</option>
+              <option value="bebida">Bebida (barra)</option>
+            </select>
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;text-transform:none;letter-spacing:0;font-size:.88rem">
+            <input id="cartaEditStar" type="checkbox" style="width:auto;margin:0" />
+            Destacado «Siempre» en la web
+          </label>
+          <label>Foto (solo carta web)
+            <input id="cartaEditImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+          </label>
+          <div class="carta-edit-photo" id="cartaEditPhotoBox" hidden>
+            <img id="cartaEditPhotoPreview" alt="Vista previa del plato" />
+            <label style="display:flex;align-items:center;gap:.5rem;text-transform:none;letter-spacing:0;font-size:.82rem;font-weight:600;color:var(--muted)">
+              <input id="cartaEditImageRemove" type="checkbox" style="width:auto;margin:0" />
+              Quitar foto al guardar
+            </label>
+          </div>
+          <p class="carta-edit-photo-hint">JPG / PNG / WebP · se comprime al guardar. En el TPV de sala no se muestra la foto.</p>
         </div>
-        <p class="carta-edit-photo-hint">JPG / PNG / WebP · se comprime al guardar. En el TPV de sala no se muestra la foto.</p>
       </div>
-      <div class="course-actions" style="margin-top:1rem;flex-wrap:wrap;gap:.5rem">
+      <div class="course-actions carta-edit-actions">
         <button type="button" class="danger" id="cartaEditDelete" hidden>Borrar plato</button>
         <button type="button" class="cancel" id="cartaEditCancel">Cancelar</button>
         <button type="button" class="ok" id="cartaEditSave">Guardar</button>
@@ -4583,6 +4649,9 @@
         paintCartaEditPhoto(item?.image_url || '')
         if ($('cartaEditDelete')) $('cartaEditDelete').hidden = isNew
         if ($('cartaEditModal')) $('cartaEditModal').hidden = false
+        const scrollBox = document.querySelector('#cartaEditModal .carta-edit-scroll')
+        if (scrollBox) scrollBox.scrollTop = 0
+        if ($('cartaEditModal')) $('cartaEditModal').scrollTop = 0
         setTimeout(() => $('cartaEditName')?.focus(), 50)
       }
 
@@ -4760,6 +4829,11 @@
         if ($('cartaEditImageRemove')) $('cartaEditImageRemove').checked = false
         const url = URL.createObjectURL(file)
         paintCartaEditPhoto(url)
+        // Tras cargar preview, bajar un poco para que se vea Guardar en móvil
+        setTimeout(() => {
+          const actions = document.querySelector('#cartaEditModal .carta-edit-actions')
+          actions?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+        }, 80)
       })
       $('cartaEditModal')?.addEventListener('click', (e) => {
         if (e.target === $('cartaEditModal')) closeCartaEditModal()
