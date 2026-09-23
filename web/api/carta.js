@@ -161,20 +161,27 @@ function syncMenuDayFromItems(carta) {
   const menus = (carta.categories || []).find((c) => c && c.id === 'menus-dia')
   if (!menus || !Array.isArray(menus.items)) return
   const find = (id) => menus.items.find((it) => it && it.id === id)
+  const uniW = find('menu-dia-unificado-semana')
   const esW = find('menu-dia-es-semana')
   const coW = find('menu-dia-co-semana')
   const esE = find('menu-dia-es-finde')
   const coE = find('menu-dia-co-finde')
   if (!carta.menuDay || typeof carta.menuDay !== 'object') {
     carta.menuDay = {
-      weekday: { label: 'Entre semana', es: 14, co: 13 },
+      weekday: { label: 'Entre semana', unified: 13 },
       weekend: { label: 'Fin de semana / festivo', es: 18, co: 15 },
     }
   }
   if (!carta.menuDay.weekday) carta.menuDay.weekday = { label: 'Entre semana' }
   if (!carta.menuDay.weekend) carta.menuDay.weekend = { label: 'Fin de semana / festivo' }
-  if (esW && Number.isFinite(Number(esW.price))) carta.menuDay.weekday.es = Number(esW.price)
-  if (coW && Number.isFinite(Number(coW.price))) carta.menuDay.weekday.co = Number(coW.price)
+  if (uniW && Number.isFinite(Number(uniW.price))) {
+    carta.menuDay.weekday.unified = Number(uniW.price)
+    delete carta.menuDay.weekday.es
+    delete carta.menuDay.weekday.co
+  } else {
+    if (esW && Number.isFinite(Number(esW.price))) carta.menuDay.weekday.es = Number(esW.price)
+    if (coW && Number.isFinite(Number(coW.price))) carta.menuDay.weekday.co = Number(coW.price)
+  }
   if (esE && Number.isFinite(Number(esE.price))) carta.menuDay.weekend.es = Number(esE.price)
   if (coE && Number.isFinite(Number(coE.price))) carta.menuDay.weekend.co = Number(coE.price)
 }

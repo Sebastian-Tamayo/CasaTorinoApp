@@ -5,8 +5,7 @@
   "menuDay": {
     "weekday": {
       "label": "Entre semana",
-      "es": 14,
-      "co": 13
+      "unified": 13
     },
     "weekend": {
       "label": "Fin de semana / festivo",
@@ -151,20 +150,10 @@
       "icon": "fa-calendar-day",
       "items": [
         {
-          "id": "menu-dia-es-semana",
-          "name": "Menú del día español (entre semana)",
-          "price": 14.0,
-          "desc": "Español · el camarero elige Primero (Nº1/Nº2) y Segundo (Nº1/Nº2)",
-          "base": "Menú del día",
-          "categoryType": "comida",
-          "coursePick": true,
-          "schedule": "weekday"
-        },
-        {
-          "id": "menu-dia-co-semana",
-          "name": "Menú del día colombiano (entre semana)",
+          "id": "menu-dia-unificado-semana",
+          "name": "Menú del día (entre semana)",
           "price": 13.0,
-          "desc": "Menú colombiano · lunes a viernes",
+          "desc": "Menú unificado · lunes a viernes",
           "base": "Menú del día",
           "categoryType": "comida",
           "schedule": "weekday"
