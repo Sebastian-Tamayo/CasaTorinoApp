@@ -239,6 +239,23 @@ a { color: inherit; }
   border-color: var(--red);
   outline: none;
 }
+.carta-link-icon {
+  width: 2.35rem;
+  height: 2.35rem;
+  padding: 0;
+  justify-content: center;
+  gap: 0;
+  color: #065f46;
+  background: rgba(37, 211, 102, .16);
+  border-color: rgba(37, 211, 102, .45);
+  font-size: 1.15rem;
+}
+.carta-link-icon:hover,
+.carta-link-icon:focus-visible {
+  background: rgba(37, 211, 102, .28);
+  border-color: #25d366;
+  color: #065f46;
+}
 .carta-icon {
   display: grid;
   place-items: center;
