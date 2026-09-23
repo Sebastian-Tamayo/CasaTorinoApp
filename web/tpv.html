@@ -1350,6 +1350,35 @@
       border-color: rgba(245,197,24,.55);
       box-shadow: 0 0 0 3px var(--gold-dim);
     }
+    .carta-edit-fields input[type="file"] {
+      padding: .55rem .65rem;
+      font-weight: 600;
+      font-size: .82rem;
+    }
+    .carta-edit-photo {
+      display: grid;
+      gap: .5rem;
+      padding: .65rem;
+      border-radius: 12px;
+      border: 1px solid var(--line2);
+      background: rgba(0,0,0,.18);
+    }
+    .carta-edit-photo img {
+      width: 100%;
+      max-height: 160px;
+      object-fit: cover;
+      border-radius: 10px;
+      background: #111;
+    }
+    .carta-edit-photo-hint {
+      margin: 0;
+      font-size: .72rem;
+      font-weight: 600;
+      color: var(--muted);
+      line-height: 1.35;
+      text-transform: none;
+      letter-spacing: 0;
+    }
     .course-actions .danger {
       border: 0;
       border-radius: 12px;
@@ -1849,6 +1878,17 @@
           <input id="cartaEditStar" type="checkbox" style="width:auto;margin:0" />
           Destacado «Siempre» en la web
         </label>
+        <label>Foto (solo carta web)
+          <input id="cartaEditImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+        </label>
+        <div class="carta-edit-photo" id="cartaEditPhotoBox" hidden>
+          <img id="cartaEditPhotoPreview" alt="Vista previa del plato" />
+          <label style="display:flex;align-items:center;gap:.5rem;text-transform:none;letter-spacing:0;font-size:.82rem;font-weight:600;color:var(--muted)">
+            <input id="cartaEditImageRemove" type="checkbox" style="width:auto;margin:0" />
+            Quitar foto al guardar
+          </label>
+        </div>
+        <p class="carta-edit-photo-hint">JPG / PNG / WebP · máx. 1,5&nbsp;MB. En el TPV de sala no se muestra la foto.</p>
       </div>
       <div class="course-actions" style="margin-top:1rem;flex-wrap:wrap;gap:.5rem">
         <button type="button" class="danger" id="cartaEditDelete" hidden>Borrar plato</button>
@@ -4495,13 +4535,29 @@
         const modal = $('cartaEditModal')
         if (modal) modal.hidden = true
         cartaEditDraft = null
+        if ($('cartaEditImage')) $('cartaEditImage').value = ''
+        if ($('cartaEditImageRemove')) $('cartaEditImageRemove').checked = false
+        if ($('cartaEditPhotoPreview')) $('cartaEditPhotoPreview').removeAttribute('src')
+        if ($('cartaEditPhotoBox')) $('cartaEditPhotoBox').hidden = true
+      }
+
+      function paintCartaEditPhoto(url) {
+        const box = $('cartaEditPhotoBox')
+        const img = $('cartaEditPhotoPreview')
+        const has = Boolean(url)
+        if (box) box.hidden = !has
+        if (img) {
+          if (has) img.src = url
+          else img.removeAttribute('src')
+        }
+        if ($('cartaEditImageRemove')) $('cartaEditImageRemove').checked = false
       }
 
       function openCartaEditModal(item) {
         const isNew = !item
         cartaEditDraft = isNew
-          ? { mode: 'create' }
-          : { mode: 'edit', id: item.id, catId: item.catId }
+          ? { mode: 'create', image_url: '' }
+          : { mode: 'edit', id: item.id, catId: item.catId, image_url: item.image_url || '' }
         fillCartaEditCategories(item?.catId || state.cat, { forCreate: isNew })
         if ($('cartaEditTitle')) {
           $('cartaEditTitle').textContent = isNew ? 'Añadir plato' : 'Editar plato'
@@ -4509,7 +4565,7 @@
         if ($('cartaEditSub')) {
           $('cartaEditSub').textContent = isNew
             ? 'Nuevo producto: se guarda en Supabase y se muestra en la carta web.'
-            : 'Cambia nombre, precio o descripción. Se actualiza en TPV y en la web.'
+            : 'Cambia nombre, precio, descripción o foto. Se actualiza en TPV y en la web.'
         }
         if ($('cartaEditName')) $('cartaEditName').value = item?.name || ''
         if ($('cartaEditPrice')) {
@@ -4523,6 +4579,8 @@
             item?.categoryType === 'bebida' ? 'bebida' : 'comida'
         }
         if ($('cartaEditStar')) $('cartaEditStar').checked = Boolean(item?.star)
+        if ($('cartaEditImage')) $('cartaEditImage').value = ''
+        paintCartaEditPhoto(item?.image_url || '')
         if ($('cartaEditDelete')) $('cartaEditDelete').hidden = isNew
         if ($('cartaEditModal')) $('cartaEditModal').hidden = false
         setTimeout(() => $('cartaEditName')?.focus(), 50)
@@ -4570,6 +4628,8 @@
           $('cartaEditType')?.value === 'bebida' ? 'bebida' : 'comida'
         const desc = String($('cartaEditDesc')?.value || '').trim()
         const star = Boolean($('cartaEditStar')?.checked)
+        const file = $('cartaEditImage')?.files?.[0] || null
+        const removePhoto = Boolean($('cartaEditImageRemove')?.checked)
         if (!name) {
           alert('Pon un nombre')
           return
@@ -4580,6 +4640,10 @@
         }
         if (!categoryId) {
           alert('Elige categoría')
+          return
+        }
+        if (file && file.size > 1.5 * 1024 * 1024) {
+          alert('La foto pesa demasiado (máx. 1,5 MB). Comprime o elige otra.')
           return
         }
         const existing =
@@ -4605,6 +4669,16 @@
         const btn = $('cartaEditSave')
         if (btn) btn.disabled = true
         try {
+          if (removePhoto) {
+            item.image_url = ''
+          } else if (file) {
+            if (!window.CasaTorinoCarta?.uploadCartaImage) {
+              throw new Error('uploadCartaImage no disponible')
+            }
+            const up = await window.CasaTorinoCarta.uploadCartaImage(item.id, file)
+            if (!up?.publicUrl) throw new Error('No se obtuvo URL de la foto')
+            item.image_url = up.publicUrl
+          }
           // Si cambió de categoría en edición, borrar del origen y crear en destino
           if (
             cartaEditDraft?.mode === 'edit' &&
@@ -4672,6 +4746,13 @@
       $('cartaEditBack')?.addEventListener('click', () => closeCartaEditModal())
       $('cartaEditSave')?.addEventListener('click', () => void saveCartaEdit())
       $('cartaEditDelete')?.addEventListener('click', () => void deleteCartaEdit())
+      $('cartaEditImage')?.addEventListener('change', () => {
+        const file = $('cartaEditImage')?.files?.[0]
+        if (!file) return
+        if ($('cartaEditImageRemove')) $('cartaEditImageRemove').checked = false
+        const url = URL.createObjectURL(file)
+        paintCartaEditPhoto(url)
+      })
       $('cartaEditModal')?.addEventListener('click', (e) => {
         if (e.target === $('cartaEditModal')) closeCartaEditModal()
       })

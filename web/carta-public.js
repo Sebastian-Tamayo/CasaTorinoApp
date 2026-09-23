@@ -34,6 +34,9 @@
     'bebidas-jarra-de-aguapanela',
   ])
 
+  /** @type {Map<string, object>} */
+  let dishById = new Map()
+
   function fillMenuDia(meta) {
     const ul = document.querySelector('.menu-precios')
     if (!ul || !meta?.menuDay) return
@@ -64,9 +67,19 @@
     const desc = it.desc
       ? `<span>${escapeHtml(it.desc)}</span>`
       : ''
-    const star = it.star ? ' class="dish-star"' : ''
+    const star = it.star ? ' dish-star' : ''
     const badge = it.star ? '<em class="star-badge">Siempre</em>' : ''
-    return `<li${star}><div class="dish-top"><strong>${badge}${escapeHtml(it.name)}</strong><b class="price">${price}</b></div>${desc}</li>`
+    const hasPhoto = Boolean(it.image_url)
+    const cam = hasPhoto
+      ? '<i class="fa-solid fa-camera dish-cam" aria-hidden="true" title="Ver foto"></i>'
+      : ''
+    const clickable = hasPhoto ? ' dish-has-photo' : ''
+    const attrs = hasPhoto
+      ? ` class="${star.trim()}${clickable}" data-dish-id="${escapeHtml(it.id)}" role="button" tabindex="0"`
+      : star
+        ? ` class="${star.trim()}"`
+        : ''
+    return `<li${attrs}><div class="dish-top"><strong>${badge}${cam}${escapeHtml(it.name)}</strong><b class="price">${price}</b></div>${desc}</li>`
   }
 
   function listHtml(items, listClass) {
@@ -100,11 +113,109 @@
     return `<div class="bebidas-grid">${leftBlock}${rightBlock}</div>`
   }
 
+  function ensureDishModal() {
+    let el = document.getElementById('dishPhotoModal')
+    if (el) return el
+    el = document.createElement('div')
+    el.id = 'dishPhotoModal'
+    el.className = 'dish-modal'
+    el.hidden = true
+    el.setAttribute('role', 'dialog')
+    el.setAttribute('aria-modal', 'true')
+    el.setAttribute('aria-labelledby', 'dishModalTitle')
+    el.innerHTML = `
+      <div class="dish-modal-backdrop" data-close="1"></div>
+      <div class="dish-modal-card" role="document">
+        <button type="button" class="dish-modal-close" data-close="1" aria-label="Cerrar">
+          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        </button>
+        <div class="dish-modal-media">
+          <img id="dishModalImg" alt="" />
+        </div>
+        <div class="dish-modal-body">
+          <h3 id="dishModalTitle"></h3>
+          <p id="dishModalDesc" class="dish-modal-desc" hidden></p>
+          <p id="dishModalPrice" class="dish-modal-price"></p>
+        </div>
+      </div>`
+    document.body.appendChild(el)
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('[data-close]')) closeDishModal()
+    })
+    return el
+  }
+
+  function openDishModal(it) {
+    if (!it?.image_url) return
+    const modal = ensureDishModal()
+    const img = document.getElementById('dishModalImg')
+    const title = document.getElementById('dishModalTitle')
+    const desc = document.getElementById('dishModalDesc')
+    const price = document.getElementById('dishModalPrice')
+    if (img) {
+      img.src = it.image_url
+      img.alt = it.name || 'Plato'
+    }
+    if (title) title.textContent = it.name || ''
+    if (desc) {
+      const text = String(it.desc || '').trim()
+      desc.textContent = text
+      desc.hidden = !text
+    }
+    if (price) price.textContent = money(it.price)
+    modal.hidden = false
+    requestAnimationFrame(() => modal.classList.add('is-open'))
+    document.body.classList.add('dish-modal-open')
+  }
+
+  function closeDishModal() {
+    const modal = document.getElementById('dishPhotoModal')
+    if (!modal || modal.hidden) return
+    modal.classList.remove('is-open')
+    document.body.classList.remove('dish-modal-open')
+    window.setTimeout(() => {
+      modal.hidden = true
+      const img = document.getElementById('dishModalImg')
+      if (img) img.removeAttribute('src')
+    }, 220)
+  }
+
+  function bindDishClicks(root) {
+    root?.addEventListener('click', (e) => {
+      const li = e.target.closest('li.dish-has-photo[data-dish-id]')
+      if (!li) return
+      const id = li.getAttribute('data-dish-id')
+      const it = dishById.get(id)
+      if (it) openDishModal(it)
+    })
+    root?.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return
+      const li = e.target.closest('li.dish-has-photo[data-dish-id]')
+      if (!li) return
+      e.preventDefault()
+      const id = li.getAttribute('data-dish-id')
+      const it = dishById.get(id)
+      if (it) openDishModal(it)
+    })
+  }
+
+  function indexDishes(data) {
+    dishById = new Map()
+    for (const cat of data.categories || []) {
+      for (const it of cat.items || []) {
+        if (it?.id) dishById.set(it.id, it)
+      }
+    }
+  }
+
   function fillCarta(data) {
     const cats = data.categories || []
     const nav = document.getElementById('cartaNav')
     const grid = document.querySelector('.carta-grid')
     if (!nav || !grid) return
+
+    indexDishes(data)
+    ensureDishModal()
 
     const byId = Object.fromEntries(cats.map((c) => [c.id, c]))
     // Colombia es el sello: siempre primero en la carta pública.
@@ -183,6 +294,8 @@
         document.getElementById('carta')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       })
     })
+
+    bindDishClicks(grid)
   }
 
   async function loadCartaData() {
@@ -202,6 +315,10 @@
 
   async function boot() {
     try {
+      ensureDishModal()
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeDishModal()
+      })
       const data = await loadCartaData()
       if (!data) return
       fillMenuDia(data)
