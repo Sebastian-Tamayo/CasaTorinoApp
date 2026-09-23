@@ -47,7 +47,7 @@ Cliente web (clara) → Gestión interna (PIN)
 |---|---|---|
 | TPV mesas, cocina, jornada, cierres | Supabase `ops_kv` | `web/api/_opsStore.js` |
 | Carta / precios | `ops_kv` clave `carta` (+ fallback `web/data/carta.json`) | `GET/POST /api/carta` |
-| Fotos de platos | Storage bucket público `menu_images` · campo `image_url` en cada ítem | `POST /api/carta-image` + Editar Carta TPV |
+| Fotos de platos | Preferente Storage `menu_images` (service role). Sin service role: `ops_kv` clave `menu_img:<id>` servida por GET `/api/carta-image?item=` | `web/api/carta-image.js` · SQL `008`/`009` |
 | Fichajes | Tabla `time_logs` (SQL `007_time_logs.sql`); fallback ops_kv | `web/api/time-logs.js` |
 | Reservas | Vercel Edge Config clave `reservas` | `reservas/server/reservas-store.js` |
 | ERP (gastos, RRHH, docs, fiscal) | Tablas Supabase + RLS | `erp/` |
@@ -59,11 +59,14 @@ Cliente web (clara) → Gestión interna (PIN)
 - `POST /api/carta` `{ "action":"put", "carta":{…} }` — reemplazo completo  
 - `POST /api/carta` `{ "action":"seed" }` — copia JSON del deploy a Supabase  
 - `POST /api/carta` `{ "action":"upsertItem", "categoryId":"…", "item":{…} }`  
-- `POST /api/carta-image` `{ "action":"upload", "itemId", "contentType", "dataBase64" }` → URL pública en Storage `menu_images`  
-  Campo opcional del plato: `image_url` (solo carta web; el TPV de sala no pinta fotos).  
-  SQL: `web/supabase/008_menu_images_storage.sql` (ejecutar una vez en Supabase).
+- `POST /api/carta-image` `{ "action":"upload", "itemId", "contentType", "dataBase64" }`  
+  - Con `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_SECRET_KEY` en Vercel → bucket `menu_images`  
+  - Sin service role (solo anon, plan free) → `ops_kv` `menu_img:<id>` + URL `/api/carta-image?item=`  
+  - Campo del plato: `image_url` (solo carta web; el TPV de sala no pinta fotos)  
+  - SQL: `008_menu_images_storage.sql` + `009_menu_images_secure.sql` (quita escritura anon)  
+- `GET /api/carta-image?item=<id>` — sirve la foto (público)
 
-Auth: header `X-Tpv-Key` o sesión TPV.
+Auth mutaciones: header `X-Tpv-Key` o sesión TPV.
 
 ### Cocina (KDS)
 
