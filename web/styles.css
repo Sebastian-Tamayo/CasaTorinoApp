@@ -346,6 +346,7 @@ a { color: inherit; }
   grid-template-rows: auto auto auto 1fr auto;
   align-content: start;
   padding-bottom: .55rem;
+  cursor: pointer;
 }
 .estrellas-list a:hover,
 .estrellas-list a:focus-visible {
