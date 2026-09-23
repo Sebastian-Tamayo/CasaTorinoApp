@@ -273,6 +273,9 @@ a { color: inherit; }
   text-align: left;
   animation: estrellaIn .55s ease .2s both;
 }
+.hero-menus.has-menu-photos {
+  width: min(100%, 720px);
+}
 .hero-menus-head {
   display: flex;
   align-items: center;
@@ -288,6 +291,77 @@ a { color: inherit; }
   color: var(--ink);
   margin: 0;
   text-align: center;
+}
+.menu-dia-gallery {
+  display: grid;
+  grid-template-columns: repeat(var(--menu-foto-cols, 1), minmax(0, 1fr));
+  gap: .75rem;
+  margin: .85rem 0 0;
+}
+.menu-dia-gallery[hidden] { display: none !important; }
+.menu-dia-foto {
+  appearance: none;
+  border: 1px solid rgba(241,196,15,.35);
+  background: #fffaf0;
+  border-radius: 14px;
+  padding: .45rem .45rem .65rem;
+  display: grid;
+  gap: .28rem;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  opacity: 0;
+  transform: translateY(10px);
+  animation: estrellaIn .5s ease forwards;
+  animation-delay: calc(var(--i, 0) * .1s + .18s);
+  transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.menu-dia-foto:hover,
+.menu-dia-foto:focus-visible {
+  border-color: var(--red);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(26, 35, 50, .08);
+  outline: none;
+}
+.menu-dia-foto.is-today {
+  border-color: rgba(200,16,46,.45);
+  background: linear-gradient(160deg, rgba(241,196,15,.16), #fffaf0 55%);
+}
+.menu-dia-foto img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #fff;
+}
+.menu-dia-foto em {
+  font-style: normal;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+.menu-dia-foto strong {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.05rem;
+  line-height: 1.2;
+  color: var(--ink);
+}
+.menu-dia-foto b {
+  color: var(--gold-2);
+  font-variant-numeric: tabular-nums;
+  font-size: .98rem;
+}
+.menu-dia-foto-cta {
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--blue);
+}
+@media (max-width: 900px) {
+  .menu-dia-gallery { grid-template-columns: 1fr; }
+  .menu-dia-foto img { aspect-ratio: 16 / 10; }
 }
 .menu-wa-btn {
   display: inline-flex;
