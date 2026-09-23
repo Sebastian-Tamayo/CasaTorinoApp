@@ -16,6 +16,34 @@ Un solo deploy en Vercel (`casa-torino-web`) concentra:
 
 ---
 
+
+---
+
+## Demostración en Vivo
+
+### TPV
+
+<video src="../docs/media/Tpv/TPV%20Fisico.MP4" controls width="720" playsinline></video>
+
+<video src="../docs/media/Tpv/tpv%20camarera.mov" controls width="720" playsinline></video>
+
+![TPV](../docs/media/Tpv/TPV.gif)
+
+![TPV principal](../docs/media/Tpv/TPV%20principal.png)
+
+![Editar carta](../docs/media/Tpv/Editar%20Carta.gif)
+
+- [TPV físico](../docs/media/Tpv/TPV%20Fisico.MP4) · [TPV camarera](../docs/media/Tpv/tpv%20camarera.mov)
+
+### Cocina (KDS)
+
+<video src="../docs/media/KDS/cocina.mov" controls width="720" playsinline></video>
+
+![KDS](../docs/media/KDS/kds.gif)
+
+- [Cocina KDS](../docs/media/KDS/cocina.mov)
+
+
 ## Por qué existe
 
 Casa Torino necesita **una sola URL** para:

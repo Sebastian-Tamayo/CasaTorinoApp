@@ -16,7 +16,50 @@ Sin cuotas mensuales de TPV comercial · sync en tiempo real · PIN en zonas int
 | **Reservas staff** | [reservas-casatorino.vercel.app](https://reservas-casatorino.vercel.app) |
 | **ERP oficina** | [casa-torino-app.vercel.app](https://casa-torino-app.vercel.app) |
 
+
 ---
+
+## Demostración en Vivo
+
+Grabaciones reales del local (Casa Torino · Gijón): TPV en sala / físico y cocina (KDS).
+
+### TPV
+
+<video src="./docs/media/Tpv/TPV%20Fisico.MP4" controls width="720" playsinline>
+  Tu navegador no reproduce vídeo. <a href="./docs/media/Tpv/TPV%20Fisico.MP4">Ver TPV físico</a>
+</video>
+
+<video src="./docs/media/Tpv/tpv%20camarera.mov" controls width="720" playsinline>
+  Tu navegador no reproduce vídeo. <a href="./docs/media/Tpv/tpv%20camarera.mov">Ver TPV camarera</a>
+</video>
+
+![TPV en uso](./docs/media/Tpv/TPV.gif)
+
+![TPV principal](./docs/media/Tpv/TPV%20principal.png)
+
+![Editar carta](./docs/media/Tpv/Editar%20Carta.gif)
+
+- [TPV físico (MP4)](./docs/media/Tpv/TPV%20Fisico.MP4)
+- [TPV camarera (MOV)](./docs/media/Tpv/tpv%20camarera.mov)
+- [Editar carta (GIF)](./docs/media/Tpv/Editar%20Carta.gif)
+
+### Cocina (KDS)
+
+<video src="./docs/media/KDS/cocina.mov" controls width="720" playsinline>
+  Tu navegador no reproduce vídeo. <a href="./docs/media/KDS/cocina.mov">Ver cocina KDS</a>
+</video>
+
+![KDS en uso](./docs/media/KDS/kds.gif)
+
+- [Cocina KDS (MOV)](./docs/media/KDS/cocina.mov)
+- [KDS (GIF)](./docs/media/KDS/kds.gif)
+
+### ERP
+
+![Demo ERP](./docs/media/erp/demo-video.gif)
+
+Más detalle: [`web/README.md`](./web/README.md) (TPV + KDS) · [`erp/README.md`](./erp/README.md).
+
 
 ---
 
