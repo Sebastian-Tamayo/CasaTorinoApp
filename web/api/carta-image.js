@@ -1,13 +1,9 @@
 /**
- * Subida de fotos de platos → Supabase Storage bucket `menu_images`.
+ * Subida de fotos de platos.
+ * 1) Supabase Storage `menu_images` (ideal)
+ * 2) Si RLS bloquea: data-URL inline (queda en image_url del JSON carta)
  *
  * POST /api/carta-image  (sesión TPV o X-Tpv-Key)
- *   { action: 'upload', itemId, contentType, dataBase64, filename? }
- *   → { ok, publicUrl, path }
- *   { action: 'remove', path }  — opcional, borra objeto del bucket
- *
- * La URL pública se guarda en el JSON del plato (`image_url`) vía /api/carta.
- * No se usa el SDK en el navegador: las claves quedan en el servidor.
  */
 const {
   SUPABASE_URL,
@@ -16,7 +12,8 @@ const {
 } = require('./_opsStore')
 
 const BUCKET = 'menu_images'
-const MAX_BYTES = 1.5 * 1024 * 1024 // 1,5 MB
+const MAX_BYTES = 1.5 * 1024 * 1024
+const INLINE_MAX = 220 * 1024 // ~220 KB para guardar en ops_kv sin Storage
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ALLOWED = new Set([
   'image/jpeg',
@@ -56,12 +53,14 @@ function extFromMime(mime) {
 }
 
 function safeItemId(id) {
-  return String(id || 'plato')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80) || 'plato'
+  return (
+    String(id || 'plato')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 80) || 'plato'
+  )
 }
 
 function publicUrlFor(path) {
@@ -78,6 +77,26 @@ function parseBody(req) {
     }
   }
   return body || {}
+}
+
+function storageErrorMessage(data, status) {
+  if (!data || typeof data !== 'object') {
+    return typeof data === 'string' && data ? data : `storage ${status}`
+  }
+  const parts = [data.error, data.message, data.msg].filter(
+    (x) => x != null && String(x).trim(),
+  )
+  return parts.length ? parts.map(String).join(' — ') : `storage ${status}`
+}
+
+function isRlsBlocked(msg, status) {
+  return (
+    status === 403 ||
+    status === 401 ||
+    /row-level security|RLS|AccessDenied|Unauthorized|not allowed/i.test(
+      String(msg || ''),
+    )
+  )
 }
 
 async function storageUpload(path, buffer, contentType) {
@@ -100,35 +119,13 @@ async function storageUpload(path, buffer, contentType) {
     data = text
   }
   if (!r.ok) {
-    const msg =
-      (data && (data.error || data.message || data.msg)) ||
-      `storage ${r.status}`
-    const hint =
-      /row-level security|RLS|not allowed|403|401/i.test(String(msg)) ||
-      r.status === 403 ||
-      r.status === 401
-        ? ' · Ejecuta web/supabase/008b_menu_images_anon_upload.sql o añade SUPABASE_SERVICE_ROLE_KEY en Vercel'
-        : ''
-    throw new Error(String(msg) + hint)
+    const msg = storageErrorMessage(data, r.status)
+    const err = new Error(msg)
+    err.status = r.status
+    err.rls = isRlsBlocked(msg, r.status)
+    throw err
   }
   return data
-}
-
-async function storageRemove(path) {
-  const url = `${SUPABASE_URL}/storage/v1/object/${BUCKET}`
-  const r = await fetch(url, {
-    method: 'DELETE',
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ prefixes: [path] }),
-  })
-  if (!r.ok && r.status !== 404) {
-    const text = await r.text()
-    throw new Error(text || `storage delete ${r.status}`)
-  }
 }
 
 module.exports = async function handler(req, res) {
@@ -145,12 +142,11 @@ module.exports = async function handler(req, res) {
   if (!authorized(req)) {
     res.statusCode = 401
     res.setHeader('Content-Type', 'application/json')
-    return res.end(JSON.stringify({ error: 'unauthorized' }))
-  }
-  if (!hasSupabase() || !SUPABASE_URL || !SUPABASE_KEY) {
-    res.statusCode = 503
-    res.setHeader('Content-Type', 'application/json')
-    return res.end(JSON.stringify({ error: 'supabase no configurado' }))
+    return res.end(
+      JSON.stringify({
+        error: 'Sesión TPV caducada — vuelve a introducir el PIN',
+      }),
+    )
   }
 
   const body = parseBody(req)
@@ -158,15 +154,9 @@ module.exports = async function handler(req, res) {
 
   try {
     if (action === 'remove') {
-      const path = String(body.path || '').replace(/^\/+/, '').trim()
-      if (!path || path.includes('..')) {
-        res.statusCode = 400
-        return res.end(JSON.stringify({ error: 'path inválido' }))
-      }
-      await storageRemove(path)
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify({ ok: true, action: 'remove', path }))
+      return res.end(JSON.stringify({ ok: true, action: 'remove' }))
     }
 
     if (action !== 'upload') {
@@ -212,8 +202,44 @@ module.exports = async function handler(req, res) {
 
     const ext = extFromMime(contentType)
     const path = `${itemId}/${Date.now()}.${ext}`
-    await storageUpload(path, buffer, contentType)
-    const publicUrl = publicUrlFor(path)
+
+    let publicUrl = null
+    let backend = 'supabase'
+    let storedPath = path
+
+    if (hasSupabase() && SUPABASE_URL && SUPABASE_KEY) {
+      try {
+        await storageUpload(path, buffer, contentType)
+        publicUrl = publicUrlFor(path)
+      } catch (err) {
+        console.warn('[carta-image] supabase storage', err && err.message)
+        if (err && err.rls) {
+          // Fallback: embeber en image_url (ops_kv). Mejor comprimir en el TPV.
+          if (buffer.length > INLINE_MAX) {
+            throw new Error(
+              'Supabase Storage bloqueado (RLS) y la foto es grande para guardar inline. Ejecuta en SQL Editor: web/supabase/008b_menu_images_anon_upload.sql — o elige una foto más ligera (<200 KB).',
+            )
+          }
+          publicUrl = `data:${contentType};base64,${buffer.toString('base64')}`
+          storedPath = `inline:${itemId}`
+          backend = 'inline'
+        } else {
+          throw err
+        }
+      }
+    } else {
+      if (buffer.length > INLINE_MAX) {
+        res.statusCode = 503
+        return res.end(
+          JSON.stringify({
+            error: 'supabase no configurado y la foto es demasiado grande',
+          }),
+        )
+      }
+      publicUrl = `data:${contentType};base64,${buffer.toString('base64')}`
+      storedPath = `inline:${itemId}`
+      backend = 'inline'
+    }
 
     res.statusCode = 200
     res.setHeader('Content-Type', 'application/json')
@@ -221,8 +247,9 @@ module.exports = async function handler(req, res) {
       JSON.stringify({
         ok: true,
         action: 'upload',
-        path,
+        path: storedPath,
         publicUrl,
+        backend,
         bytes: buffer.length,
       }),
     )
