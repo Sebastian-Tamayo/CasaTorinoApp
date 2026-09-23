@@ -107,9 +107,15 @@ function assertStorageConfig() {
     })
   }
   if (!SERVICE_ROLE_KEY) {
+    const flags = {
+      SERVICE_ROLE: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      SECRET: Boolean(process.env.SUPABASE_SECRET_KEY),
+      ANON: Boolean(process.env.SUPABASE_ANON_KEY),
+      URL: Boolean(process.env.SUPABASE_URL),
+    }
     throw Object.assign(
       new Error(
-        'Falta SUPABASE_SERVICE_ROLE_KEY (o SUPABASE_SECRET_KEY) en Vercel. Sin service role no se sube a menu_images.',
+        `Falta SUPABASE_SERVICE_ROLE_KEY (o SUPABASE_SECRET_KEY) en Vercel. Sin service role no se sube a menu_images. env=${JSON.stringify(flags)}`,
       ),
       { status: 503 },
     )
