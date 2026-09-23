@@ -89,10 +89,11 @@ Sin apps nativas: el personal usa el navegador en tablet, PC de caja o móvil.
 
 ## Precios menú del día (referencia)
 
-| | Español | Colombiano |
-|--|---------|------------|
-| Entre semana | 14 € | 13 € |
-| Fin de semana | 18 € | 15 € |
+| | Precio |
+|--|--------|
+| Entre semana (menú unificado) | **13 €** |
+| Fin de semana · Colombiano | 15 € |
+| Fin de semana · Español | 18 € |
 
 Ejemplo: **Pincho 2 €** · **Bocata 3 €** · **Agua 1/2 1,20 €** · **Agua 1L 1,70 €** · refrescos 2,50 € · Chupito 2,50 € · Copa Albariño 3,60 €  
 
