@@ -40,6 +40,8 @@ const initial =
 if (initial) showCarta(initial)
 
 document.querySelectorAll('[data-carta]').forEach((el) => {
+  // Las estrellas del hero las maneja carta-public.js (modal foto, sin scroll)
+  if (el.closest('.hero-estrellas')) return
   el.addEventListener('click', (e) => {
     const id = el.getAttribute('data-carta')
     if (!id) return

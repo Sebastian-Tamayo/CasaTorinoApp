@@ -319,8 +319,8 @@ a { color: inherit; }
 .estrellas-list {
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem 1.25rem;
+  grid-template-columns: repeat(var(--estrella-cols, 4), minmax(0, 1fr));
+  gap: 1rem 1.15rem;
   margin: 0 0 1.5rem;
 }
 .estrellas-list li {
@@ -342,11 +342,26 @@ a { color: inherit; }
   transition: border-color .2s ease, transform .2s ease;
   min-height: 100%;
 }
+.estrellas-list a.has-photo {
+  grid-template-rows: auto auto auto 1fr auto;
+  align-content: start;
+  padding-bottom: .55rem;
+  cursor: pointer;
+}
 .estrellas-list a:hover,
 .estrellas-list a:focus-visible {
   border-color: var(--red);
   transform: translateY(-2px);
   outline: none;
+}
+.estrella-photo {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid rgba(241,196,15,.35);
+  background: #fffaf0;
+  margin-bottom: .15rem;
 }
 .estrellas-list em {
   font-style: normal;
@@ -358,7 +373,7 @@ a { color: inherit; }
 }
 .estrellas-list strong {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: clamp(1.25rem, 2.4vw, 1.55rem);
+  font-size: clamp(1.15rem, 2.2vw, 1.45rem);
   line-height: 1.15;
   color: var(--ink);
 }
@@ -372,6 +387,39 @@ a { color: inherit; }
   color: var(--gold-2);
   font-variant-numeric: tabular-nums;
   font-size: 1.05rem;
+}
+
+/* Thumbs en listado de carta */
+.dish-list li.dish-has-photo,
+.dish-list li.dish-star {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: .55rem .75rem;
+  align-items: start;
+}
+.dish-list li:not(.dish-has-photo):not(.dish-star) {
+  display: grid;
+  gap: .12rem;
+}
+.dish-thumb {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid rgba(241,196,15,.35);
+  background: #fffaf0;
+  flex: 0 0 auto;
+}
+.dish-body {
+  min-width: 0;
+  display: grid;
+  gap: .12rem;
+}
+.dish-list li.dish-star:not(.dish-has-photo) {
+  grid-template-columns: 1fr;
+}
+.dish-list li.dish-star:not(.dish-has-photo) .dish-body {
+  display: contents;
 }
 
 .dish-star {
@@ -909,6 +957,7 @@ body.dish-modal-open { overflow: hidden; }
 @media (max-width: 1100px) {
   .nav-wrap { min-height: 64px; gap: .65rem; }
   .brand img { width: 42px; height: 42px; }
+  .estrellas-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 900px) {
   .hero-grid,
@@ -922,6 +971,7 @@ body.dish-modal-open { overflow: hidden; }
   .hero-photo, .terraza-media { width: min(100%, 340px); }
   .estrellas-list { grid-template-columns: 1fr; gap: 1.15rem; }
   .estrellas-list a { border-bottom-width: 1px; padding-bottom: .75rem; }
+  .estrella-photo { aspect-ratio: 16 / 10; }
   .dish-list { grid-template-columns: 1fr; }
   .carta-nav {
     top: 68px;
