@@ -1,20 +1,32 @@
 /**
- * Subida de fotos de platos.
- * 1) Supabase Storage `menu_images` (ideal)
- * 2) Si RLS bloquea: data-URL inline (queda en image_url del JSON carta)
+ * Fotos de platos — seguro y gratis (Hobby).
  *
  * POST /api/carta-image  (sesión TPV o X-Tpv-Key)
+ *   { action:'upload', itemId, contentType, dataBase64 }
+ *   → { ok, publicUrl, backend: 'supabase-storage'|'ops_kv' }
+ *
+ * GET  /api/carta-image?item=<id>  (público)
+ *   Sirve la imagen. Preferente Storage; si no hay service role,
+ *   se guarda en ops_kv (misma DB gratis que la carta).
+ *
+ * Seguridad:
+ * - Subida solo con sesión TPV (PIN).
+ * - Lectura pública (las fotos del menú son públicas).
+ * - Sin abrir INSERT anon en Storage.
+ * - Service role solo en servidor (si está en Vercel).
  */
 const {
   SUPABASE_URL,
   SUPABASE_KEY,
   hasSupabase,
+  getJson,
+  setJson,
 } = require('./_opsStore')
 
 const BUCKET = 'menu_images'
-const MAX_BYTES = 1.5 * 1024 * 1024
-const INLINE_MAX = 220 * 1024 // ~220 KB para guardar en ops_kv sin Storage
+const MAX_BYTES = 220 * 1024
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
+const IMG_KEY_PREFIX = 'menu_img:'
 const ALLOWED = new Set([
   'image/jpeg',
   'image/jpg',
@@ -25,12 +37,11 @@ const ALLOWED = new Set([
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS')
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
   res.setHeader(
     'Access-Control-Allow-Headers',
     'Content-Type, Authorization, X-Tpv-Key',
   )
-  res.setHeader('Cache-Control', 'no-store')
 }
 
 function hasTpvSession(req) {
@@ -63,8 +74,41 @@ function safeItemId(id) {
   )
 }
 
-function publicUrlFor(path) {
+function imgStoreKey(itemId) {
+  return IMG_KEY_PREFIX + safeItemId(itemId)
+}
+
+/** true si la key del servidor puede bypassear RLS de Storage */
+function hasStorageWritePrivilege() {
+  const k = String(SUPABASE_KEY || '')
+  if (!k) return false
+  if (k.startsWith('sb_secret_')) return true
+  if (k.startsWith('sb_publishable_') || k.startsWith('sb_publi')) return false
+  // JWT legacy (anon / service_role)
+  try {
+    const mid = k.split('.')[1]
+    if (!mid) return false
+    const json = Buffer.from(
+      mid.replace(/-/g, '+').replace(/_/g, '/'),
+      'base64',
+    ).toString('utf8')
+    const payload = JSON.parse(json)
+    return payload.role === 'service_role'
+  } catch {
+    return false
+  }
+}
+
+function publicStorageUrl(path) {
   return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`
+}
+
+function publicOpsUrl(itemId, version) {
+  const q = new URLSearchParams({
+    item: safeItemId(itemId),
+    v: String(version || Date.now()),
+  })
+  return `/api/carta-image?${q.toString()}`
 }
 
 function parseBody(req) {
@@ -79,24 +123,15 @@ function parseBody(req) {
   return body || {}
 }
 
-function storageErrorMessage(data, status) {
-  if (!data || typeof data !== 'object') {
-    return typeof data === 'string' && data ? data : `storage ${status}`
+function parseQuery(req) {
+  try {
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost'
+    const proto = req.headers['x-forwarded-proto'] || 'https'
+    const u = new URL(req.url || '/', `${proto}://${host}`)
+    return u.searchParams
+  } catch {
+    return new URLSearchParams()
   }
-  const parts = [data.error, data.message, data.msg].filter(
-    (x) => x != null && String(x).trim(),
-  )
-  return parts.length ? parts.map(String).join(' — ') : `storage ${status}`
-}
-
-function isRlsBlocked(msg, status) {
-  return (
-    status === 403 ||
-    status === 401 ||
-    /row-level security|RLS|AccessDenied|Unauthorized|not allowed/i.test(
-      String(msg || ''),
-    )
-  )
 }
 
 async function storageUpload(path, buffer, contentType) {
@@ -119,13 +154,45 @@ async function storageUpload(path, buffer, contentType) {
     data = text
   }
   if (!r.ok) {
-    const msg = storageErrorMessage(data, r.status)
-    const err = new Error(msg)
-    err.status = r.status
-    err.rls = isRlsBlocked(msg, r.status)
-    throw err
+    const msg =
+      [data && data.error, data && data.message].filter(Boolean).join(' — ') ||
+      `storage ${r.status}`
+    throw new Error(String(msg))
   }
   return data
+}
+
+async function serveGet(req, res) {
+  const params = parseQuery(req)
+  const itemId = safeItemId(params.get('item') || '')
+  if (!params.get('item') || !itemId) {
+    res.statusCode = 400
+    res.setHeader('Content-Type', 'application/json')
+    return res.end(JSON.stringify({ error: 'falta item' }))
+  }
+  if (!hasSupabase()) {
+    res.statusCode = 503
+    return res.end('supabase no configurado')
+  }
+  const row = await getJson(imgStoreKey(itemId), null, { fresh: true })
+  if (!row || !row.dataBase64 || row.deleted) {
+    res.statusCode = 404
+    res.setHeader('Content-Type', 'application/json')
+    return res.end(JSON.stringify({ error: 'sin foto' }))
+  }
+  const mime = ALLOWED.has(row.contentType) ? row.contentType : 'image/jpeg'
+  let buf
+  try {
+    buf = Buffer.from(String(row.dataBase64), 'base64')
+  } catch {
+    res.statusCode = 500
+    return res.end('foto corrupta')
+  }
+  res.statusCode = 200
+  res.setHeader('Content-Type', mime)
+  res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800')
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  return res.end(buf)
 }
 
 module.exports = async function handler(req, res) {
@@ -134,11 +201,28 @@ module.exports = async function handler(req, res) {
     res.statusCode = 204
     return res.end()
   }
+
+  if (req.method === 'GET') {
+    try {
+      return await serveGet(req, res)
+    } catch (err) {
+      console.error('[carta-image] GET', err)
+      res.statusCode = 500
+      res.setHeader('Content-Type', 'application/json')
+      return res.end(
+        JSON.stringify({
+          error: String(err && err.message ? err.message : err),
+        }),
+      )
+    }
+  }
+
   if (req.method !== 'POST') {
     res.statusCode = 405
     res.setHeader('Content-Type', 'application/json')
     return res.end(JSON.stringify({ error: 'method not allowed' }))
   }
+
   if (!authorized(req)) {
     res.statusCode = 401
     res.setHeader('Content-Type', 'application/json')
@@ -149,14 +233,25 @@ module.exports = async function handler(req, res) {
     )
   }
 
+  if (!hasSupabase()) {
+    res.statusCode = 503
+    res.setHeader('Content-Type', 'application/json')
+    return res.end(JSON.stringify({ error: 'supabase no configurado' }))
+  }
+
   const body = parseBody(req)
   const action = String(body.action || 'upload').trim()
 
   try {
     if (action === 'remove') {
+      const itemId = safeItemId(body.itemId)
+      await setJson(imgStoreKey(itemId), {
+        deleted: true,
+        updatedAt: Date.now(),
+      })
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify({ ok: true, action: 'remove' }))
+      return res.end(JSON.stringify({ ok: true, action: 'remove', itemId }))
     }
 
     if (action !== 'upload') {
@@ -195,59 +290,44 @@ module.exports = async function handler(req, res) {
       res.statusCode = 400
       return res.end(
         JSON.stringify({
-          error: `imagen demasiado grande (máx. ${Math.round(MAX_BYTES / 1024)} KB)`,
+          error: `imagen demasiado grande (máx. ${Math.round(MAX_BYTES / 1024)} KB comprimidos)`,
         }),
       )
     }
 
-    const ext = extFromMime(contentType)
-    const path = `${itemId}/${Date.now()}.${ext}`
+    const version = Date.now()
+    let publicUrl
+    let backend
+    let path = null
 
-    let publicUrl = null
-    let backend = 'supabase'
-    let storedPath = path
-
-    if (hasSupabase() && SUPABASE_URL && SUPABASE_KEY) {
-      try {
-        await storageUpload(path, buffer, contentType)
-        publicUrl = publicUrlFor(path)
-      } catch (err) {
-        console.warn('[carta-image] supabase storage', err && err.message)
-        if (err && err.rls) {
-          // Fallback: embeber en image_url (ops_kv). Mejor comprimir en el TPV.
-          if (buffer.length > INLINE_MAX) {
-            throw new Error(
-              'Supabase Storage bloqueado (RLS) y la foto es grande para guardar inline. Ejecuta en SQL Editor: web/supabase/008b_menu_images_anon_upload.sql — o elige una foto más ligera (<200 KB).',
-            )
-          }
-          publicUrl = `data:${contentType};base64,${buffer.toString('base64')}`
-          storedPath = `inline:${itemId}`
-          backend = 'inline'
-        } else {
-          throw err
-        }
-      }
+    if (hasStorageWritePrivilege()) {
+      path = `${itemId}/${version}.${extFromMime(contentType)}`
+      await storageUpload(path, buffer, contentType)
+      publicUrl = publicStorageUrl(path)
+      backend = 'supabase-storage'
+      // Espejo ligero en ops_kv no necesario
     } else {
-      if (buffer.length > INLINE_MAX) {
-        res.statusCode = 503
-        return res.end(
-          JSON.stringify({
-            error: 'supabase no configurado y la foto es demasiado grande',
-          }),
-        )
-      }
-      publicUrl = `data:${contentType};base64,${buffer.toString('base64')}`
-      storedPath = `inline:${itemId}`
-      backend = 'inline'
+      // Plan gratis sin service role: misma DB ops_kv, puerta = PIN TPV
+      await setJson(imgStoreKey(itemId), {
+        itemId,
+        contentType,
+        dataBase64: buffer.toString('base64'),
+        bytes: buffer.length,
+        updatedAt: version,
+      })
+      publicUrl = publicOpsUrl(itemId, version)
+      backend = 'ops_kv'
     }
 
     res.statusCode = 200
     res.setHeader('Content-Type', 'application/json')
+    res.setHeader('Cache-Control', 'no-store')
     return res.end(
       JSON.stringify({
         ok: true,
         action: 'upload',
-        path: storedPath,
+        itemId,
+        path,
         publicUrl,
         backend,
         bytes: buffer.length,

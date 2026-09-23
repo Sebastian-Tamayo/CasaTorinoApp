@@ -138,9 +138,69 @@
     })
   }
 
+  /** Comprime a JPEG ≤ maxEdge px / quality para que quepa en Storage o inline. */
+  function compressImageFile(file, { maxEdge = 1000, quality = 0.72, maxBytes = 180 * 1024 } = {}) {
+    return new Promise((resolve, reject) => {
+      if (!file || !String(file.type || '').startsWith('image/')) {
+        reject(new Error('archivo no es imagen'))
+        return
+      }
+      const url = URL.createObjectURL(file)
+      const img = new Image()
+      img.onload = () => {
+        try {
+          URL.revokeObjectURL(url)
+          let w = img.naturalWidth || img.width
+          let h = img.naturalHeight || img.height
+          if (!w || !h) {
+            reject(new Error('imagen inválida'))
+            return
+          }
+          const scale = Math.min(1, maxEdge / Math.max(w, h))
+          w = Math.max(1, Math.round(w * scale))
+          h = Math.max(1, Math.round(h * scale))
+          const canvas = document.createElement('canvas')
+          canvas.width = w
+          canvas.height = h
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0, w, h)
+          let q = quality
+          let dataUrl = canvas.toDataURL('image/jpeg', q)
+          while (dataUrl.length > maxBytes * 1.37 && q > 0.45) {
+            q -= 0.08
+            dataUrl = canvas.toDataURL('image/jpeg', q)
+          }
+          const b64 = dataUrl.slice(dataUrl.indexOf(',') + 1)
+          resolve({
+            dataBase64: b64,
+            contentType: 'image/jpeg',
+            bytes: Math.round((b64.length * 3) / 4),
+          })
+        } catch (err) {
+          reject(err)
+        }
+      }
+      img.onerror = () => {
+        URL.revokeObjectURL(url)
+        reject(new Error('No se pudo leer la imagen'))
+      }
+      img.src = url
+    })
+  }
+
   async function uploadCartaImage(itemId, file) {
     if (!file) throw new Error('falta archivo')
-    const dataBase64 = await fileToBase64(file)
+    let payload
+    try {
+      payload = await compressImageFile(file)
+    } catch (err) {
+      console.warn('[carta] compress', err)
+      const dataBase64 = await fileToBase64(file)
+      payload = {
+        dataBase64,
+        contentType: file.type || 'image/jpeg',
+      }
+    }
     const r = await fetch('/api/carta-image', {
       method: 'POST',
       credentials: 'same-origin',
@@ -148,9 +208,9 @@
       body: JSON.stringify({
         action: 'upload',
         itemId,
-        contentType: file.type || 'image/jpeg',
+        contentType: payload.contentType,
         filename: file.name || '',
-        dataBase64,
+        dataBase64: payload.dataBase64,
       }),
     })
     const data = await r.json().catch(() => ({}))
