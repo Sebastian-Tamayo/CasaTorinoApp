@@ -4671,6 +4671,14 @@
         try {
           if (removePhoto) {
             item.image_url = ''
+            try {
+              await fetch('/api/carta-image', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify({ action: 'remove', itemId: item.id }),
+              })
+            } catch (_) { /* best-effort */ }
           } else if (file) {
             if (!window.CasaTorinoCarta?.uploadCartaImage) {
               throw new Error('uploadCartaImage no disponible')
