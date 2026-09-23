@@ -131,6 +131,13 @@ function upsertItemInCarta(carta, categoryId, item) {
   if (item.coursePick) normalized.coursePick = true
   if (item.star) normalized.star = true
   if (item.group) normalized.group = String(item.group)
+  // image_url: solo si viene en el payload ('' = quitar foto)
+  let clearImage = false
+  if (Object.prototype.hasOwnProperty.call(item, 'image_url')) {
+    const url = item.image_url != null ? String(item.image_url).trim() : ''
+    if (url) normalized.image_url = url
+    else clearImage = true
+  }
   if (idx >= 0) {
     const prev = cat.items[idx] || {}
     cat.items[idx] = { ...prev, ...normalized }
@@ -139,7 +146,9 @@ function upsertItemInCarta(carta, categoryId, item) {
       cat.items[idx].star = true
     }
     if (item.star === false) delete cat.items[idx].star
+    if (clearImage) delete cat.items[idx].image_url
   } else {
+    if (clearImage) delete normalized.image_url
     cat.items.push(normalized)
   }
   next.updatedAt = Date.now()

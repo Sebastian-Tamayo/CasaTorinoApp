@@ -207,4 +207,6 @@ module.exports = {
   hasBlob: () => false,
   getBackend: () => (SUPABASE_URL && SUPABASE_KEY ? 'supabase' : 'none'),
   hasSupabase: () => Boolean(SUPABASE_URL && SUPABASE_KEY),
+  SUPABASE_URL,
+  SUPABASE_KEY,
 }

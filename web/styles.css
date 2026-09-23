@@ -728,6 +728,114 @@ a { color: inherit; }
   flex: 0 0 auto;
 }
 .dish-list span { color: var(--muted); font-size: .8rem; line-height: 1.35; }
+
+/* Fotos de plato (solo web pública; el TPV de sala no las muestra) */
+.dish-list li.dish-has-photo {
+  cursor: pointer;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.dish-list li.dish-has-photo:hover,
+.dish-list li.dish-has-photo:focus-visible {
+  border-color: rgba(200, 16, 46, .35);
+  box-shadow: 0 6px 18px rgba(26, 35, 50, .08);
+  outline: none;
+  transform: translateY(-1px);
+}
+.dish-cam {
+  display: inline-block;
+  margin-right: .4rem;
+  font-size: .72rem;
+  color: var(--red);
+  opacity: .85;
+  vertical-align: .05em;
+}
+
+body.dish-modal-open { overflow: hidden; }
+.dish-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+.dish-modal[hidden] { display: none !important; }
+.dish-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(26, 35, 50, .55);
+  opacity: 0;
+  transition: opacity .22s ease;
+}
+.dish-modal-card {
+  position: relative;
+  z-index: 1;
+  width: min(420px, 100%);
+  max-height: min(92vh, 720px);
+  overflow: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(26, 35, 50, .28);
+  transform: translateY(14px) scale(.97);
+  opacity: 0;
+  transition: transform .24s ease, opacity .24s ease;
+}
+.dish-modal.is-open .dish-modal-backdrop { opacity: 1; }
+.dish-modal.is-open .dish-modal-card {
+  transform: none;
+  opacity: 1;
+}
+.dish-modal-close {
+  position: absolute;
+  top: .65rem;
+  right: .65rem;
+  z-index: 2;
+  width: 2.35rem;
+  height: 2.35rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 248, 232, .92);
+  color: var(--ink);
+  font-size: 1.05rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .12);
+}
+.dish-modal-close:hover { background: #fff; }
+.dish-modal-media {
+  background: linear-gradient(160deg, #fff8e8, #f5e6c8);
+  min-height: 200px;
+}
+.dish-modal-media img {
+  display: block;
+  width: 100%;
+  max-height: 48vh;
+  object-fit: cover;
+}
+.dish-modal-body {
+  padding: 1.05rem 1.15rem 1.25rem;
+  display: grid;
+  gap: .45rem;
+}
+.dish-modal-body h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--ink);
+  line-height: 1.25;
+}
+.dish-modal-desc {
+  margin: 0;
+  color: var(--muted);
+  font-size: .9rem;
+  line-height: 1.45;
+}
+.dish-modal-price {
+  margin: .25rem 0 0;
+  color: var(--red);
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+
 .carta-empty {
   margin: 0;
   padding: .85rem 1rem;

@@ -124,9 +124,49 @@
     return data
   }
 
+  /** Sube imagen de plato al bucket menu_images (vía API servidor). */
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const s = String(reader.result || '')
+        const i = s.indexOf(',')
+        resolve(i >= 0 ? s.slice(i + 1) : s)
+      }
+      reader.onerror = () => reject(new Error('No se pudo leer la imagen'))
+      reader.readAsDataURL(file)
+    })
+  }
+
+  async function uploadCartaImage(itemId, file) {
+    if (!file) throw new Error('falta archivo')
+    const dataBase64 = await fileToBase64(file)
+    const r = await fetch('/api/carta-image', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        action: 'upload',
+        itemId,
+        contentType: file.type || 'image/jpeg',
+        filename: file.name || '',
+        dataBase64,
+      }),
+    })
+    const data = await r.json().catch(() => ({}))
+    if (!r.ok) {
+      const err = new Error(data.error || 'upload ' + r.status)
+      err.status = r.status
+      err.data = data
+      throw err
+    }
+    return data
+  }
+
   window.CasaTorinoCarta = {
     loadCarta,
     postCarta,
+    uploadCartaImage,
     applyMenuSchedule,
     madridIsWeekend,
     isWeekendMenuDay,
