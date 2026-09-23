@@ -103,7 +103,13 @@ async function storageUpload(path, buffer, contentType) {
     const msg =
       (data && (data.error || data.message || data.msg)) ||
       `storage ${r.status}`
-    throw new Error(String(msg))
+    const hint =
+      /row-level security|RLS|not allowed|403|401/i.test(String(msg)) ||
+      r.status === 403 ||
+      r.status === 401
+        ? ' · Ejecuta web/supabase/008b_menu_images_anon_upload.sql o añade SUPABASE_SERVICE_ROLE_KEY en Vercel'
+        : ''
+    throw new Error(String(msg) + hint)
   }
   return data
 }
