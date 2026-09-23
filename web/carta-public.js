@@ -137,7 +137,7 @@
           <em>${escapeHtml(labels.eyebrow)}${isToday ? ' · hoy' : ''}</em>
           <strong>${escapeHtml(labels.title)}</strong>
           <b>${money(it.price)}</b>
-          <span class="menu-dia-foto-cta">Ver menú</span>
+          <span class="menu-dia-foto-cta">Ver menú <em>(pincha aquí)</em></span>
         </button>`
       })
       .join('')
@@ -146,7 +146,7 @@
       el.addEventListener('click', () => {
         const id = el.getAttribute('data-dish-id')
         const it = id ? dishById.get(id) : null
-        if (it?.image_url) openDishModal(it)
+        if (it?.image_url) openDishModal(it, { menuSheet: true })
       })
     })
   }
@@ -301,22 +301,33 @@
     return el
   }
 
-  function openDishModal(it) {
+  function openDishModal(it, opts = {}) {
     if (!it?.image_url) return
     const modal = ensureDishModal()
     const img = document.getElementById('dishModalImg')
     const title = document.getElementById('dishModalTitle')
     const desc = document.getElementById('dishModalDesc')
     const price = document.getElementById('dishModalPrice')
+    const isMenu =
+      Boolean(opts.menuSheet) ||
+      String(it.id || '').startsWith('menu-dia') ||
+      String(it.catId || '') === 'menus-dia'
+    modal.classList.toggle('is-menu-sheet', isMenu)
     if (img) {
       img.src = it.image_url
-      img.alt = it.name || 'Plato'
+      img.alt = it.name || (isMenu ? 'Menú del día' : 'Plato')
     }
     if (title) title.textContent = it.name || ''
     if (desc) {
-      const text = String(it.desc || '').trim()
-      desc.textContent = text
-      desc.hidden = !text
+      // En menú del día la foto es el contenido: no repetir descripción
+      if (isMenu) {
+        desc.textContent = ''
+        desc.hidden = true
+      } else {
+        const text = String(it.desc || '').trim()
+        desc.textContent = text
+        desc.hidden = !text
+      }
     }
     if (price) price.textContent = money(it.price)
     modal.hidden = false
@@ -328,6 +339,7 @@
     const modal = document.getElementById('dishPhotoModal')
     if (!modal || modal.hidden) return
     modal.classList.remove('is-open')
+    modal.classList.remove('is-menu-sheet')
     document.body.classList.remove('dish-modal-open')
     window.setTimeout(() => {
       modal.hidden = true
@@ -374,12 +386,16 @@
     ensureDishModal()
 
     const byId = Object.fromEntries(cats.map((c) => [c.id, c]))
+    // Menús del día: solo en el hero (fotos), nunca en la carta para no repetir.
+    const HIDDEN_PUBLIC = new Set(['menus-dia', 'extras'])
     // Colombia es el sello: siempre primero en la carta pública.
-    let sections = (data.publicSections || []).filter((id) => byId[id])
+    let sections = (data.publicSections || []).filter(
+      (id) => byId[id] && !HIDDEN_PUBLIC.has(id),
+    )
     if (!sections.length) {
       sections = cats
         .map((c) => c.id)
-        .filter((id) => id && id !== 'menus-dia' && id !== 'extras')
+        .filter((id) => id && !HIDDEN_PUBLIC.has(id))
     }
     if (byId.colombia) {
       sections = ['colombia', ...sections.filter((id) => id !== 'colombia')]

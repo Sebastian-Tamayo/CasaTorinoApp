@@ -274,7 +274,7 @@ a { color: inherit; }
   animation: estrellaIn .55s ease .2s both;
 }
 .hero-menus.has-menu-photos {
-  width: min(100%, 720px);
+  width: min(100%, 760px);
 }
 .hero-menus-head {
   display: flex;
@@ -295,18 +295,18 @@ a { color: inherit; }
 .menu-dia-gallery {
   display: grid;
   grid-template-columns: repeat(var(--menu-foto-cols, 1), minmax(0, 1fr));
-  gap: .75rem;
-  margin: .85rem 0 0;
+  gap: .85rem;
+  margin: .95rem 0 0;
 }
 .menu-dia-gallery[hidden] { display: none !important; }
 .menu-dia-foto {
   appearance: none;
   border: 1px solid rgba(241,196,15,.35);
   background: #fffaf0;
-  border-radius: 14px;
-  padding: .45rem .45rem .65rem;
+  border-radius: 16px;
+  padding: .55rem .55rem .75rem;
   display: grid;
-  gap: .28rem;
+  gap: .32rem;
   text-align: left;
   cursor: pointer;
   color: inherit;
@@ -330,9 +330,11 @@ a { color: inherit; }
 }
 .menu-dia-foto img {
   width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 3 / 4;
+  max-height: min(52vh, 420px);
   object-fit: cover;
-  border-radius: 10px;
+  object-position: top center;
+  border-radius: 12px;
   background: #fff;
 }
 .menu-dia-foto em {
@@ -345,23 +347,34 @@ a { color: inherit; }
 }
 .menu-dia-foto strong {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 1.05rem;
+  font-size: 1.12rem;
   line-height: 1.2;
   color: var(--ink);
 }
 .menu-dia-foto b {
   color: var(--gold-2);
   font-variant-numeric: tabular-nums;
-  font-size: .98rem;
+  font-size: 1.02rem;
 }
 .menu-dia-foto-cta {
-  font-size: .78rem;
-  font-weight: 700;
+  font-size: .84rem;
+  font-weight: 800;
   color: var(--blue);
+}
+.menu-dia-foto-cta em {
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+  font-size: .8rem;
 }
 @media (max-width: 900px) {
   .menu-dia-gallery { grid-template-columns: 1fr; }
-  .menu-dia-foto img { aspect-ratio: 16 / 10; }
+  .menu-dia-foto img {
+    aspect-ratio: 3 / 4;
+    max-height: min(58vh, 480px);
+  }
 }
 .menu-wa-btn {
   display: inline-flex;
@@ -950,6 +963,27 @@ body.dish-modal-open { overflow: hidden; }
   width: 100%;
   max-height: 48vh;
   object-fit: cover;
+}
+/* Menú del día: foto completa legible (sin recortar) */
+.dish-modal.is-menu-sheet .dish-modal-card {
+  width: min(920px, 96vw);
+  max-height: min(96vh, 980px);
+}
+.dish-modal.is-menu-sheet .dish-modal-media {
+  max-height: min(82vh, 860px);
+  overflow: auto;
+  background: #1a2332;
+  -webkit-overflow-scrolling: touch;
+}
+.dish-modal.is-menu-sheet .dish-modal-media img {
+  width: 100%;
+  max-height: none;
+  height: auto;
+  object-fit: contain;
+  background: #fff;
+}
+.dish-modal.is-menu-sheet .dish-modal-body {
+  padding: .75rem 1rem 1rem;
 }
 .dish-modal-body {
   padding: 1.05rem 1.15rem 1.25rem;
