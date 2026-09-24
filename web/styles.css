@@ -207,6 +207,11 @@ a { color: inherit; }
   font-weight: 600;
   line-height: 1.35;
 }
+.parking-go {
+  color: var(--blue);
+  font-weight: 800;
+  white-space: nowrap;
+}
 
 /* Acceso rápido a la carta */
 .hero-quick-links {
@@ -280,8 +285,6 @@ a { color: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
-  gap: .55rem .75rem;
   margin: 0 0 .55rem;
 }
 .hero-menus-title {
