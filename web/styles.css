@@ -366,28 +366,6 @@ a { color: inherit; }
     max-height: min(58vh, 480px);
   }
 }
-.menu-wa-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: .35rem;
-  padding: .32rem .7rem;
-  border-radius: 999px;
-  text-decoration: none;
-  font-weight: 800;
-  font-size: .82rem;
-  color: #065f46;
-  background: rgba(37, 211, 102, .16);
-  border: 1px solid rgba(37, 211, 102, .45);
-  transition: background .15s ease, border-color .15s ease, transform .15s ease;
-}
-.menu-wa-btn i { font-size: 1rem; color: #25d366; }
-.menu-wa-btn:hover,
-.menu-wa-btn:focus-visible {
-  background: rgba(37, 211, 102, .28);
-  border-color: #25d366;
-  transform: translateY(-1px);
-  outline: none;
-}
 .hero-menus .menu-precios {
   margin: 0;
 }

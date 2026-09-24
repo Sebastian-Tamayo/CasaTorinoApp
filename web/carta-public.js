@@ -43,16 +43,8 @@
     if (!ul || !data?.menuDay) return
     const w = data.menuDay.weekday
     const e = data.menuDay.weekend
-    if (!w || !e) return
-    const weekdayDetail =
-      w.unified != null
-        ? `Menú unificado <em>${escapeHtml(w.unified)}\u00a0€</em>`
-        : `Colombiano <em>${escapeHtml(w.co)}\u00a0€</em> · Español <em>${escapeHtml(w.es)}\u00a0€</em>`
+    if (!e) return
     ul.innerHTML = `
-      <li>
-        <span class="mp-label">Entre semana</span>
-        <span class="mp-detail">${weekdayDetail}</span>
-      </li>
       <li>
         <span class="mp-label">Fin de semana y festivos</span>
         <span class="mp-detail">Colombiano <em>${escapeHtml(e.co)}\u00a0€</em> · Español <em>${escapeHtml(e.es)}\u00a0€</em></span>
