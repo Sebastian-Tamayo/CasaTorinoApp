@@ -41,7 +41,6 @@
     const wrap = document.querySelector('.hero-menus')
     const ul = document.querySelector('.menu-precios')
     if (!ul || !data?.menuDay) return
-    const w = data.menuDay.weekday
     const e = data.menuDay.weekend
     if (!e) return
     ul.innerHTML = `
