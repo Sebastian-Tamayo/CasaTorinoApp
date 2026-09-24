@@ -200,7 +200,7 @@ export function StaffPage() {
                 inputMode="numeric"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
-                placeholder="3212"
+                placeholder="0912"
                 autoComplete="current-password"
                 required
               />
@@ -210,7 +210,7 @@ export function StaffPage() {
             </button>
           </form>
           <p className="muted small" style={{ marginTop: '0.75rem' }}>
-            PIN del personal: <b>3212</b>
+            PIN del personal: <b>0912</b>
           </p>
         </div>
       </main>
