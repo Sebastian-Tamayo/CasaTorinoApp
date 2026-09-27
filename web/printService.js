@@ -31,6 +31,44 @@
     cols: 28,
   }
 
+  /** Datos fiscales del emisor (rellenados desde /api/tpv-facturas). */
+  let fiscalEmitter = {
+    nif: '',
+    legalName: BUSINESS.name,
+    address: 'Ctra. Ceares, 67',
+    city: 'Gijón',
+    phone: '612 254 719',
+  }
+
+  function setFiscalEmitter( partial = {} ) {
+    const src = partial && typeof partial === 'object' ? partial : {}
+    fiscalEmitter = {
+      nif: String(src.nif || fiscalEmitter.nif || '')
+        .trim()
+        .toUpperCase()
+        .replace(/\s+/g, ''),
+      legalName: String(src.legalName || fiscalEmitter.legalName || BUSINESS.name).trim(),
+      address: String(src.address || fiscalEmitter.address || '').trim(),
+      city: String(src.city || fiscalEmitter.city || '').trim(),
+      phone: String(src.phone || fiscalEmitter.phone || '').trim(),
+    }
+    return fiscalEmitter
+  }
+
+  function getFiscalEmitter() {
+    return { ...fiscalEmitter }
+  }
+
+  function wrapLines(text, max = BUSINESS.cols) {
+    const out = []
+    let rest = String(text || '').replace(/\s+/g, ' ').trim()
+    while (rest.length) {
+      out.push(rest.slice(0, max))
+      rest = rest.slice(max)
+    }
+    return out
+  }
+
   /** Comandos ESC/POS */
   const ESC = {
     INIT: '\x1B\x40',
@@ -297,6 +335,150 @@
     return data
   }
 
+  /**
+   * Factura simplificada (RD 1619/2012) para hostelería ≤ 3.000 €.
+   * Misma impresora POS-58 (58 mm).
+   * meta: { number, mesa, notes, base, iva, ivaRate, payments, paymentMethod,
+   *         client: { name, nif, address }, emitter?: {...} }
+   */
+  function buildInvoice(cartItems, total, meta = {}) {
+    const now = new Date()
+    const when = now.toLocaleString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    const items = Array.isArray(cartItems) ? cartItems : []
+    const emitter = {
+      ...fiscalEmitter,
+      ...(meta.emitter && typeof meta.emitter === 'object' ? meta.emitter : {}),
+    }
+    const client =
+      meta.client && typeof meta.client === 'object' ? meta.client : {}
+
+    const data = []
+    data.push(ESC.INIT)
+    data.push(ESC.CP858)
+    data.push(ESC.LEFT_MARGIN_0)
+    data.push(ESC.PRINT_WIDTH)
+    data.push(ESC.ALIGN_LEFT)
+
+    data.push(ESC.SIZE_DOUBLE)
+    data.push(ESC.BOLD_ON)
+    data.push('FACTURA' + ESC.LF)
+    data.push('SIMPLIFICADA' + ESC.LF)
+    data.push(ESC.SIZE_NORMAL)
+    data.push(ESC.BOLD_OFF)
+    data.push(line('=') + ESC.LF)
+
+    data.push(ESC.BOLD_ON)
+    data.push(String(emitter.legalName || BUSINESS.name) + ESC.LF)
+    data.push(ESC.BOLD_OFF)
+    if (emitter.nif) data.push('NIF ' + emitter.nif + ESC.LF)
+    for (const row of wrapLines(emitter.address)) data.push(row + ESC.LF)
+    for (const row of wrapLines(emitter.city)) data.push(row + ESC.LF)
+    if (emitter.phone) data.push('Tel. ' + emitter.phone + ESC.LF)
+
+    data.push(line('-') + ESC.LF)
+    if (meta.number) {
+      data.push(ESC.BOLD_ON)
+      data.push('Nº ' + String(meta.number) + ESC.LF)
+      data.push(ESC.BOLD_OFF)
+    }
+    data.push('Fecha ' + when + ESC.LF)
+    if (meta.mesa) data.push('Mesa ' + meta.mesa + ESC.LF)
+
+    data.push(line('-') + ESC.LF)
+    data.push(ESC.BOLD_ON)
+    data.push('CLIENTE' + ESC.LF)
+    data.push(ESC.BOLD_OFF)
+    for (const row of wrapLines(client.name || '—')) data.push(row + ESC.LF)
+    if (client.nif) data.push('NIF ' + String(client.nif).toUpperCase() + ESC.LF)
+    if (client.address) {
+      for (const row of wrapLines(client.address)) data.push(row + ESC.LF)
+    }
+
+    data.push(line('=') + ESC.LF)
+    for (const it of items) {
+      const qty = +it.qty || 0
+      const price = +it.price || 0
+      const sum = qty * price
+      data.push(padRow(`${qty}x ${wrapName(it.name)}`, money(sum)) + ESC.LF)
+      if (qty > 1) {
+        data.push(`  ${money(price)} / ud.` + ESC.LF)
+      }
+    }
+
+    if (meta.notes) {
+      data.push(line('-') + ESC.LF)
+      data.push(ESC.BOLD_ON)
+      data.push('Notas:' + ESC.LF)
+      data.push(ESC.BOLD_OFF)
+      for (const row of wrapLines(meta.notes)) data.push(row + ESC.LF)
+    }
+
+    data.push(line('-') + ESC.LF)
+    const ivaRate = Number.isFinite(meta.ivaRate) ? meta.ivaRate : 0.1
+    let base = Number(meta.base)
+    let iva = Number(meta.iva)
+    if (!Number.isFinite(base) || !Number.isFinite(iva)) {
+      base = Math.round((total / (1 + ivaRate)) * 100) / 100
+      iva = Math.round((total - base) * 100) / 100
+    }
+    data.push(padRow('Base imponible', money(base) + ' E') + ESC.LF)
+    data.push(
+      padRow('IVA ' + Math.round(ivaRate * 100) + '%', money(iva) + ' E') + ESC.LF,
+    )
+    data.push(ESC.BOLD_ON)
+    data.push(ESC.SIZE_DOUBLE)
+    data.push('TOTAL' + ESC.LF)
+    data.push(money(total) + ESC.LF)
+    data.push(ESC.SIZE_NORMAL)
+    data.push(ESC.BOLD_OFF)
+    data.push('(IVA incluido)' + ESC.LF)
+
+    const payments = Array.isArray(meta.payments)
+      ? meta.payments
+          .map((p) => {
+            if (!p || typeof p !== 'object') return null
+            const method =
+              String(p.method || '').toLowerCase() === 'tarjeta' ? 'tarjeta' : 'efectivo'
+            const amount = Math.round(Number(p.amount) * 100) / 100
+            if (!Number.isFinite(amount) || amount <= 0) return null
+            return { method, amount }
+          })
+          .filter(Boolean)
+      : []
+    if (payments.length) {
+      data.push(line('-') + ESC.LF)
+      data.push(ESC.BOLD_ON)
+      data.push('Forma de pago:' + ESC.LF)
+      data.push(ESC.BOLD_OFF)
+      for (const p of payments) {
+        const label = p.method === 'tarjeta' ? 'Tarjeta' : 'Efectivo'
+        data.push(padRow(label, money(p.amount) + ' E') + ESC.LF)
+      }
+    } else if (meta.paymentMethod) {
+      const label =
+        String(meta.paymentMethod).toLowerCase() === 'tarjeta' ? 'Tarjeta' : 'Efectivo'
+      data.push(padRow('Pago', label) + ESC.LF)
+    }
+
+    data.push(line('=') + ESC.LF)
+    data.push(ESC.ALIGN_LEFT)
+    for (const row of wrapLines('Factura simplificada (hosteleria)')) {
+      data.push(row + ESC.LF)
+    }
+    data.push(BUSINESS.footer + ESC.LF)
+    data.push(ESC.LF)
+    data.push(ESC.LF)
+    data.push(ESC.CUT)
+    if (meta.openDrawer === true) data.push(ESC.DRAWER)
+    return data
+  }
+
   async function listPrinterNames() {
     try {
       const list = await qz.printers.find()
@@ -399,6 +581,45 @@
     }
   }
 
+  /** Imprime factura simplificada en POS-58. */
+  async function printInvoice(cartItems, total, meta = {}) {
+    try {
+      await ensureConnected()
+      const printer = await findPrinter()
+      if (!printer) {
+        alert(
+          'No se encontró la impresora POS-58.\n' +
+            'Comprueba que esté encendida, instalada en Windows\n' +
+            'y que QZ Tray esté abierto.',
+        )
+        return false
+      }
+
+      const config = qz.configs.create(printer, {
+        encoding: 'CP858',
+        copies: 1,
+        rasterize: false,
+      })
+      const chunks = buildInvoice(cartItems, total, meta)
+      const data = chunks.map((chunk) => ({
+        type: 'raw',
+        format: 'command',
+        data: chunk,
+      }))
+      try {
+        await qz.print(config, data)
+      } catch (err1) {
+        await qz.print(config, chunks)
+      }
+      rememberPrinter(printer)
+      return true
+    } catch (err) {
+      console.warn('[printService] invoice', err)
+      qzPrintErrorAlert(err)
+      return false
+    }
+  }
+
   /** Solo abre el cajón (sin imprimir ticket). */
   async function openCashDrawer() {
     try {
@@ -446,10 +667,14 @@
 
   window.CasaTorinoPrint = {
     printReceipt,
+    printInvoice,
     openCashDrawer,
     testPrint,
     ensureConnected,
     buildReceipt,
+    buildInvoice,
+    setFiscalEmitter,
+    getFiscalEmitter,
     resolvePrinterName,
     PRINTER_NAME,
   }
