@@ -6,6 +6,7 @@ import {
   Briefcase,
   Calculator,
   Receipt,
+  Trophy,
   Truck,
   Utensils,
   Wine,
@@ -155,10 +156,30 @@ export function DashboardInicio() {
 
       <nav aria-label="Módulos ERP" className="grid grid-cols-4 gap-2">
         <ModuleLink href="/gestion/caja" label="Caja TPV" icon={Receipt} />
+        <ModuleLink href="/gestion/top-ventas" label="Top ventas" icon={Trophy} />
         <ModuleLink href="/gestion/rrhh" label="RRHH" icon={Briefcase} />
-        <ModuleLink href="/gestion/proveedores" label="Proveed." icon={Truck} />
         <ModuleLink href="/gestion/fiscal" label="Fiscal" icon={Calculator} />
       </nav>
+
+      <Link
+        href="/gestion/top-ventas"
+        className="flex min-h-touch items-center justify-between gap-3 rounded-tpv-lg border-2 border-oro/40 bg-card px-4 py-3 shadow-tpv transition active:scale-[0.99]"
+      >
+        <span className="flex items-center gap-3">
+          <span className="flex size-10 items-center justify-center rounded-tpv bg-oro/20 text-oro">
+            <Trophy className="size-5" aria-hidden />
+          </span>
+          <span>
+            <span className="block font-display text-lg text-ink">
+              Productos más vendidos
+            </span>
+            <span className="block text-xs text-ink/55">
+              Hoy · Semana · Mes · Trimestre
+            </span>
+          </span>
+        </span>
+        <span className="text-sm font-bold text-oro">Ver →</span>
+      </Link>
 
       {loading ? (
         <p className="text-sm text-ink/50">Cargando…</p>
