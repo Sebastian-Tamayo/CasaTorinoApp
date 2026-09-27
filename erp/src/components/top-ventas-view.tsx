@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Download } from "lucide-react";
 import {
   loadTopVentas,
   type TopPeriodo,
   type TopProducto,
 } from "@/lib/top-ventas";
+import { descargarInformeTopVentas } from "@/lib/descargar-informe";
 import { round2 } from "@/lib/fiscal";
 
 function formatImporte(importe: number) {
@@ -74,6 +76,19 @@ export function TopVentasView({ showPageHeader = false }: Props) {
     };
   }, [topPeriodo]);
 
+  function onDescargar() {
+    descargarInformeTopVentas({
+      periodo: topPeriodo,
+      label: topLabel,
+      products: topProducts,
+      tickets: topTickets,
+      total: topTotal,
+      fromOpenJornada: topOpenJornada,
+    });
+  }
+
+  const canDownload = !topLoading && !topError;
+
   return (
     <section className="flex flex-col gap-3" aria-labelledby="top-ventas-title">
       {showPageHeader ? (
@@ -132,6 +147,19 @@ export function TopVentasView({ showPageHeader = false }: Props) {
           </button>
         ))}
       </div>
+
+      <button
+        type="button"
+        onClick={onDescargar}
+        disabled={!canDownload}
+        className="flex min-h-touch w-full items-center justify-center gap-2 rounded-tpv bg-ink text-sm font-bold text-cream shadow-tpv transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
+      >
+        <Download className="size-4" aria-hidden />
+        Descargar informe · {topLabel}
+      </button>
+      <p className="text-center text-[11px] text-ink/45">
+        Excel (.xls) + vista para guardar PDF
+      </p>
 
       {topLoading ? (
         <p className="text-sm text-ink/50">Cargando ranking…</p>
