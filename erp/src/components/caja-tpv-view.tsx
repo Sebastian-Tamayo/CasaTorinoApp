@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { MonthSelector } from "@/components/month-selector";
 import { TopVentasView } from "@/components/top-ventas-view";
 import { fetchCierres, type CierreItem } from "@/lib/cierres";
@@ -31,8 +30,6 @@ type PaymentTipTotals = {
   tipTotal?: number;
 };
 
-type CajaTab = "cierres" | "top";
-
 function showCierrePaymentTip(totals?: CierreItem["totals"]) {
   if (!totals) return false;
   if ((totals.tipTotal ?? 0) > 0) return true;
@@ -57,8 +54,8 @@ function paymentTipLine(totals?: PaymentTipTotals | null) {
   );
 }
 
+/** Caja TPV original + bloque Top ventas (filtros día/semana/mes/trimestre). */
 export function CajaTpvView() {
-  const [tab, setTab] = useState<CajaTab>("top");
   const [mesKey, setMesKey] = useState<MesKey>(() => mesActualKey());
   const [items, setItems] = useState<CierreItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -129,154 +126,114 @@ export function CajaTpvView() {
         </p>
         <h1 className="mt-1 font-display text-2xl text-ink">Caja TPV</h1>
         <p className="mt-1 text-sm text-ink/55">
-          Cierres y productos más vendidos. Hoy incluye la caja abierta.
+          Historial de cierres · {labelMes(mesKey)}. El mes se reinicia en el
+          selector; el historial no se borra.
         </p>
       </header>
 
-      <div
-        className="grid grid-cols-2 gap-2"
-        role="tablist"
-        aria-label="Secciones de caja"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "top"}
-          onClick={() => setTab("top")}
-          className={`min-h-touch rounded-tpv text-sm font-bold transition active:scale-[0.98] ${
-            tab === "top" ? "bg-oro text-ink" : "bg-card text-ink shadow-tpv"
-          }`}
-        >
-          Top ventas
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "cierres"}
-          onClick={() => setTab("cierres")}
-          className={`min-h-touch rounded-tpv text-sm font-bold transition active:scale-[0.98] ${
-            tab === "cierres" ? "bg-oro text-ink" : "bg-card text-ink shadow-tpv"
-          }`}
-        >
-          Cierres
-        </button>
+      <MonthSelector value={mesKey} onChange={setMesKey} id="caja-mes" />
+
+      <article className="rounded-tpv-lg border-2 border-oro/35 bg-card p-5 shadow-tpv">
+        <p className="text-xs font-bold uppercase tracking-wide text-ink/50">
+          Total mes
+        </p>
+        <p className="mt-2 font-display text-4xl font-bold">{formatImporte(total)}</p>
+        <p className="mt-2 text-xs text-ink/50">
+          {tickets} tickets · Comida {formatImporte(comida)} · Bebida{" "}
+          {formatImporte(bebida)}
+          {paymentTipLine(monthPayment)}
+        </p>
+      </article>
+
+      {/* Nuevo: ranking con filtros, sin quitar el bloque de cierres */}
+      <div className="rounded-tpv-lg border-2 border-oro/25 bg-card p-4 shadow-tpv">
+        <TopVentasView />
       </div>
 
-      {tab === "top" ? (
-        <div className="flex flex-col gap-3">
-          <TopVentasView />
-          <p className="text-center text-xs text-ink/45">
-            También en{" "}
-            <Link href="/gestion/top-ventas" className="font-bold text-oro underline">
-              /gestion/top-ventas
-            </Link>
-          </p>
-        </div>
+      {loading ? (
+        <p className="text-sm text-ink/50">Cargando…</p>
+      ) : error ? (
+        <p className="rounded-tpv bg-rojo-colombia/10 px-4 py-3 text-sm text-rojo-colombia">
+          {error}
+        </p>
       ) : (
-        <>
-          <MonthSelector value={mesKey} onChange={setMesKey} id="caja-mes" />
-
-          <article className="rounded-tpv-lg border-2 border-oro/35 bg-card p-5 shadow-tpv">
-            <p className="text-xs font-bold uppercase tracking-wide text-ink/50">
-              Total mes
-            </p>
-            <p className="mt-2 font-display text-4xl font-bold">
-              {formatImporte(total)}
-            </p>
-            <p className="mt-2 text-xs text-ink/50">
-              {tickets} tickets · Comida {formatImporte(comida)} · Bebida{" "}
-              {formatImporte(bebida)}
-              {paymentTipLine(monthPayment)}
-            </p>
-          </article>
-
-          {loading ? (
-            <p className="text-sm text-ink/50">Cargando…</p>
-          ) : error ? (
-            <p className="rounded-tpv bg-rojo-colombia/10 px-4 py-3 text-sm text-rojo-colombia">
-              {error}
-            </p>
+        <ul className="flex flex-col gap-3">
+          {items.length === 0 ? (
+            <li className="rounded-tpv bg-card px-4 py-6 text-center text-sm text-ink/50 shadow-tpv">
+              Sin cierres en este mes.
+            </li>
           ) : (
-            <ul className="flex flex-col gap-3">
-              {items.length === 0 ? (
-                <li className="rounded-tpv bg-card px-4 py-6 text-center text-sm text-ink/50 shadow-tpv">
-                  Sin cierres en {labelMes(mesKey)}.
-                </li>
-              ) : (
-                items.map((c) => {
-                  const open = openId === c.id;
-                  return (
-                    <li
-                      key={c.id}
-                      className="overflow-hidden rounded-tpv-lg bg-card shadow-tpv"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setOpenId(open ? null : c.id)}
-                        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
-                      >
-                        <span>
-                          <span className="block text-sm font-bold text-ink">
-                            {c.dayKey}
-                          </span>
-                          <span className="block text-xs text-ink/50">
-                            {fmtHm(c.startedAt)} – {fmtHm(c.endedAt)} ·{" "}
-                            {c.totals?.tickets || 0} tickets
-                          </span>
-                        </span>
-                        <span className="font-display text-xl font-bold">
-                          {formatImporte(c.totals?.total || 0)}
-                        </span>
-                      </button>
-                      {open ? (
-                        <div className="border-t border-ink/5 px-4 py-3 text-sm">
-                          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-oro">
-                            Desglose
+            items.map((c) => {
+              const open = openId === c.id;
+              return (
+                <li
+                  key={c.id}
+                  className="overflow-hidden rounded-tpv-lg bg-card shadow-tpv"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setOpenId(open ? null : c.id)}
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                  >
+                    <span>
+                      <span className="block text-sm font-bold text-ink">
+                        {c.dayKey}
+                      </span>
+                      <span className="block text-xs text-ink/50">
+                        {fmtHm(c.startedAt)} – {fmtHm(c.endedAt)} ·{" "}
+                        {c.totals?.tickets || 0} tickets
+                      </span>
+                    </span>
+                    <span className="font-display text-xl font-bold">
+                      {formatImporte(c.totals?.total || 0)}
+                    </span>
+                  </button>
+                  {open ? (
+                    <div className="border-t border-ink/5 px-4 py-3 text-sm">
+                      <p className="mb-2 text-xs font-bold uppercase tracking-wide text-oro">
+                        Desglose
+                      </p>
+                      <p>
+                        Comida:{" "}
+                        {formatImporte(c.totals?.byType?.comida?.total || 0)}
+                      </p>
+                      <p>
+                        Bebida:{" "}
+                        {formatImporte(c.totals?.byType?.bebida?.total || 0)}
+                      </p>
+                      {showCierrePaymentTip(c.totals) ? (
+                        <>
+                          <p>
+                            Efectivo:{" "}
+                            {formatImporte(
+                              c.totals?.byPayment?.efectivo?.total || 0,
+                            )}
                           </p>
                           <p>
-                            Comida:{" "}
-                            {formatImporte(c.totals?.byType?.comida?.total || 0)}
+                            Tarjeta:{" "}
+                            {formatImporte(
+                              c.totals?.byPayment?.tarjeta?.total || 0,
+                            )}
                           </p>
-                          <p>
-                            Bebida:{" "}
-                            {formatImporte(c.totals?.byType?.bebida?.total || 0)}
-                          </p>
-                          {showCierrePaymentTip(c.totals) ? (
-                            <>
-                              <p>
-                                Efectivo:{" "}
-                                {formatImporte(
-                                  c.totals?.byPayment?.efectivo?.total || 0,
-                                )}
-                              </p>
-                              <p>
-                                Tarjeta:{" "}
-                                {formatImporte(
-                                  c.totals?.byPayment?.tarjeta?.total || 0,
-                                )}
-                              </p>
-                              {(c.totals?.tipTotal ?? 0) > 0 ? (
-                                <p>
-                                  Propina:{" "}
-                                  {formatImporte(c.totals?.tipTotal ?? 0)}
-                                </p>
-                              ) : null}
-                            </>
-                          ) : null}
-                          {(c.totals?.byProduct || []).slice(0, 12).map((p) => (
-                            <p key={p.id} className="mt-1 text-ink/70">
-                              {p.qty} × {p.name}: {formatImporte(p.total)}
+                          {(c.totals?.tipTotal ?? 0) > 0 ? (
+                            <p>
+                              Propina: {formatImporte(c.totals?.tipTotal ?? 0)}
                             </p>
-                          ))}
-                        </div>
+                          ) : null}
+                        </>
                       ) : null}
-                    </li>
-                  );
-                })
-              )}
-            </ul>
+                      {(c.totals?.byProduct || []).slice(0, 12).map((p) => (
+                        <p key={p.id} className="mt-1 text-ink/70">
+                          {p.qty} × {p.name}: {formatImporte(p.total)}
+                        </p>
+                      ))}
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })
           )}
-        </>
+        </ul>
       )}
     </div>
   );

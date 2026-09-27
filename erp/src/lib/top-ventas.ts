@@ -1,9 +1,14 @@
 /**
- * Top ventas TPV — agregación por producto desde cierres + jornada abierta.
- * REGLA: "Hoy" incluye ventas cobradas aunque la caja siga abierta.
+ * Top ventas TPV — agregación por producto desde cierres + jornada en vivo.
+ * REGLA: "Hoy" usa las ventas cobradas de la jornada actual aunque siga ABIERTA
+ * (misma fuente que el TPV: sales[] / totals.byProduct).
  */
 import { fetchCierres, type CierreItem } from "@/lib/cierres";
-import { fetchJornada, type JornadaResponse, type JornadaSale } from "@/lib/jornada";
+import {
+  fetchJornada,
+  type JornadaResponse,
+  type JornadaSale,
+} from "@/lib/jornada";
 import { round2 } from "@/lib/fiscal";
 
 export type TopPeriodo = "hoy" | "semana" | "mes" | "trimestre";
@@ -54,10 +59,9 @@ function madridDayKey(ts: number | Date = Date.now()): string {
   return madridParts(ts).dayKey;
 }
 
-/** Lunes 00:00 Europe/Madrid de la semana ISO-like (lun–dom). */
+/** Lunes de la semana (lun–dom) en Europe/Madrid. */
 function startOfWeekMadrid(now = new Date()): Date {
   const { year, month, day } = madridParts(now);
-  // Mediodía UTC-safe: construir Date en Madrid vía noon local approx
   const noon = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
   const wd = new Intl.DateTimeFormat("en-US", {
     timeZone: "Europe/Madrid",
@@ -75,7 +79,6 @@ function startOfWeekMadrid(now = new Date()): Date {
   const offset = map[wd] ?? 0;
   const monday = new Date(noon.getTime() - offset * 86400000);
   const mp = madridParts(monday);
-  // 00:00 Madrid ≈ UTC-1/UTC+2; usamos Date.UTC medianoche-ish + margin via dayKey compare
   return new Date(Date.UTC(mp.year, mp.month - 1, mp.day, 0, 0, 0));
 }
 
@@ -96,8 +99,7 @@ function daysBetweenKeys(fromKey: string, toKey: string): string[] {
 }
 
 function monthKeysForDayKeys(dayKeys: string[]): string[] {
-  const set = new Set(dayKeys.map((k) => k.slice(0, 7)));
-  return [...set];
+  return [...new Set(dayKeys.map((k) => k.slice(0, 7)))];
 }
 
 export function rangoPeriodo(
@@ -110,31 +112,37 @@ export function rangoPeriodo(
   if (periodo === "hoy") {
     return { dayKeys: [todayKey], label: "Hoy" };
   }
-
   if (periodo === "semana") {
-    const monday = startOfWeekMadrid(now);
-    const fromKey = madridDayKey(monday);
-    const keys = daysBetweenKeys(fromKey, todayKey);
-    return { dayKeys: keys, label: "Esta semana" };
+    const fromKey = madridDayKey(startOfWeekMadrid(now));
+    return {
+      dayKeys: daysBetweenKeys(fromKey, todayKey),
+      label: "Esta semana",
+    };
   }
-
   if (periodo === "mes") {
-    const fromKey = `${today.monthKey}-01`;
-    const keys = daysBetweenKeys(fromKey, todayKey);
-    return { dayKeys: keys, label: "Este mes" };
+    return {
+      dayKeys: daysBetweenKeys(`${today.monthKey}-01`, todayKey),
+      label: "Este mes",
+    };
   }
-
-  // trimestre
   const q = Math.floor((today.month - 1) / 3) + 1;
   const startMonth = (q - 1) * 3 + 1;
   const fromKey = `${today.year}-${String(startMonth).padStart(2, "0")}-01`;
-  const keys = daysBetweenKeys(fromKey, todayKey);
-  return { dayKeys: keys, label: `Trimestre Q${q}` };
+  return {
+    dayKeys: daysBetweenKeys(fromKey, todayKey),
+    label: `Trimestre Q${q}`,
+  };
 }
 
 function mergeLine(
   map: Agg,
-  raw: { id?: string; name?: string; qty?: number; total?: number; price?: number },
+  raw: {
+    id?: string;
+    name?: string;
+    qty?: number;
+    total?: number;
+    price?: number;
+  },
 ) {
   const qty = Number(raw.qty) || 0;
   if (!(qty > 0)) return;
@@ -148,11 +156,11 @@ function mergeLine(
   }
   const prev = map.get(id);
   if (prev) {
-    prev.qty = round2(prev.qty + qty);
+    prev.qty += qty;
     prev.total = round2(prev.total + total);
-    if (!prev.name && name) prev.name = name;
+    if (name) prev.name = name;
   } else {
-    map.set(id, { id, name, qty: round2(qty), total });
+    map.set(id, { id, name, qty, total });
   }
 }
 
@@ -167,17 +175,19 @@ function mergeByProduct(
   }
 }
 
+/** Ventas cobradas de la jornada filtradas por día Madrid. */
 function mergeJornadaSales(
   map: Agg,
   sales: JornadaSale[] | undefined,
   dayKeySet: Set<string>,
 ) {
-  if (!Array.isArray(sales)) return;
+  if (!Array.isArray(sales)) return 0;
+  let tickets = 0;
   for (const sale of sales) {
     const at = Number(sale?.at) || 0;
     if (!at) continue;
-    const key = madridDayKey(at);
-    if (!dayKeySet.has(key)) continue;
+    if (!dayKeySet.has(madridDayKey(at))) continue;
+    tickets += 1;
     for (const line of sale.lines || []) {
       mergeLine(map, {
         id: line.id,
@@ -187,9 +197,10 @@ function mergeJornadaSales(
       });
     }
   }
+  return tickets;
 }
 
-function ticketsFromCierres(cierres: CierreItem[], dayKeySet: Set<string>) {
+function ticketsTotalFromCierres(cierres: CierreItem[], dayKeySet: Set<string>) {
   let tickets = 0;
   let total = 0;
   for (const c of cierres) {
@@ -200,7 +211,7 @@ function ticketsFromCierres(cierres: CierreItem[], dayKeySet: Set<string>) {
   return { tickets, total };
 }
 
-function ticketsFromOpenSales(sales: JornadaSale[] | undefined, dayKeySet: Set<string>) {
+function moneyFromSales(sales: JornadaSale[] | undefined, dayKeySet: Set<string>) {
   let tickets = 0;
   let total = 0;
   if (!Array.isArray(sales)) return { tickets, total };
@@ -230,11 +241,25 @@ async function fetchCierresForMonths(monthKeys: string[]): Promise<CierreItem[]>
   return items;
 }
 
+function hasLiveJornada(j: JornadaResponse | null | undefined): boolean {
+  if (!j) return false;
+  return j.status === "open" || j.status === "ended";
+}
+
 /**
- * Carga top productos para el periodo.
- * - Cierres del rango (sesiones ya cerradas)
- * - Si hay jornada ABIERTA: suma sus ventas del rango (tiempo real)
- * - Si jornada ENDED: no se suma (ya está en cierres) para evitar duplicar
+ * Carga top productos.
+ *
+ * Hoy (crítico):
+ *  - Si hay jornada open/ended → ventas cobradas de esa jornada (aunque caja abierta)
+ *  - + cierres de otros días no aplica; para el mismo día, si la jornada está
+ *    open/ended usamos SOLO la jornada (evita duplicar y es la fuente en vivo)
+ *  - Si no hay jornada → cierres del dayKey de hoy
+ *
+ * Semana / mes / trimestre:
+ *  - Cierres del rango
+ *  - + ventas de jornada open/ended cuyo día cae en el rango
+ *    (si ese día también tiene cierre y la jornada está ended, no duplicar:
+ *     cuando ended, los cierres ya tienen el día → no sumar jornada ended)
  */
 export async function loadTopVentas(
   periodo: TopPeriodo,
@@ -242,6 +267,7 @@ export async function loadTopVentas(
 ): Promise<TopVentasResult> {
   const { dayKeys, label } = rangoPeriodo(periodo, now);
   const dayKeySet = new Set(dayKeys);
+  const todayKey = madridDayKey(now);
   const monthKeys = monthKeysForDayKeys(dayKeys);
   const map: Agg = new Map();
 
@@ -250,34 +276,82 @@ export async function loadTopVentas(
     fetchJornada().catch(() => null as JornadaResponse | null),
   ]);
 
-  for (const c of cierres) {
-    if (!dayKeySet.has(c.dayKey)) continue;
-    mergeByProduct(map, c.totals?.byProduct);
-  }
-
+  const live = hasLiveJornada(jornada);
+  const open = jornada?.status === "open";
   let fromOpenJornada = false;
-  if (jornada?.status === "open") {
-    fromOpenJornada = true;
-    mergeJornadaSales(map, jornada.sales, dayKeySet);
+  let tickets = 0;
+  let total = 0;
+
+  if (periodo === "hoy") {
+    if (live && Array.isArray(jornada?.sales) && jornada!.sales!.length > 0) {
+      // Fuente en vivo = TPV (caja abierta o recién cerrada sin perder sales)
+      fromOpenJornada = open;
+      tickets = mergeJornadaSales(map, jornada!.sales, dayKeySet);
+      total = moneyFromSales(jornada!.sales, dayKeySet).total;
+
+      // Si por TZ no entró ninguna línea pero hay byProduct, usar byProduct
+      if (map.size === 0 && jornada?.totals?.byProduct?.length) {
+        mergeByProduct(map, jornada.totals.byProduct);
+        tickets = Number(jornada.totals.tickets) || jornada.sales.length;
+        total = round2(Number(jornada.totals.total) || 0);
+        fromOpenJornada = open;
+      }
+    } else {
+      // Sin jornada activa: historial de cierres de hoy
+      for (const c of cierres) {
+        if (c.dayKey !== todayKey) continue;
+        mergeByProduct(map, c.totals?.byProduct);
+      }
+      const closed = ticketsTotalFromCierres(
+        cierres.filter((c) => c.dayKey === todayKey),
+        dayKeySet,
+      );
+      tickets = closed.tickets;
+      total = closed.total;
+    }
+  } else {
+    // Historial por cierres
+    for (const c of cierres) {
+      if (!dayKeySet.has(c.dayKey)) continue;
+      mergeByProduct(map, c.totals?.byProduct);
+    }
+    const closed = ticketsTotalFromCierres(cierres, dayKeySet);
+    tickets = closed.tickets;
+    total = closed.total;
+
+    // Caja abierta: sumar cobros de hoy (u otros días del rango) en vivo
+    if (open && Array.isArray(jornada?.sales)) {
+      fromOpenJornada = true;
+      const before = map.size;
+      const t = mergeJornadaSales(map, jornada!.sales, dayKeySet);
+      const m = moneyFromSales(jornada!.sales, dayKeySet);
+      tickets += m.tickets;
+      total = round2(total + m.total);
+      if (map.size === before && jornada?.totals?.byProduct?.length) {
+        // fallback
+        mergeByProduct(map, jornada.totals.byProduct);
+      }
+      void t;
+    }
   }
 
-  const closed = ticketsFromCierres(cierres, dayKeySet);
-  const open =
-    jornada?.status === "open"
-      ? ticketsFromOpenSales(jornada.sales, dayKeySet)
-      : { tickets: 0, total: 0 };
-
-  const products = [...map.values()].sort((a, b) => {
-    if (b.qty !== a.qty) return b.qty - a.qty;
-    return b.total - a.total;
-  });
+  const products = [...map.values()]
+    .map((p) => ({
+      ...p,
+      qty: round2(p.qty),
+      total: round2(p.total),
+    }))
+    .sort((a, b) => {
+      if (b.qty !== a.qty) return b.qty - a.qty;
+      return b.total - a.total;
+    });
 
   return {
     periodo,
     label,
     products,
-    tickets: closed.tickets + open.tickets,
-    total: round2(closed.total + open.total),
+    tickets,
+    total: round2(total),
     fromOpenJornada,
     dayKeys,
   };

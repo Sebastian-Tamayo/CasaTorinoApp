@@ -85,8 +85,11 @@ export function TopVentasView({ showPageHeader = false }: Props) {
             Productos más vendidos
           </h1>
           <p className="mt-1 text-sm text-ink/55">
-            {topLabel}
-            {topOpenJornada ? " · incluye caja abierta (tiempo real)" : ""}
+            Ventas cobradas del TPV · {topLabel}
+            {topOpenJornada ? " · caja abierta en vivo" : ""}
+            {!topLoading && !topError
+              ? ` · ${topProducts.length} productos`
+              : ""}
           </p>
         </header>
       ) : (
@@ -98,8 +101,11 @@ export function TopVentasView({ showPageHeader = false }: Props) {
             Productos más vendidos
           </h2>
           <p className="mt-1 text-sm text-ink/55">
-            {topLabel}
-            {topOpenJornada ? " · incluye caja abierta (tiempo real)" : ""}
+            Ventas cobradas del TPV · {topLabel}
+            {topOpenJornada ? " · caja abierta en vivo" : ""}
+            {!topLoading && !topError
+              ? ` · ${topProducts.length} productos`
+              : ""}
           </p>
         </header>
       )}
