@@ -8,6 +8,7 @@ import {
   FolderOpen,
   LayoutGrid,
   Receipt,
+  Trophy,
   Truck,
 } from "lucide-react";
 
@@ -17,6 +18,12 @@ const modules = [
     label: "Caja TPV",
     desc: "Cierres de jornada e historial mensual",
     icon: Receipt,
+  },
+  {
+    href: "/gestion/top-ventas",
+    label: "Top ventas",
+    desc: "Productos más vendidos (Hoy incluye caja abierta)",
+    icon: Trophy,
   },
   {
     href: "/gestion/rrhh",
