@@ -14,3 +14,5 @@ web/assets/qz/private-key.pem
 **/private-key.pem
 *.pem
 !web/assets/qz/digital-certificate.txt
+.vercel
+.env*
