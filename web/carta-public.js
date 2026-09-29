@@ -137,7 +137,6 @@
           <em>${escapeHtml(labels.eyebrow)}${isToday ? ' · hoy' : ''}</em>
           <strong>${escapeHtml(labels.title)}</strong>
           <b>${money(it.price)}</b>
-          <span class="menu-dia-foto-cta">Ver menú <em>(pincha aquí)</em></span>
         </button>`
       })
       .join('')
