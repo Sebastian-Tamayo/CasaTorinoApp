@@ -49,10 +49,10 @@ Cliente web (clara) → Gestión interna (PIN)
 | Carta / precios | `ops_kv` clave `carta` (+ fallback `web/data/carta.json`) | `GET/POST /api/carta` |
 | Fotos de platos | Storage bucket público `menu_images` (subida con **service role** en servidor) · campo `image_url` | `POST /api/carta-image` · SQL `008`/`009` |
 | Fichajes | Tabla `time_logs` (SQL `007_time_logs.sql`); fallback ops_kv | `web/api/time-logs.js` |
-| Reservas | Vercel Edge Config clave `reservas` | `reservas/server/reservas-store.js` |
+| Reservas | Supabase `ops_kv` claves `reservas` + `tpvReservaAlerts` | `reservas/server/reservas-store.js` |
 | ERP (gastos, RRHH, docs, fiscal) | Tablas Supabase + RLS | `erp/` |
 
-> TPV / cocina / jornada **ya no usan Edge Config** para ops. Solo reservas siguen en Edge Config.
+> TPV / cocina / jornada / reservas usan Supabase `ops_kv`. Fotos de carta: Storage `menu_images`. Sin Vercel Blob ni Edge Config.
 
 ### Carta (API)
 
@@ -105,8 +105,8 @@ Principio: preferir Supabase free frente a Blob/Edge de pago; deploys controlado
 
 | Proyecto | Root | Persistencia | Env críticas |
 |---|---|---|---|
-| **casa-torino-web** | `web` | ops_kv | `TPV_PIN`, Supabase URL/key, `TPV_SYNC_KEY` |
-| **reservas-casatorino** | `reservas` | Edge Config | `RESERVAS_EDGE_CONFIG_ID`, `RESERVAS_TEAM_ID`, `RESERVAS_VERCEL_TOKEN` |
+| **casa-torino-web** | `web` | ops_kv + Storage `menu_images` | `TPV_PIN`, Supabase URL/key + service role, `TPV_SYNC_KEY` |
+| **reservas-casatorino** | `reservas` | ops_kv (`reservas`, `tpvReservaAlerts`) | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` |
 | **casa-torino-app** | `erp` | Supabase ERP | `NEXT_PUBLIC_SUPABASE_*`, `ERP_PIN` / `TPV_SYNC_KEY` |
 
 ### Publicar web (desde raíz del monorepo; Root Directory = `web`)
@@ -126,7 +126,7 @@ Comprobar: `/data/carta.json` · `/interno.html` · `/tpv.html` · `/cocina.html
 npx vercel deploy --prod --yes --scope sebas3212
 ```
 
-**Blindaje:** proyecto Vercel **desconectado de Git** (un push a `main` no redeploya). Deploy solo por CLI. Health: `GET /api/reservas-health` → `{ ok: true, store: "edge-config" }`.
+**Blindaje:** proyecto Vercel **desconectado de Git** (un push a `main` no redeploya). Deploy solo por CLI. Health: `GET /api/reservas-health` → `{ ok: true, store: "supabase-ops_kv" }`.
 
 ### Publicar ERP
 
@@ -154,30 +154,31 @@ Plantillas: `web/.env.example` · `reservas/.env.example` · `erp/.env.example`.
 
 | Módulo | Variables |
 |---|---|
-| Web / TPV | `TPV_PIN`, Supabase, `TPV_SYNC_KEY`; legacy Edge Config env si aún existen |
-| Reservas | `RESERVAS_EDGE_CONFIG_ID`, `RESERVAS_TEAM_ID`, `RESERVAS_VERCEL_TOKEN` (+ PINs runtime) |
+| Web / TPV | `TPV_PIN`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `TPV_SYNC_KEY` |
+| Reservas | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (+ PINs runtime) |
 | ERP | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ERP_PIN` |
 
 **No subir:** `.env`, tokens, PINs reales, carpetas `.vercel/`, `node_modules/`.  
-**No usar:** `RESERVAS_STORE_URL` / CrudCrud (límite ~100 req/día → 500).
+**No usar:** `RESERVAS_STORE_URL` / CrudCrud · `@vercel/blob` · Edge Config (`RESERVAS_EDGE_CONFIG_*`, `BLOB_READ_WRITE_TOKEN`).
 
 ---
 
 ## 6. Reservas — anti-regresión
 
-**Estado seguro:** Edge Config clave `reservas` · GitHub desconectado del proyecto Vercel · Ignore Build Step activo.
+**Estado seguro:** Supabase `ops_kv` clave `reservas` · GitHub desconectado del proyecto Vercel · Ignore Build Step activo.
 
 | Causa histórica | Efecto |
 |---|---|
 | CrudCrud free | 500 «Error del servidor de reservas» |
+| Edge Config cuota writes | Avisos Vercel / riesgo de pausa |
 | Push a `main` con store vacío + auto-deploy | Sustituía el deploy bueno |
 | Root Directory mal | Build roto / API rota |
 
 **Reglas:**
-1. No reconectar Git al proyecto `reservas-casatorino` sin store Edge Config en `main`.
+1. No reconectar Git al proyecto `reservas-casatorino` sin `SUPABASE_*` en env.
 2. Deploy solo CLI desde monorepo.
-3. Antes de publicar: `grep -n "Edge Config" reservas/server/reservas-store.js`.
-4. Nunca restaurar CrudCrud vacío.
+3. Antes de publicar: `grep -n "edge-config\\|Edge Config" reservas/server/reservas-store.js` (debe quedar vacío).
+4. Nunca restaurar CrudCrud ni Edge Config.
 
 ---
 

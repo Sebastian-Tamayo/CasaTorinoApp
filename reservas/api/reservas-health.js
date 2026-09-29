@@ -1,7 +1,7 @@
-import { cors, listReservas } from '../server/reservas-store.js'
+import { cors, listReservas, getStoreBackend } from '../server/reservas-store.js'
 
 /**
- * Healthcheck ligero: comprueba que Edge Config responde.
+ * Healthcheck ligero: comprueba que ops_kv (Supabase) responde.
  * No escribe datos. Útil para vigilar caídas sin saturar el store.
  */
 export default async function handler(req, res) {
@@ -12,11 +12,12 @@ export default async function handler(req, res) {
   }
 
   const started = Date.now()
+  const store = getStoreBackend()
   try {
     const items = await listReservas()
     return res.status(200).json({
       ok: true,
-      store: 'edge-config',
+      store,
       count: Array.isArray(items) ? items.length : 0,
       ms: Date.now() - started,
       ts: new Date().toISOString(),
@@ -25,7 +26,7 @@ export default async function handler(req, res) {
     console.error('[reservas-health]', err)
     return res.status(503).json({
       ok: false,
-      store: 'edge-config',
+      store,
       error: 'store_unavailable',
       detail: String(err && err.message ? err.message : err),
       ms: Date.now() - started,

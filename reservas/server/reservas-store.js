@@ -1,17 +1,35 @@
 /**
- * Persistencia de reservas — Vercel Edge Config (estable).
- * Sustituye CrudCrud (límite ~100 req/día → 500 en producción).
+ * Persistencia de reservas — Supabase ops_kv (plan gratis).
+ * Sustituye Vercel Edge Config (cuota writes agotada).
  *
- * Env (en el proyecto Vercel de reservas):
- *   RESERVAS_EDGE_CONFIG_ID  (o TPV_EDGE_CONFIG_ID)
- *   RESERVAS_TEAM_ID         (o TPV_TEAM_ID)
- *   RESERVAS_VERCEL_TOKEN    (o TPV_VERCEL_TOKEN)
+ * Env (proyecto Vercel reservas-casatorino):
+ *   SUPABASE_URL
+ *   SUPABASE_SERVICE_ROLE_KEY  (o SUPABASE_SECRET_KEY / SUPABASE_ANON_KEY)
+ *
+ * Claves ops_kv: `reservas` · `tpvReservaAlerts`
  */
-const EDGE_ID =
-  process.env.RESERVAS_EDGE_CONFIG_ID || process.env.TPV_EDGE_CONFIG_ID || ''
-const TEAM_ID = process.env.RESERVAS_TEAM_ID || process.env.TPV_TEAM_ID || ''
-const VERCEL_TOKEN =
-  process.env.RESERVAS_VERCEL_TOKEN || process.env.TPV_VERCEL_TOKEN || ''
+function cleanToken(raw) {
+  let t = String(raw || '').trim()
+  if (
+    (t.startsWith('"') && t.endsWith('"')) ||
+    (t.startsWith("'") && t.endsWith("'"))
+  ) {
+    t = t.slice(1, -1)
+  }
+  return t.trim()
+}
+
+const SUPABASE_URL = cleanToken(
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+).replace(/\/$/, '')
+const SUPABASE_KEY = cleanToken(
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SECRET_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    '',
+)
+
 const ITEM_KEY = 'reservas'
 const ALERTS_KEY = 'tpvReservaAlerts'
 const ALERTS_MAX = 30
@@ -34,83 +52,122 @@ export function mapItem(raw) {
 }
 
 function assertConfig() {
-  if (!EDGE_ID || !VERCEL_TOKEN) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
     throw new Error(
-      'Falta configuración Edge Config (RESERVAS_EDGE_CONFIG_ID / RESERVAS_VERCEL_TOKEN)',
+      'Falta SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (o ANON) en Vercel (reservas)',
     )
   }
 }
 
-async function readEdgeKey(key) {
-  assertConfig()
-  const url =
-    `https://api.vercel.com/v1/edge-config/${EDGE_ID}/item/${key}` +
-    (TEAM_ID ? `?teamId=${TEAM_ID}` : '')
-  const r = await fetch(url, {
-    headers: { Authorization: `Bearer ${VERCEL_TOKEN}` },
-    cache: 'no-store',
-  })
-  if (r.status === 404 || r.status === 204) return null
-  if (!r.ok) throw new Error('edge GET ' + r.status)
-  const text = await r.text().catch(() => '')
-  if (!text || !String(text).trim()) return null
-  let data
-  try {
-    data = JSON.parse(text)
-  } catch {
-    return null
+function restHeaders(extra = {}) {
+  return {
+    apikey: SUPABASE_KEY,
+    Authorization: `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    Prefer: 'return=representation',
+    ...extra,
   }
-  // API may return value directly or { key, value }
-  if (data && typeof data === 'object' && 'value' in data && data.key === key) {
-    return data.value
-  }
-  return data
 }
 
-async function writeEdgeKey(key, value) {
-  assertConfig()
-  const url =
-    `https://api.vercel.com/v1/edge-config/${EDGE_ID}/items` +
-    (TEAM_ID ? `?teamId=${TEAM_ID}` : '')
-  const payload = {
-    items: [
-      {
-        operation: 'upsert',
-        key,
-        value,
-      },
-    ],
-  }
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
+async function sbFetch(path, options = {}) {
+  assertConfig()
+  const url = `${SUPABASE_URL}/rest/v1/${path.replace(/^\//, '')}`
+  let lastErr = null
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      const r = await fetch(url, {
+        ...options,
+        headers: restHeaders(options.headers || {}),
+        cache: 'no-store',
+      })
+      const text = await r.text()
+      let data = null
+      if (text && text.trim()) {
+        try {
+          data = JSON.parse(text)
+        } catch {
+          data = text
+        }
+      }
+      if (!r.ok) {
+        const msg =
+          (data && data.message) ||
+          (data && data.error) ||
+          (typeof data === 'string' ? data : '') ||
+          `supabase ${r.status}`
+        const err = new Error(msg)
+        err.status = r.status
+        err.body = data
+        throw err
+      }
+      return data
+    } catch (err) {
+      lastErr = err
+      if (
+        err &&
+        err.status &&
+        err.status >= 400 &&
+        err.status < 500 &&
+        err.status !== 429
+      ) {
+        throw err
+      }
+      await sleep(80 * attempt * attempt)
+    }
+  }
+  throw lastErr || new Error('supabase fetch failed')
+}
+
+async function readOpsKey(key) {
+  const rows = await sbFetch(
+    `ops_kv?key=eq.${encodeURIComponent(key)}&select=key,value,updated_at`,
+    { method: 'GET' },
+  )
+  if (!Array.isArray(rows) || !rows.length) return null
+  return rows[0].value
+}
+
+async function writeOpsKey(key, value) {
+  const payload = {
+    key: String(key),
+    value,
+    updated_at: new Date().toISOString(),
+  }
   let lastErr = null
   for (let attempt = 1; attempt <= 3; attempt++) {
-    const r = await fetch(url, {
-      method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${VERCEL_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    })
-    if (r.ok) return
-    const text = await r.text().catch(() => '')
-    lastErr = new Error('edge PATCH ' + r.status + ' ' + text.slice(0, 180))
-    // Reintentar solo ante conflictos/transitorios
-    if (r.status !== 409 && r.status !== 429 && r.status < 500) break
-    await new Promise((resolve) => setTimeout(resolve, 120 * attempt))
+    try {
+      await sbFetch('ops_kv?on_conflict=key', {
+        method: 'POST',
+        headers: {
+          Prefer: 'resolution=merge-duplicates,return=representation',
+        },
+        body: JSON.stringify(payload),
+      })
+      return
+    } catch (err) {
+      lastErr = err
+      const status = err && err.status
+      if (status !== 409 && status !== 429 && !(status >= 500)) break
+      await sleep(120 * attempt)
+    }
   }
-  throw lastErr || new Error('edge PATCH failed')
+  throw lastErr || new Error('ops_kv write failed')
 }
 
-async function readEdge() {
-  const value = await readEdgeKey(ITEM_KEY)
+async function readItems() {
+  const value = await readOpsKey(ITEM_KEY)
   if (Array.isArray(value)) return value
   if (value && Array.isArray(value.items)) return value.items
   return []
 }
 
-async function writeEdge(items) {
-  await writeEdgeKey(ITEM_KEY, { items, updatedAt: Date.now() })
+async function writeItems(items) {
+  await writeOpsKey(ITEM_KEY, { items, updatedAt: Date.now() })
 }
 
 function normalizeAlerts(value) {
@@ -134,15 +191,14 @@ function normalizeAlerts(value) {
 }
 
 async function loadItems() {
-  // Siempre leer de Edge Config para no servir datos viejos entre instancias
-  const items = await readEdge()
+  const items = await readItems()
   memory = { items, updatedAt: Date.now() }
   return items
 }
 
 async function saveItems(items) {
   memory = { items, updatedAt: Date.now() }
-  await writeEdge(items)
+  await writeItems(items)
   return items
 }
 
@@ -182,7 +238,7 @@ export async function updateReserva(id, patch) {
 }
 
 async function loadAlerts() {
-  const value = await readEdgeKey(ALERTS_KEY)
+  const value = await readOpsKey(ALERTS_KEY)
   return normalizeAlerts(value)
 }
 
@@ -191,7 +247,7 @@ async function saveAlerts(alerts) {
     alerts: alerts.slice(0, ALERTS_MAX),
     updatedAt: Date.now(),
   }
-  await writeEdgeKey(ALERTS_KEY, payload)
+  await writeOpsKey(ALERTS_KEY, payload)
   return payload
 }
 
@@ -226,3 +282,7 @@ export async function ackTpvReservaAlert(id) {
 
 /** Compat: algunos scripts antiguos importaban STORE */
 export const STORE = ''
+
+export function getStoreBackend() {
+  return SUPABASE_URL && SUPABASE_KEY ? 'supabase-ops_kv' : 'none'
+}
