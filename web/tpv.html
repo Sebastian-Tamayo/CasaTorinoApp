@@ -709,6 +709,12 @@
       color: #f8fbff; box-shadow: 0 10px 28px rgba(37,99,235,.28);
       display: inline-flex; align-items: center; justify-content: center; gap: .35rem;
     }
+    .btn.f {
+      grid-column: 1 / -1;
+      background: linear-gradient(135deg, #f5c518, #d4a017);
+      color: #1a1200; box-shadow: 0 10px 28px rgba(212,160,23,.28);
+      display: inline-flex; align-items: center; justify-content: center; gap: .45rem;
+    }
     .btn.p {
       background: linear-gradient(135deg, #2dd46f, #16a34a);
       color: #04140a; box-shadow: 0 10px 28px rgba(45,212,111,.28);
@@ -1290,6 +1296,9 @@
     .jornada-actions .btn-j.total { border-color: rgba(245,197,24,.45); color: var(--gold); }
     .jornada-actions .btn-j.end { border-color: rgba(251,113,133,.45); color: #fda4af; }
     .jornada-actions .btn-j.print { border-color: rgba(147,197,253,.45); color: #93c5fd; }
+    .jornada-actions .btn-j.fiscal {
+      border-color: rgba(245,197,24,.45); color: #fde68a;
+    }
     .jornada-actions .btn-j.edit-carta {
       border-color: rgba(167,139,250,.5); color: #c4b5fd;
     }
@@ -1767,6 +1776,7 @@
         <button class="btn-j total" id="btnJornadaTotal" type="button"><i class="fa-solid fa-chart-column"></i> Total de jornada</button>
         <button class="btn-j end" id="btnJornadaEnd" type="button" disabled><i class="fa-solid fa-flag-checkered"></i> Fin de sesión</button>
         <button class="btn-j print" id="btnPrintTest" type="button" title="Probar impresora POS-58"><i class="fa-solid fa-print"></i> Probar ticket</button>
+        <button class="btn-j fiscal" id="btnFiscal" type="button" title="NIF y datos del local para facturas"><i class="fa-solid fa-building-columns"></i> Datos fiscales</button>
         <button class="btn-j" id="btnMenuSchedule" type="button" title="Auto: finde + festivos Gijón · o mostrar todos"><i class="fa-solid fa-calendar-week"></i> Menús: auto</button>
         <button class="btn-j edit-carta" id="btnEditarCarta" type="button" title="Editar productos y precios"><i class="fa-solid fa-pen-to-square"></i> Editar Carta</button>
         <button class="btn-j fichaje" id="btnFichaje" type="button" title="Registro horario camareras"><i class="fa-solid fa-fingerprint"></i> Fichaje</button>
@@ -1848,6 +1858,7 @@
             <button class="btn g" id="btnClear2" type="button">Vaciar</button>
             <button class="btn t" id="btnTicket" type="button"><i class="fa-solid fa-receipt"></i> Ticket todo</button>
             <button class="btn p" id="btnDone" type="button">Cobrar todo</button>
+            <button class="btn f" id="btnFactura" type="button"><i class="fa-solid fa-file-invoice"></i> Factura</button>
           </div>
         </div>
       </aside>
@@ -2034,6 +2045,66 @@
     </div>
   </div>
 
+  <div class="jornada-modal" id="facturaModal" hidden role="dialog" aria-modal="true" aria-labelledby="facturaModalTitle">
+    <div class="jornada-card">
+      <div class="jornada-card-h">
+        <button type="button" class="btn-modal-back" id="facturaBack" aria-label="Volver">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </button>
+        <h3 id="facturaModalTitle">Factura simplificada</h3>
+      </div>
+      <p class="sub">Datos del cliente para imprimir en la POS-58. Si quiere deducir IVA, NIF y domicilio son obligatorios.</p>
+      <div class="jornada-grand" style="margin-bottom:.75rem">
+        <span>Total</span>
+        <strong id="facturaGrand">0,00 €</strong>
+      </div>
+      <p class="sub" id="facturaNextHint" style="margin-top:-.35rem">Nº previsto: —</p>
+      <div class="jornada-sec">
+        <h4>Cliente</h4>
+        <label for="facturaClientName" style="display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin:.35rem 0 .25rem">Nombre / razón social *</label>
+        <input type="text" id="facturaClientName" autocomplete="organization" placeholder="Nombre del cliente o empresa" style="width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:#0b0f14;color:#fff;padding:.5rem .75rem;font-weight:700;font-size:1rem;margin-bottom:.45rem" />
+        <label for="facturaClientNif" style="display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin:.35rem 0 .25rem">NIF / CIF *</label>
+        <input type="text" id="facturaClientNif" autocomplete="off" placeholder="12345678A" maxlength="12" style="width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:#0b0f14;color:#fff;padding:.5rem .75rem;font-weight:700;font-size:1rem;text-transform:uppercase;margin-bottom:.45rem" />
+        <label for="facturaClientAddress" style="display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin:.35rem 0 .25rem">Domicilio (recomendado)</label>
+        <input type="text" id="facturaClientAddress" autocomplete="street-address" placeholder="Calle, nº · CP · Ciudad" style="width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:#0b0f14;color:#fff;padding:.5rem .75rem;font-weight:700;font-size:1rem" />
+      </div>
+      <div class="close-row" style="gap:.5rem;margin-top:1rem">
+        <button type="button" id="facturaCancel">Cancelar</button>
+        <button type="button" id="facturaConfirm" style="background:var(--gold);color:var(--ink);font-weight:800">
+          <i class="fa-solid fa-print"></i> Imprimir factura
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="jornada-modal" id="fiscalModal" hidden role="dialog" aria-modal="true" aria-labelledby="fiscalModalTitle">
+    <div class="jornada-card">
+      <div class="jornada-card-h">
+        <button type="button" class="btn-modal-back" id="fiscalBack" aria-label="Volver">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </button>
+        <h3 id="fiscalModalTitle">Datos fiscales del local</h3>
+      </div>
+      <p class="sub">Emisor de las facturas simplificadas. El NIF/CIF es obligatorio para emitir.</p>
+      <div class="jornada-sec">
+        <label for="fiscalNif" style="display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin:.35rem 0 .25rem">NIF / CIF del local *</label>
+        <input type="text" id="fiscalNif" maxlength="12" placeholder="B12345678" style="width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:#0b0f14;color:#fff;padding:.5rem .75rem;font-weight:700;font-size:1rem;text-transform:uppercase;margin-bottom:.45rem" />
+        <label for="fiscalLegalName" style="display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin:.35rem 0 .25rem">Nombre / razón social</label>
+        <input type="text" id="fiscalLegalName" placeholder="CASA TORINO" style="width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:#0b0f14;color:#fff;padding:.5rem .75rem;font-weight:700;font-size:1rem;margin-bottom:.45rem" />
+        <label for="fiscalAddress" style="display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin:.35rem 0 .25rem">Dirección</label>
+        <input type="text" id="fiscalAddress" placeholder="Ctra. Ceares, 67" style="width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:#0b0f14;color:#fff;padding:.5rem .75rem;font-weight:700;font-size:1rem;margin-bottom:.45rem" />
+        <label for="fiscalCity" style="display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin:.35rem 0 .25rem">Localidad</label>
+        <input type="text" id="fiscalCity" placeholder="Gijón" style="width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:#0b0f14;color:#fff;padding:.5rem .75rem;font-weight:700;font-size:1rem;margin-bottom:.45rem" />
+        <label for="fiscalPhone" style="display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin:.35rem 0 .25rem">Teléfono</label>
+        <input type="text" id="fiscalPhone" placeholder="612 254 719" style="width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:#0b0f14;color:#fff;padding:.5rem .75rem;font-weight:700;font-size:1rem" />
+      </div>
+      <div class="close-row" style="gap:.5rem;margin-top:1rem">
+        <button type="button" id="fiscalCancel">Cancelar</button>
+        <button type="button" id="fiscalSave" style="background:var(--gold);color:var(--ink);font-weight:800">Guardar</button>
+      </div>
+    </div>
+  </div>
+
   <div class="jornada-modal" id="jornadaModal" hidden role="dialog" aria-modal="true" aria-labelledby="jornadaModalTitle">
     <div class="jornada-card">
       <div class="jornada-card-h">
@@ -2107,6 +2178,7 @@
   <script src="carta.js"></script>
   <script src="tpv-data.js"></script>
   <script src="printService.js"></script>
+  <script src="tpvFacturas.js"></script>
   <script src="tpvSync.js?v=mesa-clear-sticky-20260920"></script>
   <script src="tpvJornada.js"></script>
   <script src="kitchenSync.js"></script>
@@ -3437,6 +3509,182 @@
         }
       }
 
+      function closeFacturaModal() {
+        const modal = $('facturaModal')
+        if (modal) modal.hidden = true
+      }
+
+      function closeFiscalModal() {
+        const modal = $('fiscalModal')
+        if (modal) modal.hidden = true
+      }
+
+      async function ensureFiscalConfigured(forceOpen) {
+        if (!window.CasaTorinoTpvFacturas?.getStatus) {
+          alert('Servicio de facturas no cargado.\nRecarga la página.')
+          return null
+        }
+        let status
+        try {
+          status = await window.CasaTorinoTpvFacturas.getStatus()
+        } catch (err) {
+          console.warn('fiscal status', err)
+          alert('No se pudieron cargar los datos fiscales.\n' + (err.message || err))
+          return null
+        }
+        if (status?.fiscal) {
+          window.CasaTorinoPrint?.setFiscalEmitter?.(status.fiscal)
+        }
+        if (forceOpen || !status?.fiscal?.configured) {
+          openFiscalModal(status)
+          return null
+        }
+        return status
+      }
+
+      function openFiscalModal(status) {
+        const f = status?.fiscal || window.CasaTorinoPrint?.getFiscalEmitter?.() || {}
+        if ($('fiscalNif')) $('fiscalNif').value = f.nif || ''
+        if ($('fiscalLegalName')) $('fiscalLegalName').value = f.legalName || 'CASA TORINO'
+        if ($('fiscalAddress')) $('fiscalAddress').value = f.address || 'Ctra. Ceares, 67'
+        if ($('fiscalCity')) $('fiscalCity').value = f.city || 'Gijón'
+        if ($('fiscalPhone')) $('fiscalPhone').value = f.phone || '612 254 719'
+        const modal = $('fiscalModal')
+        if (modal) modal.hidden = false
+      }
+
+      async function saveFiscalData() {
+        const fiscal = {
+          nif: ($('fiscalNif')?.value || '').trim(),
+          legalName: ($('fiscalLegalName')?.value || '').trim(),
+          address: ($('fiscalAddress')?.value || '').trim(),
+          city: ($('fiscalCity')?.value || '').trim(),
+          phone: ($('fiscalPhone')?.value || '').trim(),
+        }
+        if (!fiscal.nif || fiscal.nif.replace(/\s+/g, '').length < 8) {
+          alert('Indica el NIF/CIF del local (emisor).')
+          $('fiscalNif')?.focus()
+          return
+        }
+        const btn = $('fiscalSave')
+        if (btn) btn.disabled = true
+        try {
+          const status = await window.CasaTorinoTpvFacturas.setFiscal(fiscal)
+          window.CasaTorinoPrint?.setFiscalEmitter?.(status.fiscal || fiscal)
+          closeFiscalModal()
+          alert('Datos fiscales guardados.')
+        } catch (err) {
+          console.warn('setFiscal', err)
+          alert('No se pudieron guardar.\n' + (err.message || err))
+        } finally {
+          if (btn) btn.disabled = false
+        }
+      }
+
+      async function openFacturaModal() {
+        const scope = chargeScope()
+        if (!scope.count) {
+          alert('La cuenta está vacía.')
+          return
+        }
+        const status = await ensureFiscalConfigured(false)
+        if (!status) return
+        if ($('facturaGrand')) $('facturaGrand').textContent = money(scope.total)
+        if ($('facturaNextHint')) {
+          $('facturaNextHint').textContent = status.nextNumber
+            ? `Nº previsto: ${status.nextNumber}`
+            : 'Nº previsto: —'
+        }
+        if ($('facturaClientName')) $('facturaClientName').value = ''
+        if ($('facturaClientNif')) $('facturaClientNif').value = ''
+        if ($('facturaClientAddress')) $('facturaClientAddress').value = ''
+        const modal = $('facturaModal')
+        if (modal) modal.hidden = false
+        setTimeout(() => $('facturaClientName')?.focus(), 50)
+      }
+
+      async function confirmFacturaPrint() {
+        const scope = chargeScope()
+        if (!scope.count) {
+          alert('La cuenta está vacía.')
+          return
+        }
+        const client = {
+          name: ($('facturaClientName')?.value || '').trim(),
+          nif: ($('facturaClientNif')?.value || '').trim().toUpperCase().replace(/\s+/g, ''),
+          address: ($('facturaClientAddress')?.value || '').trim(),
+        }
+        if (!client.name) {
+          alert('Indica el nombre o razón social del cliente.')
+          $('facturaClientName')?.focus()
+          return
+        }
+        if (!client.nif || client.nif.length < 8) {
+          alert('Indica el NIF/CIF del cliente.')
+          $('facturaClientNif')?.focus()
+          return
+        }
+        if (!window.CasaTorinoPrint?.printInvoice) {
+          alert('Servicio de impresión no cargado.\nRecarga la página.')
+          return
+        }
+        const m = normalizeMesa(state.mesa)
+        const notes = ($('notes')?.value || state.notes || '').trim()
+        const cartItems = scope.ls.map((l) => ({ name: l.name, qty: l.qty, price: l.price }))
+        const btn = $('facturaConfirm')
+        if (btn) btn.disabled = true
+        try {
+          const issued = await window.CasaTorinoTpvFacturas.issue({
+            client,
+            lines: cartItems,
+            total: scope.total,
+            base: scope.base,
+            iva: scope.iva,
+            ivaRate: IVA_RATE,
+            mesa: m || '',
+            notes: notes || '',
+            payments: Array.isArray(payDraft?.payments) ? payDraft.payments : [],
+          })
+          if (issued?.fiscal) {
+            window.CasaTorinoPrint.setFiscalEmitter?.(issued.fiscal)
+          }
+          const number = issued?.number || issued?.invoice?.number
+          const ok = await window.CasaTorinoPrint.printInvoice(cartItems, scope.total, {
+            number,
+            mesa: m || undefined,
+            notes: notes || undefined,
+            base: scope.base,
+            iva: scope.iva,
+            ivaRate: IVA_RATE,
+            client,
+            emitter: issued?.fiscal || issued?.invoice?.emitter,
+            payments: Array.isArray(payDraft?.payments) ? payDraft.payments : undefined,
+            openDrawer: false,
+          })
+          if (ok) {
+            closeFacturaModal()
+            try {
+              const toast = $('tpvToast')
+              if (toast) {
+                toast.textContent = `Factura ${number || ''} impresa`
+                toast.classList.add('show')
+                setTimeout(() => toast.classList.remove('show'), 2200)
+              }
+            } catch {}
+          }
+        } catch (err) {
+          console.warn('factura', err)
+          if (err?.data?.needFiscal || /NIF\/CIF del local/i.test(String(err.message || ''))) {
+            closeFacturaModal()
+            await ensureFiscalConfigured(true)
+            return
+          }
+          alert('No se pudo emitir la factura.\n' + (err.message || err))
+        } finally {
+          if (btn) btn.disabled = false
+        }
+      }
+
       function cloneJson(v) {
         try { return JSON.parse(JSON.stringify(v)) } catch { return null }
       }
@@ -4046,6 +4294,11 @@
           $('btnTicket').innerHTML = hasSel
             ? '<i class="fa-solid fa-receipt"></i> Ticket selección'
             : '<i class="fa-solid fa-receipt"></i> Ticket todo'
+        }
+        if ($('btnFactura')) {
+          $('btnFactura').innerHTML = hasSel
+            ? '<i class="fa-solid fa-file-invoice"></i> Factura selección'
+            : '<i class="fa-solid fa-file-invoice"></i> Factura'
         }
         if ($('btnDone')) {
           $('btnDone').textContent = hasSel ? 'Cobrar selección' : 'Cobrar todo'
@@ -4906,6 +5159,14 @@
       $('btnKitchen').onclick = sendToKitchen
       $('btnNextCourse').onclick = sendNextCourse
       $('btnTicket').onclick = printTicketOnly
+      $('btnFactura')?.addEventListener('click', () => { openFacturaModal() })
+      $('facturaCancel')?.addEventListener('click', () => { closeFacturaModal() })
+      $('facturaBack')?.addEventListener('click', () => { closeFacturaModal() })
+      $('facturaConfirm')?.addEventListener('click', () => { confirmFacturaPrint() })
+      $('btnFiscal')?.addEventListener('click', () => { ensureFiscalConfigured(true) })
+      $('fiscalCancel')?.addEventListener('click', () => { closeFiscalModal() })
+      $('fiscalBack')?.addEventListener('click', () => { closeFiscalModal() })
+      $('fiscalSave')?.addEventListener('click', () => { saveFiscalData() })
       $('btnDone').onclick = done
       $('payCancel')?.addEventListener('click', () => { closePayModal() })
       $('payBack')?.addEventListener('click', () => { closePayModal() })
@@ -5167,6 +5428,16 @@
         (j) => paintJornadaStatus(j),
         () => lockTpvForPin('Sesión caducada — introduce el PIN'),
       )
+
+      // Precargar NIF/datos fiscales del emisor para facturas
+      ;(async () => {
+        try {
+          const st = await window.CasaTorinoTpvFacturas?.getStatus?.()
+          if (st?.fiscal) window.CasaTorinoPrint?.setFiscalEmitter?.(st.fiscal)
+        } catch (err) {
+          console.warn('fiscal preload', err)
+        }
+      })()
 
       function startTpvSyncPolling() {
         window.CasaTorinoTpvSync?.start(
