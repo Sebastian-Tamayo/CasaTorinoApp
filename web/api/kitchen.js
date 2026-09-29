@@ -1,6 +1,6 @@
 /**
  * Casa Torino — Kitchen Display (KDS)
- * Persistencia: Vercel Blob vía api/_opsStore.js (clave `kitchen`).
+ * Persistencia: Supabase ops_kv vía api/_opsStore.js (clave `kitchen`).
  *
  * GET  /api/kitchen
  * POST /api/kitchen  { action: create|complete|undo|clear|resetHistory|syncJornada }

@@ -1,6 +1,6 @@
 /**
  * Casa Torino TPV — Jornada / sesión de caja
- * Persistencia: Vercel Edge Config (misma que TPV), clave `jornada`.
+ * Persistencia: Supabase ops_kv, clave `jornada`.
  *
  * GET  /api/tpv-jornada → estado actual + totales
  * POST /api/tpv-jornada → { action: 'start'|'end'|'sale'|'updateSale'|'updateLine'|'deleteSale'|'reset' }
@@ -11,9 +11,6 @@
  * - updateSale / updateLine / deleteSale: corregir errores (open u ended)
  * - reset: borra jornada (tras confirmación en cliente)
  */
-const EDGE_ID = process.env.TPV_EDGE_CONFIG_ID
-const TEAM_ID = process.env.TPV_TEAM_ID
-const VERCEL_TOKEN = process.env.TPV_VERCEL_TOKEN
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'jornada'
 const SALES_MAX = 500

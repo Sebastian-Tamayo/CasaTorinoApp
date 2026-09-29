@@ -107,7 +107,7 @@ npm run build && npm run preview
 ```
 
 Variables: `reservas/.env.example` → `.env.local` / Vercel  
-(`RESERVAS_EDGE_CONFIG_ID`, `RESERVAS_TEAM_ID`, `RESERVAS_VERCEL_TOKEN`).
+(`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`).
 
 ---
 
@@ -124,7 +124,7 @@ Guía: [`../docs/TECNICO.md`](../docs/TECNICO.md) §4 y §6.
 
 1. **Personal primero** — menos pasos en la reserva presencial.  
 2. **PIN simple** — velocidad en sala frente a OAuth.  
-3. **Serverless + Edge Config** — sin servidor que mantener.  
+3. **Serverless + Supabase ops_kv** — sin servidor que mantener.  
 4. **Extensión, no monolito** — respeta web y ERP.  
 
 ---
