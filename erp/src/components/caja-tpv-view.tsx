@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Download } from "lucide-react";
 import { MonthSelector } from "@/components/month-selector";
+import { TopVentasView } from "@/components/top-ventas-view";
 import { fetchCierres, type CierreItem } from "@/lib/cierres";
+import { descargarInformeCierresMes } from "@/lib/descargar-informe";
 import { round2 } from "@/lib/fiscal";
 import { labelMes, mesActualKey, type MesKey } from "@/lib/meses";
 
@@ -53,6 +56,7 @@ function paymentTipLine(totals?: PaymentTipTotals | null) {
   );
 }
 
+/** Caja TPV original + Top ventas + descargas de informe. */
 export function CajaTpvView() {
   const [mesKey, setMesKey] = useState<MesKey>(() => mesActualKey());
   const [items, setItems] = useState<CierreItem[]>([]);
@@ -116,6 +120,21 @@ export function CajaTpvView() {
     };
   }, [mesKey]);
 
+  function onDescargarCierres() {
+    descargarInformeCierresMes({
+      mesLabel: labelMes(mesKey),
+      mesKey,
+      total,
+      tickets,
+      comida,
+      bebida,
+      items,
+      efectivo: monthPayment?.byPayment?.efectivo?.total,
+      tarjeta: monthPayment?.byPayment?.tarjeta?.total,
+      tip: monthPayment?.tipTotal,
+    });
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <header>
@@ -141,7 +160,23 @@ export function CajaTpvView() {
           {formatImporte(bebida)}
           {paymentTipLine(monthPayment)}
         </p>
+        <button
+          type="button"
+          onClick={onDescargarCierres}
+          disabled={loading || Boolean(error)}
+          className="mt-4 flex min-h-touch w-full items-center justify-center gap-2 rounded-tpv bg-ink text-sm font-bold text-cream transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          <Download className="size-4" aria-hidden />
+          Descargar informe · {labelMes(mesKey)}
+        </button>
+        <p className="mt-1.5 text-center text-[11px] text-ink/45">
+          Excel (.xls) + vista para guardar PDF
+        </p>
       </article>
+
+      <div className="rounded-tpv-lg border-2 border-oro/25 bg-card p-4 shadow-tpv">
+        <TopVentasView />
+      </div>
 
       {loading ? (
         <p className="text-sm text-ink/50">Cargando…</p>
@@ -159,7 +194,10 @@ export function CajaTpvView() {
             items.map((c) => {
               const open = openId === c.id;
               return (
-                <li key={c.id} className="overflow-hidden rounded-tpv-lg bg-card shadow-tpv">
+                <li
+                  key={c.id}
+                  className="overflow-hidden rounded-tpv-lg bg-card shadow-tpv"
+                >
                   <button
                     type="button"
                     onClick={() => setOpenId(open ? null : c.id)}
@@ -207,8 +245,7 @@ export function CajaTpvView() {
                           </p>
                           {(c.totals?.tipTotal ?? 0) > 0 ? (
                             <p>
-                              Propina:{" "}
-                              {formatImporte(c.totals?.tipTotal ?? 0)}
+                              Propina: {formatImporte(c.totals?.tipTotal ?? 0)}
                             </p>
                           ) : null}
                         </>

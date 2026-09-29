@@ -19,6 +19,7 @@ const masPaths = [
   "/gestion/proveedores",
   "/gestion/rrhh",
   "/gestion/fiscal",
+  "/gestion/top-ventas",
 ];
 
 export function BottomNav() {
