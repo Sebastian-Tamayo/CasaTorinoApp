@@ -16,14 +16,14 @@ export const ONLINE_API_BASE = '/api/reservas'
 
 /** 4 personas del equipo. PIN interno (no público). */
 export const STAFF = [
-  { id: 'lorena', name: 'Lorena', pin: '3212' },
-  { id: 'yuli', name: 'Yuli', pin: '3212' },
-  { id: 'dayana', name: 'Dayana', pin: '3212' },
-  { id: 'claribel', name: 'Claribel', pin: '3212' },
+  { id: 'lorena', name: 'Lorena', pin: '0912' },
+  { id: 'yuli', name: 'Yuli', pin: '0912' },
+  { id: 'dayana', name: 'Dayana', pin: '0912' },
+  { id: 'claribel', name: 'Claribel', pin: '0912' },
 ] as const
 
 /** PIN común del personal (reservas / TPV / cocina / interno). */
-export const STAFF_PIN = '3212' as const
+export const STAFF_PIN = '0912' as const
 
 /** Gestión interna (hub del personal en la web). */
 export const INTERNO_URL = 'https://casa-torino-web.vercel.app/interno.html' as const
