@@ -1300,7 +1300,12 @@
       border-color: rgba(251,191,36,.5); color: #fcd34d;
       position: relative;
     }
-    .jornada-actions .btn-j.shift-notes .notes-badge {
+    .jornada-actions .btn-j.reservas-quick {
+      border-color: rgba(52,211,153,.5); color: #6ee7b7;
+      position: relative;
+    }
+    .jornada-actions .btn-j.shift-notes .notes-badge,
+    .jornada-actions .btn-j.reservas-quick .notes-badge {
       position: absolute;
       top: -.35rem;
       right: -.25rem;
@@ -1315,7 +1320,12 @@
       line-height: 1.15rem;
       text-align: center;
     }
-    .jornada-actions .btn-j.shift-notes .notes-badge[hidden] { display: none !important; }
+    .jornada-actions .btn-j.reservas-quick .notes-badge {
+      background: #34d399;
+      color: #052e1c;
+    }
+    .jornada-actions .btn-j.shift-notes .notes-badge[hidden],
+    .jornada-actions .btn-j.reservas-quick .notes-badge[hidden] { display: none !important; }
     .shift-notes-tabs {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -1452,6 +1462,129 @@
       padding: 1rem .5rem;
     }
     .shift-notes-empty[hidden] { display: none !important; }
+    .reservas-quick-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .5rem;
+      margin: .35rem 0 .75rem;
+    }
+    .reservas-quick-actions a,
+    .reservas-quick-actions button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: .4rem;
+      min-height: 2.65rem;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: .82rem;
+      text-decoration: none;
+      cursor: pointer;
+      border: 1px solid transparent;
+      padding: .45rem .55rem;
+    }
+    .reservas-quick-actions .btn-open-reservas {
+      border-color: rgba(52,211,153,.5);
+      background: linear-gradient(180deg, rgba(16,185,129,.38), rgba(5,150,105,.28));
+      color: #bbf7d0;
+    }
+    .reservas-quick-actions .btn-refresh-reservas {
+      border-color: rgba(245,197,24,.35);
+      background: rgba(255,255,255,.05);
+      color: var(--gold);
+    }
+    .reservas-quick-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .45rem .7rem;
+      margin: 0 0 .7rem;
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 700;
+    }
+    .reservas-quick-summary strong { color: var(--gold); font-weight: 800; }
+    .reservas-quick-list {
+      display: grid;
+      gap: .55rem;
+      max-height: min(48vh, 380px);
+      overflow: auto;
+      padding-right: .15rem;
+    }
+    .reserva-quick-item {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: .65rem;
+      padding: .7rem .75rem;
+      border-radius: 12px;
+      border: 1px solid rgba(52,211,153,.22);
+      background: rgba(255,255,255,.04);
+    }
+    .reserva-quick-item .rq-hora {
+      min-width: 3.4rem;
+      text-align: center;
+      font-weight: 900;
+      font-size: 1.05rem;
+      color: #6ee7b7;
+      line-height: 1.15;
+      padding-top: .1rem;
+    }
+    .reserva-quick-item .rq-hora small {
+      display: block;
+      margin-top: .15rem;
+      font-size: .68rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .reserva-quick-item .rq-body { min-width: 0; }
+    .reserva-quick-item .rq-body strong {
+      display: block;
+      font-size: .95rem;
+      color: var(--text);
+      letter-spacing: .01em;
+    }
+    .reserva-quick-item .rq-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .25rem .55rem;
+      margin-top: .25rem;
+      color: var(--muted);
+      font-size: .75rem;
+      font-weight: 700;
+    }
+    .reserva-quick-item .rq-meta a {
+      color: #93c5fd;
+      text-decoration: none;
+    }
+    .reserva-quick-item .rq-notas {
+      margin: .3rem 0 0;
+      color: #fde68a;
+      font-size: .78rem;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    .reserva-quick-item .rq-estado {
+      display: inline-block;
+      margin-top: .35rem;
+      padding: .12rem .45rem;
+      border-radius: 999px;
+      font-size: .68rem;
+      font-weight: 800;
+      letter-spacing: .02em;
+      border: 1px solid rgba(255,255,255,.12);
+      color: var(--muted);
+    }
+    .reserva-quick-item .rq-estado.confirmada {
+      border-color: rgba(52,211,153,.45);
+      color: #86efac;
+      background: rgba(16,185,129,.12);
+    }
+    .reserva-quick-item .rq-estado.completada {
+      border-color: rgba(147,197,253,.4);
+      color: #93c5fd;
+    }
+    @media (max-width: 520px) {
+      .reservas-quick-actions { grid-template-columns: 1fr; }
+    }
     .jornada-actions .btn-j.add-plato {
       border-color: rgba(52,211,153,.5); color: #86efac;
     }
@@ -1930,6 +2063,10 @@
           <i class="fa-solid fa-clipboard-list"></i> Notas
           <span class="notes-badge" id="shiftNotesBadge" hidden>0</span>
         </button>
+        <button class="btn-j reservas-quick" id="btnReservasQuick" type="button" title="Resumen de reservas del día">
+          <i class="fa-solid fa-calendar-check"></i> Reservas
+          <span class="notes-badge" id="reservasQuickBadge" hidden>0</span>
+        </button>
         <button class="btn-j add-plato" id="btnAddPlato" type="button" hidden title="Añadir plato nuevo"><i class="fa-solid fa-plus"></i> Añadir plato</button>
         <button class="btn-j close-edit" id="btnCerrarEdicion" type="button" hidden title="Volver al modo comandas"><i class="fa-solid fa-xmark"></i> Cerrar Edición</button>
       </div>
@@ -2290,6 +2427,37 @@
       </div>
       <div class="shift-notes-list" id="shiftNotesList" aria-live="polite"></div>
       <p class="shift-notes-empty" id="shiftNotesEmpty" hidden>No hay notas pendientes en esta pestaña.</p>
+    </div>
+  </div>
+
+  <div class="jornada-modal" id="reservasQuickModal" hidden role="dialog" aria-modal="true" aria-labelledby="reservasQuickModalTitle">
+    <div class="jornada-card">
+      <div class="jornada-card-h">
+        <button type="button" class="btn-modal-back" id="reservasQuickBack" aria-label="Volver">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </button>
+        <h3 id="reservasQuickModalTitle">Reservas</h3>
+      </div>
+      <p class="sub">Resumen rápido · mismo listado que la app de personal</p>
+      <div class="reservas-quick-actions">
+        <a class="btn-open-reservas" id="reservasQuickOpenApp" href="https://reservas-casatorino.vercel.app/" target="_blank" rel="noopener">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir / nueva reserva
+        </a>
+        <button type="button" class="btn-refresh-reservas" id="reservasQuickRefresh">
+          <i class="fa-solid fa-rotate"></i> Actualizar
+        </button>
+      </div>
+      <div class="shift-notes-tabs" role="tablist" aria-label="Filtro de reservas">
+        <button type="button" class="active" role="tab" aria-selected="true" data-reservas-tab="hoy" id="reservasTabHoy">
+          Hoy <span id="reservasCountHoy">(0)</span>
+        </button>
+        <button type="button" role="tab" aria-selected="false" data-reservas-tab="proximos" id="reservasTabProximos">
+          Próximos <span id="reservasCountProximos">(0)</span>
+        </button>
+      </div>
+      <div class="reservas-quick-summary" id="reservasQuickSummary"></div>
+      <div class="reservas-quick-list" id="reservasQuickList" aria-live="polite"></div>
+      <p class="shift-notes-empty" id="reservasQuickEmpty" hidden>No hay reservas en este filtro.</p>
     </div>
   </div>
 
@@ -5411,6 +5579,217 @@
       setTimeout(() => {
         if (!document.body.classList.contains('tpv-locked')) loadShiftNotes()
       }, 900)
+
+      // —— Reservas rápidas (resumen desde app de personal) ——
+      const RESERVAS_API = 'https://reservas-casatorino.vercel.app/api/reservas'
+      const RESERVAS_APP_URL = 'https://reservas-casatorino.vercel.app/'
+      let reservasQuickBusy = false
+      let reservasQuickCache = []
+      let reservasQuickTab = 'hoy'
+
+      function madridTodayYmd() {
+        try {
+          const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Europe/Madrid',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          }).formatToParts(new Date())
+          const y = parts.find((p) => p.type === 'year')?.value
+          const m = parts.find((p) => p.type === 'month')?.value
+          const d = parts.find((p) => p.type === 'day')?.value
+          return `${y}-${m}-${d}`
+        } catch {
+          return new Date().toISOString().slice(0, 10)
+        }
+      }
+
+      function formatReservaFecha(ymd) {
+        if (!ymd) return ''
+        const [y, m, d] = String(ymd).split('-')
+        if (!y || !m || !d) return ymd
+        return `${d}/${m}`
+      }
+
+      function isReservaActiva(r) {
+        const est = String(r?.estado || '').toLowerCase()
+        return est !== 'cancelada' && est !== 'no_show'
+      }
+
+      function reservasFiltered() {
+        const hoy = madridTodayYmd()
+        const activas = reservasQuickCache.filter(isReservaActiva)
+        const deHoy = activas
+          .filter((r) => String(r.fecha || '') === hoy)
+          .sort((a, b) => String(a.hora || '').localeCompare(String(b.hora || '')))
+        const proximos = activas
+          .filter((r) => String(r.fecha || '') > hoy)
+          .sort((a, b) =>
+            `${a.fecha}${a.hora}`.localeCompare(`${b.fecha}${b.hora}`),
+          )
+        return { hoy: deHoy, proximos, activas }
+      }
+
+      function updateReservasQuickBadge() {
+        const badge = $('reservasQuickBadge')
+        if (!badge) return
+        const n = reservasFiltered().hoy.length
+        badge.textContent = String(n)
+        badge.hidden = n < 1
+      }
+
+      function renderReservasQuick() {
+        const list = $('reservasQuickList')
+        const empty = $('reservasQuickEmpty')
+        const summary = $('reservasQuickSummary')
+        const countHoy = $('reservasCountHoy')
+        const countProx = $('reservasCountProximos')
+        if (!list) return
+        const { hoy, proximos } = reservasFiltered()
+        if (countHoy) countHoy.textContent = `(${hoy.length})`
+        if (countProx) countProx.textContent = `(${proximos.length})`
+        updateReservasQuickBadge()
+        const items = reservasQuickTab === 'proximos' ? proximos : hoy
+        const pax = items.reduce((a, r) => a + (Number(r.personas) || 0), 0)
+        if (summary) {
+          summary.innerHTML =
+            reservasQuickTab === 'hoy'
+              ? `<span>Hoy · <strong>${items.length}</strong> reservas</span><span>Comensales · <strong>${pax}</strong></span>`
+              : `<span>Próximos días · <strong>${items.length}</strong></span><span>Comensales · <strong>${pax}</strong></span>`
+        }
+        list.innerHTML = ''
+        if (!items.length) {
+          if (empty) empty.hidden = false
+          return
+        }
+        if (empty) empty.hidden = true
+        const frag = document.createDocumentFragment()
+        items.forEach((r) => {
+          const row = document.createElement('article')
+          row.className = 'reserva-quick-item'
+          const horaBox = document.createElement('div')
+          horaBox.className = 'rq-hora'
+          horaBox.textContent = r.hora || '--:--'
+          const fechaSmall = document.createElement('small')
+          fechaSmall.textContent = formatReservaFecha(r.fecha)
+          horaBox.appendChild(fechaSmall)
+          const body = document.createElement('div')
+          body.className = 'rq-body'
+          const name = document.createElement('strong')
+          name.textContent = r.nombre || 'Sin nombre'
+          const meta = document.createElement('div')
+          meta.className = 'rq-meta'
+          const paxEl = document.createElement('span')
+          paxEl.innerHTML = `<i class="fa-solid fa-user-group"></i> ${Number(r.personas) || 0}p`
+          meta.appendChild(paxEl)
+          if (r.codigo) {
+            const cod = document.createElement('span')
+            cod.textContent = r.codigo
+            meta.appendChild(cod)
+          }
+          if (r.telefono) {
+            const tel = document.createElement('a')
+            const digits = String(r.telefono).replace(/[^\d+]/g, '')
+            tel.href = `tel:${digits}`
+            tel.textContent = r.telefono
+            meta.appendChild(tel)
+          }
+          if (r.creadoPor) {
+            const origen = document.createElement('span')
+            origen.textContent =
+              String(r.creadoPor).toLowerCase() === 'web' ? 'Web' : r.creadoPor
+            meta.appendChild(origen)
+          }
+          body.appendChild(name)
+          body.appendChild(meta)
+          if (r.notas) {
+            const notas = document.createElement('p')
+            notas.className = 'rq-notas'
+            notas.textContent = r.notas
+            body.appendChild(notas)
+          }
+          const est = document.createElement('span')
+          const estado = String(r.estado || 'confirmada').toLowerCase()
+          est.className = `rq-estado ${estado}`
+          est.textContent =
+            estado === 'completada'
+              ? 'Hecha'
+              : estado === 'confirmada'
+                ? 'Confirmada'
+                : estado
+          body.appendChild(est)
+          row.appendChild(horaBox)
+          row.appendChild(body)
+          frag.appendChild(row)
+        })
+        list.appendChild(frag)
+      }
+
+      function setReservasQuickTab(tab) {
+        reservasQuickTab = tab === 'proximos' ? 'proximos' : 'hoy'
+        document.querySelectorAll('[data-reservas-tab]').forEach((btn) => {
+          const active = btn.getAttribute('data-reservas-tab') === reservasQuickTab
+          btn.classList.toggle('active', active)
+          btn.setAttribute('aria-selected', active ? 'true' : 'false')
+        })
+        renderReservasQuick()
+      }
+
+      async function loadReservasQuick(opts = {}) {
+        const silent = Boolean(opts.silent)
+        if (reservasQuickBusy) return
+        reservasQuickBusy = true
+        const btn = $('reservasQuickRefresh')
+        if (btn) btn.disabled = true
+        try {
+          const r = await fetch(RESERVAS_API, { cache: 'no-store' })
+          if (!r.ok) throw new Error('No se pudieron cargar las reservas')
+          const data = await r.json().catch(() => [])
+          reservasQuickCache = Array.isArray(data) ? data : []
+          renderReservasQuick()
+          if (!silent) showTpvToast('Reservas actualizadas')
+        } catch (err) {
+          if (!silent) showTpvToast(err.message || 'Error al cargar reservas', true)
+          else console.warn('[reservasQuick]', err)
+          updateReservasQuickBadge()
+        } finally {
+          reservasQuickBusy = false
+          if (btn) btn.disabled = false
+        }
+      }
+
+      async function openReservasQuickModal() {
+        if ($('reservasQuickModal')) $('reservasQuickModal').hidden = false
+        setReservasQuickTab(reservasQuickTab)
+        await loadReservasQuick({ silent: true })
+      }
+
+      function closeReservasQuickModal() {
+        if ($('reservasQuickModal')) $('reservasQuickModal').hidden = true
+      }
+
+      $('btnReservasQuick')?.addEventListener('click', () => {
+        openReservasQuickModal()
+      })
+      $('reservasQuickBack')?.addEventListener('click', closeReservasQuickModal)
+      $('reservasQuickModal')?.addEventListener('click', (e) => {
+        if (e.target === $('reservasQuickModal')) closeReservasQuickModal()
+      })
+      document.querySelectorAll('[data-reservas-tab]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          setReservasQuickTab(btn.getAttribute('data-reservas-tab'))
+        })
+      })
+      $('reservasQuickRefresh')?.addEventListener('click', () => {
+        loadReservasQuick({ silent: false })
+      })
+      const openApp = $('reservasQuickOpenApp')
+      if (openApp) openApp.href = RESERVAS_APP_URL
+      setTimeout(() => {
+        if (!document.body.classList.contains('tpv-locked')) {
+          loadReservasQuick({ silent: true })
+        }
+      }, 1200)
 
       window.addEventListener('popstate', () => {
         if (document.body.classList.contains('tpv-locked')) return
