@@ -49,6 +49,8 @@ Cliente web (clara) → Gestión interna (PIN)
 | Carta / precios | `ops_kv` clave `carta` (+ fallback `web/data/carta.json`) | `GET/POST /api/carta` |
 | Fotos de platos | Storage bucket público `menu_images` (subida con **service role** en servidor) · campo `image_url` | `POST /api/carta-image` · SQL `008`/`009` |
 | Fichajes | Tabla `time_logs` (SQL `007_time_logs.sql`); fallback ops_kv | `web/api/time-logs.js` |
+| Notas de turno TPV | Tabla `shift_notes` (SQL `010_shift_notes.sql`) | `GET/POST /api/shift-notes` · UI en `tpv.html` |
+| Resumen reservas TPV | API reservas (`reservas-casatorino`) | Botón **Reservas** en `tpv.html` · enlace a app personal |
 | Reservas | Supabase `ops_kv` claves `reservas` + `tpvReservaAlerts` | `reservas/server/reservas-store.js` |
 | ERP (gastos, RRHH, docs, fiscal) | Tablas Supabase + RLS | `erp/` |
 
