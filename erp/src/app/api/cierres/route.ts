@@ -1,39 +1,41 @@
 import { NextResponse } from "next/server";
 import { hasErpPinSession } from "@/lib/erp-auth";
+import { getOpsKvJson, hasOpsKvConfig } from "@/lib/ops-kv";
+import {
+  buildCierresResponse,
+  emptyCierres,
+  type CierreItem,
+} from "@/lib/tpv-ops";
 
 export const dynamic = "force-dynamic";
 
-const CIERRES_URL =
-  process.env.TPV_CIERRES_URL ||
-  process.env.NEXT_PUBLIC_TPV_CIERRES_URL ||
-  "https://casa-torino-web.vercel.app/api/tpv-cierres";
-
-function authHeaders(): HeadersInit {
-  const syncKey = (process.env.TPV_SYNC_KEY || "").trim();
-  const erpPin = (process.env.ERP_PIN || process.env.TPV_PIN || "").trim();
-  const headers: Record<string, string> = {
-    "Cache-Control": "no-store",
-  };
-  if (syncKey) headers["X-Tpv-Key"] = syncKey;
-  else if (erpPin) headers["X-Erp-Pin"] = erpPin;
-  return headers;
-}
-
+/** Historial de cierres TPV desde Supabase ops_kv (clave `cierres`). */
 export async function GET(request: Request) {
   const ok = await hasErpPinSession();
   if (!ok) {
     return NextResponse.json({ error: "Sesión ERP requerida" }, { status: 401 });
   }
+  if (!hasOpsKvConfig()) {
+    return NextResponse.json(
+      { error: "Falta configuración Supabase en el ERP" },
+      { status: 500 },
+    );
+  }
 
-  const { searchParams } = new URL(request.url);
-  const month = searchParams.get("month") || "";
-  const url = new URL(CIERRES_URL);
-  if (month) url.searchParams.set("month", month);
-
-  const r = await fetch(url.toString(), {
-    cache: "no-store",
-    headers: authHeaders(),
-  });
-  const data = await r.json().catch(() => ({}));
-  return NextResponse.json(data, { status: r.status });
+  try {
+    const { searchParams } = new URL(request.url);
+    const month = String(searchParams.get("month") || "").trim();
+    const raw = await getOpsKvJson<{
+      items?: CierreItem[];
+      updatedAt?: number;
+    }>("cierres");
+    const store = raw && typeof raw === "object" ? raw : emptyCierres();
+    return NextResponse.json(buildCierresResponse(store, month));
+  } catch (err) {
+    console.error("[erp/api/cierres]", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Error ops_kv" },
+      { status: 500 },
+    );
+  }
 }
