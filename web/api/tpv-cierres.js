@@ -1,6 +1,6 @@
 /**
  * Casa Torino — Historial de cierres de jornada (TPV → ERP)
- * Persistencia: Vercel Blob (opsStore), clave `cierres`.
+ * Persistencia: Supabase ops_kv (opsStore), clave `cierres`.
  */
 const { getJson, setJson } = require('./_opsStore')
 

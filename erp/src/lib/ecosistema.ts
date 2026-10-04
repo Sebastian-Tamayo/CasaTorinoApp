@@ -7,6 +7,7 @@ export const ECOSISTEMA = {
   cocina: "https://casa-torino-web.vercel.app/cocina.html",
   erpLogin: "https://casa-torino-app.vercel.app/login",
   erpApp: "https://casa-torino-app.vercel.app/gestion",
-  cierresApi: "https://casa-torino-web.vercel.app/api/tpv-cierres",
-  jornadaApi: "https://casa-torino-web.vercel.app/api/tpv-jornada",
+  // Caja / Top ventas: el ERP lee Supabase ops_kv (claves cierres + jornada)
+  cierresApi: "/api/cierres",
+  jornadaApi: "/api/jornada",
 } as const;

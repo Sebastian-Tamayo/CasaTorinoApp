@@ -1,35 +1,43 @@
 import { NextResponse } from "next/server";
 import { hasErpPinSession } from "@/lib/erp-auth";
+import { getOpsKvJson, hasOpsKvConfig } from "@/lib/ops-kv";
+import {
+  emptyJornada,
+  withJornadaTotals,
+  type JornadaState,
+} from "@/lib/tpv-ops";
 
 export const dynamic = "force-dynamic";
 
-const JORNADA_URL =
-  process.env.TPV_JORNADA_URL ||
-  process.env.NEXT_PUBLIC_TPV_JORNADA_URL ||
-  "https://casa-torino-web.vercel.app/api/tpv-jornada";
-
-function authHeaders(): HeadersInit {
-  const syncKey = (process.env.TPV_SYNC_KEY || "").trim();
-  const erpPin = (process.env.ERP_PIN || process.env.TPV_PIN || "").trim();
-  const headers: Record<string, string> = {
-    "Cache-Control": "no-store",
-  };
-  if (syncKey) headers["X-Tpv-Key"] = syncKey;
-  else if (erpPin) headers["X-Erp-Pin"] = erpPin;
-  return headers;
-}
-
-/** Proxy autenticado a la jornada TPV (incluye ventas con caja abierta). */
+/** Jornada TPV en vivo desde Supabase ops_kv (clave `jornada`). */
 export async function GET() {
   const ok = await hasErpPinSession();
   if (!ok) {
     return NextResponse.json({ error: "Sesión ERP requerida" }, { status: 401 });
   }
+  if (!hasOpsKvConfig()) {
+    return NextResponse.json(
+      { error: "Falta configuración Supabase en el ERP" },
+      { status: 500 },
+    );
+  }
 
-  const r = await fetch(JORNADA_URL, {
-    cache: "no-store",
-    headers: authHeaders(),
-  });
-  const data = await r.json().catch(() => ({}));
-  return NextResponse.json(data, { status: r.status });
+  try {
+    const raw = await getOpsKvJson<JornadaState>("jornada");
+    const state =
+      raw && typeof raw === "object"
+        ? {
+            ...emptyJornada(),
+            ...raw,
+            sales: Array.isArray(raw.sales) ? raw.sales : [],
+          }
+        : emptyJornada();
+    return NextResponse.json(withJornadaTotals(state));
+  } catch (err) {
+    console.error("[erp/api/jornada]", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Error ops_kv" },
+      { status: 500 },
+    );
+  }
 }

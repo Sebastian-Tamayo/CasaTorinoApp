@@ -50,9 +50,10 @@ Cliente web (clara) → Gestión interna (PIN)
 | Fotos de platos | Storage bucket público `menu_images` (subida con **service role** en servidor) · campo `image_url` | `POST /api/carta-image` · SQL `008`/`009` |
 | Fichajes | Tabla `time_logs` (SQL `007_time_logs.sql`); fallback ops_kv | `web/api/time-logs.js` |
 | Reservas | Supabase `ops_kv` claves `reservas` + `tpvReservaAlerts` | `reservas/server/reservas-store.js` |
+| Top ventas / Caja ERP | Supabase `ops_kv` (`jornada`, `cierres`) | `erp/src/app/api/jornada` · `erp/src/app/api/cierres` (lectura directa) |
 | ERP (gastos, RRHH, docs, fiscal) | Tablas Supabase + RLS | `erp/` |
 
-> TPV / cocina / jornada / reservas usan Supabase `ops_kv`. Fotos de carta: Storage `menu_images`. Sin Vercel Blob ni Edge Config.
+> TPV / cocina / jornada / reservas / Top ventas ERP usan Supabase `ops_kv`. Fotos de carta: Storage `menu_images`. Sin Vercel Blob ni Edge Config.
 
 ### Carta (API)
 
