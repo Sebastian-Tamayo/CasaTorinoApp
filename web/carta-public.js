@@ -44,26 +44,43 @@
     const w = data.menuDay.weekday
     const e = data.menuDay.weekend
     if (!w || !e) return
-    const weekdayDetail =
-      w.unified != null
-        ? `Menú unificado <em>${escapeHtml(w.unified)}\u00a0€</em>`
-        : `Colombiano <em>${escapeHtml(w.co)}\u00a0€</em> · Español <em>${escapeHtml(w.es)}\u00a0€</em>`
-    ul.innerHTML = `
+
+    const info =
+      window.CasaTorinoCarta?.isWeekendMenuDay?.(data) || {
+        weekend: false,
+        reason: 'weekday',
+      }
+    const isWeekend = Boolean(info.weekend)
+    const todaySchedule = isWeekend ? 'weekend' : 'weekday'
+
+    // Solo el menú de hoy (semana O finde), nunca los dos a la vez
+    if (isWeekend) {
+      ul.innerHTML = `
       <li>
-        <span class="mp-label">Entre semana</span>
-        <span class="mp-detail">${weekdayDetail}</span>
-      </li>
-      <li>
-        <span class="mp-label">Fin de semana y festivos</span>
+        <span class="mp-label">Hoy · fin de semana${info.reason === 'holiday' ? ' / festivo' : ''}</span>
         <span class="mp-detail">Colombiano <em>${escapeHtml(e.co)}\u00a0€</em> · Español <em>${escapeHtml(e.es)}\u00a0€</em></span>
       </li>`
+    } else {
+      const weekdayDetail =
+        w.unified != null
+          ? `Menú del día <em>${escapeHtml(w.unified)}\u00a0€</em>`
+          : `Colombiano <em>${escapeHtml(w.co)}\u00a0€</em> · Español <em>${escapeHtml(w.es)}\u00a0€</em>`
+      ul.innerHTML = `
+      <li>
+        <span class="mp-label">Hoy · entre semana</span>
+        <span class="mp-detail">${weekdayDetail}</span>
+      </li>`
+    }
 
     const copy = document.querySelector('.menu-dia-copy p')
-    if (copy && window.CasaTorinoCarta?.isWeekendMenuDay) {
-      const info = window.CasaTorinoCarta.isWeekendMenuDay(data)
+    if (copy) {
       if (info.reason === 'holiday' && info.festivo?.name) {
         copy.textContent =
           `Hoy es festivo en Gijón (${info.festivo.name}): aplica tarifa de fin de semana.`
+      } else if (isWeekend) {
+        copy.textContent = 'Hoy es fin de semana: menú colombiano o español.'
+      } else {
+        copy.textContent = 'Hoy entre semana: menú del día unificado.'
       }
     }
 
@@ -85,9 +102,21 @@
       'menu-dia-es-finde',
       'menu-dia-co-finde',
     ]
+    const itemSchedule = (it) =>
+      window.CasaTorinoCarta?.menuItemSchedule?.(it) ||
+      (String(it?.schedule || '').trim() === 'weekend'
+        ? 'weekend'
+        : String(it?.schedule || '').trim() === 'weekday'
+          ? 'weekday'
+          : '')
+
     const labelFor = (it) => {
       const id = String(it.id || '')
-      if (id.includes('unificado') || (it.schedule === 'weekday' && !id.includes('-es-') && !id.includes('-co-'))) {
+      const sch = itemSchedule(it)
+      if (
+        id.includes('unificado') ||
+        (sch === 'weekday' && !id.includes('-es-') && !id.includes('-co-'))
+      ) {
         return { eyebrow: 'Entre semana', title: 'Menú del día' }
       }
       if (id.includes('-es-') || /español/i.test(it.name || '')) {
@@ -96,25 +125,23 @@
       if (id.includes('-co-') || /colombiano/i.test(it.name || '')) {
         return { eyebrow: 'Fin de semana', title: 'Menú colombiano' }
       }
-      if (it.schedule === 'weekday') return { eyebrow: 'Entre semana', title: it.name || 'Menú' }
-      if (it.schedule === 'weekend') return { eyebrow: 'Fin de semana', title: it.name || 'Menú' }
+      if (sch === 'weekday') return { eyebrow: 'Entre semana', title: it.name || 'Menú' }
+      if (sch === 'weekend') return { eyebrow: 'Fin de semana', title: it.name || 'Menú' }
       return { eyebrow: 'Menú', title: it.name || 'Menú del día' }
     }
 
-    let items = (menus?.items || []).filter((it) => it && it.image_url && !it.customProduct)
+    let items = (menus?.items || []).filter(
+      (it) =>
+        it &&
+        it.image_url &&
+        !it.customProduct &&
+        itemSchedule(it) === todaySchedule,
+    )
     items = [...items].sort((a, b) => {
       const ia = order.indexOf(a.id)
       const ib = order.indexOf(b.id)
       return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
     })
-
-    // Destacar el menú que aplica hoy
-    let todaySchedule = 'weekday'
-    if (window.CasaTorinoCarta?.isWeekendMenuDay) {
-      todaySchedule = window.CasaTorinoCarta.isWeekendMenuDay(data).weekend
-        ? 'weekend'
-        : 'weekday'
-    }
 
     if (!items.length) {
       gallery.hidden = true
@@ -129,12 +156,9 @@
     gallery.innerHTML = items
       .map((it, i) => {
         const labels = labelFor(it)
-        const isToday =
-          (todaySchedule === 'weekday' && it.schedule === 'weekday') ||
-          (todaySchedule === 'weekend' && it.schedule === 'weekend')
-        return `<button type="button" class="menu-dia-foto${isToday ? ' is-today' : ''}" style="--i:${i}" data-dish-id="${escapeHtml(it.id)}" aria-label="Ver ${escapeHtml(labels.title)}">
+        return `<button type="button" class="menu-dia-foto is-today" style="--i:${i}" data-dish-id="${escapeHtml(it.id)}" aria-label="Ver ${escapeHtml(labels.title)}">
           <img src="${escapeHtml(it.image_url)}" alt="${escapeHtml(labels.title)}" loading="lazy" decoding="async" />
-          <em>${escapeHtml(labels.eyebrow)}${isToday ? ' · hoy' : ''}</em>
+          <em>${escapeHtml(labels.eyebrow)} · hoy</em>
           <strong>${escapeHtml(labels.title)}</strong>
           <b>${money(it.price)}</b>
           <span class="menu-dia-foto-cta">Ver menú <em>(pincha aquí)</em></span>
