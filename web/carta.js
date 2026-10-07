@@ -76,6 +76,31 @@
     return isWeekendMenuDay(null, ts).weekend
   }
 
+  /** Infere weekday/weekend si falta `schedule` (por id o nombre). */
+  function menuItemSchedule(it) {
+    const sch = String(it?.schedule || '').trim()
+    if (sch === 'weekday' || sch === 'weekend') return sch
+    const id = String(it?.id || '').toLowerCase()
+    const name = String(it?.name || '').toLowerCase()
+    if (
+      id.includes('finde') ||
+      id.includes('weekend') ||
+      id.includes('-fs') ||
+      /fin\s*de\s*semana/.test(name)
+    ) {
+      return 'weekend'
+    }
+    if (
+      id.includes('semana') ||
+      id.includes('weekday') ||
+      id.includes('unificado') ||
+      /entre\s*semana/.test(name)
+    ) {
+      return 'weekday'
+    }
+    return ''
+  }
+
   function applyMenuSchedule(categories, { forceAll = false, meta = null } = {}) {
     const info = isWeekendMenuDay(meta || window.TPV_CARTA_META, Date.now())
     const want = info.weekend ? 'weekend' : 'weekday'
@@ -84,8 +109,9 @@
         return { ...cat, items: (cat.items || []).slice() }
       }
       const items = (cat.items || []).filter((it) => {
-        const sch = it.schedule
-        if (!sch) return true
+        const sch = menuItemSchedule(it)
+        // Sin señal clara: no mostrar (evita mezclar semana + finde)
+        if (!sch) return false
         return sch === want
       })
       return { ...cat, items }
@@ -228,6 +254,7 @@
     postCarta,
     uploadCartaImage,
     applyMenuSchedule,
+    menuItemSchedule,
     madridIsWeekend,
     isWeekendMenuDay,
     festivoToday,
