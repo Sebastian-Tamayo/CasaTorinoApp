@@ -1289,12 +1289,300 @@
     .jornada-actions .btn-j.start { border-color: rgba(52,211,153,.45); color: #86efac; }
     .jornada-actions .btn-j.total { border-color: rgba(245,197,24,.45); color: var(--gold); }
     .jornada-actions .btn-j.end { border-color: rgba(251,113,133,.45); color: #fda4af; }
-    .jornada-actions .btn-j.print { border-color: rgba(147,197,253,.45); color: #93c5fd; }
     .jornada-actions .btn-j.edit-carta {
       border-color: rgba(167,139,250,.5); color: #c4b5fd;
     }
     .jornada-actions .btn-j.fichaje {
       border-color: rgba(56,189,248,.5); color: #7dd3fc;
+    }
+    .jornada-actions .btn-j.shift-notes {
+      border-color: rgba(251,191,36,.5); color: #fcd34d;
+      position: relative;
+    }
+    .jornada-actions .btn-j.reservas-quick {
+      border-color: rgba(52,211,153,.5); color: #6ee7b7;
+      position: relative;
+    }
+    .jornada-actions .btn-j.shift-notes .notes-badge,
+    .jornada-actions .btn-j.reservas-quick .notes-badge {
+      position: absolute;
+      top: -.35rem;
+      right: -.25rem;
+      min-width: 1.15rem;
+      height: 1.15rem;
+      padding: 0 .28rem;
+      border-radius: 999px;
+      background: #f59e0b;
+      color: #1c1408;
+      font-size: .65rem;
+      font-weight: 800;
+      line-height: 1.15rem;
+      text-align: center;
+    }
+    .jornada-actions .btn-j.reservas-quick .notes-badge {
+      background: #34d399;
+      color: #052e1c;
+    }
+    .jornada-actions .btn-j.shift-notes .notes-badge[hidden],
+    .jornada-actions .btn-j.reservas-quick .notes-badge[hidden] { display: none !important; }
+    .shift-notes-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .4rem;
+      margin: .55rem 0 .75rem;
+    }
+    .shift-notes-tabs button {
+      border: 1px solid rgba(245,197,24,.28);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      border-radius: 10px;
+      padding: .55rem .4rem;
+      font-weight: 700;
+      font-size: .82rem;
+      cursor: pointer;
+    }
+    .shift-notes-tabs button.active {
+      background: rgba(245,197,24,.16);
+      border-color: rgba(245,197,24,.55);
+      color: var(--gold);
+    }
+    .shift-notes-compose {
+      display: grid;
+      gap: .55rem;
+      margin-bottom: .85rem;
+    }
+    .shift-notes-compose textarea {
+      width: 100%;
+      min-height: 4.2rem;
+      resize: vertical;
+      border-radius: 10px;
+      border: 1px solid rgba(245,197,24,.28);
+      background: rgba(0,0,0,.28);
+      color: var(--text);
+      padding: .65rem .75rem;
+      font: inherit;
+      font-size: .9rem;
+    }
+    .shift-notes-compose textarea:focus {
+      outline: none;
+      border-color: rgba(245,197,24,.55);
+    }
+    .shift-notes-compose .compose-row {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .shift-notes-compose .compose-row select {
+      flex: 1 1 9rem;
+      min-height: 2.5rem;
+      border-radius: 10px;
+      border: 1px solid rgba(245,197,24,.28);
+      background: rgba(0,0,0,.28);
+      color: var(--text);
+      padding: .45rem .6rem;
+      font: inherit;
+      font-weight: 600;
+    }
+    .shift-notes-compose .compose-row button {
+      flex: 0 0 auto;
+      min-height: 2.5rem;
+      border-radius: 10px;
+      border: 1px solid rgba(52,211,153,.45);
+      background: linear-gradient(180deg, rgba(16,185,129,.35), rgba(5,150,105,.28));
+      color: #bbf7d0;
+      font-weight: 800;
+      padding: .45rem .9rem;
+      cursor: pointer;
+    }
+    .shift-notes-compose .compose-row button:disabled { opacity: .5; cursor: wait; }
+    .shift-notes-list {
+      display: grid;
+      gap: .55rem;
+      max-height: min(42vh, 320px);
+      overflow: auto;
+      padding-right: .15rem;
+    }
+    .shift-note-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: .55rem;
+      align-items: start;
+      padding: .7rem .75rem;
+      border-radius: 12px;
+      border: 1px solid rgba(245,197,24,.2);
+      background: rgba(255,255,255,.04);
+    }
+    .shift-note-item .note-body {
+      min-width: 0;
+    }
+    .shift-note-item .note-body p {
+      margin: 0;
+      color: var(--text);
+      font-size: .92rem;
+      line-height: 1.35;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .shift-note-item .note-body time {
+      display: block;
+      margin-top: .35rem;
+      color: var(--muted);
+      font-size: .72rem;
+      font-weight: 600;
+    }
+    .shift-note-item .note-actions {
+      display: flex;
+      gap: .35rem;
+    }
+    .shift-note-item .note-actions button {
+      width: 2.35rem;
+      height: 2.35rem;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.25);
+      color: var(--text);
+      cursor: pointer;
+      font-size: .95rem;
+    }
+    .shift-note-item .note-actions button.ok {
+      border-color: rgba(52,211,153,.45);
+      color: #86efac;
+    }
+    .shift-note-item .note-actions button.del {
+      border-color: rgba(248,113,113,.4);
+      color: #fda4af;
+    }
+    .shift-notes-empty {
+      margin: .4rem 0 0;
+      color: var(--muted);
+      font-size: .85rem;
+      text-align: center;
+      padding: 1rem .5rem;
+    }
+    .shift-notes-empty[hidden] { display: none !important; }
+    .reservas-quick-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .5rem;
+      margin: .35rem 0 .75rem;
+    }
+    .reservas-quick-actions a,
+    .reservas-quick-actions button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: .4rem;
+      min-height: 2.65rem;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: .82rem;
+      text-decoration: none;
+      cursor: pointer;
+      border: 1px solid transparent;
+      padding: .45rem .55rem;
+    }
+    .reservas-quick-actions .btn-open-reservas {
+      border-color: rgba(52,211,153,.5);
+      background: linear-gradient(180deg, rgba(16,185,129,.38), rgba(5,150,105,.28));
+      color: #bbf7d0;
+    }
+    .reservas-quick-actions .btn-refresh-reservas {
+      border-color: rgba(245,197,24,.35);
+      background: rgba(255,255,255,.05);
+      color: var(--gold);
+    }
+    .reservas-quick-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .45rem .7rem;
+      margin: 0 0 .7rem;
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 700;
+    }
+    .reservas-quick-summary strong { color: var(--gold); font-weight: 800; }
+    .reservas-quick-list {
+      display: grid;
+      gap: .55rem;
+      max-height: min(48vh, 380px);
+      overflow: auto;
+      padding-right: .15rem;
+    }
+    .reserva-quick-item {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: .65rem;
+      padding: .7rem .75rem;
+      border-radius: 12px;
+      border: 1px solid rgba(52,211,153,.22);
+      background: rgba(255,255,255,.04);
+    }
+    .reserva-quick-item .rq-hora {
+      min-width: 3.4rem;
+      text-align: center;
+      font-weight: 900;
+      font-size: 1.05rem;
+      color: #6ee7b7;
+      line-height: 1.15;
+      padding-top: .1rem;
+    }
+    .reserva-quick-item .rq-hora small {
+      display: block;
+      margin-top: .15rem;
+      font-size: .68rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .reserva-quick-item .rq-body { min-width: 0; }
+    .reserva-quick-item .rq-body strong {
+      display: block;
+      font-size: .95rem;
+      color: var(--text);
+      letter-spacing: .01em;
+    }
+    .reserva-quick-item .rq-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .25rem .55rem;
+      margin-top: .25rem;
+      color: var(--muted);
+      font-size: .75rem;
+      font-weight: 700;
+    }
+    .reserva-quick-item .rq-meta a {
+      color: #93c5fd;
+      text-decoration: none;
+    }
+    .reserva-quick-item .rq-notas {
+      margin: .3rem 0 0;
+      color: #fde68a;
+      font-size: .78rem;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    .reserva-quick-item .rq-estado {
+      display: inline-block;
+      margin-top: .35rem;
+      padding: .12rem .45rem;
+      border-radius: 999px;
+      font-size: .68rem;
+      font-weight: 800;
+      letter-spacing: .02em;
+      border: 1px solid rgba(255,255,255,.12);
+      color: var(--muted);
+    }
+    .reserva-quick-item .rq-estado.confirmada {
+      border-color: rgba(52,211,153,.45);
+      color: #86efac;
+      background: rgba(16,185,129,.12);
+    }
+    .reserva-quick-item .rq-estado.completada {
+      border-color: rgba(147,197,253,.4);
+      color: #93c5fd;
+    }
+    @media (max-width: 520px) {
+      .reservas-quick-actions { grid-template-columns: 1fr; }
     }
     .jornada-actions .btn-j.add-plato {
       border-color: rgba(52,211,153,.5); color: #86efac;
@@ -1768,6 +2056,14 @@
         <button class="btn-j end" id="btnJornadaEnd" type="button" disabled><i class="fa-solid fa-flag-checkered"></i> Fin de sesión</button>
         <button class="btn-j edit-carta" id="btnEditarCarta" type="button" title="Editar productos y precios"><i class="fa-solid fa-pen-to-square"></i> Editar Carta</button>
         <button class="btn-j fichaje" id="btnFichaje" type="button" title="Registro horario camareras"><i class="fa-solid fa-fingerprint"></i> Fichaje</button>
+        <button class="btn-j shift-notes" id="btnShiftNotes" type="button" title="Notas de turno / proveedores">
+          <i class="fa-solid fa-clipboard-list"></i> Notas
+          <span class="notes-badge" id="shiftNotesBadge" hidden>0</span>
+        </button>
+        <button class="btn-j reservas-quick" id="btnReservasQuick" type="button" title="Resumen de reservas del día">
+          <i class="fa-solid fa-calendar-check"></i> Reservas
+          <span class="notes-badge" id="reservasQuickBadge" hidden>0</span>
+        </button>
         <button class="btn-j add-plato" id="btnAddPlato" type="button" hidden title="Añadir plato nuevo"><i class="fa-solid fa-plus"></i> Añadir plato</button>
         <button class="btn-j close-edit" id="btnCerrarEdicion" type="button" hidden title="Volver al modo comandas"><i class="fa-solid fa-xmark"></i> Cerrar Edición</button>
       </div>
@@ -2096,6 +2392,69 @@
         <button type="button" class="btn-out" id="fichajeOut"><i class="fa-solid fa-right-from-bracket"></i> SALIDA</button>
       </div>
       <p class="fichaje-hint">Obligatorio por ley (registro diario de jornada). Cada pulsación guarda la hora exacta en Supabase.</p>
+    </div>
+  </div>
+
+  <div class="jornada-modal" id="shiftNotesModal" hidden role="dialog" aria-modal="true" aria-labelledby="shiftNotesModalTitle">
+    <div class="jornada-card">
+      <div class="jornada-card-h">
+        <button type="button" class="btn-modal-back" id="shiftNotesBack" aria-label="Volver">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </button>
+        <h3 id="shiftNotesModalTitle">Notas de Turno</h3>
+      </div>
+      <p class="sub">Pendientes para el siguiente turno · se guardan en Supabase</p>
+      <div class="shift-notes-tabs" role="tablist" aria-label="Categoría de notas">
+        <button type="button" class="active" role="tab" aria-selected="true" data-notes-tab="proveedor" id="shiftTabProveedor">
+          Proveedores <span id="shiftCountProveedor">(0)</span>
+        </button>
+        <button type="button" role="tab" aria-selected="false" data-notes-tab="general" id="shiftTabGeneral">
+          Otras Notas <span id="shiftCountGeneral">(0)</span>
+        </button>
+      </div>
+      <div class="shift-notes-compose">
+        <textarea id="shiftNoteInput" maxlength="500" rows="3" placeholder="Ej. falta aceite, avisar al verdulero, cambiar barril…" autocomplete="off" spellcheck="true"></textarea>
+        <div class="compose-row">
+          <select id="shiftNoteCategory" aria-label="Categoría de la nota">
+            <option value="proveedor">Proveedores</option>
+            <option value="general">Otras notas</option>
+          </select>
+          <button type="button" id="shiftNoteAdd"><i class="fa-solid fa-plus"></i> Añadir</button>
+        </div>
+      </div>
+      <div class="shift-notes-list" id="shiftNotesList" aria-live="polite"></div>
+      <p class="shift-notes-empty" id="shiftNotesEmpty" hidden>No hay notas pendientes en esta pestaña.</p>
+    </div>
+  </div>
+
+  <div class="jornada-modal" id="reservasQuickModal" hidden role="dialog" aria-modal="true" aria-labelledby="reservasQuickModalTitle">
+    <div class="jornada-card">
+      <div class="jornada-card-h">
+        <button type="button" class="btn-modal-back" id="reservasQuickBack" aria-label="Volver">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </button>
+        <h3 id="reservasQuickModalTitle">Reservas</h3>
+      </div>
+      <p class="sub">Resumen rápido · mismo listado que la app de personal</p>
+      <div class="reservas-quick-actions">
+        <a class="btn-open-reservas" id="reservasQuickOpenApp" href="https://reservas-casatorino.vercel.app/" target="_blank" rel="noopener">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir / nueva reserva
+        </a>
+        <button type="button" class="btn-refresh-reservas" id="reservasQuickRefresh">
+          <i class="fa-solid fa-rotate"></i> Actualizar
+        </button>
+      </div>
+      <div class="shift-notes-tabs" role="tablist" aria-label="Filtro de reservas">
+        <button type="button" class="active" role="tab" aria-selected="true" data-reservas-tab="hoy" id="reservasTabHoy">
+          Hoy <span id="reservasCountHoy">(0)</span>
+        </button>
+        <button type="button" role="tab" aria-selected="false" data-reservas-tab="proximos" id="reservasTabProximos">
+          Próximos <span id="reservasCountProximos">(0)</span>
+        </button>
+      </div>
+      <div class="reservas-quick-summary" id="reservasQuickSummary"></div>
+      <div class="reservas-quick-list" id="reservasQuickList" aria-live="polite"></div>
+      <p class="shift-notes-empty" id="reservasQuickEmpty" hidden>No hay reservas en este filtro.</p>
     </div>
   </div>
 
@@ -5018,6 +5377,417 @@
       })
       $('fichajeIn')?.addEventListener('click', () => punchFichaje('entrada'))
       $('fichajeOut')?.addEventListener('click', () => punchFichaje('salida'))
+
+      // —— Notas de turno (proveedores / otras) ——
+      let shiftNotesBusy = false
+      let shiftNotesCache = []
+      let shiftNotesTab = 'proveedor'
+
+      function formatShiftNoteTime(iso) {
+        try {
+          return new Intl.DateTimeFormat('es-ES', {
+            timeZone: 'Europe/Madrid',
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+          }).format(new Date(iso))
+        } catch {
+          return String(iso || '').slice(0, 16)
+        }
+      }
+
+      function updateShiftNotesBadge() {
+        const badge = $('shiftNotesBadge')
+        if (!badge) return
+        const n = shiftNotesCache.length
+        badge.textContent = String(n)
+        badge.hidden = n < 1
+      }
+
+      function renderShiftNotes() {
+        const list = $('shiftNotesList')
+        const empty = $('shiftNotesEmpty')
+        const countP = $('shiftCountProveedor')
+        const countG = $('shiftCountGeneral')
+        if (!list) return
+        const proveedor = shiftNotesCache.filter((n) => n.category === 'proveedor')
+        const general = shiftNotesCache.filter((n) => n.category === 'general')
+        if (countP) countP.textContent = `(${proveedor.length})`
+        if (countG) countG.textContent = `(${general.length})`
+        updateShiftNotesBadge()
+        const items = shiftNotesTab === 'proveedor' ? proveedor : general
+        list.innerHTML = ''
+        if (!items.length) {
+          if (empty) empty.hidden = false
+          return
+        }
+        if (empty) empty.hidden = true
+        const frag = document.createDocumentFragment()
+        items.forEach((note) => {
+          const row = document.createElement('article')
+          row.className = 'shift-note-item'
+          row.dataset.id = note.id
+          const body = document.createElement('div')
+          body.className = 'note-body'
+          const p = document.createElement('p')
+          p.textContent = note.content || ''
+          const time = document.createElement('time')
+          time.dateTime = note.created_at || ''
+          time.textContent = formatShiftNoteTime(note.created_at)
+          body.appendChild(p)
+          body.appendChild(time)
+          const actions = document.createElement('div')
+          actions.className = 'note-actions'
+          const btnOk = document.createElement('button')
+          btnOk.type = 'button'
+          btnOk.className = 'ok'
+          btnOk.title = 'Marcar como resuelta'
+          btnOk.setAttribute('aria-label', 'Marcar como resuelta')
+          btnOk.innerHTML = '<i class="fa-solid fa-check"></i>'
+          btnOk.addEventListener('click', () => mutateShiftNote('complete', note.id))
+          const btnDel = document.createElement('button')
+          btnDel.type = 'button'
+          btnDel.className = 'del'
+          btnDel.title = 'Borrar nota'
+          btnDel.setAttribute('aria-label', 'Borrar nota')
+          btnDel.innerHTML = '<i class="fa-solid fa-trash"></i>'
+          btnDel.addEventListener('click', () => mutateShiftNote('delete', note.id))
+          actions.appendChild(btnOk)
+          actions.appendChild(btnDel)
+          row.appendChild(body)
+          row.appendChild(actions)
+          frag.appendChild(row)
+        })
+        list.appendChild(frag)
+      }
+
+      function setShiftNotesTab(tab) {
+        shiftNotesTab = tab === 'general' ? 'general' : 'proveedor'
+        document.querySelectorAll('[data-notes-tab]').forEach((btn) => {
+          const active = btn.getAttribute('data-notes-tab') === shiftNotesTab
+          btn.classList.toggle('active', active)
+          btn.setAttribute('aria-selected', active ? 'true' : 'false')
+        })
+        const cat = $('shiftNoteCategory')
+        if (cat) cat.value = shiftNotesTab
+        renderShiftNotes()
+      }
+
+      async function loadShiftNotes() {
+        try {
+          const r = await fetch('/api/shift-notes', {
+            credentials: 'same-origin',
+            cache: 'no-store',
+          })
+          const data = await r.json().catch(() => ({}))
+          if (!r.ok || !data.ok) {
+            throw new Error(data.error || 'No se pudieron cargar las notas')
+          }
+          shiftNotesCache = Array.isArray(data.notes) ? data.notes : []
+          renderShiftNotes()
+        } catch (err) {
+          showTpvToast(err.message || 'Error al cargar notas', true)
+        }
+      }
+
+      async function openShiftNotesModal() {
+        if ($('shiftNotesModal')) $('shiftNotesModal').hidden = false
+        setShiftNotesTab(shiftNotesTab)
+        await loadShiftNotes()
+      }
+
+      function closeShiftNotesModal() {
+        if ($('shiftNotesModal')) $('shiftNotesModal').hidden = true
+      }
+
+      async function addShiftNote() {
+        if (shiftNotesBusy) return
+        const content = String($('shiftNoteInput')?.value || '').trim()
+        const category = String($('shiftNoteCategory')?.value || shiftNotesTab)
+        if (!content) {
+          showTpvToast('Escribe la nota', true)
+          return
+        }
+        shiftNotesBusy = true
+        const btn = $('shiftNoteAdd')
+        if (btn) btn.disabled = true
+        try {
+          const r = await fetch('/api/shift-notes', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'create', category, content }),
+          })
+          const data = await r.json().catch(() => ({}))
+          if (!r.ok || !data.ok) {
+            throw new Error(data.error || 'No se pudo guardar')
+          }
+          if ($('shiftNoteInput')) $('shiftNoteInput').value = ''
+          setShiftNotesTab(category)
+          await loadShiftNotes()
+          showTpvToast('Nota guardada')
+        } catch (err) {
+          showTpvToast(err.message || 'Error al guardar', true)
+        } finally {
+          shiftNotesBusy = false
+          if (btn) btn.disabled = false
+        }
+      }
+
+      async function mutateShiftNote(action, id) {
+        if (shiftNotesBusy || !id) return
+        shiftNotesBusy = true
+        try {
+          const r = await fetch('/api/shift-notes', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, id }),
+          })
+          const data = await r.json().catch(() => ({}))
+          if (!r.ok || !data.ok) {
+            throw new Error(data.error || 'No se pudo actualizar')
+          }
+          shiftNotesCache = shiftNotesCache.filter((n) => n.id !== id)
+          renderShiftNotes()
+          showTpvToast(action === 'complete' ? 'Nota resuelta' : 'Nota borrada')
+        } catch (err) {
+          showTpvToast(err.message || 'Error', true)
+        } finally {
+          shiftNotesBusy = false
+        }
+      }
+
+      $('btnShiftNotes')?.addEventListener('click', () => {
+        openShiftNotesModal()
+      })
+      $('shiftNotesBack')?.addEventListener('click', closeShiftNotesModal)
+      $('shiftNotesModal')?.addEventListener('click', (e) => {
+        if (e.target === $('shiftNotesModal')) closeShiftNotesModal()
+      })
+      document.querySelectorAll('[data-notes-tab]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          setShiftNotesTab(btn.getAttribute('data-notes-tab'))
+        })
+      })
+      $('shiftNoteAdd')?.addEventListener('click', addShiftNote)
+      // Badge al entrar (tras PIN); no bloquea el arranque
+      setTimeout(() => {
+        if (!document.body.classList.contains('tpv-locked')) loadShiftNotes()
+      }, 900)
+
+      // —— Reservas rápidas (resumen desde app de personal) ——
+      const RESERVAS_API = 'https://reservas-casatorino.vercel.app/api/reservas'
+      const RESERVAS_APP_URL = 'https://reservas-casatorino.vercel.app/'
+      let reservasQuickBusy = false
+      let reservasQuickCache = []
+      let reservasQuickTab = 'hoy'
+
+      function madridTodayYmd() {
+        try {
+          const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Europe/Madrid',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          }).formatToParts(new Date())
+          const y = parts.find((p) => p.type === 'year')?.value
+          const m = parts.find((p) => p.type === 'month')?.value
+          const d = parts.find((p) => p.type === 'day')?.value
+          return `${y}-${m}-${d}`
+        } catch {
+          return new Date().toISOString().slice(0, 10)
+        }
+      }
+
+      function formatReservaFecha(ymd) {
+        if (!ymd) return ''
+        const [y, m, d] = String(ymd).split('-')
+        if (!y || !m || !d) return ymd
+        return `${d}/${m}`
+      }
+
+      function isReservaActiva(r) {
+        const est = String(r?.estado || '').toLowerCase()
+        return est !== 'cancelada' && est !== 'no_show'
+      }
+
+      function reservasFiltered() {
+        const hoy = madridTodayYmd()
+        const activas = reservasQuickCache.filter(isReservaActiva)
+        const deHoy = activas
+          .filter((r) => String(r.fecha || '') === hoy)
+          .sort((a, b) => String(a.hora || '').localeCompare(String(b.hora || '')))
+        const proximos = activas
+          .filter((r) => String(r.fecha || '') > hoy)
+          .sort((a, b) =>
+            `${a.fecha}${a.hora}`.localeCompare(`${b.fecha}${b.hora}`),
+          )
+        return { hoy: deHoy, proximos, activas }
+      }
+
+      function updateReservasQuickBadge() {
+        const badge = $('reservasQuickBadge')
+        if (!badge) return
+        const n = reservasFiltered().hoy.length
+        badge.textContent = String(n)
+        badge.hidden = n < 1
+      }
+
+      function renderReservasQuick() {
+        const list = $('reservasQuickList')
+        const empty = $('reservasQuickEmpty')
+        const summary = $('reservasQuickSummary')
+        const countHoy = $('reservasCountHoy')
+        const countProx = $('reservasCountProximos')
+        if (!list) return
+        const { hoy, proximos } = reservasFiltered()
+        if (countHoy) countHoy.textContent = `(${hoy.length})`
+        if (countProx) countProx.textContent = `(${proximos.length})`
+        updateReservasQuickBadge()
+        const items = reservasQuickTab === 'proximos' ? proximos : hoy
+        const pax = items.reduce((a, r) => a + (Number(r.personas) || 0), 0)
+        if (summary) {
+          summary.innerHTML =
+            reservasQuickTab === 'hoy'
+              ? `<span>Hoy · <strong>${items.length}</strong> reservas</span><span>Comensales · <strong>${pax}</strong></span>`
+              : `<span>Próximos días · <strong>${items.length}</strong></span><span>Comensales · <strong>${pax}</strong></span>`
+        }
+        list.innerHTML = ''
+        if (!items.length) {
+          if (empty) empty.hidden = false
+          return
+        }
+        if (empty) empty.hidden = true
+        const frag = document.createDocumentFragment()
+        items.forEach((r) => {
+          const row = document.createElement('article')
+          row.className = 'reserva-quick-item'
+          const horaBox = document.createElement('div')
+          horaBox.className = 'rq-hora'
+          horaBox.textContent = r.hora || '--:--'
+          const fechaSmall = document.createElement('small')
+          fechaSmall.textContent = formatReservaFecha(r.fecha)
+          horaBox.appendChild(fechaSmall)
+          const body = document.createElement('div')
+          body.className = 'rq-body'
+          const name = document.createElement('strong')
+          name.textContent = r.nombre || 'Sin nombre'
+          const meta = document.createElement('div')
+          meta.className = 'rq-meta'
+          const paxEl = document.createElement('span')
+          paxEl.innerHTML = `<i class="fa-solid fa-user-group"></i> ${Number(r.personas) || 0}p`
+          meta.appendChild(paxEl)
+          if (r.codigo) {
+            const cod = document.createElement('span')
+            cod.textContent = r.codigo
+            meta.appendChild(cod)
+          }
+          if (r.telefono) {
+            const tel = document.createElement('a')
+            const digits = String(r.telefono).replace(/[^\d+]/g, '')
+            tel.href = `tel:${digits}`
+            tel.textContent = r.telefono
+            meta.appendChild(tel)
+          }
+          if (r.creadoPor) {
+            const origen = document.createElement('span')
+            origen.textContent =
+              String(r.creadoPor).toLowerCase() === 'web' ? 'Web' : r.creadoPor
+            meta.appendChild(origen)
+          }
+          body.appendChild(name)
+          body.appendChild(meta)
+          if (r.notas) {
+            const notas = document.createElement('p')
+            notas.className = 'rq-notas'
+            notas.textContent = r.notas
+            body.appendChild(notas)
+          }
+          const est = document.createElement('span')
+          const estado = String(r.estado || 'confirmada').toLowerCase()
+          est.className = `rq-estado ${estado}`
+          est.textContent =
+            estado === 'completada'
+              ? 'Hecha'
+              : estado === 'confirmada'
+                ? 'Confirmada'
+                : estado
+          body.appendChild(est)
+          row.appendChild(horaBox)
+          row.appendChild(body)
+          frag.appendChild(row)
+        })
+        list.appendChild(frag)
+      }
+
+      function setReservasQuickTab(tab) {
+        reservasQuickTab = tab === 'proximos' ? 'proximos' : 'hoy'
+        document.querySelectorAll('[data-reservas-tab]').forEach((btn) => {
+          const active = btn.getAttribute('data-reservas-tab') === reservasQuickTab
+          btn.classList.toggle('active', active)
+          btn.setAttribute('aria-selected', active ? 'true' : 'false')
+        })
+        renderReservasQuick()
+      }
+
+      async function loadReservasQuick(opts = {}) {
+        const silent = Boolean(opts.silent)
+        if (reservasQuickBusy) return
+        reservasQuickBusy = true
+        const btn = $('reservasQuickRefresh')
+        if (btn) btn.disabled = true
+        try {
+          const r = await fetch(RESERVAS_API, { cache: 'no-store' })
+          if (!r.ok) throw new Error('No se pudieron cargar las reservas')
+          const data = await r.json().catch(() => [])
+          reservasQuickCache = Array.isArray(data) ? data : []
+          renderReservasQuick()
+          if (!silent) showTpvToast('Reservas actualizadas')
+        } catch (err) {
+          if (!silent) showTpvToast(err.message || 'Error al cargar reservas', true)
+          else console.warn('[reservasQuick]', err)
+          updateReservasQuickBadge()
+        } finally {
+          reservasQuickBusy = false
+          if (btn) btn.disabled = false
+        }
+      }
+
+      async function openReservasQuickModal() {
+        if ($('reservasQuickModal')) $('reservasQuickModal').hidden = false
+        setReservasQuickTab(reservasQuickTab)
+        await loadReservasQuick({ silent: true })
+      }
+
+      function closeReservasQuickModal() {
+        if ($('reservasQuickModal')) $('reservasQuickModal').hidden = true
+      }
+
+      $('btnReservasQuick')?.addEventListener('click', () => {
+        openReservasQuickModal()
+      })
+      $('reservasQuickBack')?.addEventListener('click', closeReservasQuickModal)
+      $('reservasQuickModal')?.addEventListener('click', (e) => {
+        if (e.target === $('reservasQuickModal')) closeReservasQuickModal()
+      })
+      document.querySelectorAll('[data-reservas-tab]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          setReservasQuickTab(btn.getAttribute('data-reservas-tab'))
+        })
+      })
+      $('reservasQuickRefresh')?.addEventListener('click', () => {
+        loadReservasQuick({ silent: false })
+      })
+      const openApp = $('reservasQuickOpenApp')
+      if (openApp) openApp.href = RESERVAS_APP_URL
+      setTimeout(() => {
+        if (!document.body.classList.contains('tpv-locked')) {
+          loadReservasQuick({ silent: true })
+        }
+      }, 1200)
+
       window.addEventListener('popstate', () => {
         if (document.body.classList.contains('tpv-locked')) return
         handleTpvSystemBack()
