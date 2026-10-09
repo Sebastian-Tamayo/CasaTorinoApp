@@ -54,9 +54,18 @@
     return list.find((it) => (typeof it === 'string' ? it : it?.date) === dayKey) || null
   }
 
+  /**
+   * Vista previa temporal: forzar menú de fin de semana solo estos días (Madrid).
+   * 2026-10-09 (vie) → mostrar menú del sábado. Caduca solo: al pasar el día no aplica.
+   */
+  const FORCE_WEEKEND_MENU_DAYKEYS = new Set(['2026-10-09'])
+
   /** Sáb/dom o festivo laboral de Gijón → menú fin de semana. */
   function isWeekendMenuDay(meta, ts = Date.now()) {
     const { dayKey, weekday } = madridParts(ts)
+    if (FORCE_WEEKEND_MENU_DAYKEYS.has(dayKey)) {
+      return { weekend: true, reason: 'preview-saturday', dayKey, festivo: null }
+    }
     if (weekday === 'Sat' || weekday === 'Sun') {
       return { weekend: true, reason: 'weekend', dayKey, festivo: null }
     }

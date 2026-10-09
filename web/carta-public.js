@@ -55,9 +55,13 @@
 
     // Solo el menú de hoy (semana O finde), nunca los dos a la vez
     if (isWeekend) {
+      const weekendLabel =
+        info.reason === 'preview-saturday'
+          ? 'Mañana · sábado (fin de semana)'
+          : `Hoy · fin de semana${info.reason === 'holiday' ? ' / festivo' : ''}`
       ul.innerHTML = `
       <li>
-        <span class="mp-label">Hoy · fin de semana${info.reason === 'holiday' ? ' / festivo' : ''}</span>
+        <span class="mp-label">${weekendLabel}</span>
         <span class="mp-detail">Colombiano <em>${escapeHtml(e.co)}\u00a0€</em> · Español <em>${escapeHtml(e.es)}\u00a0€</em></span>
       </li>`
     } else {
@@ -74,7 +78,10 @@
 
     const copy = document.querySelector('.menu-dia-copy p')
     if (copy) {
-      if (info.reason === 'holiday' && info.festivo?.name) {
+      if (info.reason === 'preview-saturday') {
+        copy.textContent =
+          'Vista previa del menú de sábado: menú colombiano o español.'
+      } else if (info.reason === 'holiday' && info.festivo?.name) {
         copy.textContent =
           `Hoy es festivo en Gijón (${info.festivo.name}): aplica tarifa de fin de semana.`
       } else if (isWeekend) {
