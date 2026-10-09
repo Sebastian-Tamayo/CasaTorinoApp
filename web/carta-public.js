@@ -54,15 +54,18 @@
     const todaySchedule = isWeekend ? 'weekend' : 'weekday'
 
     // Solo el menú de hoy (semana O finde), nunca los dos a la vez
+    const previewCoOnly = info.reason === 'preview-saturday'
     if (isWeekend) {
-      const weekendLabel =
-        info.reason === 'preview-saturday'
-          ? 'Mañana · sábado (fin de semana)'
-          : `Hoy · fin de semana${info.reason === 'holiday' ? ' / festivo' : ''}`
+      const weekendLabel = previewCoOnly
+        ? 'Mañana · sábado · menú colombiano'
+        : `Hoy · fin de semana${info.reason === 'holiday' ? ' / festivo' : ''}`
+      const weekendDetail = previewCoOnly
+        ? `Colombiano <em>${escapeHtml(e.co)}\u00a0€</em>`
+        : `Colombiano <em>${escapeHtml(e.co)}\u00a0€</em> · Español <em>${escapeHtml(e.es)}\u00a0€</em>`
       ul.innerHTML = `
       <li>
         <span class="mp-label">${weekendLabel}</span>
-        <span class="mp-detail">Colombiano <em>${escapeHtml(e.co)}\u00a0€</em> · Español <em>${escapeHtml(e.es)}\u00a0€</em></span>
+        <span class="mp-detail">${weekendDetail}</span>
       </li>`
     } else {
       const weekdayDetail =
@@ -78,9 +81,8 @@
 
     const copy = document.querySelector('.menu-dia-copy p')
     if (copy) {
-      if (info.reason === 'preview-saturday') {
-        copy.textContent =
-          'Vista previa del menú de sábado: menú colombiano o español.'
+      if (previewCoOnly) {
+        copy.textContent = 'Vista previa del menú de sábado: solo menú colombiano.'
       } else if (info.reason === 'holiday' && info.festivo?.name) {
         copy.textContent =
           `Hoy es festivo en Gijón (${info.festivo.name}): aplica tarifa de fin de semana.`
@@ -137,12 +139,24 @@
       return { eyebrow: 'Menú', title: it.name || 'Menú del día' }
     }
 
+    const isColombianoMenu = (it) => {
+      const id = String(it?.id || '').toLowerCase()
+      const name = String(it?.name || '').toLowerCase()
+      return (
+        id.includes('-co-') ||
+        id.includes('co-finde') ||
+        id.includes('colombiano') ||
+        /colombiano/i.test(name)
+      )
+    }
+
     let items = (menus?.items || []).filter(
       (it) =>
         it &&
         it.image_url &&
         !it.customProduct &&
-        itemSchedule(it) === todaySchedule,
+        itemSchedule(it) === todaySchedule &&
+        (!previewCoOnly || isColombianoMenu(it)),
     )
     items = [...items].sort((a, b) => {
       const ia = order.indexOf(a.id)
