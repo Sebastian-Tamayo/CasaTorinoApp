@@ -92,7 +92,7 @@ Auth mutaciones: header `X-Tpv-Key` o sesión TPV.
 | Capa | Tecnología | Coste típico |
 |---|---|---|
 | Web / TPV / KDS | HTML/JS + APIs Vercel | Hobby 0 € |
-| Reservas | React, Vite, Edge Config | Hobby 0 € |
+| Reservas | React, Vite, Supabase ops_kv | Hobby 0 € |
 | ERP | Next.js 15, Tailwind, Supabase | Hobby 0 € |
 | Datos ops | Supabase free (`ops_kv`, `time_logs`, tablas ERP) | 0 € |
 | Impresión | QZ Tray + POS-58 | Hardware local |
