@@ -86,7 +86,7 @@ app.post('/api/reservas', (req, res) => {
     telefono: String(body.telefono || body.phone || body.tel || '').trim(),
     fecha: String(body.fecha || body.date || now.slice(0, 10)).slice(0, 10),
     hora: String(body.hora || body.time || '14:00').slice(0, 5),
-    personas: Math.max(1, Math.min(12, Number(body.personas ?? body.guests ?? body.pax) || 2)),
+    personas: Math.max(1, Math.min(20, Number(body.personas ?? body.guests ?? body.pax) || 2)),
     notas: String(body.notas || body.notes || '').trim(),
     estado: 'confirmada',
     createdAt: now,

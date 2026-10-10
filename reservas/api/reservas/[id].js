@@ -12,12 +12,16 @@ export default async function handler(req, res) {
       const body =
         typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {}
 
+      const personasRaw = Number(body.personas)
+      const personas = Number.isFinite(personasRaw)
+        ? Math.max(1, Math.min(20, personasRaw))
+        : undefined
       const next = await updateReserva(id, {
         nombre: body.nombre,
         telefono: body.telefono,
         fecha: body.fecha,
         hora: body.hora,
-        personas: body.personas,
+        ...(personas != null ? { personas } : {}),
         notas: body.notas,
         estado: body.estado,
       })

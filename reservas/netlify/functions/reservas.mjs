@@ -48,7 +48,7 @@ export default async (req) => {
       telefono: String(body.telefono || '').trim(),
       fecha: String(body.fecha || now.slice(0, 10)),
       hora: String(body.hora || '14:00'),
-      personas: Math.max(1, Math.min(12, Number(body.personas) || 2)),
+      personas: Math.max(1, Math.min(20, Number(body.personas) || 2)),
       notas: String(body.notas || '').trim(),
       estado: 'confirmada',
       createdAt: now,

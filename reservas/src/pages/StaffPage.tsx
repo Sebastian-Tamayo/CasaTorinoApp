@@ -265,7 +265,7 @@ export function StaffPage() {
           <div>
             <span className="field-label">Personas</span>
             <div className="chip-row">
-              {Array.from({ length: 8 }, (_, i) => i + 1).map((n) => (
+              {Array.from({ length: BUSINESS.maxPartySize }, (_, i) => i + 1).map((n) => (
                 <button
                   key={n}
                   type="button"
@@ -275,13 +275,6 @@ export function StaffPage() {
                   {n}
                 </button>
               ))}
-              <button
-                type="button"
-                className={`chip ${personas > 8 ? 'chip-on' : ''}`}
-                onClick={() => setPersonas(Math.min(BUSINESS.maxPartySize, Math.max(9, personas)))}
-              >
-                9+
-              </button>
             </div>
           </div>
 
