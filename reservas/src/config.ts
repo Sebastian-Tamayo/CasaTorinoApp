@@ -5,7 +5,7 @@ export const BUSINESS = {
   address: 'Ctra. Ceares, 67, Gijón',
   phone: '612 254 719',
   whatsapp: '34612254719',
-  maxPartySize: 12,
+  maxPartySize: 20,
   minPartySize: 1,
 } as const
 

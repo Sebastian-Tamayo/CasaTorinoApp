@@ -21,7 +21,7 @@ function normalizeReservaFields(body) {
   if (!/^\d{2}:\d{2}$/.test(hora)) hora = '14:00'
   const personas = Math.max(
     1,
-    Math.min(12, Number(body.personas ?? body.guests ?? body.pax) || 2),
+    Math.min(20, Number(body.personas ?? body.guests ?? body.pax) || 2),
   )
   const notas = String(body.notas || body.notes || body.comentario || '').trim()
   const rawOrigen = String(body.creadoPor || body.source || body.origen || 'personal').trim()
