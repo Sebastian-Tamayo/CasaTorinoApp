@@ -264,7 +264,7 @@ export function StaffPage() {
 
           <div>
             <span className="field-label">Personas</span>
-            <div className="chip-row">
+            <div className="chip-row chip-row-party" aria-label="Número de personas">
               {Array.from({ length: BUSINESS.maxPartySize }, (_, i) => i + 1).map((n) => (
                 <button
                   key={n}
