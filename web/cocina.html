@@ -6,7 +6,14 @@
   <title>Cocina · Casa Torino</title>
   <meta name="robots" content="noindex,nofollow" />
   <meta name="theme-color" content="#0b0f14" />
-  <link rel="icon" type="image/jpeg" href="assets/logo.jpg" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Cocina Torino" />
+  <meta name="application-name" content="Cocina Torino" />
+  <link rel="manifest" href="manifest-cocina.webmanifest" />
+  <link rel="icon" type="image/png" href="assets/icon-cocina-192.png" />
+  <link rel="apple-touch-icon" href="assets/icon-cocina-192.png" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <style>
     :root {
@@ -28,13 +35,25 @@
       background: var(--bg);
       color: var(--ink);
       overflow: hidden;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
     body.kds-locked .app { display: none; }
     body:not(.kds-locked) .gate { display: none; }
+    /* App instalada: sin chrome del navegador */
+    @media (display-mode: standalone), (display-mode: fullscreen) {
+      body.is-pwa .gate-install { display: none; }
+    }
 
     .gate {
       min-height: 100dvh; display: grid; place-items: center;
       padding: 1.5rem; background: radial-gradient(circle at 30% 20%, #1a2330, #0b0f14 60%);
+    }
+    .gate-install {
+      margin: .85rem 0 0;
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 600;
+      line-height: 1.35;
     }
     .gate-card {
       width: min(380px, 100%); background: var(--card);
@@ -365,6 +384,10 @@
         <button type="button" class="ghost" data-k="ok">Entrar</button>
       </div>
       <div class="gate-err" id="gateErr" aria-live="polite"></div>
+      <p class="gate-install" id="gateInstall">
+        Para usarla como app a pantalla completa: menú del navegador →
+        <strong>Instalar app</strong> / <strong>Añadir a pantalla de inicio</strong>.
+      </p>
       <a class="gate-back" href="interno.html"><i class="fa-solid fa-arrow-left"></i> Volver</a>
     </div>
   </div>
@@ -408,6 +431,20 @@
   <div class="toast" id="toast" role="status"></div>
 
   <script src="kitchenSync.js"></script>
+  <script>
+    // PWA Cocina: registrar SW solo aquí (pass-through, sin caché).
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw-cocina.js').catch(() => {})
+      })
+    }
+    try {
+      const standalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true
+      if (standalone) document.body.classList.add('is-pwa')
+    } catch {}
+  </script>
   <script>
     (() => {
       const AUTH_KEY = 'casa-torino-tpv-auth-v1'

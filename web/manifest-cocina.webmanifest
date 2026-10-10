@@ -1,0 +1,42 @@
+{
+  "id": "/cocina.html",
+  "name": "Cocina · Casa Torino",
+  "short_name": "Cocina Torino",
+  "description": "Monitor de pedidos de cocina Casa Torino",
+  "start_url": "/cocina.html?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#0b0f14",
+  "theme_color": "#0b0f14",
+  "lang": "es",
+  "dir": "ltr",
+  "categories": ["food", "business"],
+  "icons": [
+    {
+      "src": "/assets/icon-cocina-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icon-cocina-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icon-cocina-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/assets/icon-cocina-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
