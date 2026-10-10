@@ -1,0 +1,49 @@
+---
+description: TPV sala, cocina KDS, fichaje, hub interno
+globs:
+  - web/tpv.html
+  - web/cocina.html
+  - web/fichaje.html
+  - web/interno.html
+  - web/api/**
+  - web/kitchenSync.js
+  - web/tpvSync.js
+  - web/tpvJornada.js
+  - web/printService.js
+  - web/sw-cocina.js
+  - web/manifest-cocina.webmanifest
+alwaysApply: false
+---
+
+# Operativa sala (`web/`)
+
+## `interno.html` — hub PIN
+- Gate PIN → enlaces a TPV, Cocina, Reservas, ERP, Fichaje/Horas
+
+## `tpv.html` — bloques
+1. **Barra superior** — jornada (inicio/total/fin), **Notas**, **Reservas** (badges), Editar Carta, Fichaje
+2. **Mesas** — grid / estado cuenta
+3. **Carta / categorías / productos** — catálogo `tpv-data.js` + `carta.js`
+4. **Ticket / líneas** — notas, envío cocina, cobro, parciales
+5. **Modales** — jornada, shift notes, reservas quick, editar carta, fichaje
+6. **Impresión** — `printService.js` + QZ Tray / POS-58
+
+APIs: `tpv-auth`, `tpv-sync`, `tpv-jornada`, `tpv-cierres`, `kitchen`, `carta`, `carta-image`, `shift-notes`, `time-logs`, `qz-sign`.
+
+## `cocina.html` — KDS
+1. Gate PIN (misma sesión TPV)
+2. Top bar (live, reloj, histórico, deshacer)
+3. Grid tickets comida → Listo
+4. PWA: `manifest-cocina.webmanifest` + `sw-cocina.js` (pass-through)
+
+## `fichaje.html`
+- Entrada/salida + vista horas → `time_logs`
+
+## Si piden…
+| Pedido | Dónde |
+|---|---|
+| Notas / proveedores | `tpv.html` + `api/shift-notes.js` + SQL `010_shift_notes` |
+| Reservas rápidas TPV | `tpv.html` (modal) → API reservas |
+| Mesas no se vacían / sync | `tpv-sync.js`, `api/tpv-sync.js`, `_opsStore.js` |
+| Cocina como app | PWA en `cocina.html` (no tocar TPV) |
+| Purge diario | `api/ops-daily-purge.js` + crons `vercel.json` |

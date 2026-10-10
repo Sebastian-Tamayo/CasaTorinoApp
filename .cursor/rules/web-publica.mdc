@@ -1,0 +1,38 @@
+---
+description: Web pública Casa Torino — hero, carta, menú del día, parking
+globs:
+  - web/index.html
+  - web/casa.html
+  - web/carta-public.js
+  - web/carta.js
+  - web/styles.css
+  - web/main.js
+  - web/reservar.html
+alwaysApply: false
+---
+
+# Web pública (`web/`)
+
+## Bloques por página
+
+### `index.html` / `casa.html` (landing)
+1. **Hero / marca** — logo, claim, CTAs carta/reserva
+2. **Menú del día** — `.hero-menus`, `.menu-precios`, `.menu-dia-gallery` (relleno por `carta-public.js`)
+3. **Carta secciones** — Colombia, picoteo, España, etc.
+4. **Parking / Maps / WhatsApp**
+5. **Footer / acceso discreto a interno**
+
+### Lógica menú
+- `carta.js` — carga `/api/carta`, `isWeekendMenuDay`, `applyMenuSchedule` (semana XOR finde)
+- `carta-public.js` — pinta precios + fotos del menú activo
+
+### Reserva pública
+- `reservar.html` — formulario cliente → API reservas / alerta TPV
+
+## Si piden…
+| Pedido | Archivos |
+|---|---|
+| Cambiar textos/hero/CTA | `index.html` / `casa.html`, `styles.css` |
+| Menú solo semana o finde | `carta.js`, `carta-public.js` |
+| Fotos menú | TPV Editar Carta → Storage; render en `carta-public.js` |
+| Estilos marca | `styles.css` (tema claro `#fff8e8`) |

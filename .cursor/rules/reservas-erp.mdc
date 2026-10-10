@@ -1,0 +1,34 @@
+---
+description: App reservas staff y ERP oficina
+globs:
+  - reservas/**
+  - erp/**
+alwaysApply: false
+---
+
+# Reservas (`reservas/`)
+
+- React + Vite · store Supabase `ops_kv` (`reservas`, `tpvReservaAlerts`)
+- Clave: `reservas/server/reservas-store.js` · APIs `reservas/api/*`
+- UI: `reservas/src/App.tsx`, `pages/StaffPage.tsx`
+- **Anti-regresión:** no Edge Config / CrudCrud; deploy CLI preferente
+
+# ERP (`erp/`)
+
+Next.js 15 App Router · Supabase + RLS.
+
+| Ruta | Uso |
+|---|---|
+| `/login` | PIN ERP |
+| `/gestion` | Dashboard |
+| `/gestion/caja` | Caja TPV / cierres |
+| `/gestion/top-ventas` | Ranking productos (ops_kv jornada/cierres) |
+| `/gestion/historial` | Movimientos |
+| `/gestion/nuevo` | Alta gasto/ingreso |
+| `/gestion/fiscal` | Trimestral |
+| `/gestion/rrhh` | Personal / nóminas |
+| `/gestion/proveedores` | Proveedores |
+| `/gestion/documentos` | Storage docs |
+| `/gestion/perfil` · `/gestion/mas` | Cuenta / más |
+
+Lectura TPV: `erp/src/lib/ops-kv.ts`, `api/jornada`, `api/cierres` (Supabase directo).

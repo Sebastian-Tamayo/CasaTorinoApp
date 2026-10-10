@@ -6,7 +6,7 @@ Comercial / venta → [`COMERCIAL.md`](./COMERCIAL.md).
 | | |
 |---|---|
 | **Repo** | https://github.com/Sebastian-Tamayo/CasaTorinoApp |
-| **Actualizado** | sept 2026 |
+| **Actualizado** | oct 2026 |
 | **Alcance** | `web/` · `reservas/` · `erp/` |
 
 ---
@@ -19,8 +19,8 @@ Cliente web (clara) → Gestión interna (PIN)
                          │                        └─► ops_kv `kitchen` + `jornada` + `cierres`
                          ├─ Cocina KDS (reusa sesión TPV)
                          ├─ Fichaje / horas → `time_logs` (fallback ops_kv)
-                         ├─ Reservas staff / públicas → Edge Config `reservas`
-                         └─ ERP (Supabase) ← proxy autenticado a cierres TPV
+                         ├─ Reservas staff / públicas → ops_kv `reservas` + alertas TPV
+                         └─ ERP (Supabase) ← lectura directa ops_kv jornada/cierres
 ```
 
 | Carpeta | Qué es | Root Vercel |
@@ -92,7 +92,7 @@ Auth mutaciones: header `X-Tpv-Key` o sesión TPV.
 | Capa | Tecnología | Coste típico |
 |---|---|---|
 | Web / TPV / KDS | HTML/JS + APIs Vercel | Hobby 0 € |
-| Reservas | React, Vite, Edge Config | Hobby 0 € |
+| Reservas | React, Vite, Supabase ops_kv | Hobby 0 € |
 | ERP | Next.js 15, Tailwind, Supabase | Hobby 0 € |
 | Datos ops | Supabase free (`ops_kv`, `time_logs`, tablas ERP) | 0 € |
 | Impresión | QZ Tray + POS-58 | Hardware local |
@@ -246,7 +246,7 @@ Revisión OWASP Top 10:2025 · cabeceras HTTP · RGPD/LOPDGDD proporcional a un 
 
 | Dato | Uso | Dónde |
 |---|---|---|
-| Reservas (nombre, teléfono) | Servicio | Edge Config |
+| Reservas (nombre, teléfono) | Servicio | Supabase `ops_kv` |
 | Fichajes | Obligación legal jornada | `time_logs` / ops_kv |
 | Ticket / mesa | Operativa | ops_kv |
 | Empleados / nóminas | Laboral | Supabase + RLS |
