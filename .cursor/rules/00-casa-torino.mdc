@@ -1,0 +1,43 @@
+---
+description: Mapa maestro Casa Torino — a dónde ir según la petición (organización, no cambia prod)
+alwaysApply: true
+---
+
+# Casa Torino OS — Guía de navegación para el agente
+
+Monorepo en producción. **Antes de tocar código de runtime**, confirma módulo y archivo.
+Documentación madre: `docs/PRD.md` · mapa: `docs/MAPA-CODIGO.md` · técnico: `docs/ESPECIFICACIONES-TECNICAS.md`.
+
+## Tres proyectos Vercel (no mezclar roots)
+
+| Pedido del usuario | Ir a | URL prod |
+|---|---|---|
+| Web pública, carta, hero, menú del día, parking | `web/index.html` (+ `casa.html`), `web/carta-public.js`, `web/styles.css` | casa-torino-web |
+| TPV / mesas / cobro / ticket / notas / reservas rápidas | `web/tpv.html` + `web/api/tpv-*.js` | casa-torino-web |
+| Cocina / KDS / Listo | `web/cocina.html` + `web/api/kitchen.js` + `kitchenSync.js` | casa-torino-web |
+| Fichaje / horas | `web/fichaje.html` + `web/api/time-logs.js` | casa-torino-web |
+| Hub PIN interno | `web/interno.html` | casa-torino-web |
+| Reserva pública web | `web/reservar.html` | casa-torino-web |
+| Reservas del personal | `reservas/` | reservas-casatorino |
+| ERP / caja / fiscal / RRHH / top ventas | `erp/` | casa-torino-app |
+| Docs / PRD / comercial | `docs/` · `README.md` | — (no deploy) |
+
+## Persistencia (ya migrada)
+
+- Ops compartida: Supabase **`ops_kv`** (`web/api/_opsStore.js`) — tpv, kitchen, jornada, cierres, carta, reservas.
+- Fotos platos: Storage **`menu_images`**.
+- Notas turno: tabla **`shift_notes`**.
+- Fichajes: tabla **`time_logs`**.
+- **No reintroducir** Vercel Blob ni Edge Config.
+
+## Reglas anti-daño
+
+1. Producción estable: no redeploy “por si acaso”; no pisar `main` con experimentos.
+2. Reservas Vercel: preferir deploy CLI; no reconectar Git a ciegas.
+3. Ramas: trabajar en `cursor/<nombre>-580d`; merge a `main` solo lo que deba vivir en prod.
+4. Secretos solo en Vercel / `.env` local — nunca en Git.
+5. Tareas solo de docs/organización: no modificar HTML/JS/API de runtime salvo petición explícita.
+
+## Backup
+
+Workflow `.github/workflows/daily-backup.yml` — 03:00 Madrid, ramas `backup/daily-YYYY-MM-DD`, retención 14 días. No borrar ese workflow.

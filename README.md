@@ -1,10 +1,21 @@
-# Casa Torino App — Ecosistema gastronómico
+# Casa Torino OS — Ecosistema gastronómico
 
 Sistema integral para restaurante (web + TPV + cocina + reservas + ERP), en producción en **Casa Torino · Gijón**.
 
 Sin cuotas mensuales de TPV comercial · sync en tiempo real · PIN en zonas internas · stack Hobby (Vercel + Supabase).
 
 **Estrés real:** +2.600 € y +130 comensales concurrentes en un fin de semana de terraza, sin caídas.
+
+### Documentación (leer primero)
+
+| Doc | Contenido |
+|-----|-----------|
+| [`docs/PRD.md`](./docs/PRD.md) | **Documento madre** del producto |
+| [`docs/ESPECIFICACIONES-TECNICAS.md`](./docs/ESPECIFICACIONES-TECNICAS.md) | Especificaciones técnicas |
+| [`docs/COMERCIAL.md`](./docs/COMERCIAL.md) | Pitch / packs / demo |
+| [`docs/MAPA-CODIGO.md`](./docs/MAPA-CODIGO.md) | Mapa por página y bloque |
+| [`docs/TECNICO.md`](./docs/TECNICO.md) | Deploy, seguridad, backup |
+| [`docs/ORGANIZACION.md`](./docs/ORGANIZACION.md) | Ramas, backups, propuestas |
 
 <p align="center">
   <img src="docs/media/web/logo.jpeg" alt="Casa Torino" width="120" />
@@ -79,9 +90,10 @@ Cliente → Web pública
 | Carpeta | Qué es |
 |---------|--------|
 | `/web` | Web clara, interno, TPV, cocina (KDS), fichaje / horas |
-| `/reservas` | Agenda del personal (React + Vite + Edge Config) |
+| `/reservas` | Agenda del personal (React + Vite + Supabase `ops_kv`) |
 | `/erp` | Back-office Next.js 15 + Supabase (P&L, fiscal, RRHH, documentos) |
-| `/docs` | Comercial + técnico + media |
+| `/docs` | PRD + comercial + técnico + mapa + media |
+| `/.cursor/rules` | Reglas Cursor (organización por módulo) |
 
 ---
 
@@ -112,12 +124,12 @@ Cliente → Web pública
 | Capa | Tecnología |
 |------|------------|
 | Web / TPV / KDS | HTML/JS + APIs Vercel |
-| Reservas | React, Vite, Edge Config |
+| Reservas | React, Vite, Supabase `ops_kv` |
 | ERP | Next.js 15, Tailwind, Supabase |
-| Datos ops | Supabase `ops_kv` / `time_logs` |
+| Datos ops | Supabase `ops_kv` / `time_logs` / `shift_notes` / Storage |
 | Hosting | Vercel Hobby |
 
-Docs: [`docs/COMERCIAL.md`](docs/COMERCIAL.md) · [`docs/TECNICO.md`](docs/TECNICO.md) (seguridad, deploy, backup).
+Docs: [`docs/PRD.md`](docs/PRD.md) · [`docs/ESPECIFICACIONES-TECNICAS.md`](docs/ESPECIFICACIONES-TECNICAS.md) · [`docs/TECNICO.md`](docs/TECNICO.md).
 
 ---
 
