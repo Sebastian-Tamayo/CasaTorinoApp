@@ -38,7 +38,7 @@ Un único ecosistema digital para un restaurante familiar: **marca en la web**, 
 
 ### 3.1 Web pública
 - Carta con precios alineados al TPV
-- Menú del día automático: **entre semana · sábado · domingo/festivo** (un solo menú por día; sáb. 16 € · dom. 19 €)
+- Menú del día automático: **entre semana 13 € · sábado 16 € · domingo/festivo 18 €** (un solo menú; sin etiquetas de origen)
 - Hero, parking, Maps, WhatsApp, reserva web
 - Tema claro de marca
 

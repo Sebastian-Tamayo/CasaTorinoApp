@@ -76,7 +76,7 @@ Hub con PIN → TPV, Cocina, Reservas, ERP, Horas trabajadas.
 - Pedidos **por mesa** (móvil + PC sincronizados)
 - Carta por categorías + buscador
 - Envío a cocina (solo comida); notas / alergias
-- Menú del día: entre semana / sábado (16 €) / domingo-festivo (19 €)
+- Menú del día: entre semana 13 € / sábado 16 € / domingo-festivo 18 €
 - Cobro efectivo/tarjeta, propina, **cobro parcial / pagos divididos**
 - Ticket QZ Tray → POS-58; cajón al cobrar
 - Jornada de caja + historial de cierres → ERP

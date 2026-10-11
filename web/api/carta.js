@@ -180,7 +180,7 @@ function syncMenuDayFromItems(carta) {
     carta.menuDay = {
       weekday: { label: 'Entre semana', price: 13 },
       saturday: { label: 'Sábado', price: 16 },
-      sunday: { label: 'Domingo / festivo', price: 19 },
+      sunday: { label: 'Domingo / festivo', price: 18 },
     }
   }
   if (!carta.menuDay.weekday) carta.menuDay.weekday = { label: 'Entre semana' }
