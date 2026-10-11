@@ -745,7 +745,7 @@
       font: inherit; font-size: .72rem; font-weight: 800; cursor: pointer;
     }
 
-    /* Modal elección menú español */
+    /* Modal elección menú (1º / 2º) — solo si coursePick */
     .course-modal {
       position: fixed; inset: 0; z-index: 90;
       display: grid; place-items: center; padding: 1rem;
@@ -2164,7 +2164,7 @@
         <button type="button" class="btn-modal-back" id="courseBack" aria-label="Volver">
           <i class="fa-solid fa-arrow-left"></i> Volver
         </button>
-        <h3 id="courseModalTitle">Menú español</h3>
+        <h3 id="courseModalTitle">Menú del día</h3>
       </div>
       <p class="sub" id="courseModalSub">Elige qué opción comerá el cliente. Cocina lo verá en el ticket.</p>
       <div class="course-block">
@@ -3478,7 +3478,7 @@
           if (m) courseSel = { primero: m[1], segundo: m[2] }
         }
         if ($('courseModalTitle')) {
-          $('courseModalTitle').textContent = item?.name || 'Menú español'
+          $('courseModalTitle').textContent = item?.name || 'Menú del día'
         }
         if ($('courseOk')) {
           $('courseOk').textContent = editKey ? 'Guardar elección' : 'Añadir a cuenta'
@@ -3574,7 +3574,7 @@
           openExtraModal()
           return
         }
-        // Solo menú español: pedir Primero/Segundo Nº1 o Nº2
+        // Solo si el plato pide 1º/2º
         if (isSpanishMenu(item) || item.coursePick) {
           openCoursePick(item, null)
           return

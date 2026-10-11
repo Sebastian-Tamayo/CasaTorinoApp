@@ -13,11 +13,11 @@
     },
     "sunday": {
       "label": "Domingo / festivo",
-      "price": 19
+      "price": 18
     }
   },
   "festivosGijon": {
-    "note": "Calendario laboral Gijón (nacionales + autonómicos + locales). En estos días se aplica el menú del domingo.",
+    "note": "Calendario laboral Gijón. En festivos se aplica el mismo menú/precio del domingo.",
     "source": "Calendarios Ideal / BOPA fiestas locales Asturias",
     "2026": [
       {
@@ -156,25 +156,25 @@
           "id": "menu-dia-unificado-semana",
           "name": "Menú del día",
           "price": 13.0,
-          "desc": "Lunes a viernes",
+          "desc": "",
           "base": "Menú del día",
           "categoryType": "comida",
           "schedule": "weekday"
         },
         {
           "id": "menu-dia-co-finde",
-          "name": "Menú del sábado",
+          "name": "Menú del día",
           "price": 16.0,
-          "desc": "Sábado",
+          "desc": "",
           "base": "Menú del día",
           "categoryType": "comida",
           "schedule": "saturday"
         },
         {
           "id": "menu-dia-es-finde",
-          "name": "Menú del domingo",
-          "price": 19.0,
-          "desc": "Domingo y festivos",
+          "name": "Menú del día",
+          "price": 18.0,
+          "desc": "",
           "base": "Menú del día",
           "categoryType": "comida",
           "schedule": "sunday"

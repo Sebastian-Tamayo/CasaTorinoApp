@@ -63,35 +63,19 @@
     const week = md.weekday || {}
     // Compat con carta antigua (weekend.es / weekend.co)
     const satPrice = sat.price ?? md.weekend?.co ?? 16
-    const sunPrice = sun.price ?? md.weekend?.es ?? 19
+    const sunPrice = sun.price ?? md.weekend?.es ?? 18
     const weekPrice = week.price ?? week.unified ?? week.es ?? 13
-
-    let label = 'Hoy · entre semana'
-    let detail = `Menú del día <em>${escapeHtml(weekPrice)}\u00a0€</em>`
-    let copyText = 'Hoy entre semana: menú del día.'
-    if (schedule === 'saturday') {
-      label = 'Hoy · sábado'
-      detail = `Menú del día <em>${escapeHtml(satPrice)}\u00a0€</em>`
-      copyText = 'Hoy sábado: menú del día.'
-    } else if (schedule === 'sunday') {
-      if (kindInfo.reason === 'holiday' && kindInfo.festivo?.name) {
-        label = 'Hoy · festivo'
-        copyText = `Hoy es festivo en Gijón (${kindInfo.festivo.name}): menú del domingo.`
-      } else {
-        label = 'Hoy · domingo'
-        copyText = 'Hoy domingo: menú del día.'
-      }
-      detail = `Menú del día <em>${escapeHtml(sunPrice)}\u00a0€</em>`
-    }
+    const price =
+      schedule === 'saturday' ? satPrice : schedule === 'sunday' ? sunPrice : weekPrice
 
     ul.innerHTML = `
       <li>
-        <span class="mp-label">${label}</span>
-        <span class="mp-detail">${detail}</span>
+        <span class="mp-label">Hoy · menú del día</span>
+        <span class="mp-detail"><em>${escapeHtml(price)}\u00a0€</em></span>
       </li>`
 
     const copy = document.querySelector('.menu-dia-copy p')
-    if (copy) copy.textContent = copyText
+    if (copy) copy.textContent = 'Menú del día.'
 
     // Fotos del menú (mismas image_url que se adjuntan en Editar Carta del TPV)
     let gallery = document.querySelector('.menu-dia-gallery')
@@ -114,13 +98,7 @@
     const itemSchedule = (it) =>
       window.CasaTorinoCarta?.menuItemSchedule?.(it) || ''
 
-    const labelFor = (it) => {
-      const sch = itemSchedule(it)
-      if (sch === 'saturday') return { eyebrow: 'Sábado', title: 'Menú del día' }
-      if (sch === 'sunday') return { eyebrow: 'Domingo', title: 'Menú del día' }
-      if (sch === 'weekday') return { eyebrow: 'Entre semana', title: 'Menú del día' }
-      return { eyebrow: 'Menú', title: it.name || 'Menú del día' }
-    }
+    const labelFor = () => ({ eyebrow: 'Hoy', title: 'Menú del día' })
 
     let items = (menus?.items || []).filter(
       (it) =>
@@ -147,10 +125,10 @@
     gallery.style.setProperty('--menu-foto-cols', String(Math.min(3, items.length)))
     gallery.innerHTML = items
       .map((it, i) => {
-        const labels = labelFor(it)
+        const labels = labelFor()
         return `<button type="button" class="menu-dia-foto is-today" style="--i:${i}" data-dish-id="${escapeHtml(it.id)}" aria-label="Ver ${escapeHtml(labels.title)}">
           <img src="${escapeHtml(it.image_url)}" alt="${escapeHtml(labels.title)}" loading="lazy" decoding="async" />
-          <em>${escapeHtml(labels.eyebrow)} · hoy</em>
+          <em>${escapeHtml(labels.eyebrow)}</em>
           <strong>${escapeHtml(labels.title)}</strong>
           <b>${money(it.price)}</b>
           <span class="menu-dia-foto-cta">Ver menú <em>(pincha aquí)</em></span>
