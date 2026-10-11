@@ -1,12 +1,10 @@
 /**
- * SW Cocina: avisa a todas las tablets con la app abierta.
- * Manifest fullscreen + mensaje «Actualiza para seguir» sin refrescar a mano.
+ * SW Cocina: al activarse, recarga las tablets para recuperar sync.
+ * Pass-through (sin caché).
  */
-const SW_VERSION = '2026-10-11-cocina-push-1'
-const VERSION_URL = '/cocina-version.json'
-let lastRequired = ''
+const SW_VERSION = '2026-10-11-fix-create-1'
 
-async function broadcastForce(info) {
+async function reloadCocinaClients() {
   const clients = await self.clients.matchAll({
     type: 'window',
     includeUncontrolled: true,
@@ -14,26 +12,20 @@ async function broadcastForce(info) {
   for (const client of clients) {
     if (!/cocina\.html/i.test(client.url || '')) continue
     try {
-      client.postMessage({
-        type: 'cocina-force-update',
-        required: info.required,
-        message: info.message || 'Actualiza para seguir',
-        swVersion: SW_VERSION,
-      })
+      const u = new URL(client.url)
+      u.searchParams.set('v', String(Date.now()))
+      if (typeof client.navigate === 'function') {
+        await client.navigate(u.toString())
+      } else {
+        client.postMessage({
+          type: 'cocina-force-update',
+          required: '2026-10-11-cocina-push-1',
+          message: 'Actualiza para seguir',
+          swVersion: SW_VERSION,
+        })
+      }
     } catch {}
   }
-}
-
-async function checkVersion() {
-  try {
-    const r = await fetch(VERSION_URL + '?t=' + Date.now(), { cache: 'no-store' })
-    if (!r.ok) return
-    const info = await r.json()
-    const req = String(info.required || '')
-    if (!req) return
-    lastRequired = req
-    await broadcastForce(info)
-  } catch {}
 }
 
 self.addEventListener('install', (event) => {
@@ -46,7 +38,7 @@ self.addEventListener('activate', (event) => {
       try {
         await self.clients.claim()
       } catch {}
-      await checkVersion()
+      await reloadCocinaClients()
     })(),
   )
 })
@@ -60,5 +52,3 @@ self.addEventListener('message', (event) => {
     self.skipWaiting()
   }
 })
-
-setInterval(checkVersion, 8000)

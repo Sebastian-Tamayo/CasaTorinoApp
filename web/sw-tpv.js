@@ -1,11 +1,10 @@
 /**
- * SW TPV: avisa a todas las pestañas abiertas cuando hay versión nueva.
- * No cachea. El mensaje llega sin que el usuario pulse refrescar.
+ * SW TPV: al activarse, recarga pestañas TPV si hace falta.
+ * Pass-through (sin caché). No bloquea envío a cocina.
  */
-const VERSION_URL = '/tpv-version.json'
-let lastRequired = ''
+const SW_VERSION = '2026-10-11-fix-create-1'
 
-async function broadcastForce(info) {
+async function reloadTpvClients() {
   const clients = await self.clients.matchAll({
     type: 'window',
     includeUncontrolled: true,
@@ -13,29 +12,13 @@ async function broadcastForce(info) {
   for (const client of clients) {
     if (!/tpv\.html/i.test(client.url || '')) continue
     try {
-      client.postMessage({
-        type: 'tpv-force-update',
-        required: info.required,
-        message: info.message || 'Actualiza para seguir',
-      })
+      const u = new URL(client.url)
+      u.searchParams.set('v', String(Date.now()))
+      if (typeof client.navigate === 'function') {
+        await client.navigate(u.toString())
+      }
     } catch {}
   }
-}
-
-async function checkVersion() {
-  try {
-    const r = await fetch(VERSION_URL + '?t=' + Date.now(), { cache: 'no-store' })
-    if (!r.ok) return
-    const info = await r.json()
-    const req = String(info.required || '')
-    if (!req) return
-    if (req !== lastRequired) {
-      lastRequired = req
-      await broadcastForce(info)
-    } else {
-      await broadcastForce(info)
-    }
-  } catch {}
 }
 
 self.addEventListener('install', (event) => {
@@ -48,7 +31,8 @@ self.addEventListener('activate', (event) => {
       try {
         await self.clients.claim()
       } catch {}
-      await checkVersion()
+      // No forzar reload masivo del TPV en servicio: solo claim.
+      // El fix de cocina create es server-side.
     })(),
   )
 })
@@ -61,10 +45,7 @@ self.addEventListener('message', (event) => {
   if (event?.data?.type === 'skip-waiting') {
     self.skipWaiting()
   }
-  if (event?.data?.type === 'check-version') {
-    event.waitUntil(checkVersion())
+  if (event?.data?.type === 'reload-tpv') {
+    event.waitUntil(reloadTpvClients())
   }
 })
-
-// Sondeo en segundo plano → el aviso aparece solo
-setInterval(checkVersion, 8000)
