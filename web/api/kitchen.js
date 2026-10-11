@@ -173,12 +173,14 @@ function sanitizeItems(raw) {
     }))
 }
 
-/** Menú español = siempre 2 platos (primero / segundo) */
+/** Menú a 2 tiempos (primero / segundo) — solo si viene marcado o con nota de cursos */
 function isSpanishMenuItem(it) {
+  if (it?.coursePick === true) return true
   const id = String(it?.id || '')
   const note = String(it?.note || '')
   const cat = String(it?.catId || '').toLowerCase()
-  if (/^menu-dia-es-/.test(id)) return true
+  // Legado entre semana; sábado/domingo ya no son 2 tiempos
+  if (id === 'menu-dia-es-semana') return true
   if (cat === 'menus-dia' && /Primero\s*N\s*\d/i.test(note)) return true
   return false
 }

@@ -41,57 +41,57 @@
     const wrap = document.querySelector('.hero-menus')
     const ul = document.querySelector('.menu-precios')
     if (!ul || !data?.menuDay) return
-    const w = data.menuDay.weekday
-    const e = data.menuDay.weekend
-    if (!w || !e) return
 
-    const info =
+    const kindInfo =
+      window.CasaTorinoCarta?.menuDayKind?.(data) ||
       window.CasaTorinoCarta?.isWeekendMenuDay?.(data) || {
-        weekend: false,
+        kind: 'weekday',
+        schedule: 'weekday',
         reason: 'weekday',
       }
-    const isWeekend = Boolean(info.weekend)
-    const todaySchedule = isWeekend ? 'weekend' : 'weekday'
+    const schedule =
+      kindInfo.schedule ||
+      (kindInfo.kind === 'saturday'
+        ? 'saturday'
+        : kindInfo.kind === 'sunday' || kindInfo.reason === 'holiday'
+          ? 'sunday'
+          : 'weekday')
 
-    // Solo el menú de hoy (semana O finde), nunca los dos a la vez
-    const previewCoOnly = info.reason === 'preview-saturday'
-    if (isWeekend) {
-      const weekendLabel = previewCoOnly
-        ? 'Mañana · sábado · menú colombiano'
-        : `Hoy · fin de semana${info.reason === 'holiday' ? ' / festivo' : ''}`
-      const weekendDetail = previewCoOnly
-        ? `Colombiano <em>${escapeHtml(e.co)}\u00a0€</em>`
-        : `Colombiano <em>${escapeHtml(e.co)}\u00a0€</em> · Español <em>${escapeHtml(e.es)}\u00a0€</em>`
-      ul.innerHTML = `
-      <li>
-        <span class="mp-label">${weekendLabel}</span>
-        <span class="mp-detail">${weekendDetail}</span>
-      </li>`
-    } else {
-      const weekdayDetail =
-        w.unified != null
-          ? `Menú del día <em>${escapeHtml(w.unified)}\u00a0€</em>`
-          : `Colombiano <em>${escapeHtml(w.co)}\u00a0€</em> · Español <em>${escapeHtml(w.es)}\u00a0€</em>`
-      ul.innerHTML = `
-      <li>
-        <span class="mp-label">Hoy · entre semana</span>
-        <span class="mp-detail">${weekdayDetail}</span>
-      </li>`
+    const md = data.menuDay || {}
+    const sat = md.saturday || {}
+    const sun = md.sunday || {}
+    const week = md.weekday || {}
+    // Compat con carta antigua (weekend.es / weekend.co)
+    const satPrice = sat.price ?? md.weekend?.co ?? 16
+    const sunPrice = sun.price ?? md.weekend?.es ?? 19
+    const weekPrice = week.price ?? week.unified ?? week.es ?? 13
+
+    let label = 'Hoy · entre semana'
+    let detail = `Menú del día <em>${escapeHtml(weekPrice)}\u00a0€</em>`
+    let copyText = 'Hoy entre semana: menú del día.'
+    if (schedule === 'saturday') {
+      label = 'Hoy · sábado'
+      detail = `Menú del día <em>${escapeHtml(satPrice)}\u00a0€</em>`
+      copyText = 'Hoy sábado: menú del día.'
+    } else if (schedule === 'sunday') {
+      if (kindInfo.reason === 'holiday' && kindInfo.festivo?.name) {
+        label = 'Hoy · festivo'
+        copyText = `Hoy es festivo en Gijón (${kindInfo.festivo.name}): menú del domingo.`
+      } else {
+        label = 'Hoy · domingo'
+        copyText = 'Hoy domingo: menú del día.'
+      }
+      detail = `Menú del día <em>${escapeHtml(sunPrice)}\u00a0€</em>`
     }
+
+    ul.innerHTML = `
+      <li>
+        <span class="mp-label">${label}</span>
+        <span class="mp-detail">${detail}</span>
+      </li>`
 
     const copy = document.querySelector('.menu-dia-copy p')
-    if (copy) {
-      if (previewCoOnly) {
-        copy.textContent = 'Vista previa del menú de sábado: solo menú colombiano.'
-      } else if (info.reason === 'holiday' && info.festivo?.name) {
-        copy.textContent =
-          `Hoy es festivo en Gijón (${info.festivo.name}): aplica tarifa de fin de semana.`
-      } else if (isWeekend) {
-        copy.textContent = 'Hoy es fin de semana: menú colombiano o español.'
-      } else {
-        copy.textContent = 'Hoy entre semana: menú del día unificado.'
-      }
-    }
+    if (copy) copy.textContent = copyText
 
     // Fotos del menú (mismas image_url que se adjuntan en Editar Carta del TPV)
     let gallery = document.querySelector('.menu-dia-gallery')
@@ -106,48 +106,20 @@
     const menus = (data.categories || []).find((c) => c && c.id === 'menus-dia')
     const order = [
       'menu-dia-unificado-semana',
-      'menu-dia-es-semana',
-      'menu-dia-co-semana',
-      'menu-dia-es-finde',
       'menu-dia-co-finde',
+      'menu-dia-es-finde',
+      'menu-dia-sabado',
+      'menu-dia-domingo',
     ]
     const itemSchedule = (it) =>
-      window.CasaTorinoCarta?.menuItemSchedule?.(it) ||
-      (String(it?.schedule || '').trim() === 'weekend'
-        ? 'weekend'
-        : String(it?.schedule || '').trim() === 'weekday'
-          ? 'weekday'
-          : '')
+      window.CasaTorinoCarta?.menuItemSchedule?.(it) || ''
 
     const labelFor = (it) => {
-      const id = String(it.id || '')
       const sch = itemSchedule(it)
-      if (
-        id.includes('unificado') ||
-        (sch === 'weekday' && !id.includes('-es-') && !id.includes('-co-'))
-      ) {
-        return { eyebrow: 'Entre semana', title: 'Menú del día' }
-      }
-      if (id.includes('-es-') || /español/i.test(it.name || '')) {
-        return { eyebrow: 'Fin de semana', title: 'Menú español' }
-      }
-      if (id.includes('-co-') || /colombiano/i.test(it.name || '')) {
-        return { eyebrow: 'Fin de semana', title: 'Menú colombiano' }
-      }
-      if (sch === 'weekday') return { eyebrow: 'Entre semana', title: it.name || 'Menú' }
-      if (sch === 'weekend') return { eyebrow: 'Fin de semana', title: it.name || 'Menú' }
+      if (sch === 'saturday') return { eyebrow: 'Sábado', title: 'Menú del día' }
+      if (sch === 'sunday') return { eyebrow: 'Domingo', title: 'Menú del día' }
+      if (sch === 'weekday') return { eyebrow: 'Entre semana', title: 'Menú del día' }
       return { eyebrow: 'Menú', title: it.name || 'Menú del día' }
-    }
-
-    const isColombianoMenu = (it) => {
-      const id = String(it?.id || '').toLowerCase()
-      const name = String(it?.name || '').toLowerCase()
-      return (
-        id.includes('-co-') ||
-        id.includes('co-finde') ||
-        id.includes('colombiano') ||
-        /colombiano/i.test(name)
-      )
     }
 
     let items = (menus?.items || []).filter(
@@ -155,8 +127,7 @@
         it &&
         it.image_url &&
         !it.customProduct &&
-        itemSchedule(it) === todaySchedule &&
-        (!previewCoOnly || isColombianoMenu(it)),
+        itemSchedule(it) === schedule,
     )
     items = [...items].sort((a, b) => {
       const ia = order.indexOf(a.id)

@@ -93,9 +93,9 @@ SQL de referencia: `web/supabase/*.sql` · `erp/supabase/migrations/`.
 
 ## 5. Reglas de dominio críticas
 
-1. **Menú del día:** `isWeekendMenuDay` (sáb/dom + festivos Gijón) → solo ítems `weekday` **o** `weekend`.
+1. **Menú del día:** `menuDayKind` → `weekday` | `saturday` | `sunday` (festivos Gijón = domingo). Un solo menú por día.
 2. **Cocina:** solo líneas `categoryType: comida` (bebidas/postres/barra no entran).
-3. **Menús mixtos:** español puede ser 2 tiempos; colombiano 1 tiempo.
+3. **Precios menú:** entre semana 13 € · sábado 16 € · domingo/festivo 19 € (sin menú ES/CO de finde).
 4. **Editar Carta TPV** escribe Supabase; la web pública lee la misma fuente.
 5. **Purge:** cron Vercel → `/api/ops-daily-purge` (no depende de ramas feature).
 
