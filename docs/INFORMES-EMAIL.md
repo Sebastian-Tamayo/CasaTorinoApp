@@ -34,11 +34,15 @@ Sin `RESEND_API_KEY` el sistema **guarda el HTML** en `ops_kv` (`informe-html:se
 
 ## Probar sin enviar
 
-Con sesión TPV o header `Authorization: Bearer <CRON_SECRET|TPV_SYNC_KEY>`:
+Con sesión TPV o header `Authorization: Bearer <CRON_SECRET|TPV_SYNC_KEY>`  
+(Hobby: sin rutas API nuevas — va por el purge):
 
 ```bash
-curl -sS "https://casa-torino-web.vercel.app/api/informes-semanal?dryRun=1" \
-  -H "Authorization: Bearer $CRON_SECRET"
+curl -sS "https://casa-torino-web.vercel.app/api/ops-daily-purge?informe=semanal&dryRun=1" \
+  -H "Authorization: Bearer $TPV_SYNC_KEY"
+
+curl -sS "https://casa-torino-web.vercel.app/api/ops-daily-purge?informe=mensual&dryRun=1" \
+  -H "Authorization: Bearer $TPV_SYNC_KEY"
 ```
 
 La respuesta JSON incluye `html` (ábrelo en el móvil) y `report` con totales.
@@ -49,7 +53,7 @@ Forzar reenvío: `force=1`.
 
 Opciones ya cableadas o fáciles:
 
-1. **HTML en ops_kv** — generado siempre; consulta con `dryRun=1` o lee la clave `informe-html:…` en Supabase.
+1. **HTML en ops_kv** — generado siempre; consulta con `?informe=semanal&dryRun=1` o lee la clave `informe-html:…` en Supabase.
 2. **Misma API a mano** — bookmark del dry-run tras el domingo / día 1.
 3. **WhatsApp Business / Telegram bot** — se puede enganchar al mismo HTML (mismo cron) si más adelante se prefiere chat a email.
 4. **Google Drive** — subir el HTML con una service account (requiere credenciales nuevas).

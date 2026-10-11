@@ -64,9 +64,7 @@ Detalle operativo ampliado: [`TECNICO.md`](./TECNICO.md). Mapa de archivos: [`MA
 | `GET/POST /api/kitchen` | Cola KDS |
 | `GET/POST /api/shift-notes` | Notas de turno |
 | `GET/POST /api/time-logs` | Fichajes |
-| `GET/POST /api/ops-daily-purge` | Limpieza diaria (cron) + backup informes email |
-| `GET/POST /api/informes-semanal` | Informe semanal → Resend / dryRun |
-| `GET/POST /api/informes-mensual` | Informe mensual → Resend / dryRun |
+| `GET/POST /api/ops-daily-purge` | Limpieza diaria (cron) + backup/manual informes (`?informe=`) |
 | `GET /api/ops-health` | Health |
 | `POST /api/qz-sign` | Firma QZ Tray |
 

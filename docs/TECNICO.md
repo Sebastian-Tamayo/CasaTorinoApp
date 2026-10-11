@@ -91,7 +91,7 @@ Auth mutaciones: header `X-Tpv-Key` o sesión TPV.
 - HTML responsive (móvil) con: total ventas, comida/bebida, efectivo/tarjeta, top productos, picos de mesas ocupadas
 - **Semanal (lun–dom):** al cerrar caja el domingo (`POST /api/tpv-jornada` action `end`) + backup lunes ~08:00 Madrid vía purge
 - **Mensual:** día 1 del mes ~08:00 Madrid (totales por semana, no por día)
-- APIs: `GET/POST /api/informes-semanal` · `/api/informes-mensual` (`dryRun=1`, `force=1`)
+- Prueba manual: `GET /api/ops-daily-purge?informe=semanal|mensual&dryRun=1` (sin función API extra — límite Hobby 12)
 - Envío: Resend (`RESEND_API_KEY` + `REPORT_EMAIL_FROM` en Vercel proyecto web)
 - Sin Resend: HTML en ops_kv `informe-html:{periodKey}` + log `informe-log` (idempotencia)
 - Cada cierre guarda `activityByHour` (mesas distintas / tickets por hora Madrid)
