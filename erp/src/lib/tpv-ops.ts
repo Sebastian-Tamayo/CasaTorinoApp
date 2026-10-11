@@ -53,6 +53,12 @@ export type CierreItem = {
   };
   salesCount?: number;
   salesPreview?: { id: string; at: number; mesa: string; total: number }[];
+  activityByHour?: {
+    hour: number;
+    mesas: number;
+    tickets: number;
+    total: number;
+  }[];
   updatedAt?: number;
 };
 

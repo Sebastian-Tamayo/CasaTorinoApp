@@ -1,5 +1,8 @@
 /**
  * Limpieza diaria 08:00 Europe/Madrid — cocina + mesas TPV.
+ * También dispara backups de informes email (Hobby: máx. 2 crons).
+ *   - Lunes: informe semanal si no se envió al cerrar caja el domingo
+ *   - Día 1: informe mensual del mes anterior
  *
  * GET|POST /api/ops-daily-purge
  * Invocado por Vercel Cron (06:00 y 07:00 UTC → cubre CEST/CET = 08:00 Madrid)
@@ -13,6 +16,11 @@ const {
   applyKitchenDayRollover,
   applyTpvDayRollover,
 } = require('./_opsDay')
+const {
+  runInforme,
+  madridWeekday,
+  madridParts,
+} = require('./_informeReports')
 
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const CRON_SECRET = process.env.CRON_SECRET || SYNC_KEY || ''
@@ -122,12 +130,34 @@ module.exports = async function handler(req, res) {
   try {
     const day = opsDayId()
     const [kitchen, tpv] = await Promise.all([purgeKitchen(), purgeTpv()])
+
+    // Informes email (idempotentes; no rompen el purge si fallan)
+    let informes = null
+    try {
+      const now = new Date()
+      const wd = madridWeekday(now)
+      const { day: madridDay } = madridParts(now)
+      informes = { weekly: null, monthly: null }
+      if (wd === 'Mon') {
+        informes.weekly = await runInforme('semanal', { force: false, now })
+      }
+      if (madridDay === 1) {
+        informes.monthly = await runInforme('mensual', { force: false, now })
+      }
+    } catch (err) {
+      console.warn('[ops-daily-purge] informes', err)
+      informes = {
+        error: String(err && err.message ? err.message : err),
+      }
+    }
+
     const payload = {
       ok: true,
       day,
       purgeAt: '08:00 Europe/Madrid',
       kitchen,
       tpv,
+      informes,
       ranAt: new Date().toISOString(),
     }
     res.statusCode = 200

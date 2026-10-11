@@ -2,11 +2,12 @@
  * Casa Torino — almacén operativo 24/7
  * Backend: Supabase (tabla public.ops_kv) — plan gratis
  *
- * Claves: kitchen | tpv | jornada | cierres | carta
+ * Claves: kitchen | tpv | jornada | cierres | carta | informe-log | informe-html:*
  *
  * Env (Vercel proyecto casa-torino-web):
  *   SUPABASE_URL
  *   SUPABASE_ANON_KEY   (o SUPABASE_SECRET_KEY / SUPABASE_SERVICE_ROLE_KEY)
+ *   RESEND_API_KEY / REPORT_EMAIL_TO / REPORT_EMAIL_FROM (informes email)
  */
 function cleanToken(raw) {
   let t = String(raw || '').trim()

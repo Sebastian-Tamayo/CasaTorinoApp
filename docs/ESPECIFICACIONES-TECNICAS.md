@@ -64,7 +64,9 @@ Detalle operativo ampliado: [`TECNICO.md`](./TECNICO.md). Mapa de archivos: [`MA
 | `GET/POST /api/kitchen` | Cola KDS |
 | `GET/POST /api/shift-notes` | Notas de turno |
 | `GET/POST /api/time-logs` | Fichajes |
-| `GET/POST /api/ops-daily-purge` | Limpieza diaria (cron) |
+| `GET/POST /api/ops-daily-purge` | Limpieza diaria (cron) + backup informes email |
+| `GET/POST /api/informes-semanal` | Informe semanal → Resend / dryRun |
+| `GET/POST /api/informes-mensual` | Informe mensual → Resend / dryRun |
 | `GET /api/ops-health` | Health |
 | `POST /api/qz-sign` | Firma QZ Tray |
 
@@ -79,7 +81,9 @@ Clientes clave: `tpvSync.js`, `tpvJornada.js`, `kitchenSync.js`, `carta.js`, `pr
 | `ops_kv.tpv` | Mesas / cuentas |
 | `ops_kv.kitchen` | Pedidos cocina |
 | `ops_kv.jornada` | Jornada abierta + ventas |
-| `ops_kv.cierres` | Histórico cierres |
+| `ops_kv.cierres` | Histórico cierres (+ `activityByHour` por cierre) |
+| `ops_kv.informe-log` | Idempotencia envíos informe semanal/mensual |
+| `ops_kv.informe-html:*` | HTML del informe (fallback sin email) |
 | `ops_kv.carta` | Carta + menús |
 | `ops_kv.reservas` | Agenda |
 | `ops_kv.tpvReservaAlerts` | Avisos TPV |
@@ -98,6 +102,7 @@ SQL de referencia: `web/supabase/*.sql` · `erp/supabase/migrations/`.
 3. **Precios menú:** entre semana 13 € · sábado 16 € · domingo/festivo 18 € (nombre único: «Menú del día»).
 4. **Editar Carta TPV** escribe Supabase; la web pública lee la misma fuente.
 5. **Purge:** cron Vercel → `/api/ops-daily-purge` (no depende de ramas feature).
+6. **Informes email:** domingo al cerrar caja (semanal) · día 1 vía purge (mensual) · Resend + `REPORT_EMAIL_TO`.
 
 ---
 

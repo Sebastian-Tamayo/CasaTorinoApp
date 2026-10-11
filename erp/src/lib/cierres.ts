@@ -24,6 +24,13 @@ export type CierreItem = {
   };
   salesCount?: number;
   salesPreview?: { id: string; at: number; mesa: string; total: number }[];
+  /** Ocupación por hora (Europe/Madrid) al cerrar caja — informes email */
+  activityByHour?: {
+    hour: number;
+    mesas: number;
+    tickets: number;
+    total: number;
+  }[];
   updatedAt?: number;
 };
 

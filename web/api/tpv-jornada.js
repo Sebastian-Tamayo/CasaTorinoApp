@@ -15,6 +15,10 @@ const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'jornada'
 const SALES_MAX = 500
 const { getJson, setJson, updateJson } = require('./_opsStore')
+const {
+  buildActivityByHour,
+  maybeTriggerWeeklyAfterSundayClose,
+} = require('./_informeReports')
 
 function cors(req, res) {
   const origin = req.headers.origin || '*'
@@ -84,6 +88,7 @@ async function archiveToCierres(stateWithTotals) {
   const endedAt = Number(stateWithTotals.endedAt) || Date.now()
   const { dayKey, monthKey } = madridMonthDay(endedAt)
   const totals = stateWithTotals.totals || buildTotals(stateWithTotals)
+  const activityByHour = buildActivityByHour(stateWithTotals.sales)
   const cierre = {
     id: `cierre-${startedAt || endedAt}`,
     source: 'tpv',
@@ -103,6 +108,8 @@ async function archiveToCierres(stateWithTotals) {
           total: s.total,
         }))
       : [],
+    /** Mesas distintas + tickets por hora (Europe/Madrid) — picos del informe */
+    activityByHour,
     updatedAt: Date.now(),
   }
 
@@ -636,6 +643,7 @@ module.exports = async function handler(req, res) {
 
       // Si la jornada está cerrada (fin de sesión o corrección), sincronizar al historial ERP
       let cierre = null
+      let informeSemanal = null
       if (state.status === 'ended') {
         try {
           const full = withTotals(state)
@@ -643,11 +651,21 @@ module.exports = async function handler(req, res) {
         } catch (err) {
           console.warn('[tpv-jornada] archive', err)
         }
+        // Domingos: tras cerrar caja, envía informe semanal (idempotente)
+        if (action === 'end') {
+          try {
+            informeSemanal = await maybeTriggerWeeklyAfterSundayClose()
+          } catch (err) {
+            console.warn('[tpv-jornada] informe semanal', err)
+          }
+        }
       }
 
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify({ ...withTotals(state), cierre }))
+      return res.end(
+        JSON.stringify({ ...withTotals(state), cierre, informeSemanal }),
+      )
     }
 
     res.statusCode = 405
