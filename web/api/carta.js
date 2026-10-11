@@ -161,29 +161,45 @@ function syncMenuDayFromItems(carta) {
   const menus = (carta.categories || []).find((c) => c && c.id === 'menus-dia')
   if (!menus || !Array.isArray(menus.items)) return
   const find = (id) => menus.items.find((it) => it && it.id === id)
-  const uniW = find('menu-dia-unificado-semana')
-  const esW = find('menu-dia-es-semana')
-  const coW = find('menu-dia-co-semana')
-  const esE = find('menu-dia-es-finde')
-  const coE = find('menu-dia-co-finde')
+  const bySchedule = (sch) =>
+    menus.items.find((it) => it && String(it.schedule || '').trim() === sch)
+  const week =
+    find('menu-dia-unificado-semana') ||
+    bySchedule('weekday') ||
+    find('menu-dia-es-semana') ||
+    find('menu-dia-co-semana')
+  const sat =
+    find('menu-dia-sabado') ||
+    find('menu-dia-co-finde') ||
+    bySchedule('saturday')
+  const sun =
+    find('menu-dia-domingo') ||
+    find('menu-dia-es-finde') ||
+    bySchedule('sunday')
   if (!carta.menuDay || typeof carta.menuDay !== 'object') {
     carta.menuDay = {
-      weekday: { label: 'Entre semana', unified: 13 },
-      weekend: { label: 'Fin de semana / festivo', es: 18, co: 15 },
+      weekday: { label: 'Entre semana', price: 13 },
+      saturday: { label: 'Sábado', price: 16 },
+      sunday: { label: 'Domingo / festivo', price: 19 },
     }
   }
   if (!carta.menuDay.weekday) carta.menuDay.weekday = { label: 'Entre semana' }
-  if (!carta.menuDay.weekend) carta.menuDay.weekend = { label: 'Fin de semana / festivo' }
-  if (uniW && Number.isFinite(Number(uniW.price))) {
-    carta.menuDay.weekday.unified = Number(uniW.price)
+  if (!carta.menuDay.saturday) carta.menuDay.saturday = { label: 'Sábado' }
+  if (!carta.menuDay.sunday) carta.menuDay.sunday = { label: 'Domingo / festivo' }
+  if (week && Number.isFinite(Number(week.price))) {
+    carta.menuDay.weekday.price = Number(week.price)
+    carta.menuDay.weekday.unified = Number(week.price)
     delete carta.menuDay.weekday.es
     delete carta.menuDay.weekday.co
-  } else {
-    if (esW && Number.isFinite(Number(esW.price))) carta.menuDay.weekday.es = Number(esW.price)
-    if (coW && Number.isFinite(Number(coW.price))) carta.menuDay.weekday.co = Number(coW.price)
   }
-  if (esE && Number.isFinite(Number(esE.price))) carta.menuDay.weekend.es = Number(esE.price)
-  if (coE && Number.isFinite(Number(coE.price))) carta.menuDay.weekend.co = Number(coE.price)
+  if (sat && Number.isFinite(Number(sat.price))) {
+    carta.menuDay.saturday.price = Number(sat.price)
+  }
+  if (sun && Number.isFinite(Number(sun.price))) {
+    carta.menuDay.sunday.price = Number(sun.price)
+  }
+  // Limpia bloque legado ES/CO de finde
+  if (carta.menuDay.weekend) delete carta.menuDay.weekend
 }
 
 function deleteItemInCarta(carta, categoryId, itemId) {

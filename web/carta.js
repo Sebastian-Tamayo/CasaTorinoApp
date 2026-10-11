@@ -55,49 +55,80 @@
   }
 
   /**
-   * Vista previa temporal: forzar menú de fin de semana solo estos días (Madrid).
-   * 2026-10-09 (vie) → mostrar menú del sábado. Caduca solo: al pasar el día no aplica.
+   * Menú del día por calendario Madrid:
+   * - L–V → weekday
+   * - Sábado → saturday
+   * - Domingo o festivo Gijón → sunday (mismo menú/precio domingo)
    */
-  const FORCE_WEEKEND_MENU_DAYKEYS = new Set(['2026-10-09'])
-
-  /** Sáb/dom o festivo laboral de Gijón → menú fin de semana. */
-  function isWeekendMenuDay(meta, ts = Date.now()) {
+  function menuDayKind(meta, ts = Date.now()) {
     const { dayKey, weekday } = madridParts(ts)
-    if (FORCE_WEEKEND_MENU_DAYKEYS.has(dayKey)) {
-      return { weekend: true, reason: 'preview-saturday', dayKey, festivo: null }
+    if (weekday === 'Sat') {
+      return { kind: 'saturday', schedule: 'saturday', reason: 'saturday', dayKey, festivo: null }
     }
-    if (weekday === 'Sat' || weekday === 'Sun') {
-      return { weekend: true, reason: 'weekend', dayKey, festivo: null }
+    if (weekday === 'Sun') {
+      return { kind: 'sunday', schedule: 'sunday', reason: 'sunday', dayKey, festivo: null }
     }
     const fest = festivoToday(meta, ts)
     if (fest) {
       return {
-        weekend: true,
+        kind: 'sunday',
+        schedule: 'sunday',
         reason: 'holiday',
         dayKey,
         festivo: typeof fest === 'string' ? { date: fest, name: fest } : fest,
       }
     }
-    return { weekend: false, reason: 'weekday', dayKey, festivo: null }
+    return { kind: 'weekday', schedule: 'weekday', reason: 'weekday', dayKey, festivo: null }
+  }
+
+  /** Compat: true si no es entre semana. */
+  function isWeekendMenuDay(meta, ts = Date.now()) {
+    const info = menuDayKind(meta, ts)
+    return {
+      weekend: info.kind !== 'weekday',
+      reason: info.reason,
+      dayKey: info.dayKey,
+      festivo: info.festivo,
+      schedule: info.schedule,
+      kind: info.kind,
+    }
   }
 
   function madridIsWeekend(ts = Date.now()) {
     return isWeekendMenuDay(null, ts).weekend
   }
 
-  /** Infere weekday/weekend si falta `schedule` (por id o nombre). */
+  /** weekday | saturday | sunday (infiere por schedule, id o nombre). */
   function menuItemSchedule(it) {
     const sch = String(it?.schedule || '').trim()
-    if (sch === 'weekday' || sch === 'weekend') return sch
+    if (sch === 'weekday' || sch === 'saturday' || sch === 'sunday') return sch
     const id = String(it?.id || '').toLowerCase()
     const name = String(it?.name || '').toLowerCase()
+    // Legado: un solo «weekend» → repartir por id histórico
+    if (sch === 'weekend') {
+      if (id.includes('co-finde') || id.includes('sabado') || /s[aá]bado/.test(name)) {
+        return 'saturday'
+      }
+      if (id.includes('es-finde') || id.includes('domingo') || /domingo/.test(name)) {
+        return 'sunday'
+      }
+      return 'sunday'
+    }
     if (
-      id.includes('finde') ||
-      id.includes('weekend') ||
-      id.includes('-fs') ||
-      /fin\s*de\s*semana/.test(name)
+      id.includes('sabado') ||
+      id.includes('saturday') ||
+      id.includes('co-finde') ||
+      /s[aá]bado/.test(name)
     ) {
-      return 'weekend'
+      return 'saturday'
+    }
+    if (
+      id.includes('domingo') ||
+      id.includes('sunday') ||
+      id.includes('es-finde') ||
+      /domingo/.test(name)
+    ) {
+      return 'sunday'
     }
     if (
       id.includes('semana') ||
@@ -111,15 +142,14 @@
   }
 
   function applyMenuSchedule(categories, { forceAll = false, meta = null } = {}) {
-    const info = isWeekendMenuDay(meta || window.TPV_CARTA_META, Date.now())
-    const want = info.weekend ? 'weekend' : 'weekday'
+    const info = menuDayKind(meta || window.TPV_CARTA_META, Date.now())
+    const want = info.schedule
     return (categories || []).map((cat) => {
       if (cat.id !== 'menus-dia' || forceAll) {
         return { ...cat, items: (cat.items || []).slice() }
       }
       const items = (cat.items || []).filter((it) => {
         const sch = menuItemSchedule(it)
-        // Sin señal clara: no mostrar (evita mezclar semana + finde)
         if (!sch) return false
         return sch === want
       })
@@ -264,6 +294,7 @@
     uploadCartaImage,
     applyMenuSchedule,
     menuItemSchedule,
+    menuDayKind,
     madridIsWeekend,
     isWeekendMenuDay,
     festivoToday,

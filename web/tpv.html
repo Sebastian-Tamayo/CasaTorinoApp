@@ -3403,9 +3403,11 @@
 
       function isSpanishMenu(itemOrLine) {
         if (!itemOrLine) return false
+        // Solo si el plato pide elección 1º/2º. Menú sábado/domingo = un solo plato.
         if (itemOrLine.coursePick === true) return true
         const id = String(itemOrLine.id || itemOrLine.productId || '')
-        return id === 'menu-dia-es-semana' || id === 'menu-dia-es-finde' || /^menu-dia-es-/.test(id)
+        // Legado: menú español entre semana (si existiera)
+        return id === 'menu-dia-es-semana'
       }
 
       function isPriceEditable(itemOrLine) {
@@ -4912,7 +4914,7 @@
       }
 
       async function reloadCatalogFromStore() {
-        // Auto siempre: solo menú de semana O finde/festivo. En edición se ven todos.
+        // Auto siempre: solo menú de hoy (semana / sábado / domingo). En edición se ven todos.
         window.TPV_MENU_FORCE_ALL = Boolean(state.modoEdicion)
         await window.CasaTorinoLoadTpvCatalog()
         catalog = window.TPV_CATALOG || []
@@ -5089,7 +5091,10 @@
         }
         if (existing?.schedule) item.schedule = existing.schedule
         if (existing?.group) item.group = existing.group
-        if (existing?.coursePick || /^menu-dia-es-/.test(String(item.id))) item.coursePick = true
+        // Solo conservar coursePick si ya estaba; menú sáb/dom no es 2 tiempos
+        if (existing?.coursePick === true && String(item.id) === 'menu-dia-es-semana') {
+          item.coursePick = true
+        }
         if (star) item.star = true
         else if (existing?.star) item.star = false
         const btn = $('cartaEditSave')

@@ -76,7 +76,7 @@ Hub con PIN → TPV, Cocina, Reservas, ERP, Horas trabajadas.
 - Pedidos **por mesa** (móvil + PC sincronizados)
 - Carta por categorías + buscador
 - Envío a cocina (solo comida); notas / alergias
-- Menús mixtos: español 2 tiempos vs colombiano 1 tiempo
+- Menú del día: entre semana / sábado (16 €) / domingo-festivo (19 €)
 - Cobro efectivo/tarjeta, propina, **cobro parcial / pagos divididos**
 - Ticket QZ Tray → POS-58; cajón al cobrar
 - Jornada de caja + historial de cierres → ERP
