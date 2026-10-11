@@ -6,20 +6,23 @@
  * 2) /tpv-version.json → required
  * 3) tpv.html → TPV_CLIENT_VERSION
  *
- * Cada navegador debe pulsar «Actualizar» (ack local). Sin la cabecera
- * X-Tpv-Client-Version correcta, el API responde 426 y no deja operar.
+ * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
+ * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-11-force-all'
+const required = '2026-10-11-push-msg-1'
 const message = 'Actualiza para seguir'
+
+function forceInfo() {
+  return { required, message }
+}
 
 function forcePayload() {
   return {
     error: 'update_required',
-    tpvForce: { required, message },
+    tpvForce: forceInfo(),
   }
 }
 
-/** true si el cliente envía la versión exigida. */
 function clientVersionOk(req) {
   const v = String(
     (req && req.headers && req.headers['x-tpv-client-version']) || '',
@@ -27,10 +30,7 @@ function clientVersionOk(req) {
   return Boolean(v && v === required)
 }
 
-/**
- * Si la versión no coincide, escribe 426 y devuelve true (hay que cortar el handler).
- * Los clientes viejos (sin cabecera) también quedan bloqueados → deben recargar.
- */
+/** Solo mutaciones (POST): sin versión correcta → 426 */
 function rejectIfClientOutdated(req, res) {
   if (clientVersionOk(req)) return false
   res.statusCode = 426
@@ -43,6 +43,7 @@ function rejectIfClientOutdated(req, res) {
 module.exports = {
   required,
   message,
+  forceInfo,
   forcePayload,
   clientVersionOk,
   rejectIfClientOutdated,

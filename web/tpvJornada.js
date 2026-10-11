@@ -61,6 +61,7 @@
           throw err
         }
         if (!r.ok) throw new Error('jornada GET ' + r.status)
+        noteForce(data)
         return data
       } catch (err) {
         lastErr = err
@@ -108,9 +109,10 @@
         return data
       } catch (err) {
         lastErr = err
-        // No reintentar conflictos de negocio ni auth
+        // No reintentar conflictos de negocio ni auth ni force-update
         if (
           err.status === 401 ||
+          err.status === 426 ||
           err.status === 400 ||
           err.status === 404 ||
           err.status === 409

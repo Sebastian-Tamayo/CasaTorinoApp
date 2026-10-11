@@ -2528,8 +2528,8 @@
   <script src="carta.js"></script>
   <script src="tpv-data.js"></script>
   <script src="printService.js"></script>
-  <script src="tpvSync.js?v=force-all-20261011"></script>
-  <script src="tpvJornada.js"></script>
+  <script src="tpvSync.js?v=push-msg-1"></script>
+  <script src="tpvJornada.js?v=push-msg-1"></script>
   <script src="kitchenSync.js"></script>
   <script src="reservaAlertSync.js"></script>
   <script>
@@ -2540,7 +2540,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-11-force-all'
+      const TPV_CLIENT_VERSION = '2026-10-11-push-msg-1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -2588,6 +2588,7 @@
         if (!info || typeof info !== 'object') return false
         const required = String(info.required || '').trim()
         if (!required) return false
+        window.__casaTorinoTpvForceRequired = required
         if (!tpvNeedsForceUpdate(required)) {
           hideTpvForceUpdate()
           return false
@@ -2599,11 +2600,18 @@
       window.__casaTorinoTpvClientVersion = TPV_CLIENT_VERSION
       window.__casaTorinoApplyTpvForce = applyTpvForceInfo
 
-      $('tpvForceBtn')?.addEventListener('click', () => {
+      $('tpvForceBtn')?.addEventListener('click', async () => {
         const required =
           window.__casaTorinoTpvForceRequired || TPV_CLIENT_VERSION
         try {
           localStorage.setItem(TPV_ACK_KEY, String(required))
+        } catch {}
+        try {
+          const reg = await navigator.serviceWorker?.getRegistration?.()
+          if (reg) {
+            await reg.update()
+            if (reg.waiting) reg.waiting.postMessage?.({ type: 'skip-waiting' })
+          }
         } catch {}
         const url = new URL(location.href)
         url.searchParams.set('v', String(Date.now()))
@@ -2618,7 +2626,6 @@
           })
           if (!r.ok) return
           const info = await r.json()
-          window.__casaTorinoTpvForceRequired = info.required
           applyTpvForceInfo(info)
         } catch (err) {
           console.warn('[tpv] version poll', err)
@@ -2631,7 +2638,26 @@
         message: 'Actualiza para seguir',
       })
       pollTpvVersion()
-      setInterval(pollTpvVersion, 5000)
+      setInterval(pollTpvVersion, 4000)
+
+      // SW: el aviso llega a pestañas abiertas sin que pulsen refrescar
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker
+            .register('/sw-tpv.js?v=push-msg-1')
+            .catch(() => {})
+        })
+        try {
+          navigator.serviceWorker.addEventListener('message', (ev) => {
+            if (ev?.data?.type === 'tpv-force-update') {
+              applyTpvForceInfo({
+                required: ev.data.required,
+                message: ev.data.message || 'Actualiza para seguir',
+              })
+            }
+          })
+        } catch {}
+      }
 
       const AUTH_KEY = 'casa-torino-tpv-auth-v1'
 

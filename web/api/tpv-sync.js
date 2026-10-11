@@ -84,11 +84,9 @@ module.exports = async function handler(req, res) {
     res.statusCode = 401
     return res.end(JSON.stringify({ error: 'unauthorized' }))
   }
-  // Todos los navegadores deben llevar la versión actual; si no → Actualizar
-  if (tpvVersion.rejectIfClientOutdated(req, res)) return
-
   try {
     if (req.method === 'GET') {
+      // Soft-force: GET entrega tpvForce; el overlay aparece sin refrescar.
       const state = await loadTpvState()
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
@@ -96,6 +94,8 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
+      // Mutaciones: sin versión actual → 426
+      if (tpvVersion.rejectIfClientOutdated(req, res)) return
       const body =
         typeof req.body === 'string'
           ? JSON.parse(req.body || '{}')

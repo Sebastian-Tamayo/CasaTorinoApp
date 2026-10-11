@@ -434,17 +434,22 @@ module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json')
     return res.end(JSON.stringify({ error: 'unauthorized' }))
   }
-  if (tpvVersion.rejectIfClientOutdated(req, res)) return
-
   try {
     if (req.method === 'GET') {
+      // Soft-force: el aviso viaja en la respuesta; no hace falta refrescar.
       const state = await getState()
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify(withTotals(state)))
+      return res.end(
+        JSON.stringify({
+          ...withTotals(state),
+          tpvForce: tpvVersion.forceInfo(),
+        }),
+      )
     }
 
     if (req.method === 'POST') {
+      if (tpvVersion.rejectIfClientOutdated(req, res)) return
       const body =
         typeof req.body === 'string'
           ? JSON.parse(req.body || '{}')

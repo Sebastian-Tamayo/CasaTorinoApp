@@ -488,14 +488,13 @@
   </div>
   <div class="toast" id="toast" role="status"></div>
 
-  <script src="kitchenSync.js?v=cocina-fullscreen-20261011"></script>
   <script>
     /**
      * Versión cliente Cocina. Debe coincidir con:
      * - web/cocina-version.json → required
      * - web/api/_cocinaVersion.js → required
      */
-    const COCINA_CLIENT_VERSION = '2026-10-11-cocina-fullscreen'
+    const COCINA_CLIENT_VERSION = '2026-10-11-cocina-push-1'
     const COCINA_ACK_KEY = 'ct-cocina-ack-version'
     const $force = (id) => document.getElementById(id)
 
@@ -542,6 +541,7 @@
       if (!info || typeof info !== 'object') return false
       const required = String(info.required || '').trim()
       if (!required) return false
+      window.__casaTorinoCocinaForceRequired = required
       if (!cocinaNeedsForceUpdate(required)) {
         hideCocinaForceUpdate()
         return false
@@ -585,7 +585,6 @@
         })
         if (!r.ok) return
         const info = await r.json()
-        window.__casaTorinoCocinaForceRequired = info.required
         applyCocinaForceInfo(info)
       } catch (err) {
         console.warn('[cocina] version poll', err)
@@ -597,21 +596,22 @@
       message: 'Actualiza para seguir',
     })
     pollCocinaVersion()
-    setInterval(pollCocinaVersion, 5000)
+    setInterval(pollCocinaVersion, 4000)
 
-    // PWA Cocina: registrar SW (pass-through). Tras update → pantalla completa.
+    // PWA Cocina: SW avisa a tablets abiertas sin refrescar a mano
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker
-          .register('/sw-cocina.js?v=cocina-fullscreen-20261011')
+          .register('/sw-cocina.js?v=cocina-push-1')
           .catch(() => {})
       })
       try {
         navigator.serviceWorker.addEventListener('message', (ev) => {
-          if (ev?.data?.type === 'cocina-sw-updated') {
+          const t = ev?.data?.type
+          if (t === 'cocina-force-update' || t === 'cocina-sw-updated') {
             applyCocinaForceInfo({
-              required: COCINA_CLIENT_VERSION,
-              message: 'Actualiza para seguir',
+              required: ev.data.required || COCINA_CLIENT_VERSION,
+              message: ev.data.message || 'Actualiza para seguir',
             })
           }
         })
@@ -625,6 +625,7 @@
       if (standalone) document.body.classList.add('is-pwa')
     } catch {}
   </script>
+  <script src="kitchenSync.js?v=cocina-push-1"></script>
   <script>
     (() => {
       const AUTH_KEY = 'casa-torino-tpv-auth-v1'

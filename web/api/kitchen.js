@@ -291,25 +291,36 @@ module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json')
     return res.end(JSON.stringify({ error: 'unauthorized' }))
   }
-  if (cocinaVersion.rejectIfClientOutdated(req, res)) return
 
   try {
     if (req.method === 'GET') {
       const state = await loadState()
+      const payload = publicPayload(state)
+      const force = cocinaVersion.forceInfo()
+      // Soft-force: el GET sigue y el aviso llega sin recargar a mano.
+      // Clientes viejos ven también un ticket «ACTUALIZA PARA SEGUIR».
+      if (!cocinaVersion.clientVersionOk(req)) {
+        const notice = cocinaVersion.forceNoticeOrder()
+        payload.orders = [
+          notice,
+          ...(Array.isArray(payload.orders) ? payload.orders : []).filter(
+            (o) => o && o.id !== notice.id,
+          ),
+        ]
+      }
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
       return res.end(
         JSON.stringify({
-          ...publicPayload(state),
-          cocinaForce: {
-            required: cocinaVersion.required,
-            message: cocinaVersion.message,
-          },
+          ...payload,
+          cocinaForce: force,
         }),
       )
     }
 
     if (req.method === 'POST') {
+      // Mutaciones: sin versión actual → 426 (overlay / bloqueo)
+      if (cocinaVersion.rejectIfClientOutdated(req, res)) return
       const body = parseBody(req)
       const action = String(body.action || '').trim()
 
