@@ -5886,23 +5886,59 @@
       function startTpvSyncPolling() {
         window.CasaTorinoTpvSync?.start(
           (remote) => {
-            const merged = window.CasaTorinoTpvSync.mergeTables
-              ? window.CasaTorinoTpvSync.mergeTables(state.tables, remote.tables || {})
-              : { tables: remote.tables || {}, keptLocal: false }
-            const nextTables = merged.tables || remote.tables || {}
+            // remote.tables ya viene mergeado (unión de líneas) desde tpvSync.applyRemotePayload.
+            // Antes de aplicar, sellamos la mesa activa en memoria para no perder toques en vuelo.
+            const mActive = normalizeMesa(state.mesa)
+            let nextTables = remote.tables && typeof remote.tables === 'object' ? { ...remote.tables } : {}
+            if (mActive) {
+              const live = stampMesa(mActive, {
+                cart: state.cart,
+                hist: state.hist,
+                notes: ($('notes')?.value || state.notes || '').trim(),
+                paid: $('paid')?.value || '',
+              })
+              const remoteMesa = nextTables[mActive]
+              const lq = tableCartQty(live)
+              const rq = tableCartQty(remoteMesa)
+              if (lq > 0 && rq > 0 && window.CasaTorinoTpvSync?.mergeTables) {
+                const one = window.CasaTorinoTpvSync.mergeTables(
+                  { [mActive]: live },
+                  { [mActive]: remoteMesa },
+                  { preferLocalClear: true },
+                )
+                nextTables[mActive] = one.tables[mActive] || live
+              } else if (lq > 0 && rq === 0) {
+                const rAt = Math.max(0, Number(remoteMesa?.updatedAt) || 0)
+                const lAt = Math.max(0, Number(live.updatedAt) || 0)
+                // Cobro/vacío remoto más nuevo gana; si no, conservar cuenta local
+                nextTables[mActive] =
+                  remoteMesa && rAt > lAt ? remoteMesa : live
+              } else if (lq > 0 && !remoteMesa) {
+                nextTables[mActive] = live
+              }
+            }
             const prevJson = JSON.stringify(state.tables)
             const nextJson = JSON.stringify(nextTables)
-            if (prevJson === nextJson) return
+            if (prevJson === nextJson) {
+              // Aun si tablas iguales, rehidratar mesa activa por si cart en memoria diverge
+              if (mActive) loadMesaIntoState(mActive)
+              return
+            }
             state.tables = nextTables
+            if (remote.opsDay) state.opsDay = remote.opsDay
             const m = normalizeMesa(state.mesa || remote.mesa)
             if (m) {
               state.mesa = m
               syncMesaInputs(m)
               loadMesaIntoState(m)
             }
-            writeTablesStore({ mesa: m || '', tables: state.tables, opsDay: state.opsDay || '' })
+            writeTablesStore({
+              mesa: m || '',
+              tables: state.tables,
+              opsDay: state.opsDay || '',
+            })
             render()
-            if (merged.keptLocal) {
+            if (remote.keptLocal) {
               try {
                 window.CasaTorinoTpvSync?.push(state.tables, m)
               } catch {}
@@ -5911,11 +5947,23 @@
           () => lockTpvForPin('Sesión caducada — introduce el PIN'),
           {
             skipInitialTick: true,
-            getLocalSnapshot: () => ({
-              tables: state.tables,
-              mesa: normalizeMesa(state.mesa),
-              opsDay: state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || '',
-            }),
+            getLocalSnapshot: () => {
+              const m = normalizeMesa(state.mesa)
+              const tables = { ...state.tables }
+              if (m) {
+                tables[m] = stampMesa(m, {
+                  cart: state.cart,
+                  hist: state.hist,
+                  notes: ($('notes')?.value || state.notes || '').trim(),
+                  paid: $('paid')?.value || '',
+                })
+              }
+              return {
+                tables,
+                mesa: m,
+                opsDay: state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || '',
+              }
+            },
           },
         )
       }
@@ -5972,12 +6020,12 @@
         try {
           const m = normalizeMesa(state.mesa)
           if (m) {
-            state.tables[m] = {
+            state.tables[m] = stampMesa(m, {
               cart: state.cart,
               hist: state.hist,
               notes: ($('notes')?.value || state.notes || '').trim(),
               paid: $('paid')?.value || '',
-            }
+            })
           }
           writeTablesStore({ mesa: m || '', tables: state.tables, opsDay: state.opsDay || '' })
           window.CasaTorinoTpvSync?.flush?.()

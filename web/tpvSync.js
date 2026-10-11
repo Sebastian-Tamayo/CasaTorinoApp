@@ -88,6 +88,71 @@
     return Math.max(0, Number(t && t.updatedAt) || 0)
   }
 
+  /**
+   * Une carritos por línea: el más reciente manda en conflictos,
+   * pero conserva líneas que solo están en el lado viejo (anti-pérdida).
+   */
+  function mergeCarts(newerCart, olderCart) {
+    const out = {}
+    const newer =
+      newerCart && typeof newerCart === 'object' && !Array.isArray(newerCart)
+        ? newerCart
+        : {}
+    const older =
+      olderCart && typeof olderCart === 'object' && !Array.isArray(olderCart)
+        ? olderCart
+        : {}
+    for (const [key, line] of Object.entries(newer)) {
+      if (!line || typeof line !== 'object') continue
+      if (!(Math.max(0, Number(line.qty) || 0) > 0)) continue
+      out[key] = line
+    }
+    for (const [key, line] of Object.entries(older)) {
+      if (!line || typeof line !== 'object') continue
+      if (!(Math.max(0, Number(line.qty) || 0) > 0)) continue
+      if (!Object.prototype.hasOwnProperty.call(out, key)) {
+        out[key] = line
+      }
+    }
+    return out
+  }
+
+  function mergeHist(newerHist, olderHist) {
+    const out = []
+    const seen = new Set()
+    for (const h of [
+      ...(Array.isArray(newerHist) ? newerHist : []),
+      ...(Array.isArray(olderHist) ? olderHist : []),
+    ]) {
+      const k = String(h || '')
+      if (!k || seen.has(k)) continue
+      seen.add(k)
+      out.push(k)
+    }
+    return out.slice(-80)
+  }
+
+  function mergeBusyTables(a, b, preferA) {
+    const aAt = tableAt(a)
+    const bAt = tableAt(b)
+    let newer = a
+    let older = b
+    if (aAt !== bAt) {
+      newer = aAt > bAt ? a : b
+      older = aAt > bAt ? b : a
+    } else if (!preferA) {
+      newer = b
+      older = a
+    }
+    return {
+      cart: mergeCarts(newer.cart, older.cart),
+      hist: mergeHist(newer.hist, older.hist),
+      notes: String(newer.notes || older.notes || ''),
+      paid: String(newer.paid || older.paid || ''),
+      updatedAt: Math.max(aAt, bAt, Date.now()),
+    }
+  }
+
   function mergeTables(localTables, remoteTables, opts = {}) {
     const local = localTables && typeof localTables === 'object' ? localTables : {}
     const remote = remoteTables && typeof remoteTables === 'object' ? remoteTables : {}
@@ -142,7 +207,17 @@
           }
           continue
         }
-        // Ambos con contenido: gana updatedAt de mesa
+        // Ambos con productos: unir líneas (anti-pérdida de Sidra/etc.)
+        if (lq > 0 && rq > 0) {
+          const preferLocal = lAt > rAt || (lAt === rAt && opts.preferLocalClear)
+          out[k] = mergeBusyTables(L, R, preferLocal)
+          // Si el resultado conserva algo que el remoto no tenía, re-push
+          if (cartQty(out[k]) > rq || Object.keys(out[k].cart || {}).length > Object.keys(R.cart || {}).length) {
+            keptLocal = true
+          }
+          continue
+        }
+        // Ambos vacíos
         if (rAt !== lAt) {
           if (rAt > lAt) out[k] = R
           else {
@@ -447,6 +522,7 @@
     touch,
     hydrate,
     mergeTables,
+    mergeCarts,
     tablesQty,
     cartQty,
     opsDayId,
