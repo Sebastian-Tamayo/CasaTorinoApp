@@ -248,6 +248,13 @@
     } catch {}
   }
 
+  function clientHeaders(extra) {
+    if (typeof window.__casaTorinoTpvClientHeaders === 'function') {
+      return window.__casaTorinoTpvClientHeaders(extra)
+    }
+    return Object.assign({ 'Cache-Control': 'no-store' }, extra || {})
+  }
+
   function noteTpvForce(payload) {
     try {
       if (payload && payload.tpvForce && typeof window.__casaTorinoApplyTpvForce === 'function') {
@@ -259,6 +266,16 @@
     }
   }
 
+  async function handleForceStatus(r) {
+    if (r.status !== 426) return null
+    const data = await r.json().catch(() => ({}))
+    noteTpvForce(data)
+    const err = new Error('update_required')
+    err.status = 426
+    err.data = data
+    throw err
+  }
+
   async function pull() {
     let lastErr = null
     for (let i = 1; i <= 3; i++) {
@@ -266,14 +283,16 @@
         const r = await fetch(API_URL, {
           cache: 'no-store',
           credentials: 'same-origin',
-          headers: { 'Cache-Control': 'no-store' },
+          headers: clientHeaders(),
         })
+        if (r.status === 426) await handleForceStatus(r)
         if (!r.ok) throw new Error('sync GET ' + r.status)
         const data = await r.json()
         noteTpvForce(data)
         return data
       } catch (err) {
         lastErr = err
+        if (err && err.status === 426) throw err
         await sleep(200 * i)
       }
     }
@@ -314,10 +333,11 @@
         const r = await fetch(API_URL, {
           method: 'POST',
           credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
+          headers: clientHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify(body),
           keepalive: !!opts.keepalive,
         })
+        if (r.status === 426) await handleForceStatus(r)
         if (r.status === 401) {
           if (typeof onAuthLost === 'function') onAuthLost()
           const err = new Error('Sesión caducada — vuelve a poner el PIN')
@@ -333,7 +353,7 @@
         return saved
       } catch (err) {
         lastErr = err
-        if (err.status === 401) throw err
+        if (err.status === 401 || err.status === 426) throw err
         await sleep(250 * i * i)
       }
     }

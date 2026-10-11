@@ -81,7 +81,7 @@ Auth mutaciones: header `X-Tpv-Key` o sesión TPV.
 - API `GET/POST /api/tpv-jornada` — `start` · `end` · `sale` · `updateSale` · `updateLine` · `deleteSale` · `reset`
 - Persistencia: ops_kv clave `jornada` · cliente `tpvJornada.js`
 
-### Forzar actualización del TPV
+### Forzar actualización del TPV (todos los navegadores)
 
 Tras **cualquier cambio que afecte al TPV**, subir la misma versión en estos 3 sitios y desplegar `web`:
 
@@ -89,7 +89,11 @@ Tras **cualquier cambio que afecte al TPV**, subir la misma versión en estos 3 
 2. `web/api/_tpvVersion.js` → `required`
 3. `web/tpv.html` → `TPV_CLIENT_VERSION`
 
-Mensaje en pantalla: **«Actualiza para seguir»** · botón **Actualizar** (recarga). Sin pulsar, el TPV queda bloqueado (también PIN / mesas). Cada versión nueva exige un toque de Actualizar (`localStorage` ack).
+Efecto en **cada** tablet/móvil/PC (no basta con que uno actualice):
+
+- Pantalla bloqueante: **«Actualiza para seguir»** + botón **Actualizar**
+- Ack por navegador (`localStorage`) — cada dispositivo debe pulsar
+- API `tpv-sync` y `tpv-jornada` exigen cabecera `X-Tpv-Client-Version`; si falta o no coincide → **426** (clientes viejos tampoco pueden operar)
 
 ### Purge diario
 

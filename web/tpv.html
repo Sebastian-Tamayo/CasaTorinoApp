@@ -2528,7 +2528,7 @@
   <script src="carta.js"></script>
   <script src="tpv-data.js"></script>
   <script src="printService.js"></script>
-  <script src="tpvSync.js?v=cart-merge-force-20261011"></script>
+  <script src="tpvSync.js?v=force-all-20261011"></script>
   <script src="tpvJornada.js"></script>
   <script src="kitchenSync.js"></script>
   <script src="reservaAlertSync.js"></script>
@@ -2540,9 +2540,20 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-11-cart-merge-force'
+      const TPV_CLIENT_VERSION = '2026-10-11-force-all'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
+
+      /** Cabecera que exige el servidor en TODOS los navegadores */
+      window.__casaTorinoTpvClientHeaders = function tpvClientHeaders(extra) {
+        return Object.assign(
+          {
+            'Cache-Control': 'no-store',
+            'X-Tpv-Client-Version': TPV_CLIENT_VERSION,
+          },
+          extra || {},
+        )
+      }
 
       function showTpvForceUpdate(message) {
         const overlay = $('tpvForceUpdate')
@@ -2620,7 +2631,7 @@
         message: 'Actualiza para seguir',
       })
       pollTpvVersion()
-      setInterval(pollTpvVersion, 12000)
+      setInterval(pollTpvVersion, 5000)
 
       const AUTH_KEY = 'casa-torino-tpv-auth-v1'
 

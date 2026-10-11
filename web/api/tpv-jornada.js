@@ -19,6 +19,7 @@ const {
   buildActivityByHour,
   maybeTriggerWeeklyAfterSundayClose,
 } = require('./_informeReports')
+const tpvVersion = require('./_tpvVersion')
 
 function cors(req, res) {
   const origin = req.headers.origin || '*'
@@ -27,7 +28,7 @@ function cors(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Content-Type, X-Tpv-Key, Cache-Control',
+    'Content-Type, X-Tpv-Key, Cache-Control, X-Tpv-Client-Version',
   )
   res.setHeader('Cache-Control', 'no-store')
 }
@@ -433,6 +434,7 @@ module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json')
     return res.end(JSON.stringify({ error: 'unauthorized' }))
   }
+  if (tpvVersion.rejectIfClientOutdated(req, res)) return
 
   try {
     if (req.method === 'GET') {

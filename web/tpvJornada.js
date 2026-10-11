@@ -16,12 +16,28 @@
     return new Promise((r) => setTimeout(r, ms))
   }
 
+  function clientHeaders(extra) {
+    if (typeof window.__casaTorinoTpvClientHeaders === 'function') {
+      return window.__casaTorinoTpvClientHeaders(extra)
+    }
+    return Object.assign({ 'Cache-Control': 'no-store' }, extra || {})
+  }
+
+  function noteForce(data) {
+    try {
+      if (data && data.tpvForce && typeof window.__casaTorinoApplyTpvForce === 'function') {
+        window.__casaTorinoTpvForceRequired = data.tpvForce.required
+        window.__casaTorinoApplyTpvForce(data.tpvForce)
+      }
+    } catch {}
+  }
+
   async function refreshSession() {
     try {
       await fetch(AUTH_URL, {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
+        headers: clientHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ refresh: true }),
       })
     } catch {}
@@ -34,12 +50,21 @@
         const r = await fetch(API_URL, {
           cache: 'no-store',
           credentials: 'same-origin',
-          headers: { 'Cache-Control': 'no-store' },
+          headers: clientHeaders(),
         })
+        const data = await r.json().catch(() => ({}))
+        if (r.status === 426) {
+          noteForce(data)
+          const err = new Error('update_required')
+          err.status = 426
+          err.data = data
+          throw err
+        }
         if (!r.ok) throw new Error('jornada GET ' + r.status)
-        return await r.json()
+        return data
       } catch (err) {
         lastErr = err
+        if (err && err.status === 426) throw err
         await sleep(200 * i)
       }
     }
@@ -53,10 +78,17 @@
         const r = await fetch(API_URL, {
           method: 'POST',
           credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
+          headers: clientHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ action, ...(extra || {}) }),
         })
         const data = await r.json().catch(() => ({}))
+        if (r.status === 426) {
+          noteForce(data)
+          const err = new Error(data.error || 'update_required')
+          err.status = 426
+          err.data = data
+          throw err
+        }
         if (r.status === 401) {
           if (typeof onAuthLost === 'function') onAuthLost()
           const err = new Error(data.error || 'Sesión caducada — vuelve a introducir el PIN')
