@@ -15,6 +15,7 @@
  */
 const { getJson, updateJson } = require('./_opsStore')
 const { applyKitchenDayRollover } = require('./_opsDay')
+const cocinaVersion = require('./_cocinaVersion')
 
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'kitchen'
@@ -29,7 +30,7 @@ function cors(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Content-Type, X-Tpv-Key, Cache-Control',
+    'Content-Type, X-Tpv-Key, Cache-Control, X-Cocina-Client-Version',
   )
   res.setHeader('Cache-Control', 'no-store')
 }
@@ -290,13 +291,22 @@ module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json')
     return res.end(JSON.stringify({ error: 'unauthorized' }))
   }
+  if (cocinaVersion.rejectIfClientOutdated(req, res)) return
 
   try {
     if (req.method === 'GET') {
       const state = await loadState()
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify(publicPayload(state)))
+      return res.end(
+        JSON.stringify({
+          ...publicPayload(state),
+          cocinaForce: {
+            required: cocinaVersion.required,
+            message: cocinaVersion.message,
+          },
+        }),
+      )
     }
 
     if (req.method === 'POST') {

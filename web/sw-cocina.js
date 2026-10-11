@@ -1,17 +1,33 @@
 /**
- * Service worker mínimo para instalar Cocina como app (PWA).
- * No cachea nada: todo va a red. No altera TPV, carta ni APIs.
+ * Service worker Cocina PWA.
+ * Pass-through (sin caché). Al actualizar, toma control para que
+ * la tablet recargue con el manifest a pantalla completa.
  */
+const SW_VERSION = '2026-10-11-cocina-fullscreen'
+
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())
 })
 
 self.addEventListener('activate', (event) => {
-  // No clients.claim(): evita tomar control agresivo de otras pestañas.
-  event.waitUntil(Promise.resolve())
+  event.waitUntil(
+    (async () => {
+      try {
+        await self.clients.claim()
+      } catch {}
+      const clients = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      })
+      for (const client of clients) {
+        try {
+          client.postMessage({ type: 'cocina-sw-updated', version: SW_VERSION })
+        } catch {}
+      }
+    })(),
+  )
 })
 
 self.addEventListener('fetch', (event) => {
-  // Pass-through obligatorio para criterios de instalación de Chrome.
   event.respondWith(fetch(event.request))
 })

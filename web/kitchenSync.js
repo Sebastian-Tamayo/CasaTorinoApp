@@ -24,12 +24,32 @@
     return new Promise((r) => setTimeout(r, ms))
   }
 
+  function clientHeaders(extra) {
+    if (typeof window.__casaTorinoCocinaClientHeaders === 'function') {
+      return window.__casaTorinoCocinaClientHeaders(extra)
+    }
+    return Object.assign({ 'Cache-Control': 'no-store' }, extra || {})
+  }
+
+  function noteForce(data) {
+    try {
+      if (
+        data &&
+        data.cocinaForce &&
+        typeof window.__casaTorinoApplyCocinaForce === 'function'
+      ) {
+        window.__casaTorinoCocinaForceRequired = data.cocinaForce.required
+        window.__casaTorinoApplyCocinaForce(data.cocinaForce)
+      }
+    } catch {}
+  }
+
   async function refreshSession() {
     try {
       await fetch(AUTH_URL, {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
+        headers: clientHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ refresh: true }),
       })
     } catch {}
@@ -42,12 +62,22 @@
         const r = await fetch(API_URL, {
           cache: 'no-store',
           credentials: 'same-origin',
-          headers: { 'Cache-Control': 'no-store' },
+          headers: clientHeaders(),
         })
+        const data = await r.json().catch(() => ({}))
+        if (r.status === 426) {
+          noteForce(data)
+          const err = new Error('update_required')
+          err.status = 426
+          err.data = data
+          throw err
+        }
         if (!r.ok) throw new Error('kitchen GET ' + r.status)
-        return await r.json()
+        noteForce(data)
+        return data
       } catch (err) {
         lastErr = err
+        if (err && err.status === 426) throw err
         await sleep(200 * i)
       }
     }
@@ -61,10 +91,17 @@
         const r = await fetch(API_URL, {
           method: 'POST',
           credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
+          headers: clientHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ action, ...payload }),
         })
         const data = await r.json().catch(() => ({}))
+        if (r.status === 426) {
+          noteForce(data)
+          const err = new Error(data.error || 'update_required')
+          err.status = 426
+          err.data = data
+          throw err
+        }
         if (r.status === 401) {
           if (typeof onAuthLost === 'function') onAuthLost()
           const err = new Error(data.error || 'Sesión caducada — vuelve a introducir el PIN')
@@ -80,7 +117,14 @@
         return data
       } catch (err) {
         lastErr = err
-        if (err.status === 401 || err.status === 400 || err.status === 404) throw err
+        if (
+          err.status === 401 ||
+          err.status === 426 ||
+          err.status === 400 ||
+          err.status === 404
+        ) {
+          throw err
+        }
         await sleep(250 * i * i)
       }
     }

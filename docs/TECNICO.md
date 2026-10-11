@@ -75,6 +75,8 @@ Auth mutaciones: header `X-Tpv-Key` o sesión TPV.
 - API `/api/kitchen` · cliente `kitchenSync.js` (poll ~1 s)
 - TPV envía solo `categoryType: comida`
 - Estados de comanda + menús 1/2 tiempos; histórico alineado con jornada
+- PWA: `manifest-cocina.webmanifest` con `display: fullscreen` · SW `sw-cocina.js`
+- **Forzar actualización (todos los dispositivos):** mismos 3 sitios que el TPV pero de cocina — `cocina-version.json`, `api/_cocinaVersion.js`, `COCINA_CLIENT_VERSION` en `cocina.html`. Pantalla «Actualiza para seguir»; API kitchen exige `X-Cocina-Client-Version` (426 si no). Tras Actualizar aplica pantalla completa sin reinstalar.
 
 ### Jornada TPV
 
