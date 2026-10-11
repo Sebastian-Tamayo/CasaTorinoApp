@@ -200,7 +200,38 @@ function emptyDayBucket(dayKey) {
     tip: 0,
     activityByHour: [],
     peak: null,
+    peakApprox: false,
   }
+}
+
+function mergeActivityRows(into, rows) {
+  const merged = {}
+  for (const row of [...into, ...(rows || [])]) {
+    const h = Number(row.hour)
+    if (!Number.isFinite(h)) continue
+    if (!merged[h]) {
+      merged[h] = { hour: h, mesas: 0, tickets: 0, total: 0 }
+    }
+    merged[h].mesas = Math.max(merged[h].mesas, Number(row.mesas) || 0)
+    merged[h].tickets += Number(row.tickets) || 0
+    merged[h].total = round2(merged[h].total + (Number(row.total) || 0))
+  }
+  return Object.values(merged).sort((a, b) => a.hour - b.hour)
+}
+
+/**
+ * Actividad horaria del cierre: activityByHour oficial, o reconstrucción
+ * desde salesPreview (cierres anteriores al deploy).
+ */
+function activityFromCierre(c) {
+  if (Array.isArray(c.activityByHour) && c.activityByHour.length) {
+    return { rows: c.activityByHour, approx: false }
+  }
+  const preview = Array.isArray(c.salesPreview) ? c.salesPreview : []
+  if (!preview.length) return { rows: [], approx: false }
+  const tickets = Number(c.totals?.tickets) || Number(c.salesCount) || 0
+  const approx = tickets > 0 && preview.length < tickets
+  return { rows: buildActivityByHour(preview), approx }
 }
 
 function foldCierreIntoDay(bucket, c) {
@@ -220,22 +251,11 @@ function foldCierreIntoDay(bucket, c) {
     bucket.tarjeta + (Number(c.totals?.byPayment?.tarjeta?.total) || 0),
   )
   bucket.tip = round2(bucket.tip + (Number(c.totals?.tipTotal) || 0))
-  if (Array.isArray(c.activityByHour) && c.activityByHour.length) {
-    const merged = {}
-    for (const row of [...bucket.activityByHour, ...c.activityByHour]) {
-      const h = Number(row.hour)
-      if (!Number.isFinite(h)) continue
-      if (!merged[h]) {
-        merged[h] = { hour: h, mesas: 0, tickets: 0, total: 0 }
-      }
-      merged[h].mesas = Math.max(merged[h].mesas, Number(row.mesas) || 0)
-      merged[h].tickets += Number(row.tickets) || 0
-      merged[h].total = round2(merged[h].total + (Number(row.total) || 0))
-    }
-    bucket.activityByHour = Object.values(merged).sort(
-      (a, b) => a.hour - b.hour,
-    )
+  const act = activityFromCierre(c)
+  if (act.rows.length) {
+    bucket.activityByHour = mergeActivityRows(bucket.activityByHour, act.rows)
     bucket.peak = peakFromActivity(bucket.activityByHour)
+    if (act.approx) bucket.peakApprox = true
   }
 }
 
@@ -407,6 +427,7 @@ async function buildPeriodReport({ kind, range, now = new Date() }) {
       tarjeta: d.tarjeta,
       tip: d.tip,
       peak: d.peak,
+      peakApprox: Boolean(d.peakApprox),
       activityByHour: d.activityByHour,
     }))
   }
@@ -460,11 +481,14 @@ function buildMobileEmailHtml(report) {
     report.bucketMode === 'semana' ? 'Por semana' : 'Por día'
   const bucketRows = (report.buckets || [])
     .map((b) => {
-      const peakTxt = b.peak
-        ? report.bucketMode === 'semana'
-          ? `${b.peak.dayKey} · ${String(b.peak.hour).padStart(2, '0')}:00 · ${b.peak.mesas} mesas`
-          : `${String(b.peak.hour).padStart(2, '0')}:00 · ${b.peak.mesas} mesas`
-        : '—'
+      let peakTxt = '—'
+      if (b.peak) {
+        peakTxt =
+          report.bucketMode === 'semana'
+            ? `${b.peak.dayKey} · ${String(b.peak.hour).padStart(2, '0')}:00 · ${b.peak.mesas} mesas`
+            : `${String(b.peak.hour).padStart(2, '0')}:00 · ${b.peak.mesas} mesas`
+        if (b.peakApprox || b.peak.approx) peakTxt += ' ~'
+      }
       return `<tr>
         <td style="padding:10px 6px;border-bottom:1px solid #eee;font-weight:700">${escapeHtml(b.label)}</td>
         <td style="padding:10px 6px;border-bottom:1px solid #eee;text-align:right">${b.tickets}</td>
@@ -531,7 +555,7 @@ function buildMobileEmailHtml(report) {
     </table>
 
     <h2 style="margin:0 0 8px;font-size:16px">${escapeHtml(bucketTitle)}</h2>
-    <p style="margin:0 0 10px;font-size:12px;color:#666">Pico = hora con más mesas distintas cobradas${report.bucketMode === 'semana' ? ' (mejor día de la semana)' : ''}.</p>
+    <p style="margin:0 0 10px;font-size:12px;color:#666">Pico = hora con más mesas distintas cobradas${report.bucketMode === 'semana' ? ' (mejor día de la semana)' : ''}. El símbolo ~ indica reconstrucción parcial (solo últimos tickets del día).</p>
     <table width="100%" cellspacing="0" cellpadding="0" style="background:#fff;border:1px solid #e8d9a8;border-radius:12px;overflow:hidden;margin-bottom:20px;border-collapse:collapse">
       <thead>
         <tr style="background:#1a1a1a;color:#f5c518">
