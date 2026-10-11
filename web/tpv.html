@@ -5091,7 +5091,10 @@
         }
         if (existing?.schedule) item.schedule = existing.schedule
         if (existing?.group) item.group = existing.group
-        if (existing?.coursePick || /^menu-dia-es-/.test(String(item.id))) item.coursePick = true
+        // Solo conservar coursePick si ya estaba; menú sáb/dom no es 2 tiempos
+        if (existing?.coursePick === true && String(item.id) === 'menu-dia-es-semana') {
+          item.coursePick = true
+        }
         if (star) item.star = true
         else if (existing?.star) item.star = false
         const btn = $('cartaEditSave')
