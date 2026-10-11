@@ -25,18 +25,25 @@
   }
 
   function clientHeaders(extra) {
+    // Cocina panel → cabecera cocina. TPV → cabecera TPV (create/ack/jornada).
     if (typeof window.__casaTorinoCocinaClientHeaders === 'function') {
       return window.__casaTorinoCocinaClientHeaders(extra)
+    }
+    if (typeof window.__casaTorinoTpvClientHeaders === 'function') {
+      return window.__casaTorinoTpvClientHeaders(extra)
     }
     return Object.assign({ 'Cache-Control': 'no-store' }, extra || {})
   }
 
   function noteForce(data) {
     try {
+      // Solo el panel de cocina aplica el overlay; el TPV no debe bloquearse
+      // por cocinaForce al enviar comandas.
       if (
         data &&
         data.cocinaForce &&
-        typeof window.__casaTorinoApplyCocinaForce === 'function'
+        typeof window.__casaTorinoApplyCocinaForce === 'function' &&
+        typeof window.__casaTorinoCocinaClientHeaders === 'function'
       ) {
         window.__casaTorinoCocinaForceRequired = data.cocinaForce.required
         window.__casaTorinoApplyCocinaForce(data.cocinaForce)

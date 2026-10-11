@@ -295,32 +295,21 @@ module.exports = async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const state = await loadState()
-      const payload = publicPayload(state)
-      const force = cocinaVersion.forceInfo()
-      // Soft-force: el GET sigue y el aviso llega sin recargar a mano.
-      // Clientes viejos ven también un ticket «ACTUALIZA PARA SEGUIR».
-      if (!cocinaVersion.clientVersionOk(req)) {
-        const notice = cocinaVersion.forceNoticeOrder()
-        payload.orders = [
-          notice,
-          ...(Array.isArray(payload.orders) ? payload.orders : []).filter(
-            (o) => o && o.id !== notice.id,
-          ),
-        ]
-      }
+      // Aviso soft para el panel cocina; NUNCA bloquear el GET (TPV/cocina).
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
       return res.end(
         JSON.stringify({
-          ...payload,
-          cocinaForce: force,
+          ...publicPayload(state),
+          cocinaForce: cocinaVersion.forceInfo(),
         }),
       )
     }
 
     if (req.method === 'POST') {
-      // Mutaciones: sin versión actual → 426 (overlay / bloqueo)
-      if (cocinaVersion.rejectIfClientOutdated(req, res)) return
+      // IMPORTANTE: el TPV crea comandas aquí SIN cabecera de cocina.
+      // No exigir X-Cocina-Client-Version o se cortan las comandas a cocina.
+      // El aviso de actualizar va por poll/SW en cocina.html, no por 426 en create.
       const body = parseBody(req)
       const action = String(body.action || '').trim()
 

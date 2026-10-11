@@ -514,9 +514,7 @@
       if (msg) msg.textContent = message || 'Actualiza para seguir'
       if (overlay) overlay.hidden = false
       document.body.classList.add('cocina-force-blocked')
-      try {
-        window.CasaTorinoKitchenSync?.stop?.()
-      } catch {}
+      // No parar el sync: las comandas del TPV deben seguir llegando.
     }
 
     function hideCocinaForceUpdate() {
@@ -625,7 +623,7 @@
       if (standalone) document.body.classList.add('is-pwa')
     } catch {}
   </script>
-  <script src="kitchenSync.js?v=cocina-push-1"></script>
+  <script src="kitchenSync.js?v=fix-create-1"></script>
   <script>
     (() => {
       const AUTH_KEY = 'casa-torino-tpv-auth-v1'
