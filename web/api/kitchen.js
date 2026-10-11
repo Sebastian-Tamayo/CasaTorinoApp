@@ -307,9 +307,12 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      // IMPORTANTE: el TPV crea comandas aquí SIN cabecera de cocina.
-      // No exigir X-Cocina-Client-Version o se cortan las comandas a cocina.
-      // El aviso de actualizar va por poll/SW en cocina.html, no por 426 en create.
+      // ═══════════════════════════════════════════════════════════════
+      // CRÍTICO — COMUNICACIÓN TPV → COCINA
+      // NUNCA llamar cocinaVersion.rejectIfClientOutdated aquí.
+      // El TPV crea comandas sin X-Cocina-Client-Version; un 426 corta
+      // el servicio en sala. Aviso de app = poll/SW en cocina.html.
+      // ═══════════════════════════════════════════════════════════════
       const body = parseBody(req)
       const action = String(body.action || '').trim()
 

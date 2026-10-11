@@ -2,7 +2,7 @@
  * SW Cocina: al activarse, recarga las tablets para recuperar sync.
  * Pass-through (sin caché).
  */
-const SW_VERSION = '2026-10-11-fix-create-1'
+const SW_VERSION = '2026-10-11-recover-1'
 
 async function reloadCocinaClients() {
   const clients = await self.clients.matchAll({
@@ -19,7 +19,7 @@ async function reloadCocinaClients() {
       } else {
         client.postMessage({
           type: 'cocina-force-update',
-          required: '2026-10-11-cocina-push-1',
+          required: '2026-10-11-recover-1',
           message: 'Actualiza para seguir',
           swVersion: SW_VERSION,
         })

@@ -494,7 +494,7 @@
      * - web/cocina-version.json → required
      * - web/api/_cocinaVersion.js → required
      */
-    const COCINA_CLIENT_VERSION = '2026-10-11-cocina-push-1'
+    const COCINA_CLIENT_VERSION = '2026-10-11-recover-1'
     const COCINA_ACK_KEY = 'ct-cocina-ack-version'
     const $force = (id) => document.getElementById(id)
 
@@ -600,7 +600,7 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker
-          .register('/sw-cocina.js?v=cocina-push-1')
+          .register('/sw-cocina.js?v=recover-1')
           .catch(() => {})
       })
       try {

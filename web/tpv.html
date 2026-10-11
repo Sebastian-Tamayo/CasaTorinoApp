@@ -2540,7 +2540,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-11-push-msg-1'
+      const TPV_CLIENT_VERSION = '2026-10-11-recover-1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -2561,9 +2561,7 @@
         if (msg) msg.textContent = message || 'Actualiza para seguir'
         if (overlay) overlay.hidden = false
         document.body.classList.add('tpv-force-blocked')
-        try {
-          window.CasaTorinoTpvSync?.stop?.()
-        } catch {}
+        // No parar sync ni cocina: el servicio debe seguir activo.
       }
 
       function hideTpvForceUpdate() {
@@ -2644,7 +2642,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=push-msg-1')
+            .register('/sw-tpv.js?v=recover-1')
             .catch(() => {})
         })
         try {

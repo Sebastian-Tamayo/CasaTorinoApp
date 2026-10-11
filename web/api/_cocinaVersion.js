@@ -6,9 +6,11 @@
  * 2) /cocina-version.json → required
  * 3) cocina.html → COCINA_CLIENT_VERSION
  *
- * El aviso llega solo (poll / SW / ticket en panel), sin refrescar a mano.
+ * ⚠️ NUNCA usar rejectIfClientOutdated en POST create/ackPickup/syncJornada
+ * de /api/kitchen: el TPV envía comandas sin X-Cocina-Client-Version.
+ * Si se bloquea, las comandas no llegan a cocina. El aviso va por poll/SW.
  */
-const required = '2026-10-11-cocina-push-1'
+const required = '2026-10-11-recover-1'
 const message = 'Actualiza para seguir'
 
 function forceInfo() {
