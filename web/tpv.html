@@ -1258,6 +1258,61 @@
     body.tpv-locked .backdrop,
     body.tpv-locked .fab { visibility: hidden; pointer-events: none; }
 
+    /* —— Forzar actualización TPV —— */
+    .tpv-force-update {
+      position: fixed; inset: 0; z-index: 99999;
+      display: flex; align-items: center; justify-content: center;
+      padding: 1.25rem;
+      background: rgba(6, 10, 16, .94);
+      backdrop-filter: blur(10px);
+    }
+    .tpv-force-update[hidden] { display: none !important; }
+    .tpv-force-card {
+      width: min(22rem, 100%);
+      text-align: center;
+      background: var(--card);
+      border: 1px solid rgba(245,197,24,.45);
+      border-radius: 22px;
+      padding: 1.75rem 1.35rem 1.5rem;
+      box-shadow: 0 20px 50px rgba(0,0,0,.45);
+    }
+    .tpv-force-icon {
+      width: 4.5rem; height: 4.5rem; margin: 0 auto .9rem;
+      border-radius: 999px;
+      display: grid; place-items: center;
+      background: rgba(245,197,24,.16);
+      border: 2px solid rgba(245,197,24,.55);
+      color: var(--gold);
+      font-size: 1.85rem;
+    }
+    .tpv-force-card h2 {
+      margin: 0 0 .45rem; font-size: 1.35rem; font-weight: 900;
+      letter-spacing: -.02em; color: var(--ink);
+    }
+    .tpv-force-card p {
+      margin: 0 0 1.25rem; color: var(--muted);
+      font-size: .95rem; font-weight: 700; line-height: 1.35;
+    }
+    .tpv-force-btn {
+      width: 100%; border: 0; border-radius: 16px;
+      padding: 1rem 1.1rem;
+      background: var(--gold); color: #1a1408;
+      font: inherit; font-size: 1.05rem; font-weight: 900;
+      cursor: pointer; letter-spacing: .01em;
+    }
+    .tpv-force-btn:active { transform: scale(.98); }
+    body.tpv-force-blocked .app,
+    body.tpv-force-blocked .gate,
+    body.tpv-force-blocked .backdrop,
+    body.tpv-force-blocked .fab,
+    body.tpv-force-blocked .pickup-alert,
+    body.tpv-force-blocked .reserva-alert,
+    body.tpv-force-blocked .jornada-modal,
+    body.tpv-force-blocked .mesas-modal {
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
+
     /* —— Jornada / caja —— */
     .jornada-bar {
       display: flex; flex-wrap: wrap; align-items: center; gap: .45rem;
@@ -1993,6 +2048,15 @@
 </head>
 <body class="tpv-locked">
 
+  <div class="tpv-force-update" id="tpvForceUpdate" hidden role="alertdialog" aria-modal="true" aria-labelledby="tpvForceTitle" aria-describedby="tpvForceMsg">
+    <div class="tpv-force-card">
+      <div class="tpv-force-icon" aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></div>
+      <h2 id="tpvForceTitle">Actualizar</h2>
+      <p id="tpvForceMsg">Actualiza para seguir</p>
+      <button type="button" class="tpv-force-btn" id="tpvForceBtn">Actualizar</button>
+    </div>
+  </div>
+
   <div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
     <div class="gate-card">
       <img src="assets/logo.jpg" alt="Casa Torino" />
@@ -2464,14 +2528,101 @@
   <script src="carta.js"></script>
   <script src="tpv-data.js"></script>
   <script src="printService.js"></script>
-  <script src="tpvSync.js?v=cart-merge-union-20261011"></script>
+  <script src="tpvSync.js?v=cart-merge-force-20261011"></script>
   <script src="tpvJornada.js"></script>
   <script src="kitchenSync.js"></script>
   <script src="reservaAlertSync.js"></script>
   <script>
     (() => {
-      const AUTH_KEY = 'casa-torino-tpv-auth-v1'
+      /**
+       * Versión del cliente TPV. Debe coincidir con:
+       * - web/tpv-version.json → required
+       * - web/api/_tpvVersion.js → required
+       * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
+       */
+      const TPV_CLIENT_VERSION = '2026-10-11-cart-merge-force'
+      const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
+
+      function showTpvForceUpdate(message) {
+        const overlay = $('tpvForceUpdate')
+        const msg = $('tpvForceMsg')
+        if (msg) msg.textContent = message || 'Actualiza para seguir'
+        if (overlay) overlay.hidden = false
+        document.body.classList.add('tpv-force-blocked')
+        try {
+          window.CasaTorinoTpvSync?.stop?.()
+        } catch {}
+      }
+
+      function hideTpvForceUpdate() {
+        const overlay = $('tpvForceUpdate')
+        if (overlay) overlay.hidden = true
+        document.body.classList.remove('tpv-force-blocked')
+      }
+
+      function tpvNeedsForceUpdate(required) {
+        const need = String(required || '').trim()
+        if (!need) return false
+        if (String(TPV_CLIENT_VERSION) !== need) return true
+        try {
+          if (String(localStorage.getItem(TPV_ACK_KEY) || '') !== need) return true
+        } catch {
+          return true
+        }
+        return false
+      }
+
+      function applyTpvForceInfo(info) {
+        if (!info || typeof info !== 'object') return false
+        const required = String(info.required || '').trim()
+        if (!required) return false
+        if (!tpvNeedsForceUpdate(required)) {
+          hideTpvForceUpdate()
+          return false
+        }
+        showTpvForceUpdate(info.message || 'Actualiza para seguir')
+        return true
+      }
+
+      window.__casaTorinoTpvClientVersion = TPV_CLIENT_VERSION
+      window.__casaTorinoApplyTpvForce = applyTpvForceInfo
+
+      $('tpvForceBtn')?.addEventListener('click', () => {
+        const required =
+          window.__casaTorinoTpvForceRequired || TPV_CLIENT_VERSION
+        try {
+          localStorage.setItem(TPV_ACK_KEY, String(required))
+        } catch {}
+        const url = new URL(location.href)
+        url.searchParams.set('v', String(Date.now()))
+        location.replace(url.toString())
+      })
+
+      async function pollTpvVersion() {
+        try {
+          const r = await fetch('/tpv-version.json?t=' + Date.now(), {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-store' },
+          })
+          if (!r.ok) return
+          const info = await r.json()
+          window.__casaTorinoTpvForceRequired = info.required
+          applyTpvForceInfo(info)
+        } catch (err) {
+          console.warn('[tpv] version poll', err)
+        }
+      }
+
+      // Bloqueo inmediato si esta carga aún no fue confirmada
+      applyTpvForceInfo({
+        required: TPV_CLIENT_VERSION,
+        message: 'Actualiza para seguir',
+      })
+      pollTpvVersion()
+      setInterval(pollTpvVersion, 12000)
+
+      const AUTH_KEY = 'casa-torino-tpv-auth-v1'
 
       let pinBuf = ''
       let tpvStarted = false

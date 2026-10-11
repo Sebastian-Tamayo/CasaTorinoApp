@@ -10,6 +10,7 @@
 const { getJson, setJson, updateJson } = require('./_opsStore')
 const { opsDayId, applyTpvDayRollover } = require('./_opsDay')
 const { mergeTables, tablesQty } = require('./_tpvMerge')
+const tpvVersion = require('./_tpvVersion')
 
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'tpv'
@@ -34,6 +35,17 @@ function emptyState() {
     opsDay: opsDayId(),
     updatedAt: 0,
     clientId: null,
+  }
+}
+
+function withTpvForce(state) {
+  const base = state && typeof state === 'object' ? state : emptyState()
+  return {
+    ...base,
+    tpvForce: {
+      required: tpvVersion.required,
+      message: tpvVersion.message || 'Actualiza para seguir',
+    },
   }
 }
 
@@ -78,7 +90,7 @@ module.exports = async function handler(req, res) {
       const state = await loadTpvState()
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify(state || emptyState()))
+      return res.end(JSON.stringify(withTpvForce(state || emptyState())))
     }
 
     if (req.method === 'POST') {
@@ -145,7 +157,7 @@ module.exports = async function handler(req, res) {
 
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify(next))
+      return res.end(JSON.stringify(withTpvForce(next)))
     }
 
     res.statusCode = 405

@@ -248,6 +248,17 @@
     } catch {}
   }
 
+  function noteTpvForce(payload) {
+    try {
+      if (payload && payload.tpvForce && typeof window.__casaTorinoApplyTpvForce === 'function') {
+        window.__casaTorinoTpvForceRequired = payload.tpvForce.required
+        window.__casaTorinoApplyTpvForce(payload.tpvForce)
+      }
+    } catch (err) {
+      console.warn('[tpvSync] force', err)
+    }
+  }
+
   async function pull() {
     let lastErr = null
     for (let i = 1; i <= 3; i++) {
@@ -258,7 +269,9 @@
           headers: { 'Cache-Control': 'no-store' },
         })
         if (!r.ok) throw new Error('sync GET ' + r.status)
-        return await r.json()
+        const data = await r.json()
+        noteTpvForce(data)
+        return data
       } catch (err) {
         lastErr = err
         await sleep(200 * i)
@@ -313,6 +326,7 @@
         }
         if (!r.ok) throw new Error('sync POST ' + r.status)
         const saved = await r.json().catch(() => body)
+        noteTpvForce(saved)
         lastRemoteUpdatedAt = Number(saved.updatedAt || updatedAt)
         lastRemoteQty = tablesQty(saved.tables || tables)
         if (!opts.keepalive) refreshSession()
