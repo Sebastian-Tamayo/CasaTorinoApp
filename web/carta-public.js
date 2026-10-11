@@ -62,11 +62,15 @@
     const sun = md.sunday || {}
     const week = md.weekday || {}
     // Compat con carta antigua (weekend.es / weekend.co)
-    const satPrice = sat.price ?? md.weekend?.co ?? 16
-    const sunPrice = sun.price ?? md.weekend?.es ?? 18
-    const weekPrice = week.price ?? week.unified ?? week.es ?? 13
+    // Precios fijos de respaldo: semana 13 · sábado 16 · domingo 18 (nunca 19)
+    const satPrice = Number(sat.price)
+    const sunPrice = Number(sun.price)
+    const weekPrice = Number(week.price ?? week.unified)
+    const satP = Number.isFinite(satPrice) ? satPrice : 16
+    const sunP = Number.isFinite(sunPrice) ? sunPrice : 18
+    const weekP = Number.isFinite(weekPrice) ? weekPrice : 13
     const price =
-      schedule === 'saturday' ? satPrice : schedule === 'sunday' ? sunPrice : weekPrice
+      schedule === 'saturday' ? satP : schedule === 'sunday' ? sunP : weekP
 
     ul.innerHTML = `
       <li>
