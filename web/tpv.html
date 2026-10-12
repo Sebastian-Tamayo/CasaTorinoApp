@@ -2540,7 +2540,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-11-recover-1'
+      const TPV_CLIENT_VERSION = '2026-10-12-cdn-safe-1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -2635,14 +2635,15 @@
         required: TPV_CLIENT_VERSION,
         message: 'Actualiza para seguir',
       })
+      // Poll lento: Hobby Vercel = 1M CDN/mes; 4s vacía la cuota.
       pollTpvVersion()
-      setInterval(pollTpvVersion, 4000)
+      setInterval(pollTpvVersion, 60000)
 
       // SW: el aviso llega a pestañas abiertas sin que pulsen refrescar
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=recover-1')
+            .register('/sw-tpv.js?v=cdn-safe-1')
             .catch(() => {})
         })
         try {

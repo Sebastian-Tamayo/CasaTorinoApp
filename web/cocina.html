@@ -494,7 +494,7 @@
      * - web/cocina-version.json → required
      * - web/api/_cocinaVersion.js → required
      */
-    const COCINA_CLIENT_VERSION = '2026-10-11-recover-1'
+    const COCINA_CLIENT_VERSION = '2026-10-12-cdn-safe-1'
     const COCINA_ACK_KEY = 'ct-cocina-ack-version'
     const $force = (id) => document.getElementById(id)
 
@@ -593,14 +593,15 @@
       required: COCINA_CLIENT_VERSION,
       message: 'Actualiza para seguir',
     })
+    // Poll lento: cuota CDN Hobby (1M/mes). El aviso sigue llegando solo.
     pollCocinaVersion()
-    setInterval(pollCocinaVersion, 4000)
+    setInterval(pollCocinaVersion, 60000)
 
     // PWA Cocina: SW avisa a tablets abiertas sin refrescar a mano
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker
-          .register('/sw-cocina.js?v=recover-1')
+          .register('/sw-cocina.js?v=cdn-safe-1')
           .catch(() => {})
       })
       try {
