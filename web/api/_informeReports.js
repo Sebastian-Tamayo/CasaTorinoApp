@@ -5,8 +5,8 @@
  * INVARIANTES (no romper en próximos lanzamientos):
  * 1) Un cierre de jornada = un día: dayKey = opsDay del startedAt (08:00 Madrid).
  *    Si cierran sábado a las 00:30 → jornada del sábado (no del domingo).
- * 2) Domingo al cerrar caja → runInforme semanal con force (último cierre gana).
- * 3) Lunes cron → reenvía si el envío previo tenía menos tickets/total.
+ * 2) Semanal programado: lunes ~08:00 Madrid (cron ops-daily-purge).
+ * 3) Mensual: día 1 ~08:00 Madrid.
  */
 const { getJson, setJson, updateJson } = require('./_opsStore')
 const { opsDayId } = require('./_opsDay')
@@ -822,55 +822,19 @@ async function runInforme(kind, opts = {}) {
 }
 
 /**
- * Disparo tras cerrar caja un domingo (no bloqueante).
- * Siempre force=true: el ÚLTIMO cierre del domingo manda el mail completo
- * (lun–dom). Si hubo un envío a mediodía, se reenvía con el domingo entero.
+ * Legacy: ya no se envía al cerrar el domingo.
+ * El semanal va programado los lunes (~08:00 Madrid).
  */
 async function maybeTriggerWeeklyAfterSundayClose() {
-  if (madridWeekday(Date.now()) !== 'Sun') {
-    return { triggered: false, reason: 'not_sunday' }
-  }
-  try {
-    const result = await runInforme('semanal', { force: true })
-    return { triggered: true, result }
-  } catch (err) {
-    console.warn('[informe] sunday trigger', err)
-    return {
-      triggered: true,
-      error: String(err && err.message ? err.message : err),
-    }
-  }
+  return { triggered: false, reason: 'monday_schedule_only' }
 }
 
 /**
- * Lunes (cron): envía si no se envió, o reenvía si el envío previo
- * tenía menos tickets/total (p. ej. cierre prematuro el domingo).
+ * Lunes (cron ~08:00 Madrid): envío principal del informe semanal (lun–dom).
+ * Idempotente: si ya se envió esa semana, no reenvía.
  */
 async function maybeTriggerWeeklyMondayBackup(now = new Date()) {
-  const range = weekRangeEndingSunday(now)
-  const log = await readInformeLog()
-  const prev = log.sent[range.periodKey]
-  if (!prev) {
-    return runInforme('semanal', { force: false, now })
-  }
-  const dry = await runInforme('semanal', { dryRun: true, now })
-  const curTickets = Number(dry.report?.totals?.tickets) || 0
-  const curTotal = Number(dry.report?.totals?.total) || 0
-  const prevTickets = Number(prev.totals?.tickets) || 0
-  const prevTotal = Number(prev.totals?.total) || 0
-  const grew =
-    curTickets > prevTickets || curTotal > prevTotal + 0.009
-  if (!grew) {
-    return {
-      ok: true,
-      skipped: true,
-      reason: 'already_sent_complete',
-      periodKey: range.periodKey,
-      previous: prev,
-      currentTotals: dry.report?.totals || null,
-    }
-  }
-  return runInforme('semanal', { force: true, now })
+  return runInforme('semanal', { force: false, now })
 }
 
 module.exports = {
