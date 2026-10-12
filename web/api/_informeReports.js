@@ -968,6 +968,10 @@ async function runInforme(kind, opts = {}) {
       : `Casa Torino · Informe semanal · ${report.label}`
 
   if (dryRun) {
+    const items = await loadCierresItems()
+    const inRange = items.filter(
+      (c) => c && range.dayKeys.includes(c.dayKey),
+    )
     return {
       ok: true,
       dryRun: true,
@@ -977,6 +981,20 @@ async function runInforme(kind, opts = {}) {
       html,
       emailConfigured: Boolean(RESEND_API_KEY),
       to: REPORT_TO,
+      cierresBrief: inRange.map((c) => ({
+        id: c.id,
+        dayKey: c.dayKey,
+        tickets: c.totals?.tickets,
+        salesCount: c.salesCount,
+        salesLen: Array.isArray(c.sales) ? c.sales.length : 0,
+        previewLen: Array.isArray(c.salesPreview) ? c.salesPreview.length : 0,
+        activityHours: (c.activityByHour || []).map((r) => r.hour),
+        expand: expandCierreByOpsDay(c).map((p) => ({
+          dayKey: p.dayKey,
+          tickets: p.cierre?.totals?.tickets,
+          total: p.cierre?.totals?.total,
+        })),
+      })),
     }
   }
 
