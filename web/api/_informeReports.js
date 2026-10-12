@@ -374,6 +374,13 @@ function splitActivityByOpsDay(activityByHour, cierreDayKey) {
  * Evita mezclar sábado y domingo cuando la jornada cruza la madrugada.
  */
 function expandCierreByOpsDay(c) {
+  const startDk = opsDayId(
+    new Date(Number(c.startedAt) || Number(c.endedAt) || Date.now()),
+  )
+  const endDk = opsDayId(
+    new Date(Number(c.endedAt) || Number(c.startedAt) || Date.now()),
+  )
+
   const fullSales =
     Array.isArray(c.sales) &&
     c.sales.length &&
@@ -442,7 +449,15 @@ function expandCierreByOpsDay(c) {
   }
 
   if (amtByDay.size <= 1) {
-    return [{ dayKey: c.dayKey, cierre: c, products: c.totals?.byProduct }]
+    // Jornada abierta sábado y cerrada domingo madrugada → todo al sábado (apertura)
+    const dayKey = startDk !== endDk || c.dayKey !== startDk ? startDk : c.dayKey
+    return [
+      {
+        dayKey,
+        cierre: { ...c, dayKey },
+        products: c.totals?.byProduct,
+      },
+    ]
   }
 
   const splitSum =
@@ -968,10 +983,6 @@ async function runInforme(kind, opts = {}) {
       : `Casa Torino · Informe semanal · ${report.label}`
 
   if (dryRun) {
-    const items = await loadCierresItems()
-    const inRange = items.filter(
-      (c) => c && range.dayKeys.includes(c.dayKey),
-    )
     return {
       ok: true,
       dryRun: true,
@@ -981,20 +992,6 @@ async function runInforme(kind, opts = {}) {
       html,
       emailConfigured: Boolean(RESEND_API_KEY),
       to: REPORT_TO,
-      cierresBrief: inRange.map((c) => ({
-        id: c.id,
-        dayKey: c.dayKey,
-        tickets: c.totals?.tickets,
-        salesCount: c.salesCount,
-        salesLen: Array.isArray(c.sales) ? c.sales.length : 0,
-        previewLen: Array.isArray(c.salesPreview) ? c.salesPreview.length : 0,
-        activityHours: (c.activityByHour || []).map((r) => r.hour),
-        expand: expandCierreByOpsDay(c).map((p) => ({
-          dayKey: p.dayKey,
-          tickets: p.cierre?.totals?.tickets,
-          total: p.cierre?.totals?.total,
-        })),
-      })),
     }
   }
 
