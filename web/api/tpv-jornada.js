@@ -85,10 +85,11 @@ function madridMonthDay(ts) {
 }
 
 /**
- * Archiva el cierre en ops_kv `cierres` para el ERP / informes.
- * IMPORTANTE: parte las ventas por día operativo 08:00 Madrid (opsDayId).
- * Así sábado y domingo NUNCA se suman en el mismo día del informe
- * aunque la jornada siga abierta de un día al otro.
+ * Archiva UN cierre por jornada en ops_kv `cierres`.
+ *
+ * Día del informe = día operativo de cuando ABRIÓ la jornada (08:00 Madrid).
+ * Ejemplo: abren sábado y cierran a las 00:30 → cuenta como sábado.
+ * No se parte la jornada ni se mezcla con el domingo.
  */
 async function archiveToCierres(stateWithTotals) {
   const startedAt = Number(stateWithTotals.startedAt) || null
@@ -96,44 +97,28 @@ async function archiveToCierres(stateWithTotals) {
   const sales = Array.isArray(stateWithTotals.sales)
     ? stateWithTotals.sales
     : []
-
-  const byDay = new Map()
-  for (const s of sales) {
-    const at = Number(s && s.at) || endedAt
-    const dk = opsDayId(new Date(at))
-    if (!byDay.has(dk)) byDay.set(dk, [])
-    byDay.get(dk).push(s)
-  }
-  if (!byDay.size) {
-    byDay.set(opsDayId(new Date(endedAt)), [])
-  }
-
-  const cierres = []
-  for (const [dayKey, daySales] of byDay) {
-    const dayState = { sales: daySales }
-    const totals = buildTotals(dayState)
-    const activityByHour = buildActivityByHour(daySales)
-    const monthKey = dayKey.slice(0, 7)
-    cierres.push({
-      id: `cierre-${startedAt || endedAt}-${dayKey}`,
-      source: 'tpv',
-      startedAt,
-      endedAt,
-      dayKey,
-      monthKey,
-      totals,
-      salesCount: daySales.length,
-      // Ventas completas del día → informes pueden repartir sin mezclar sáb/dom
-      sales: daySales,
-      salesPreview: daySales.slice(-30).map((s) => ({
-        id: s.id,
-        at: s.at,
-        mesa: s.mesa,
-        total: s.total,
-      })),
-      activityByHour,
-      updatedAt: Date.now(),
-    })
+  const dayKey = opsDayId(new Date(startedAt || endedAt))
+  const monthKey = dayKey.slice(0, 7)
+  const totals = stateWithTotals.totals || buildTotals(stateWithTotals)
+  const activityByHour = buildActivityByHour(sales)
+  const cierre = {
+    id: `cierre-${startedAt || endedAt}`,
+    source: 'tpv',
+    startedAt,
+    endedAt,
+    dayKey,
+    monthKey,
+    totals,
+    salesCount: sales.length,
+    sales,
+    salesPreview: sales.slice(-30).map((s) => ({
+      id: s.id,
+      at: s.at,
+      mesa: s.mesa,
+      total: s.total,
+    })),
+    activityByHour,
+    updatedAt: Date.now(),
   }
 
   await updateJson(
@@ -141,14 +126,12 @@ async function archiveToCierres(stateWithTotals) {
     () => ({ kind: 'casa-torino-cierres', items: [], updatedAt: 0 }),
     (store) => {
       let items = Array.isArray(store.items) ? store.items.slice() : []
-      // Quitar cierre legado (sin sufijo de día) de la misma jornada
-      const legacyId = `cierre-${startedAt || endedAt}`
-      items = items.filter((c) => c && c.id !== legacyId)
-      for (const cierre of cierres) {
-        const idx = items.findIndex((c) => c && c.id === cierre.id)
-        if (idx >= 0) items[idx] = cierre
-        else items.push(cierre)
-      }
+      // Quitar variantes partidas antiguas de la misma jornada
+      const prefix = `cierre-${startedAt || endedAt}`
+      items = items.filter(
+        (c) => c && c.id !== prefix && !String(c.id || '').startsWith(prefix + '-'),
+      )
+      items.push(cierre)
       items.sort((a, b) => (Number(b.endedAt) || 0) - (Number(a.endedAt) || 0))
       while (items.length > 400) items.pop()
       return {
@@ -158,7 +141,7 @@ async function archiveToCierres(stateWithTotals) {
       }
     },
   )
-  return cierres.length === 1 ? cierres[0] : { days: cierres }
+  return cierre
 }
 
 /** Alinea KDS con inicio/fin de jornada (RMW). Al start vacía cola e histórico. */

@@ -3,10 +3,10 @@
  * HTML móvil + envío Resend. Idempotencia en ops_kv `informe-log`.
  *
  * INVARIANTES (no romper en próximos lanzamientos):
- * 1) Días = opsDay 08:00 Madrid — sábado y domingo NUNCA en la misma fila.
+ * 1) Un cierre de jornada = un día: dayKey = opsDay del startedAt (08:00 Madrid).
+ *    Si cierran sábado a las 00:30 → jornada del sábado (no del domingo).
  * 2) Domingo al cerrar caja → runInforme semanal con force (último cierre gana).
  * 3) Lunes cron → reenvía si el envío previo tenía menos tickets/total.
- * 4) Archivo de cierre parte ventas por opsDay (tpv-jornada archiveToCierres).
  */
 const { getJson, setJson, updateJson } = require('./_opsStore')
 const { opsDayId } = require('./_opsDay')
@@ -266,255 +266,14 @@ function foldCierreIntoDay(bucket, c) {
   }
 }
 
-/** Totales mínimos desde ventas sueltas (para repartir sáb/dom). */
-function totalsFromSales(sales) {
-  const byType = { comida: { total: 0 }, bebida: { total: 0 } }
-  const byPayment = {
-    efectivo: { total: 0, tickets: 0 },
-    tarjeta: { total: 0, tickets: 0 },
-  }
-  let tickets = 0
-  let total = 0
-  let tip = 0
-  const byProduct = []
-  const productMap = new Map()
-  for (const sale of sales || []) {
-    tickets += 1
-    const saleTotal = Number(sale.total) || 0
-    total = round2(total + saleTotal)
-    tip = round2(tip + (Number(sale.tip) || 0))
-    const payments = Array.isArray(sale.payments) ? sale.payments : []
-    if (payments.length) {
-      const seen = { efectivo: false, tarjeta: false }
-      for (const p of payments) {
-        const pm = p && p.method === 'tarjeta' ? 'tarjeta' : 'efectivo'
-        byPayment[pm].total = round2(
-          byPayment[pm].total + (Number(p.amount) || 0),
-        )
-        seen[pm] = true
-      }
-      if (seen.efectivo) byPayment.efectivo.tickets += 1
-      if (seen.tarjeta) byPayment.tarjeta.tickets += 1
-    } else {
-      const pm = sale.paymentMethod === 'tarjeta' ? 'tarjeta' : 'efectivo'
-      byPayment[pm].total = round2(byPayment[pm].total + saleTotal)
-      byPayment[pm].tickets += 1
-    }
-    for (const l of sale.lines || []) {
-      const ctype = l.categoryType === 'bebida' ? 'bebida' : 'comida'
-      const lineTotal = round2((Number(l.qty) || 0) * (Number(l.price) || 0))
-      byType[ctype].total = round2(byType[ctype].total + lineTotal)
-      const pKey = l.id || l.name
-      if (!pKey) continue
-      if (!productMap.has(pKey)) {
-        productMap.set(pKey, {
-          id: l.id || pKey,
-          name: l.name || pKey,
-          qty: 0,
-          total: 0,
-        })
-      }
-      const p = productMap.get(pKey)
-      p.qty += Number(l.qty) || 0
-      p.total = round2(p.total + lineTotal)
-    }
-  }
-  for (const p of productMap.values()) byProduct.push(p)
-  return {
-    tickets,
-    total,
-    tipTotal: tip,
-    byType,
-    byPayment,
-    byProduct,
-  }
-}
-
-function scaleTotals(totals, share, tickets, total) {
-  const s = Number(share) || 0
-  const t = totals || {}
-  const scaleMoney = (n) => round2((Number(n) || 0) * s)
-  return {
-    tickets: Math.max(0, Number(tickets) || 0),
-    total: round2(Number(total) || 0),
-    tipTotal: scaleMoney(t.tipTotal),
-    byType: {
-      comida: { total: scaleMoney(t.byType?.comida?.total) },
-      bebida: { total: scaleMoney(t.byType?.bebida?.total) },
-    },
-    byPayment: {
-      efectivo: {
-        total: scaleMoney(t.byPayment?.efectivo?.total),
-        tickets: Math.round((Number(t.byPayment?.efectivo?.tickets) || 0) * s),
-      },
-      tarjeta: {
-        total: scaleMoney(t.byPayment?.tarjeta?.total),
-        tickets: Math.round((Number(t.byPayment?.tarjeta?.tickets) || 0) * s),
-      },
-    },
-    byProduct: Array.isArray(t.byProduct)
-      ? t.byProduct.map((p) => ({
-          ...p,
-          qty: round2((Number(p.qty) || 0) * s),
-          total: scaleMoney(p.total),
-        }))
-      : [],
-  }
-}
-
-/** activityByHour: horas 0–7 → día ops anterior; 8–23 → día del cierre. */
-function splitActivityByOpsDay(activityByHour, cierreDayKey) {
-  const out = new Map()
-  for (const row of activityByHour || []) {
-    const hour = Number(row.hour)
-    if (!Number.isFinite(hour)) continue
-    const dk = hour < 8 ? addDaysKey(cierreDayKey, -1) : cierreDayKey
-    if (!out.has(dk)) out.set(dk, [])
-    out.get(dk).push(row)
-  }
-  return out
-}
-
 /**
- * Reparte un cierre en días operativos (08:00 Madrid).
- * Evita mezclar sábado y domingo cuando la jornada cruza la madrugada.
+ * Día del informe para un cierre de jornada = día ops de cuando ABRIÓ.
+ * Abren sábado, cierran 00:30 → sábado (no domingo).
  */
-function expandCierreByOpsDay(c) {
-  const startDk = opsDayId(
-    new Date(Number(c.startedAt) || Number(c.endedAt) || Date.now()),
-  )
-  const endDk = opsDayId(
-    new Date(Number(c.endedAt) || Number(c.startedAt) || Date.now()),
-  )
-
-  const fullSales =
-    Array.isArray(c.sales) &&
-    c.sales.length &&
-    c.sales.some((s) => Array.isArray(s.lines) && s.lines.length)
-      ? c.sales
-      : null
-
-  // Cierres nuevos: ventas completas con líneas → reparto exacto
-  if (fullSales) {
-    const byDay = new Map()
-    for (const s of fullSales) {
-      const at = Number(s && s.at) || Number(c.endedAt) || Date.now()
-      const dk = opsDayId(new Date(at))
-      if (!byDay.has(dk)) byDay.set(dk, [])
-      byDay.get(dk).push(s)
-    }
-    const out = []
-    for (const [dayKey, daySales] of byDay) {
-      const totals = totalsFromSales(daySales)
-      out.push({
-        dayKey,
-        cierre: {
-          ...c,
-          dayKey,
-          totals,
-          salesCount: daySales.length,
-          sales: daySales,
-          activityByHour: buildActivityByHour(daySales),
-        },
-        products: totals.byProduct,
-      })
-    }
-    return out.length
-      ? out
-      : [{ dayKey: c.dayKey, cierre: c, products: c.totals?.byProduct }]
-  }
-
-  // Legado (solo preview / activity): si cruza madrugada, reparte a prorrata
-  const preview = Array.isArray(c.salesPreview) ? c.salesPreview : []
-  const amtByDay = new Map()
-  const tkByDay = new Map()
-  for (const s of preview) {
-    const at = Number(s && s.at) || Number(c.endedAt) || Date.now()
-    const dk = opsDayId(new Date(at))
-    amtByDay.set(dk, round2((amtByDay.get(dk) || 0) + (Number(s.total) || 0)))
-    tkByDay.set(dk, (tkByDay.get(dk) || 0) + 1)
-  }
-
-  // Horas 0–7 del activity = día ops anterior (noche del sábado → sábado)
-  const actByDay = splitActivityByOpsDay(c.activityByHour, c.dayKey)
-  if (actByDay.size > 1 && amtByDay.size <= 1) {
-    amtByDay.clear()
-    tkByDay.clear()
-    for (const [dk, rows] of actByDay) {
-      let amt = 0
-      let tk = 0
-      for (const row of rows) {
-        amt = round2(amt + (Number(row.total) || 0))
-        tk += Number(row.tickets) || 0
-      }
-      if (amt > 0 || tk > 0) {
-        amtByDay.set(dk, amt)
-        tkByDay.set(dk, tk)
-      }
-    }
-  }
-
-  if (amtByDay.size <= 1) {
-    // Jornada abierta sábado y cerrada domingo madrugada → todo al sábado (apertura)
-    const dayKey = startDk !== endDk || c.dayKey !== startDk ? startDk : c.dayKey
-    return [
-      {
-        dayKey,
-        cierre: { ...c, dayKey },
-        products: c.totals?.byProduct,
-      },
-    ]
-  }
-
-  const splitSum =
-    [...amtByDay.values()].reduce((a, b) => a + b, 0) || 1
-  const totTickets = Number(c.totals?.tickets) || Number(c.salesCount) || 0
-  const totTotal = Number(c.totals?.total) || splitSum
-  const splitTk = [...tkByDay.values()].reduce((a, b) => a + b, 0)
-  // Solo si el split viene del preview corto (no del activity completo)
-  if (preview.length && splitTk < totTickets && actByDay.size <= 1) {
-    const remTk = totTickets - splitTk
-    tkByDay.set(c.dayKey, (tkByDay.get(c.dayKey) || 0) + remTk)
-    const remAmt = Math.max(0, round2(totTotal - splitSum))
-    if (remAmt > 0) {
-      amtByDay.set(
-        c.dayKey,
-        round2((amtByDay.get(c.dayKey) || 0) + remAmt),
-      )
-    }
-  }
-
-  const denom =
-    [...amtByDay.values()].reduce((a, b) => a + b, 0) || totTotal || 1
-  const out = []
-  let allocated = 0
-  const entries = [...amtByDay.entries()]
-  entries.forEach(([dayKey, amt], idx) => {
-    const share = amt / denom
-    const isLast = idx === entries.length - 1
-    const dayTotal = isLast
-      ? round2(totTotal - allocated)
-      : round2(totTotal * share)
-    allocated = round2(allocated + dayTotal)
-    const totals = scaleTotals(
-      c.totals,
-      share,
-      tkByDay.get(dayKey) || 0,
-      dayTotal,
-    )
-    out.push({
-      dayKey,
-      cierre: {
-        ...c,
-        dayKey,
-        totals,
-        salesCount: totals.tickets,
-        activityByHour: actByDay.get(dayKey) || [],
-      },
-      products: totals.byProduct,
-    })
-  })
-  return out
+function jornadaDayKey(c) {
+  const startedAt = Number(c && c.startedAt) || 0
+  const endedAt = Number(c && c.endedAt) || 0
+  return opsDayId(new Date(startedAt || endedAt || Date.now()))
 }
 
 /** Semana lun–dom que termina en el domingo de `ref` (Madrid). */
@@ -591,15 +350,20 @@ function groupWeeksInMonth(dayKeys) {
 
 async function buildPeriodReport({ kind, range, now = new Date() }) {
   let items = await loadCierresItems()
-  // Si ya hay cierres partidos por día, ignorar el legado sin sufijo (evita doblar).
-  const legacySkip = new Set()
-  for (const c of items) {
-    const id = String(c && c.id || '')
-    const m = id.match(/^(cierre-\d+)-\d{4}-\d{2}-\d{2}$/)
-    if (m) legacySkip.add(m[1])
-  }
-  if (legacySkip.size) {
-    items = items.filter((c) => c && !legacySkip.has(String(c.id || '')))
+  // Preferir cierre canónico `cierre-<startedAt>`; si existe, ignorar partidos
+  // antiguos `cierre-<startedAt>-YYYY-MM-DD`. Si solo hay partidos, usarlos.
+  const hasCanonical = new Set(
+    items
+      .filter((c) => /^cierre-\d+$/.test(String((c && c.id) || '')))
+      .map((c) => String(c.id)),
+  )
+  if (hasCanonical.size) {
+    items = items.filter((c) => {
+      const id = String((c && c.id) || '')
+      const m = id.match(/^(cierre-\d+)-\d{4}-\d{2}-\d{2}$/)
+      if (m && hasCanonical.has(m[1])) return false
+      return true
+    })
   }
 
   const dayKeySet = new Set(range.dayKeys)
@@ -609,13 +373,10 @@ async function buildPeriodReport({ kind, range, now = new Date() }) {
 
   for (const c of items) {
     if (!c) continue
-    const parts = expandCierreByOpsDay(c)
-    for (const part of parts) {
-      if (!part.dayKey || !dayKeySet.has(part.dayKey)) continue
-      foldCierreIntoDay(days[part.dayKey], part.cierre)
-      if (part.products) mergeProducts(productMap, part.products)
-      else mergeProducts(productMap, part.cierre.totals?.byProduct)
-    }
+    const dayKey = jornadaDayKey(c)
+    if (!dayKey || !dayKeySet.has(dayKey)) continue
+    foldCierreIntoDay(days[dayKey], { ...c, dayKey })
+    mergeProducts(productMap, c.totals?.byProduct)
   }
 
   const dayList = range.dayKeys.map((dk) => days[dk])
@@ -829,7 +590,7 @@ function buildMobileEmailHtml(report) {
     </table>
 
     <h2 style="margin:0 0 8px;font-size:16px">${escapeHtml(bucketTitle)}</h2>
-    <p style="margin:0 0 10px;font-size:12px;color:#666">Cada día es el día operativo 08:00–08:00 (Madrid): sábado y domingo van aparte. Pico = hora con más mesas distintas cobradas${report.bucketMode === 'semana' ? ' (mejor día de la semana)' : ''}. El símbolo ~ indica reconstrucción parcial.</p>
+    <p style="margin:0 0 10px;font-size:12px;color:#666">Cada fila = un cierre de jornada (día en que abrieron; si cierran a las 00:30 sigue siendo ese día). Pico = hora con más mesas distintas cobradas${report.bucketMode === 'semana' ? ' (mejor día de la semana)' : ''}. ~ = reconstrucción parcial.</p>
     <table width="100%" cellspacing="0" cellpadding="0" style="background:#fff;border:1px solid #e8d9a8;border-radius:12px;overflow:hidden;margin-bottom:20px;border-collapse:collapse">
       <thead>
         <tr style="background:#1a1a1a;color:#f5c518">
