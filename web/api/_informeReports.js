@@ -411,7 +411,7 @@ function expandCierreByOpsDay(c) {
       : [{ dayKey: c.dayKey, cierre: c, products: c.totals?.byProduct }]
   }
 
-  // Legado (solo preview): si hay varios días ops, reparte totales a prorrata
+  // Legado (solo preview / activity): si cruza madrugada, reparte a prorrata
   const preview = Array.isArray(c.salesPreview) ? c.salesPreview : []
   const amtByDay = new Map()
   const tkByDay = new Map()
@@ -422,21 +422,39 @@ function expandCierreByOpsDay(c) {
     tkByDay.set(dk, (tkByDay.get(dk) || 0) + 1)
   }
 
+  // Horas 0–7 del activity = día ops anterior (noche del sábado → sábado)
+  const actByDay = splitActivityByOpsDay(c.activityByHour, c.dayKey)
+  if (actByDay.size > 1 && amtByDay.size <= 1) {
+    amtByDay.clear()
+    tkByDay.clear()
+    for (const [dk, rows] of actByDay) {
+      let amt = 0
+      let tk = 0
+      for (const row of rows) {
+        amt = round2(amt + (Number(row.total) || 0))
+        tk += Number(row.tickets) || 0
+      }
+      if (amt > 0 || tk > 0) {
+        amtByDay.set(dk, amt)
+        tkByDay.set(dk, tk)
+      }
+    }
+  }
+
   if (amtByDay.size <= 1) {
     return [{ dayKey: c.dayKey, cierre: c, products: c.totals?.byProduct }]
   }
 
-  const previewSum =
+  const splitSum =
     [...amtByDay.values()].reduce((a, b) => a + b, 0) || 1
   const totTickets = Number(c.totals?.tickets) || Number(c.salesCount) || 0
-  const totTotal = Number(c.totals?.total) || previewSum
-  const previewTk = preview.length
-  const remTk = Math.max(0, totTickets - previewTk)
-  if (remTk > 0) {
+  const totTotal = Number(c.totals?.total) || splitSum
+  const splitTk = [...tkByDay.values()].reduce((a, b) => a + b, 0)
+  // Solo si el split viene del preview corto (no del activity completo)
+  if (preview.length && splitTk < totTickets && actByDay.size <= 1) {
+    const remTk = totTickets - splitTk
     tkByDay.set(c.dayKey, (tkByDay.get(c.dayKey) || 0) + remTk)
-    // El resto del dinero (no cubierto por preview) al dayKey del cierre
-    const previewAmt = previewSum
-    const remAmt = Math.max(0, round2(totTotal - previewAmt))
+    const remAmt = Math.max(0, round2(totTotal - splitSum))
     if (remAmt > 0) {
       amtByDay.set(
         c.dayKey,
@@ -445,7 +463,6 @@ function expandCierreByOpsDay(c) {
     }
   }
 
-  const actByDay = splitActivityByOpsDay(c.activityByHour, c.dayKey)
   const denom =
     [...amtByDay.values()].reduce((a, b) => a + b, 0) || totTotal || 1
   const out = []
