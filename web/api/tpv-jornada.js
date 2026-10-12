@@ -658,7 +658,8 @@ module.exports = async function handler(req, res) {
         } catch (err) {
           console.warn('[tpv-jornada] archive', err)
         }
-        // Domingos: tras cerrar caja, envía informe semanal (idempotente)
+        // Domingos: tras cerrar caja → mail semanal CON el domingo incluido.
+        // force en el trigger: el último cierre del domingo pisa un envío prematuro.
         if (action === 'end') {
           try {
             informeSemanal = await maybeTriggerWeeklyAfterSundayClose()

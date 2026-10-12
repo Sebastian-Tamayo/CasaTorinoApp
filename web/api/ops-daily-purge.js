@@ -1,7 +1,7 @@
 /**
  * Limpieza diaria 08:00 Europe/Madrid — cocina + mesas TPV.
  * También dispara backups de informes email (Hobby: máx. 2 crons / 12 functions).
- *   - Lunes: informe semanal si no se envió al cerrar caja el domingo
+ *   - Lunes: informe semanal si no se envió, o reenvío si el del domingo iba incompleto
  *   - Día 1: informe mensual del mes anterior
  *
  * GET|POST /api/ops-daily-purge
@@ -21,6 +21,7 @@ const {
 } = require('./_opsDay')
 const {
   runInforme,
+  maybeTriggerWeeklyMondayBackup,
   madridWeekday,
   madridParts,
 } = require('./_informeReports')
@@ -189,7 +190,7 @@ module.exports = async function handler(req, res) {
       const { day: madridDay } = madridParts(now)
       informes = { weekly: null, monthly: null }
       if (wd === 'Mon') {
-        informes.weekly = await runInforme('semanal', { force: false, now })
+        informes.weekly = await maybeTriggerWeeklyMondayBackup(now)
       }
       if (madridDay === 1) {
         informes.monthly = await runInforme('mensual', { force: false, now })

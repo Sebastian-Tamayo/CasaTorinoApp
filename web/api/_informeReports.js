@@ -738,6 +738,8 @@ async function runInforme(kind, opts = {}) {
       resendId: email.id,
       storageKey,
       mode: 'email',
+      totals: report.totals || null,
+      endKey: range.endKey,
     })
     return {
       ok: true,
@@ -761,6 +763,8 @@ async function runInforme(kind, opts = {}) {
       storageKey,
       mode: 'stored_only',
       error: email.reason || null,
+      totals: report.totals || null,
+      endKey: range.endKey,
     })
   }
 
@@ -782,13 +786,17 @@ async function runInforme(kind, opts = {}) {
   }
 }
 
-/** Disparo tras cerrar caja un domingo (no bloqueante). */
+/**
+ * Disparo tras cerrar caja un domingo (no bloqueante).
+ * Siempre force=true: el ÚLTIMO cierre del domingo manda el mail completo
+ * (lun–dom). Si hubo un envío a mediodía, se reenvía con el domingo entero.
+ */
 async function maybeTriggerWeeklyAfterSundayClose() {
   if (madridWeekday(Date.now()) !== 'Sun') {
     return { triggered: false, reason: 'not_sunday' }
   }
   try {
-    const result = await runInforme('semanal', { force: false })
+    const result = await runInforme('semanal', { force: true })
     return { triggered: true, result }
   } catch (err) {
     console.warn('[informe] sunday trigger', err)
@@ -797,6 +805,37 @@ async function maybeTriggerWeeklyAfterSundayClose() {
       error: String(err && err.message ? err.message : err),
     }
   }
+}
+
+/**
+ * Lunes (cron): envía si no se envió, o reenvía si el envío previo
+ * tenía menos tickets/total (p. ej. cierre prematuro el domingo).
+ */
+async function maybeTriggerWeeklyMondayBackup(now = new Date()) {
+  const range = weekRangeEndingSunday(now)
+  const log = await readInformeLog()
+  const prev = log.sent[range.periodKey]
+  if (!prev) {
+    return runInforme('semanal', { force: false, now })
+  }
+  const dry = await runInforme('semanal', { dryRun: true, now })
+  const curTickets = Number(dry.report?.totals?.tickets) || 0
+  const curTotal = Number(dry.report?.totals?.total) || 0
+  const prevTickets = Number(prev.totals?.tickets) || 0
+  const prevTotal = Number(prev.totals?.total) || 0
+  const grew =
+    curTickets > prevTickets || curTotal > prevTotal + 0.009
+  if (!grew) {
+    return {
+      ok: true,
+      skipped: true,
+      reason: 'already_sent_complete',
+      periodKey: range.periodKey,
+      previous: prev,
+      currentTotals: dry.report?.totals || null,
+    }
+  }
+  return runInforme('semanal', { force: true, now })
 }
 
 module.exports = {
@@ -808,6 +847,7 @@ module.exports = {
   buildMobileEmailHtml,
   runInforme,
   maybeTriggerWeeklyAfterSundayClose,
+  maybeTriggerWeeklyMondayBackup,
   madridWeekday,
   madridParts,
   REPORT_TO,
