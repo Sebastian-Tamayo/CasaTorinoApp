@@ -1,6 +1,12 @@
 /**
  * Informes semanal / mensual Casa Torino — datos desde ops_kv `cierres`.
  * HTML móvil + envío Resend. Idempotencia en ops_kv `informe-log`.
+ *
+ * INVARIANTES (no romper en próximos lanzamientos):
+ * 1) Días = opsDay 08:00 Madrid — sábado y domingo NUNCA en la misma fila.
+ * 2) Domingo al cerrar caja → runInforme semanal con force (último cierre gana).
+ * 3) Lunes cron → reenvía si el envío previo tenía menos tickets/total.
+ * 4) Archivo de cierre parte ventas por opsDay (tpv-jornada archiveToCierres).
  */
 const { getJson, setJson, updateJson } = require('./_opsStore')
 const { opsDayId } = require('./_opsDay')
