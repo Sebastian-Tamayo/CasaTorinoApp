@@ -3,6 +3,7 @@
  * HTML móvil + envío Resend. Idempotencia en ops_kv `informe-log`.
  */
 const { getJson, setJson, updateJson } = require('./_opsStore')
+const { opsDayId } = require('./_opsDay')
 
 const REPORT_TO =
   process.env.REPORT_EMAIL_TO || 'cafebartorino@gmail.com'
@@ -259,6 +260,153 @@ function foldCierreIntoDay(bucket, c) {
   }
 }
 
+/** Totales mínimos desde ventas sueltas (para repartir sáb/dom). */
+function totalsFromSales(sales) {
+  const byType = { comida: { total: 0 }, bebida: { total: 0 } }
+  const byPayment = {
+    efectivo: { total: 0, tickets: 0 },
+    tarjeta: { total: 0, tickets: 0 },
+  }
+  let tickets = 0
+  let total = 0
+  let tip = 0
+  const byProduct = []
+  const productMap = new Map()
+  for (const sale of sales || []) {
+    tickets += 1
+    const saleTotal = Number(sale.total) || 0
+    total = round2(total + saleTotal)
+    tip = round2(tip + (Number(sale.tip) || 0))
+    const payments = Array.isArray(sale.payments) ? sale.payments : []
+    if (payments.length) {
+      const seen = { efectivo: false, tarjeta: false }
+      for (const p of payments) {
+        const pm = p && p.method === 'tarjeta' ? 'tarjeta' : 'efectivo'
+        byPayment[pm].total = round2(
+          byPayment[pm].total + (Number(p.amount) || 0),
+        )
+        seen[pm] = true
+      }
+      if (seen.efectivo) byPayment.efectivo.tickets += 1
+      if (seen.tarjeta) byPayment.tarjeta.tickets += 1
+    } else {
+      const pm = sale.paymentMethod === 'tarjeta' ? 'tarjeta' : 'efectivo'
+      byPayment[pm].total = round2(byPayment[pm].total + saleTotal)
+      byPayment[pm].tickets += 1
+    }
+    for (const l of sale.lines || []) {
+      const ctype = l.categoryType === 'bebida' ? 'bebida' : 'comida'
+      const lineTotal = round2((Number(l.qty) || 0) * (Number(l.price) || 0))
+      byType[ctype].total = round2(byType[ctype].total + lineTotal)
+      const pKey = l.id || l.name
+      if (!pKey) continue
+      if (!productMap.has(pKey)) {
+        productMap.set(pKey, {
+          id: l.id || pKey,
+          name: l.name || pKey,
+          qty: 0,
+          total: 0,
+        })
+      }
+      const p = productMap.get(pKey)
+      p.qty += Number(l.qty) || 0
+      p.total = round2(p.total + lineTotal)
+    }
+  }
+  for (const p of productMap.values()) byProduct.push(p)
+  return {
+    tickets,
+    total,
+    tipTotal: tip,
+    byType,
+    byPayment,
+    byProduct,
+  }
+}
+
+/**
+ * Reparte un cierre en días operativos (08:00 Madrid).
+ * Evita mezclar sábado y domingo cuando la jornada cruza medianoche/madrugada.
+ */
+function expandCierreByOpsDay(c) {
+  const fullSales = Array.isArray(c.sales) && c.sales.length ? c.sales : null
+  const preview =
+    !fullSales && Array.isArray(c.salesPreview) && c.salesPreview.length
+      ? c.salesPreview
+      : null
+  const sales = fullSales || preview
+  if (!sales || !sales.length) {
+    return [{ dayKey: c.dayKey, cierre: c, products: c.totals?.byProduct }]
+  }
+
+  const byDay = new Map()
+  for (const s of sales) {
+    const at = Number(s && s.at) || Number(c.endedAt) || Date.now()
+    const dk = opsDayId(new Date(at))
+    if (!byDay.has(dk)) byDay.set(dk, [])
+    byDay.get(dk).push(s)
+  }
+
+  const out = []
+  let attributedTickets = 0
+  let attributedTotal = 0
+  for (const [dayKey, daySales] of byDay) {
+    const totals = totalsFromSales(daySales)
+    attributedTickets += totals.tickets
+    attributedTotal = round2(attributedTotal + totals.total)
+    out.push({
+      dayKey,
+      cierre: {
+        ...c,
+        dayKey,
+        totals,
+        salesCount: daySales.length,
+        sales: fullSales ? daySales : undefined,
+        salesPreview: daySales.slice(-30).map((s) => ({
+          id: s.id,
+          at: s.at,
+          mesa: s.mesa,
+          total: s.total,
+        })),
+        activityByHour: buildActivityByHour(daySales),
+      },
+      products: totals.byProduct,
+    })
+  }
+
+  // Preview parcial: el resto del cierre se queda en dayKey original
+  const totTickets = Number(c.totals?.tickets) || Number(c.salesCount) || 0
+  const totTotal = Number(c.totals?.total) || 0
+  const remTickets = totTickets - attributedTickets
+  const remTotal = round2(totTotal - attributedTotal)
+  if (!fullSales && (remTickets > 0 || remTotal > 0.009)) {
+    out.push({
+      dayKey: c.dayKey,
+      cierre: {
+        ...c,
+        totals: {
+          tickets: Math.max(0, remTickets),
+          total: Math.max(0, remTotal),
+          byType: {
+            comida: { total: 0 },
+            bebida: { total: 0 },
+          },
+          byPayment: {
+            efectivo: { total: 0, tickets: 0 },
+            tarjeta: { total: 0, tickets: 0 },
+          },
+          tipTotal: 0,
+          byProduct: [],
+        },
+        salesCount: Math.max(0, remTickets),
+        activityByHour: [],
+      },
+      products: null,
+    })
+  }
+  return out
+}
+
 /** Semana lun–dom que termina en el domingo de `ref` (Madrid). */
 function weekRangeEndingSunday(ref = new Date()) {
   const sundayKey = madridParts(ref).dayKey
@@ -332,16 +480,32 @@ function groupWeeksInMonth(dayKeys) {
 }
 
 async function buildPeriodReport({ kind, range, now = new Date() }) {
-  const items = await loadCierresItems()
+  let items = await loadCierresItems()
+  // Si ya hay cierres partidos por día, ignorar el legado sin sufijo (evita doblar).
+  const legacySkip = new Set()
+  for (const c of items) {
+    const id = String(c && c.id || '')
+    const m = id.match(/^(cierre-\d+)-\d{4}-\d{2}-\d{2}$/)
+    if (m) legacySkip.add(m[1])
+  }
+  if (legacySkip.size) {
+    items = items.filter((c) => c && !legacySkip.has(String(c.id || '')))
+  }
+
   const dayKeySet = new Set(range.dayKeys)
   const productMap = new Map()
   const days = {}
   for (const dk of range.dayKeys) days[dk] = emptyDayBucket(dk)
 
   for (const c of items) {
-    if (!c || !dayKeySet.has(c.dayKey)) continue
-    foldCierreIntoDay(days[c.dayKey], c)
-    mergeProducts(productMap, c.totals?.byProduct)
+    if (!c) continue
+    const parts = expandCierreByOpsDay(c)
+    for (const part of parts) {
+      if (!part.dayKey || !dayKeySet.has(part.dayKey)) continue
+      foldCierreIntoDay(days[part.dayKey], part.cierre)
+      if (part.products) mergeProducts(productMap, part.products)
+      else mergeProducts(productMap, part.cierre.totals?.byProduct)
+    }
   }
 
   const dayList = range.dayKeys.map((dk) => days[dk])
