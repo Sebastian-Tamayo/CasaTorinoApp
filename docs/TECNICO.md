@@ -72,11 +72,11 @@ Auth mutaciones: header `X-Tpv-Key` o sesión TPV.
 ### Cocina (KDS)
 
 - URL `/cocina.html` · mismo PIN/sesión que TPV (`ct_tpv_session`)
-- API `/api/kitchen` · cliente `kitchenSync.js` (poll ~1 s)
+- API `/api/kitchen` · cliente `kitchenSync.js` (poll ~4 s en pantalla; 60 s si pestaña oculta)
 - TPV envía solo `categoryType: comida`
 - Estados de comanda + menús 1/2 tiempos; histórico alineado con jornada
 - PWA: `manifest-cocina.webmanifest` con `display: fullscreen` · SW `sw-cocina.js`
-- **Forzar actualización (todos los dispositivos):** mismos 3 sitios que el TPV pero de cocina — `cocina-version.json`, `api/_cocinaVersion.js`, `COCINA_CLIENT_VERSION` en `cocina.html`. Pantalla «Actualiza para seguir»; API kitchen exige `X-Cocina-Client-Version` (426 si no). Tras Actualizar aplica pantalla completa sin reinstalar.
+- **Forzar actualización:** `cocina-version.json` + `_cocinaVersion.js` + `COCINA_CLIENT_VERSION` (poll cada 5 min, pausa si oculta). **Nunca** 426 en create/ack/syncJornada del kitchen (el TPV no manda cabecera cocina).
 
 ### Jornada TPV
 
@@ -105,7 +105,7 @@ Efecto en **cada** tablet/móvil/PC (no basta con que uno actualice):
 
 - Destino por defecto: `cafebartorino@gmail.com` (`REPORT_EMAIL_TO`)
 - HTML responsive (móvil) con: total ventas, comida/bebida, efectivo/tarjeta, top productos, picos de mesas ocupadas
-- **Semanal (lun–dom):** al cerrar caja el domingo (`POST /api/tpv-jornada` action `end`) + backup lunes ~08:00 Madrid vía purge
+- **Semanal (lun–dom):** lunes ~08:00 Madrid vía purge/cron
 - **Mensual:** día 1 del mes ~08:00 Madrid (totales por semana, no por día)
 - Prueba manual: `GET /api/ops-daily-purge?informe=semanal|mensual&dryRun=1` (sin función API extra — límite Hobby 12)
 - Envío: Resend (`RESEND_API_KEY` + `REPORT_EMAIL_FROM` en Vercel proyecto web)
