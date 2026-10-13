@@ -15,9 +15,10 @@
   const TPV_KEY = 'tpv'
   const ROLE_KEY = 'ct-plano-role'
   const WAITER_KEY = 'ct-plano-waiter'
-  const POLL_MS = 8000
-  const POLL_HIDDEN_MS = 60000
+  const POLL_MS = 3000
+  const POLL_HIDDEN_MS = 15000
   const CHANNEL = 'casa-torino-plano'
+  const TPV_LIVE_CHANNEL = 'casa-torino-tpv-live'
 
   const DEFAULT_WAITERS = [
     { id: 'w-ana', name: 'Ana' },
@@ -498,6 +499,19 @@
         }
       })
     })
+
+    // Cuando el TPV (móvil/Windows) guarda carrito, refrescar totales al instante
+    try {
+      const tpvCh = c.channel(TPV_LIVE_CHANNEL, {
+        config: { broadcast: { self: false } },
+      })
+      tpvCh.on('broadcast', { event: 'tpv-updated' }, () => {
+        refresh().catch(() => {})
+      })
+      tpvCh.subscribe()
+    } catch (err) {
+      console.warn('[plano] tpv-live', err)
+    }
   }
 
   async function claimTable(tableId) {

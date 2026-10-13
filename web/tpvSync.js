@@ -7,16 +7,20 @@
 (() => {
   const API_URL = '/api/tpv-sync'
   const AUTH_URL = '/api/tpv-auth'
-  // Visible: 6s. Oculta: 60s (tablets bloqueadas de noche).
-  const POLL_MS = 6000
-  const POLL_HIDDEN_MS = 60000
-  const PUSH_DEBOUNCE_MS = 400
+  // Dinero: poll agresivo en pantalla. Oculta: más lento pero no “apagado”.
+  const POLL_MS = 2000
+  const POLL_HIDDEN_MS = 12000
+  const PUSH_DEBOUNCE_MS = 200
+  const SB_URL = 'https://fpnjtgoxljqmwuukyrrm.supabase.co'
+  const SB_ANON = 'sb_publishable_A_zxEJjB3NN_hh8Qdu7ccQ_qhcWGoz0'
+  const SYNC_CHANNEL = 'casa-torino-tpv-live'
   const CLIENT_ID =
     typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID()
       : 'c-' + Date.now() + '-' + Math.random().toString(16).slice(2)
 
   let lastLocalWrite = 0
+  let lastLocalClearAt = 0
   let lastRemoteUpdatedAt = 0
   let lastRemoteQty = 0
   let polling = false
@@ -29,6 +33,9 @@
   let getLocalSnapshot = null
   let ready = false
   let visibilityBound = false
+  let sbClient = null
+  let sbChannel = null
+  let realtimeStarted = false
 
   function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms))
@@ -78,46 +85,163 @@
     return n
   }
 
-  function touch() {
+  function touch(opts = {}) {
     lastLocalWrite = Date.now()
+    if (opts.clear) lastLocalClearAt = lastLocalWrite
+  }
+
+  async function ensureSb() {
+    if (sbClient) return sbClient
+    if (!window.supabase?.createClient) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script')
+        s.src =
+          'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js'
+        s.async = true
+        s.onload = resolve
+        s.onerror = () => reject(new Error('supabase-js'))
+        document.head.appendChild(s)
+      })
+    }
+    sbClient = window.supabase.createClient(SB_URL, SB_ANON, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      realtime: { params: { eventsPerSecond: 8 } },
+    })
+    return sbClient
+  }
+
+  async function notifyPeers(reason) {
+    try {
+      const c = await ensureSb()
+      if (!sbChannel) return
+      await sbChannel.send({
+        type: 'broadcast',
+        event: 'tpv-updated',
+        payload: { at: Date.now(), clientId: CLIENT_ID, reason: reason || '' },
+      })
+    } catch (err) {
+      console.warn('[tpvSync] notify', err)
+    }
+  }
+
+  async function startRealtime() {
+    if (realtimeStarted) return
+    realtimeStarted = true
+    try {
+      const c = await ensureSb()
+      sbChannel = c.channel(SYNC_CHANNEL, {
+        config: { broadcast: { self: false } },
+      })
+      sbChannel.on('broadcast', { event: 'tpv-updated' }, (msg) => {
+        const from = msg?.payload?.clientId
+        if (from && from === CLIENT_ID) return
+        // Otro dispositivo cambió mesas → pull YA
+        tick(true).catch((err) => console.warn('[tpvSync] live tick', err))
+      })
+      await new Promise((resolve) => {
+        sbChannel.subscribe((status) => {
+          if (
+            status === 'SUBSCRIBED' ||
+            status === 'CHANNEL_ERROR' ||
+            status === 'TIMED_OUT'
+          ) {
+            resolve(status)
+          }
+        })
+      })
+    } catch (err) {
+      console.warn('[tpvSync] realtime', err)
+    }
   }
 
   /**
    * Merge por mesa. Si el día cambió (purge 08:00), gana el remoto aunque esté vacío.
-   * Si remoto trae clave vacía (cobro/vaciar), gana el vacío.
+   * Borrados usan tombstones (removed[key]=ts) para que NO resuciten.
    * Si remoto {} sin claves y mismo día, no pisa local (anti-wipe refresh).
    */
   function tableAt(t) {
     return Math.max(0, Number(t && t.updatedAt) || 0)
   }
 
-  /**
-   * Une carritos por línea: el más reciente manda en conflictos,
-   * pero conserva líneas que solo están en el lado viejo (anti-pérdida).
-   */
-  function mergeCarts(newerCart, olderCart) {
+  function normCart(cart) {
+    return cart && typeof cart === 'object' && !Array.isArray(cart) ? cart : {}
+  }
+
+  function normRemoved(removed) {
+    return removed && typeof removed === 'object' && !Array.isArray(removed)
+      ? removed
+      : {}
+  }
+
+  function linePresentTs(line, tableAtMs) {
+    if (!line || typeof line !== 'object') return 0
+    return Math.max(
+      0,
+      Number(line.updatedAt) || 0,
+      Number(line.addedAt) || 0,
+      Number(tableAtMs) || 0,
+    )
+  }
+
+  function pruneRemoved(removed, now = Date.now()) {
     const out = {}
-    const newer =
-      newerCart && typeof newerCart === 'object' && !Array.isArray(newerCart)
-        ? newerCart
-        : {}
-    const older =
-      olderCart && typeof olderCart === 'object' && !Array.isArray(olderCart)
-        ? olderCart
-        : {}
-    for (const [key, line] of Object.entries(newer)) {
-      if (!line || typeof line !== 'object') continue
-      if (!(Math.max(0, Number(line.qty) || 0) > 0)) continue
-      out[key] = line
-    }
-    for (const [key, line] of Object.entries(older)) {
-      if (!line || typeof line !== 'object') continue
-      if (!(Math.max(0, Number(line.qty) || 0) > 0)) continue
-      if (!Object.prototype.hasOwnProperty.call(out, key)) {
-        out[key] = line
-      }
+    const maxAge = 36 * 60 * 60 * 1000
+    for (const [k, ts] of Object.entries(normRemoved(removed))) {
+      const n = Number(ts) || 0
+      if (n > 0 && now - n < maxAge) out[k] = n
     }
     return out
+  }
+
+  /**
+   * LWW por línea + tombstones. Un borrado reciente gana; un add concurrente
+   * en otra línea no se pierde.
+   */
+  function mergeCarts(cartA, cartB, removedA, removedB, atA, atB) {
+    const a = normCart(cartA)
+    const b = normCart(cartB)
+    const remA = normRemoved(removedA)
+    const remB = normRemoved(removedB)
+    const keys = new Set([
+      ...Object.keys(a),
+      ...Object.keys(b),
+      ...Object.keys(remA),
+      ...Object.keys(remB),
+    ])
+    const out = {}
+    const removed = {}
+
+    for (const key of keys) {
+      const lineA = a[key]
+      const lineB = b[key]
+      const hasA =
+        lineA &&
+        typeof lineA === 'object' &&
+        Math.max(0, Number(lineA.qty) || 0) > 0
+      const hasB =
+        lineB &&
+        typeof lineB === 'object' &&
+        Math.max(0, Number(lineB.qty) || 0) > 0
+      const presentA = hasA ? linePresentTs(lineA, atA) : 0
+      const presentB = hasB ? linePresentTs(lineB, atB) : 0
+      const remTs = Math.max(0, Number(remA[key]) || 0, Number(remB[key]) || 0)
+
+      if (remTs > 0 && remTs >= presentA && remTs >= presentB) {
+        removed[key] = remTs
+        continue
+      }
+
+      if (hasA || hasB) {
+        let win = null
+        if (hasA && hasB) win = presentA >= presentB ? lineA : lineB
+        else win = hasA ? lineA : lineB
+        if (win && Math.max(0, Number(win.qty) || 0) > 0) out[key] = win
+      } else if (remTs > 0) {
+        removed[key] = remTs
+      }
+    }
+
+    return { cart: out, removed: pruneRemoved(removed) }
   }
 
   function mergeHist(newerHist, olderHist) {
@@ -147,12 +271,14 @@
       newer = b
       older = a
     }
+    const merged = mergeCarts(a.cart, b.cart, a.removed, b.removed, aAt, bAt)
     return {
-      cart: mergeCarts(newer.cart, older.cart),
+      cart: merged.cart,
+      removed: merged.removed,
       hist: mergeHist(newer.hist, older.hist),
       notes: String(newer.notes || older.notes || ''),
       paid: String(newer.paid || older.paid || ''),
-      updatedAt: Math.max(aAt, bAt, Date.now()),
+      updatedAt: Math.max(aAt, bAt),
     }
   }
 
@@ -210,13 +336,18 @@
           }
           continue
         }
-        // Ambos con productos: unir líneas (anti-pérdida de Sidra/etc.)
+        // Ambos con productos: LWW por línea + tombstones (borrado no resucita)
         if (lq > 0 && rq > 0) {
           const preferLocal = lAt > rAt || (lAt === rAt && opts.preferLocalClear)
           out[k] = mergeBusyTables(L, R, preferLocal)
-          // Si el resultado conserva algo que el remoto no tenía, re-push
-          if (cartQty(out[k]) > rq || Object.keys(out[k].cart || {}).length > Object.keys(R.cart || {}).length) {
-            keptLocal = true
+          // Re-push solo si local aporta líneas VIVAS que el remoto no tiene
+          // (no por haber “resucitado” algo borrado)
+          const remoteKeys = new Set(Object.keys(normCart(R.cart)))
+          for (const ck of Object.keys(normCart(out[k].cart))) {
+            if (!remoteKeys.has(ck)) {
+              keptLocal = true
+              break
+            }
           }
           continue
         }
@@ -353,6 +484,8 @@
         lastRemoteUpdatedAt = Number(saved.updatedAt || updatedAt)
         lastRemoteQty = tablesQty(saved.tables || tables)
         if (!opts.keepalive) refreshSession()
+        // Avisar al resto de dispositivos al instante (móvil ↔ Windows)
+        notifyPeers('push').catch(() => {})
         return saved
       } catch (err) {
         lastErr = err
@@ -398,20 +531,27 @@
     }
   }
 
-  function applyRemotePayload(remote) {
-    // Si acabamos de escribir localmente, no aplicar remoto más viejo
+  function applyRemotePayload(remote, opts = {}) {
     const remoteAt = Number(remote?.updatedAt || 0)
-    if (remoteAt && remoteAt <= lastLocalWrite) {
+    const fromOther =
+      remote && remote.clientId && remote.clientId !== CLIENT_ID
+
+    // CRÍTICO: si viene de OTRO dispositivo, SIEMPRE mergear.
+    // Antes se descartaba si lastLocalWrite era reciente → Windows no veía el móvil.
+    if (!fromOther && remoteAt && remoteAt <= lastLocalWrite && !opts.force) {
       if (remoteAt > lastRemoteUpdatedAt) lastRemoteUpdatedAt = remoteAt
       return
     }
 
     const localSnap =
-      typeof getLocalSnapshot === 'function' ? getLocalSnapshot() : { tables: {}, mesa: '', opsDay: '' }
+      typeof getLocalSnapshot === 'function'
+        ? getLocalSnapshot()
+        : { tables: {}, mesa: '', opsDay: '' }
     const merged = mergeTables(localSnap.tables || {}, remote.tables || {}, {
       remoteOpsDay: remote?.opsDay,
       localOpsDay: localSnap.opsDay || '',
-      preferLocalClear: Date.now() - lastLocalWrite < 8000,
+      // Solo proteger vaciados locales recientes (cobro), no cualquier touch
+      preferLocalClear: Date.now() - lastLocalClearAt < 5000,
     })
     if (remoteAt > lastRemoteUpdatedAt) lastRemoteUpdatedAt = remoteAt
     lastRemoteQty = tablesQty(remote.tables || {})
@@ -423,6 +563,7 @@
         updatedAt: remoteAt,
         keptLocal: merged.keptLocal,
         opsDay: remote?.opsDay,
+        fromOther: Boolean(fromOther),
       })
     }
 
@@ -432,7 +573,7 @@
     }
   }
 
-  async function tick() {
+  async function tick(force) {
     if (polling || !ready) return
     polling = true
     try {
@@ -440,17 +581,16 @@
       const remoteAt = Number(remote?.updatedAt || 0)
       if (!remoteAt) return
 
-      if (remote.clientId === CLIENT_ID) {
+      const fromSelf = remote.clientId === CLIENT_ID
+      if (fromSelf) {
         if (remoteAt > lastRemoteUpdatedAt) lastRemoteUpdatedAt = remoteAt
         lastRemoteQty = tablesQty(remote.tables || {})
         return
       }
 
-      if (remoteAt > lastRemoteUpdatedAt && remoteAt > lastLocalWrite) {
-        applyRemotePayload(remote)
-      } else if (remoteAt > lastRemoteUpdatedAt) {
-        lastRemoteUpdatedAt = remoteAt
-        lastRemoteQty = tablesQty(remote.tables || {})
+      // Otro dispositivo: aplicar si es más nuevo O si forzamos (broadcast live)
+      if (force || remoteAt > lastRemoteUpdatedAt) {
+        applyRemotePayload(remote, { force: Boolean(force) })
       }
     } catch (err) {
       console.warn('[tpvSync]', err)
@@ -533,6 +673,7 @@
     getLocalSnapshot =
       typeof options.getLocalSnapshot === 'function' ? options.getLocalSnapshot : null
     schedule()
+    startRealtime().catch(() => {})
     if (heartbeat) clearInterval(heartbeat)
     heartbeat = setInterval(refreshSession, 15 * 60 * 1000)
     refreshSession()
@@ -545,7 +686,7 @@
           } catch {}
         }
         schedule()
-        if (!document.hidden) tick()
+        if (!document.hidden) tick(true)
       })
       visibilityBound = true
     }

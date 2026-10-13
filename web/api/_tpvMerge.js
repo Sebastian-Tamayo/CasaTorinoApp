@@ -1,6 +1,7 @@
 /**
- * Merge de mesas TPV — unión de líneas (anti-pérdida de productos).
- * Usado por /api/tpv-sync. La lógica espejo vive en web/tpvSync.js (cliente).
+ * Merge de mesas TPV — last-write-wins por línea + tombstones.
+ * Evita que un borrado en un dispositivo “resucite” desde otro (bug domingo).
+ * Espejo en web/tpvSync.js (cliente).
  */
 
 function cartQty(table) {
@@ -22,29 +23,80 @@ function tableAt(t) {
   return Math.max(0, Number(t && t.updatedAt) || 0)
 }
 
-function mergeCarts(newerCart, olderCart) {
+function normCart(cart) {
+  return cart && typeof cart === 'object' && !Array.isArray(cart) ? cart : {}
+}
+
+function normRemoved(removed) {
+  return removed && typeof removed === 'object' && !Array.isArray(removed)
+    ? removed
+    : {}
+}
+
+function linePresentTs(line, tableAtMs) {
+  if (!line || typeof line !== 'object') return 0
+  return Math.max(
+    0,
+    Number(line.updatedAt) || 0,
+    Number(line.addedAt) || 0,
+    Number(tableAtMs) || 0,
+  )
+}
+
+function pruneRemoved(removed, now = Date.now()) {
   const out = {}
-  const newer =
-    newerCart && typeof newerCart === 'object' && !Array.isArray(newerCart)
-      ? newerCart
-      : {}
-  const older =
-    olderCart && typeof olderCart === 'object' && !Array.isArray(olderCart)
-      ? olderCart
-      : {}
-  for (const [key, line] of Object.entries(newer)) {
-    if (!line || typeof line !== 'object') continue
-    if (!(Math.max(0, Number(line.qty) || 0) > 0)) continue
-    out[key] = line
-  }
-  for (const [key, line] of Object.entries(older)) {
-    if (!line || typeof line !== 'object') continue
-    if (!(Math.max(0, Number(line.qty) || 0) > 0)) continue
-    if (!Object.prototype.hasOwnProperty.call(out, key)) {
-      out[key] = line
-    }
+  const maxAge = 36 * 60 * 60 * 1000
+  for (const [k, ts] of Object.entries(normRemoved(removed))) {
+    const n = Number(ts) || 0
+    if (n > 0 && now - n < maxAge) out[k] = n
   }
   return out
+}
+
+/**
+ * Une carritos con tombstones de borrado.
+ * Una línea solo vuelve si su presencia es MÁS NUEVA que el tombstone.
+ */
+function mergeCarts(cartA, cartB, removedA, removedB, atA, atB) {
+  const a = normCart(cartA)
+  const b = normCart(cartB)
+  const remA = normRemoved(removedA)
+  const remB = normRemoved(removedB)
+  const keys = new Set([
+    ...Object.keys(a),
+    ...Object.keys(b),
+    ...Object.keys(remA),
+    ...Object.keys(remB),
+  ])
+  const out = {}
+  const removed = {}
+
+  for (const key of keys) {
+    const lineA = a[key]
+    const lineB = b[key]
+    const hasA = lineA && typeof lineA === 'object' && Math.max(0, Number(lineA.qty) || 0) > 0
+    const hasB = lineB && typeof lineB === 'object' && Math.max(0, Number(lineB.qty) || 0) > 0
+    const presentA = hasA ? linePresentTs(lineA, atA) : 0
+    const presentB = hasB ? linePresentTs(lineB, atB) : 0
+    const remTs = Math.max(0, Number(remA[key]) || 0, Number(remB[key]) || 0)
+
+    // Borrado más reciente que cualquier presencia → se queda borrado
+    if (remTs > 0 && remTs >= presentA && remTs >= presentB) {
+      removed[key] = remTs
+      continue
+    }
+
+    if (hasA || hasB) {
+      let win = null
+      if (hasA && hasB) win = presentA >= presentB ? lineA : lineB
+      else win = hasA ? lineA : lineB
+      if (win && Math.max(0, Number(win.qty) || 0) > 0) out[key] = win
+    } else if (remTs > 0) {
+      removed[key] = remTs
+    }
+  }
+
+  return { cart: out, removed: pruneRemoved(removed) }
 }
 
 function mergeHist(newerHist, olderHist) {
@@ -74,18 +126,27 @@ function mergeBusyTables(a, b, preferA) {
     newer = b
     older = a
   }
+  const merged = mergeCarts(
+    a.cart,
+    b.cart,
+    a.removed,
+    b.removed,
+    aAt,
+    bAt,
+  )
   return {
-    cart: mergeCarts(newer.cart, older.cart),
+    cart: merged.cart,
+    removed: merged.removed,
     hist: mergeHist(newer.hist, older.hist),
     notes: String(newer.notes || older.notes || ''),
     paid: String(newer.paid || older.paid || ''),
-    updatedAt: Math.max(aAt, bAt, Date.now()),
+    updatedAt: Math.max(aAt, bAt),
   }
 }
 
 /**
  * Fusiona mesas en servidor con updatedAt POR MESA.
- * Si AMBAS tienen productos: unión de líneas (no LWW ciego).
+ * Borrados (cart vacío o tombstones) ganan si son más nuevos.
  */
 function mergeTables(serverTables, incomingTables, preferIncoming) {
   const server = serverTables && typeof serverTables === 'object' ? serverTables : {}
@@ -145,4 +206,6 @@ module.exports = {
   mergeHist,
   mergeBusyTables,
   mergeTables,
+  pruneRemoved,
+  linePresentTs,
 }

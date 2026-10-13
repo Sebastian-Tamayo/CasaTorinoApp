@@ -2715,7 +2715,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-13-plano-3'
+      const TPV_CLIENT_VERSION = '2026-10-13-plano-4'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3137,6 +3137,8 @@
         notes: '',
         cart: {},
         hist: [],
+        /** Tombstones de líneas borradas { [cartKey]: ts } — evita resucitar en sync */
+        removed: {},
         tables: {},
         opsDay: '',
         jornada: null,
@@ -3467,14 +3469,26 @@
         } catch {}
       }
 
-      function stampMesa(m, data) {
+      function stampMesa(m, data, opts = {}) {
+        const prev = (m && state.tables && state.tables[m]) || {}
         const now = Date.now()
+        // CRÍTICO: no subir updatedAt en snapshots de lectura (poll/merge).
+        // Si se bumpea en cada tick, el local siempre “gana” y resucitan borrados.
+        const bump = opts.bump !== false
         return {
           cart: data.cart || {},
           hist: data.hist || [],
           notes: data.notes || '',
           paid: data.paid || '',
-          updatedAt: now,
+          removed:
+            data.removed && typeof data.removed === 'object'
+              ? data.removed
+              : prev.removed && typeof prev.removed === 'object'
+                ? prev.removed
+                : {},
+          updatedAt: bump
+            ? now
+            : Math.max(0, Number(prev.updatedAt) || 0) || now,
         }
       }
 
@@ -3486,6 +3500,7 @@
             hist: state.hist,
             notes: ($('notes')?.value || state.notes || '').trim(),
             paid: $('paid')?.value || '',
+            removed: state.removed || {},
           })
         }
         const opsDay =
@@ -3498,13 +3513,24 @@
         } catch (err) {
           console.warn('sync push', err)
         }
+        try {
+          window.CasaTorinoPlanoMesas?.syncTotalsFromLocal?.(state.tables)
+        } catch {}
       }
 
       function loadMesaIntoState(mesa) {
         const m = normalizeMesa(mesa)
-        const data = (m && state.tables[m]) || { cart: {}, hist: [], notes: '', paid: '' }
+        const data = (m && state.tables[m]) || {
+          cart: {},
+          hist: [],
+          notes: '',
+          paid: '',
+          removed: {},
+        }
         state.cart = data.cart || {}
         state.hist = data.hist || []
+        state.removed =
+          data.removed && typeof data.removed === 'object' ? data.removed : {}
         state.notes = data.notes || ''
         if ($('notes')) $('notes').value = state.notes
         if ($('paid')) $('paid').value = data.paid || ''
@@ -3753,6 +3779,8 @@
 
       /** Quita de la cuenta las uds cobradas (selección). */
       function removeChargedFromCart(chargedLines) {
+        const now = Date.now()
+        if (!state.removed || typeof state.removed !== 'object') state.removed = {}
         for (const cl of chargedLines || []) {
           const key = lineKeyOf(cl)
           const line = state.cart[key]
@@ -3760,11 +3788,13 @@
           const payQty = Math.max(0, Number(cl.qty) || 0)
           const left = Math.max(0, (Number(line.qty) || 0) - payQty)
           if (left <= 0) {
+            state.removed[key] = now
             delete state.cart[key]
             state.hist = state.hist.filter((h) => h !== key)
             continue
           }
           line.qty = left
+          line.updatedAt = now
           if ((Number(line.sentQty) || 0) > left) line.sentQty = left
         }
         clearPaySelect()
@@ -3917,9 +3947,12 @@
         const ctype = categoryTypeOf(item)
         const key = cartKeyFor(item.id, note)
         const now = Date.now()
+        if (!state.removed || typeof state.removed !== 'object') state.removed = {}
+        if (state.removed[key]) delete state.removed[key]
         if (state.cart[key]) {
           state.cart[key].qty += 1
           if (!state.cart[key].addedAt) state.cart[key].addedAt = now
+          state.cart[key].updatedAt = now
         } else {
           state.cart[key] = {
             id: item.id,
@@ -3938,6 +3971,7 @@
             primero: meta?.primero || '',
             segundo: meta?.segundo || '',
             addedAt: now,
+            updatedAt: now,
           }
         }
         if (!state.cart[key].categoryType) state.cart[key].categoryType = ctype
@@ -4012,12 +4046,18 @@
 
       function setQty(id, qty) {
         if (!state.cart[id]) return
+        const now = Date.now()
+        if (!state.removed || typeof state.removed !== 'object') state.removed = {}
         if (qty <= 0) {
+          // Tombstone: el borrado gana al merge aunque otro dispositivo aún tenga la línea
+          state.removed[id] = now
           delete state.cart[id]
           if (state.paySelect) delete state.paySelect[id]
         } else {
+          if (state.removed[id]) delete state.removed[id]
           state.cart[id].qty = qty
-          if (!state.cart[id].addedAt) state.cart[id].addedAt = Date.now()
+          if (!state.cart[id].addedAt) state.cart[id].addedAt = now
+          state.cart[id].updatedAt = now
           if ((state.cart[id].sentQty || 0) > qty) state.cart[id].sentQty = qty
         }
         clampPaySelect()
@@ -4045,7 +4085,15 @@
         const m = normalizeMesa(state.mesa)
         const label = m ? ` de la mesa ${m}` : ''
         if (!confirm(`¿Vaciar la cuenta${label}?`)) return
-        state.cart = {}; state.hist = []; state.notes = ''
+        const now = Date.now()
+        const removed = {
+          ...(state.removed && typeof state.removed === 'object' ? state.removed : {}),
+        }
+        for (const key of Object.keys(state.cart || {})) removed[key] = now
+        state.cart = {}
+        state.hist = []
+        state.notes = ''
+        state.removed = removed
         clearPaySelect()
         resetSelSummaryUi()
         if ($('notes')) $('notes').value = ''
@@ -4056,6 +4104,7 @@
             hist: [],
             notes: '',
             paid: '',
+            removed,
           })
         }
         const opsDay =
@@ -4063,11 +4112,14 @@
         state.opsDay = opsDay
         writeTablesStore({ mesa: m || '', tables: state.tables, opsDay })
         try {
-          window.CasaTorinoTpvSync?.touch?.()
+          window.CasaTorinoTpvSync?.touch?.({ clear: true })
           window.CasaTorinoTpvSync?.pushNow?.(state.tables, m)
         } catch (err) {
           console.warn('clearCart sync', err)
         }
+        try {
+          window.CasaTorinoPlanoMesas?.syncTotalsFromLocal?.(state.tables)
+        } catch {}
         try {
           if (m) window.CasaTorinoPlanoMesas?.freeTable?.(m)
         } catch (err) {
@@ -4587,18 +4639,14 @@
           removeChargedFromCart(chargeLines)
           if ($('paid')) $('paid').value = ''
           const still = Object.keys(state.cart).length > 0
-          if (m) {
-            state.tables[m] = {
-              cart: state.cart,
-              hist: state.hist,
-              notes: state.notes || '',
-              paid: '',
-            }
-          }
           payDraft = { totalCents: 0, payments: [] }
           persist()
           render()
           if (!still) {
+            try {
+              window.CasaTorinoTpvSync?.touch?.({ clear: true })
+              window.CasaTorinoTpvSync?.pushNow?.(state.tables, m)
+            } catch {}
             try {
               if (m) window.CasaTorinoPlanoMesas?.freeTable?.(m)
             } catch {}
@@ -4608,7 +4656,15 @@
           return
         }
 
-        state.cart = {}; state.hist = []; state.notes = ''
+        const nowPay = Date.now()
+        const removedPay = {
+          ...(state.removed && typeof state.removed === 'object' ? state.removed : {}),
+        }
+        for (const key of Object.keys(state.cart || {})) removedPay[key] = nowPay
+        state.cart = {}
+        state.hist = []
+        state.notes = ''
+        state.removed = removedPay
         clearPaySelect()
         if ($('notes')) $('notes').value = ''
         if ($('paid')) $('paid').value = ''
@@ -4618,6 +4674,7 @@
             hist: [],
             notes: '',
             paid: '',
+            removed: removedPay,
           })
         }
         payDraft = { totalCents: 0, payments: [] }
@@ -4626,11 +4683,14 @@
         state.opsDay = opsDay
         writeTablesStore({ mesa: m || '', tables: state.tables, opsDay })
         try {
-          window.CasaTorinoTpvSync?.touch?.()
+          window.CasaTorinoTpvSync?.touch?.({ clear: true })
           window.CasaTorinoTpvSync?.pushNow?.(state.tables, m)
         } catch (err) {
           console.warn('confirmPay sync', err)
         }
+        try {
+          window.CasaTorinoPlanoMesas?.syncTotalsFromLocal?.(state.tables)
+        } catch {}
         try {
           if (m) window.CasaTorinoPlanoMesas?.freeTable?.(m)
         } catch (err) {
@@ -6477,28 +6537,28 @@
             const mActive = normalizeMesa(state.mesa)
             let nextTables = remote.tables && typeof remote.tables === 'object' ? { ...remote.tables } : {}
             if (mActive) {
-              const live = stampMesa(mActive, {
-                cart: state.cart,
-                hist: state.hist,
-                notes: ($('notes')?.value || state.notes || '').trim(),
-                paid: $('paid')?.value || '',
-              })
+              // bump:false — no inventar updatedAt más nuevo que el remoto
+              const live = stampMesa(
+                mActive,
+                {
+                  cart: state.cart,
+                  hist: state.hist,
+                  notes: ($('notes')?.value || state.notes || '').trim(),
+                  paid: $('paid')?.value || '',
+                  removed: state.removed || {},
+                },
+                { bump: false },
+              )
               const remoteMesa = nextTables[mActive]
               const lq = tableCartQty(live)
               const rq = tableCartQty(remoteMesa)
-              if (lq > 0 && rq > 0 && window.CasaTorinoTpvSync?.mergeTables) {
+              if ((lq > 0 || rq > 0) && window.CasaTorinoTpvSync?.mergeTables) {
                 const one = window.CasaTorinoTpvSync.mergeTables(
                   { [mActive]: live },
-                  { [mActive]: remoteMesa },
-                  { preferLocalClear: true },
+                  { [mActive]: remoteMesa || { cart: {}, removed: {}, updatedAt: 0 } },
+                  { preferLocalClear: false },
                 )
-                nextTables[mActive] = one.tables[mActive] || live
-              } else if (lq > 0 && rq === 0) {
-                const rAt = Math.max(0, Number(remoteMesa?.updatedAt) || 0)
-                const lAt = Math.max(0, Number(live.updatedAt) || 0)
-                // Cobro/vacío remoto más nuevo gana; si no, conservar cuenta local
-                nextTables[mActive] =
-                  remoteMesa && rAt > lAt ? remoteMesa : live
+                nextTables[mActive] = one.tables[mActive] || remoteMesa || live
               } else if (lq > 0 && !remoteMesa) {
                 nextTables[mActive] = live
               }
@@ -6524,6 +6584,9 @@
               opsDay: state.opsDay || '',
             })
             render()
+            try {
+              window.CasaTorinoPlanoMesas?.syncTotalsFromLocal?.(state.tables)
+            } catch {}
             if (remote.keptLocal) {
               try {
                 window.CasaTorinoTpvSync?.push(state.tables, m)
@@ -6537,12 +6600,17 @@
               const m = normalizeMesa(state.mesa)
               const tables = { ...state.tables }
               if (m) {
-                tables[m] = stampMesa(m, {
-                  cart: state.cart,
-                  hist: state.hist,
-                  notes: ($('notes')?.value || state.notes || '').trim(),
-                  paid: $('paid')?.value || '',
-                })
+                tables[m] = stampMesa(
+                  m,
+                  {
+                    cart: state.cart,
+                    hist: state.hist,
+                    notes: ($('notes')?.value || state.notes || '').trim(),
+                    paid: $('paid')?.value || '',
+                    removed: state.removed || {},
+                  },
+                  { bump: false },
+                )
               }
               return {
                 tables,
