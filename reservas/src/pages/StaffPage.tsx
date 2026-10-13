@@ -69,10 +69,25 @@ export function StaffPage() {
     void refresh().catch((err: unknown) =>
       setError(err instanceof Error ? err.message : 'No se pudieron cargar las reservas'),
     )
-    const t = window.setInterval(() => {
+    const pollMs = () =>
+      typeof document !== 'undefined' && document.hidden ? 60000 : 12000
+    let t = window.setInterval(() => {
       void refresh().catch(() => undefined)
-    }, 4000)
-    return () => window.clearInterval(t)
+    }, pollMs())
+    const onVis = () => {
+      window.clearInterval(t)
+      t = window.setInterval(() => {
+        void refresh().catch(() => undefined)
+      }, pollMs())
+      if (!(typeof document !== 'undefined' && document.hidden)) {
+        void refresh().catch(() => undefined)
+      }
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      window.clearInterval(t)
+      document.removeEventListener('visibilitychange', onVis)
+    }
   }, [user])
 
   const lista = useMemo(() => {

@@ -7,7 +7,9 @@
 (() => {
   const API_URL = '/api/tpv-sync'
   const AUTH_URL = '/api/tpv-auth'
-  const POLL_MS = 4000
+  // Visible: 6s. Oculta: 60s (tablets bloqueadas de noche).
+  const POLL_MS = 6000
+  const POLL_HIDDEN_MS = 60000
   const PUSH_DEBOUNCE_MS = 400
   const CLIENT_ID =
     typeof crypto !== 'undefined' && crypto.randomUUID
@@ -26,6 +28,7 @@
   let onAuthLost = null
   let getLocalSnapshot = null
   let ready = false
+  let visibilityBound = false
 
   function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms))
@@ -513,17 +516,39 @@
     }
   }
 
+  function pollDelay() {
+    return typeof document !== 'undefined' && document.hidden
+      ? POLL_HIDDEN_MS
+      : POLL_MS
+  }
+
+  function schedule() {
+    if (timer) clearInterval(timer)
+    timer = setInterval(tick, pollDelay())
+  }
+
   function start(handler, authLostHandler, options = {}) {
     onRemote = handler
     onAuthLost = authLostHandler || null
     getLocalSnapshot =
       typeof options.getLocalSnapshot === 'function' ? options.getLocalSnapshot : null
-    if (timer) clearInterval(timer)
-    timer = setInterval(tick, POLL_MS)
+    schedule()
     if (heartbeat) clearInterval(heartbeat)
     heartbeat = setInterval(refreshSession, 15 * 60 * 1000)
     refreshSession()
     if (!options.skipInitialTick) tick()
+    if (!visibilityBound && typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+          try {
+            flush()
+          } catch {}
+        }
+        schedule()
+        if (!document.hidden) tick()
+      })
+      visibilityBound = true
+    }
   }
 
   function stop() {
@@ -539,13 +564,6 @@
     try {
       flush()
     } catch {}
-  })
-  window.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      try {
-        flush()
-      } catch {}
-    }
   })
 
   window.CasaTorinoTpvSync = {

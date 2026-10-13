@@ -10,7 +10,7 @@
  * de /api/kitchen: el TPV envía comandas sin X-Cocina-Client-Version.
  * Si se bloquea, las comandas no llegan a cocina. El aviso va por poll/SW.
  */
-const required = '2026-10-12-cdn-safe-1'
+const required = '2026-10-13-cdn-save-1'
 const message = 'Actualiza para seguir'
 
 function forceInfo() {

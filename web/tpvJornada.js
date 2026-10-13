@@ -4,13 +4,15 @@
 (() => {
   const API_URL = '/api/tpv-jornada'
   const AUTH_URL = '/api/tpv-auth'
-  const POLL_MS = 12000
+  const POLL_MS = 15000
+  const POLL_HIDDEN_MS = 60000
   const RETRIES = 3
   let timer = null
   let heartbeat = null
   let onUpdate = null
   let onAuthLost = null
   let last = null
+  let visibilityBound = false
 
   function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms))
@@ -160,17 +162,36 @@
     return data
   }
 
+  function pollDelay() {
+    return typeof document !== 'undefined' && document.hidden
+      ? POLL_HIDDEN_MS
+      : POLL_MS
+  }
+
+  function schedulePolling() {
+    if (timer) clearInterval(timer)
+    timer = setInterval(() => {
+      refresh().catch((err) => console.warn('[tpvJornada]', err))
+    }, pollDelay())
+  }
+
   function startPolling(handler, authLostHandler) {
     onUpdate = handler
     onAuthLost = authLostHandler || null
     refresh().catch((err) => console.warn('[tpvJornada]', err))
-    if (timer) clearInterval(timer)
-    timer = setInterval(() => {
-      refresh().catch((err) => console.warn('[tpvJornada]', err))
-    }, POLL_MS)
+    schedulePolling()
     if (heartbeat) clearInterval(heartbeat)
     heartbeat = setInterval(refreshSession, 15 * 60 * 1000)
     refreshSession()
+    if (!visibilityBound && typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        schedulePolling()
+        if (!document.hidden) {
+          refresh().catch((err) => console.warn('[tpvJornada]', err))
+        }
+      })
+      visibilityBound = true
+    }
   }
 
   function stopPolling() {

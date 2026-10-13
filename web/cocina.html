@@ -494,7 +494,7 @@
      * - web/cocina-version.json → required
      * - web/api/_cocinaVersion.js → required
      */
-    const COCINA_CLIENT_VERSION = '2026-10-12-cdn-safe-1'
+    const COCINA_CLIENT_VERSION = '2026-10-13-cdn-save-1'
     const COCINA_ACK_KEY = 'ct-cocina-ack-version'
     const $force = (id) => document.getElementById(id)
 
@@ -575,9 +575,13 @@
       location.replace(url.toString())
     })
 
+    const COCINA_VERSION_POLL_MS = 5 * 60 * 1000
+    let cocinaVersionTimer = null
+
     async function pollCocinaVersion() {
+      if (typeof document !== 'undefined' && document.hidden) return
       try {
-        const r = await fetch('/cocina-version.json?t=' + Date.now(), {
+        const r = await fetch('/cocina-version.json', {
           cache: 'no-store',
           headers: { 'Cache-Control': 'no-store' },
         })
@@ -589,19 +593,27 @@
       }
     }
 
+    function scheduleCocinaVersionPoll() {
+      if (cocinaVersionTimer) clearInterval(cocinaVersionTimer)
+      cocinaVersionTimer = null
+      if (typeof document !== 'undefined' && document.hidden) return
+      pollCocinaVersion()
+      cocinaVersionTimer = setInterval(pollCocinaVersion, COCINA_VERSION_POLL_MS)
+    }
+
     applyCocinaForceInfo({
       required: COCINA_CLIENT_VERSION,
       message: 'Actualiza para seguir',
     })
-    // Poll lento: cuota CDN Hobby (1M/mes). El aviso sigue llegando solo.
-    pollCocinaVersion()
-    setInterval(pollCocinaVersion, 60000)
+    // Poll muy lento + pausa si la pestaña está oculta (cuota CDN Hobby).
+    scheduleCocinaVersionPoll()
+    document.addEventListener('visibilitychange', scheduleCocinaVersionPoll)
 
     // PWA Cocina: SW avisa a tablets abiertas sin refrescar a mano
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker
-          .register('/sw-cocina.js?v=cdn-safe-1')
+          .register('/sw-cocina.js?v=cdn-save-1')
           .catch(() => {})
       })
       try {

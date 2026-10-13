@@ -6,12 +6,15 @@
 (() => {
   const API_URL = '/api/kitchen'
   const AUTH_URL = '/api/tpv-auth'
-  const POLL_MS = 3500
+  // Visible: ~4s (comandas rápidas). Oculta: 60s (no quemar cuota de noche).
+  const POLL_MS = 4000
+  const POLL_HIDDEN_MS = 60000
   const RETRIES = 3
 
   let timer = null
   let heartbeat = null
   let polling = false
+  let visibilityBound = false
   let lastUpdatedAt = 0
   let knownIds = new Set()
   let knownPickupIds = new Set()
@@ -196,17 +199,36 @@
     }
   }
 
+  function pollDelay() {
+    return typeof document !== 'undefined' && document.hidden
+      ? POLL_HIDDEN_MS
+      : POLL_MS
+  }
+
+  function schedule() {
+    if (timer) clearInterval(timer)
+    timer = setInterval(tick, pollDelay())
+  }
+
+  function onVisibility() {
+    schedule()
+    if (!(typeof document !== 'undefined' && document.hidden)) tick()
+  }
+
   function start(handler, authLostHandler, pickupHandler) {
     onUpdate = handler
     onAuthLost = authLostHandler || null
     onPickup = pickupHandler || null
     bootstrapped = false
     tick()
-    if (timer) clearInterval(timer)
-    timer = setInterval(tick, POLL_MS)
+    schedule()
     if (heartbeat) clearInterval(heartbeat)
     heartbeat = setInterval(refreshSession, 15 * 60 * 1000)
     refreshSession()
+    if (!visibilityBound && typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibility)
+      visibilityBound = true
+    }
   }
 
   function stop() {
