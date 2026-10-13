@@ -2,12 +2,23 @@
 
 Modo **adicional** del TPV. No sustituye el listado «Mesas» ni borra `ops_kv.tpv`.
 
+## Comportamiento (producción)
+
+| Situación | Plano |
+|---|---|
+| Con productos | Rojo · nombre camarera · total € |
+| Vaciar o cobrar | Verde · Libre · sin camarera |
+| Sin productos | Nunca “la atiende X” (sin fantasmas) |
+| Sync | Supabase directo + broadcast `casa-torino-tpv-live` (no quema Hobby) |
+
+Código: `web/planoMesas.js` · `web/tpvSync.js` · `web/tpv.html` · merge `web/api/_tpvMerge.js`.
+
 ## Dispositivos
 
 | Rol | Dispositivo | Comportamiento |
 |---|---|---|
-| TPV central | Windows | Ve todas las mesas; toca ocupada → cobrar |
-| Camarera | Android / iOS | Toca libre → se asigna y abre la mesa para pedir |
+| TPV central | Windows | Elige camarera · ve nombre+total · cobra |
+| Camarera | Android / iOS | Elige nombre · mesa → carta para pedir |
 | KDS | Android | Sin cambios (sigue cocina) |
 
 ## Datos (sin romper producción)

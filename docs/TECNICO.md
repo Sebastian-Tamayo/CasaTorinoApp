@@ -1,13 +1,15 @@
 # Casa Torino OS — Documento técnico
 
 Fuente de verdad operativa: arquitectura, persistencia, deploy, seguridad, recuperación y anti-regresión.  
-Comercial / venta → [`COMERCIAL.md`](./COMERCIAL.md).
+Comercial / venta → [`COMERCIAL.md`](./COMERCIAL.md).  
+**Si se pierde el proyecto:** [`RECUPERACION-GITHUB.md`](./RECUPERACION-GITHUB.md) (clonar `main` + secretos + redeploy).
 
 | | |
 |---|---|
-| **Repo** | https://github.com/Sebastian-Tamayo/CasaTorinoApp |
+| **Repo (copia maestra)** | https://github.com/Sebastian-Tamayo/CasaTorinoApp |
+| **Rama desplegable** | `main` |
 | **Actualizado** | oct 2026 |
-| **Alcance** | `web/` · `reservas/` · `erp/` |
+| **Alcance** | `web/` · `reservas/` · `erp/` · `docs/` |
 
 ---
 
