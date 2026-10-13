@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-13-plano-9'
-const message = 'Actualiza: mesas vacías ya no muestran camarera'
+const required = '2026-10-13-plano-10'
+const message = 'Actualiza: vaciar mesa no deja rastro ni camarera fantasma'
 
 function forceInfo() {
   return { required, message }

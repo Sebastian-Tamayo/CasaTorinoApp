@@ -126,6 +126,31 @@ function mergeBusyTables(a, b, preferA) {
     newer = b
     older = a
   }
+
+  // Vaciar/cobrar explícito: el lado más nuevo con cleared gana vacío total
+  // (no dejar que líneas viejas sin tombstone “resuciten”)
+  if (Boolean(newer.cleared) && cartQty(newer) === 0) {
+    const rem = { ...normRemoved(older.removed), ...normRemoved(newer.removed) }
+    const stamp = Math.max(tableAt(newer), Date.now())
+    for (const key of Object.keys(normCart(older.cart))) {
+      if (!rem[key] || Number(rem[key]) < stamp) rem[key] = stamp
+    }
+    for (const key of Object.keys(normCart(newer.cart))) {
+      if (!rem[key] || Number(rem[key]) < stamp) rem[key] = stamp
+    }
+    return {
+      cart: {},
+      removed: pruneRemoved(rem),
+      hist: Array.isArray(newer.hist) ? newer.hist : [],
+      notes: '',
+      paid: '',
+      waiterId: null,
+      waiterName: null,
+      cleared: true,
+      updatedAt: Math.max(aAt, bAt, stamp),
+    }
+  }
+
   const merged = mergeCarts(
     a.cart,
     b.cart,
@@ -134,20 +159,15 @@ function mergeBusyTables(a, b, preferA) {
     aAt,
     bAt,
   )
-  const qty = Object.values(merged.cart).reduce(
-    (n, line) => n + Math.max(0, Number(line?.qty) || 0),
-    0,
-  )
-  const newerCleared = Boolean(newer.cleared) && qty === 0
   return {
     cart: merged.cart,
     removed: merged.removed,
     hist: mergeHist(newer.hist, older.hist),
     notes: String(newer.notes || older.notes || ''),
     paid: String(newer.paid || older.paid || ''),
-    waiterId: newerCleared ? null : newer.waiterId || older.waiterId || null,
-    waiterName: newerCleared ? null : newer.waiterName || older.waiterName || null,
-    cleared: newerCleared,
+    waiterId: newer.waiterId || older.waiterId || null,
+    waiterName: newer.waiterName || older.waiterName || null,
+    cleared: false,
     updatedAt: Math.max(aAt, bAt),
   }
 }
