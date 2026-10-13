@@ -2152,37 +2152,44 @@
       width: 100%;
       max-width: 110px;
       justify-self: center;
-      aspect-ratio: 1;
+      aspect-ratio: auto;
+      min-height: 72px;
     }
     .plano-grid.barra-top .plano-table[data-plano-mesa="4"] {
       justify-self: start;
     }
     .plano-grid.barra-top .plano-table[data-plano-mesa="5"] {
-      justify-self: end;
+      justify-self: center;
     }
     .plano-table {
       border: 0; cursor: pointer; color: #111;
       font: inherit; font-weight: 900;
-      min-height: 52px; padding: .3rem;
-      display: grid; place-items: center; gap: .1rem;
+      min-height: 64px; padding: .35rem .3rem;
+      display: grid;
+      grid-template-rows: auto auto auto;
+      place-items: center;
+      align-content: center;
+      gap: .12rem;
       box-shadow: inset 0 0 0 2px rgba(0,0,0,.08);
       transition: transform .12s ease, filter .12s ease;
       width: 100%;
+      overflow: hidden;
     }
     .plano-table:active { transform: scale(.97); }
-    .plano-table.shape-square { border-radius: 10px; aspect-ratio: 1; }
-    .plano-table.shape-rect { border-radius: 10px; min-height: 48px; }
-    .plano-table.shape-circle { border-radius: 999px; aspect-ratio: 1; }
+    /* Sin aspect-ratio fijo: en Windows debe verse nº + camarera + total */
+    .plano-table.shape-square { border-radius: 10px; aspect-ratio: auto; min-height: 72px; }
+    .plano-table.shape-rect { border-radius: 10px; min-height: 56px; }
+    .plano-table.shape-circle { border-radius: 999px; aspect-ratio: auto; min-height: 72px; }
     .plano-table.libre { background: #22c55e; color: #052e16; }
     .plano-table.ocupada { background: #ef4444; color: #fff; }
     .plano-table .n { font-size: 1.05rem; line-height: 1; }
     .plano-table .waiter {
-      font-size: .68rem; font-weight: 800; letter-spacing: .01em;
+      font-size: .7rem; font-weight: 800; letter-spacing: .01em;
       max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      line-height: 1.1;
+      line-height: 1.15;
     }
     .plano-table .meta {
-      font-size: .62rem; font-weight: 700; opacity: .95;
+      font-size: .64rem; font-weight: 700; opacity: .95;
       max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     @media (max-width: 720px) {
@@ -2195,9 +2202,18 @@
         max-height: min(72dvh, 720px);
       }
       .plano-service { flex-direction: row; min-height: 44px; }
-      .plano-table { min-height: 48px; }
+      .plano-table { min-height: 56px; }
       .plano-grid.barra-top {
-        gap: clamp(1.5rem, 12vw, 3rem);
+        gap: clamp(1rem, 8vw, 2rem);
+        padding: 0 .35rem;
+      }
+      .plano-grid.barra-top .plano-table {
+        max-width: 96px;
+        justify-self: center;
+      }
+      .plano-grid.barra-top .plano-table[data-plano-mesa="4"],
+      .plano-grid.barra-top .plano-table[data-plano-mesa="5"] {
+        justify-self: center;
       }
     }
 
@@ -2783,7 +2799,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-13-plano-6'
+      const TPV_CLIENT_VERSION = '2026-10-13-plano-7'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -5792,19 +5808,49 @@
         if (!floor) return
         const list = snap?.tables || []
         const byId = Object.fromEntries(list.map((t) => [t.id, t]))
+        // Windows: cruzar siempre con carritos TPV locales (sync), no solo floor_plan
+        const carts = state.tables && typeof state.tables === 'object' ? state.tables : {}
+        const cartQtyOf = (blob) => {
+          if (!blob?.cart || typeof blob.cart !== 'object') return 0
+          let n = 0
+          for (const line of Object.values(blob.cart)) n += Math.max(0, Number(line?.qty) || 0)
+          return n
+        }
+        const cartTotalOf = (blob) => {
+          if (!blob?.cart || typeof blob.cart !== 'object') return 0
+          let cents = 0
+          for (const line of Object.values(blob.cart)) {
+            const price = Number(line?.price) || 0
+            const qty = Math.max(0, Number(line?.qty) || 0)
+            cents += Math.round(price * 100) * qty
+          }
+          return Math.round(cents) / 100
+        }
         const cell = (id) => {
           const t = byId[id] || { id, status: 'libre', total_amount: 0, shape: 'square' }
-          const st = t.status === 'ocupada' ? 'ocupada' : 'libre'
-          const waiterName = String(t.current_waiter_name || '').trim()
+          const blob = carts[id]
+          const qty = cartQtyOf(blob)
+          const fromCartTotal = qty > 0 ? cartTotalOf(blob) : 0
+          const waiterName = String(
+            t.current_waiter_name || blob?.waiterName || '',
+          ).trim()
+          const amount =
+            qty > 0
+              ? fromCartTotal
+              : Number(t.total_amount) || 0
+          const st =
+            t.status === 'ocupada' || qty > 0 || amount > 0 || waiterName
+              ? 'ocupada'
+              : 'libre'
           const waiter =
             st === 'ocupada'
               ? `<span class="waiter">${waiterName || 'Sin asignar'}</span>`
               : ''
           const total =
             st === 'ocupada'
-              ? `<span class="meta">${window.CasaTorinoPlanoMesas.money(t.total_amount)}</span>`
+              ? `<span class="meta">${window.CasaTorinoPlanoMesas.money(amount)}</span>`
               : `<span class="meta">Libre</span>`
-          return `<button type="button" class="plano-table shape-${t.shape || 'square'} ${st}" data-plano-mesa="${t.id}" title="${st === 'ocupada' ? (waiterName || 'Sin asignar') : 'Libre'}">
+          return `<button type="button" class="plano-table shape-${t.shape || 'square'} ${st}" data-plano-mesa="${t.id}" title="${st === 'ocupada' ? `${waiterName || 'Sin asignar'} · ${window.CasaTorinoPlanoMesas.money(amount)}` : 'Libre'}">
             <span class="n">${t.id}</span>${waiter}${total}
           </button>`
         }

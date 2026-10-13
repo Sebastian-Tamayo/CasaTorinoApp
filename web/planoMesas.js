@@ -586,74 +586,85 @@
     })
   }
 
+  /**
+   * Actualiza totales/camarera desde carritos locales.
+   * IMPORTANTE: si qty local es 0 NO liberamos la mesa (el Windows a menudo
+   * aún no ha recibido el carrito del móvil y borraba nombre+total del plano).
+   * Liberar solo con freeTable() tras cobro/vaciar.
+   */
   async function syncTotalsFromLocal(localTables) {
     if (!localTables || typeof localTables !== 'object') return
-    tpvCarts = localTables
+    // Fusionar con carritos ya conocidos (remoto) para no pisar con un local incompleto
+    const mergedCarts = { ...tpvCarts }
+    for (const [id, blob] of Object.entries(localTables)) {
+      const prev = mergedCarts[id]
+      const qNew = cartQty(blob)
+      const qOld = cartQty(prev)
+      if (qNew > 0 || !prev) mergedCarts[id] = blob
+      else if (qOld > 0 && qNew === 0) {
+        // Solo aceptar vaciado local si el blob trae updatedAt más nuevo
+        const nAt = Math.max(0, Number(blob?.updatedAt) || 0)
+        const oAt = Math.max(0, Number(prev?.updatedAt) || 0)
+        if (nAt >= oAt) mergedCarts[id] = blob
+      }
+    }
+    tpvCarts = mergedCarts
     let changed = false
     const next = tables.map((t) => {
-      const blob = localTables[t.id]
+      const blob = mergedCarts[t.id]
       const qty = cartQty(blob)
-      const total = qty > 0 ? cartTotal(blob) : 0
       let waiterId = t.current_waiter_id || null
       let waiterName = t.current_waiter_name || null
-      if (qty > 0 && blob && typeof blob === 'object') {
+      if (blob && typeof blob === 'object') {
         if (!waiterId && blob.waiterId) waiterId = String(blob.waiterId)
         if (!waiterName && blob.waiterName) waiterName = String(blob.waiterName)
       }
-      if (qty === 0) {
-        if (t.status === 'ocupada' || t.current_waiter_id || t.total_amount) {
+      if (qty > 0) {
+        const total = cartTotal(blob)
+        if (
+          total !== Number(t.total_amount) ||
+          t.status !== 'ocupada' ||
+          String(waiterId || '') !== String(t.current_waiter_id || '') ||
+          String(waiterName || '') !== String(t.current_waiter_name || '')
+        ) {
           changed = true
           return {
             ...t,
-            status: 'libre',
-            total_amount: 0,
-            current_waiter_id: null,
-            current_waiter_name: null,
-            qty: 0,
+            status: 'ocupada',
+            total_amount: total,
+            qty,
+            current_waiter_id: waiterId,
+            current_waiter_name: waiterName,
           }
         }
-        return { ...t, qty: 0, total_amount: 0 }
-      }
-      const status = 'ocupada'
-      if (
-        total !== Number(t.total_amount) ||
-        t.status !== 'ocupada' ||
-        String(waiterId || '') !== String(t.current_waiter_id || '') ||
-        String(waiterName || '') !== String(t.current_waiter_name || '')
-      ) {
-        changed = true
         return {
           ...t,
-          status,
-          total_amount: total,
+          status: 'ocupada',
           qty,
+          total_amount: total,
           current_waiter_id: waiterId,
           current_waiter_name: waiterName,
         }
       }
-      return {
-        ...t,
-        status,
-        qty,
-        total_amount: total,
-        current_waiter_id: waiterId,
-        current_waiter_name: waiterName,
-      }
+      // qty 0: no tocar asignación ni total del plano (evita wipe en Windows)
+      return { ...t, qty: 0 }
     })
     tables = next
     if (changed) {
       const c = await client()
       if (await detectSqlTable(c)) {
         for (const t of next) {
-          await c
-            .from('tables')
-            .update({
-              status: t.status,
-              total_amount: t.total_amount,
-              current_waiter_id: t.current_waiter_id,
-              current_waiter_name: t.current_waiter_name,
-            })
-            .eq('id', t.id)
+          if (t.qty > 0 || t.status === 'ocupada') {
+            await c
+              .from('tables')
+              .update({
+                status: t.status,
+                total_amount: t.total_amount,
+                current_waiter_id: t.current_waiter_id,
+                current_waiter_name: t.current_waiter_name,
+              })
+              .eq('id', t.id)
+          }
         }
       } else {
         await saveFloorOps(next)
