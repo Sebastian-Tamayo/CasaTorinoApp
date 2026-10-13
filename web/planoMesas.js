@@ -305,9 +305,8 @@
     return list.map((t) => {
       const cartBlob = tpvCarts[t.id]
       const qty = cartQty(cartBlob)
-      const cleared = Boolean(cartBlob && cartBlob.cleared)
-      // Vaciada (cobro/Vaciar): sin productos → libre y sin camarera
-      if (qty === 0 && cleared) {
+      // Sin productos = libre y SIN camarera (evita “la atiende Lore” en mesa vacía)
+      if (qty === 0) {
         return {
           ...t,
           status: 'libre',
@@ -317,35 +316,17 @@
           current_waiter_name: null,
         }
       }
-      const total = qty > 0 ? cartTotal(cartBlob) : Number(t.total_amount) || 0
-      let status = t.status
-      if (qty > 0) status = 'ocupada'
-      else if (!t.current_waiter_id) status = 'libre'
+      const total = cartTotal(cartBlob)
       let current_waiter_id = t.current_waiter_id || null
       let current_waiter_name = t.current_waiter_name || null
-      if (qty > 0 && cartBlob && typeof cartBlob === 'object') {
-        if (!current_waiter_id && cartBlob.waiterId) {
-          current_waiter_id = String(cartBlob.waiterId)
-        }
-        if (!current_waiter_name && cartBlob.waiterName) {
-          current_waiter_name = String(cartBlob.waiterName)
-        }
-      }
-      if (qty === 0 && !current_waiter_id) {
-        status = 'libre'
-        return {
-          ...t,
-          status: 'libre',
-          total_amount: 0,
-          qty: 0,
-          current_waiter_id: null,
-          current_waiter_name: null,
-        }
+      if (cartBlob && typeof cartBlob === 'object') {
+        if (cartBlob.waiterId) current_waiter_id = String(cartBlob.waiterId)
+        if (cartBlob.waiterName) current_waiter_name = String(cartBlob.waiterName)
       }
       return {
         ...t,
-        status,
-        total_amount: qty > 0 ? total : Number(t.total_amount) || 0,
+        status: 'ocupada',
+        total_amount: total,
         qty,
         current_waiter_id,
         current_waiter_name,
@@ -425,7 +406,65 @@
     const c = await client()
     await loadTpvCarts(c)
     const sql = await detectSqlTable(c)
+    const prev = tables.slice()
     tables = mergeWithCarts(sql ? await loadFloorFromSql(c) : await loadFloorFromOps(c))
+    // Persistir liberación de fantasmas (ocupada/camarera sin productos)
+    const ghosts = tables.filter((t) => {
+      const before = prev.find((p) => p.id === t.id)
+      return (
+        t.status === 'libre' &&
+        !t.current_waiter_id &&
+        before &&
+        (before.status === 'ocupada' ||
+          before.current_waiter_id ||
+          before.current_waiter_name ||
+          Number(before.total_amount) > 0)
+      )
+    })
+    // También si el propio merge limpió vs lo leído del store
+    const needPersist = tables.some((t) => {
+      const qty = cartQty(tpvCarts[t.id])
+      return (
+        qty === 0 &&
+        (t.status !== 'libre' || t.current_waiter_id || t.current_waiter_name)
+      )
+    })
+    if (ghosts.length || needPersist) {
+      tables = tables.map((t) =>
+        cartQty(tpvCarts[t.id]) === 0
+          ? {
+              ...t,
+              status: 'libre',
+              total_amount: 0,
+              current_waiter_id: null,
+              current_waiter_name: null,
+              qty: 0,
+            }
+          : t,
+      )
+      try {
+        if (sql) {
+          for (const t of tables) {
+            if (cartQty(tpvCarts[t.id]) === 0) {
+              await c
+                .from('tables')
+                .update({
+                  status: 'libre',
+                  total_amount: 0,
+                  current_waiter_id: null,
+                  current_waiter_name: null,
+                })
+                .eq('id', t.id)
+            }
+          }
+        } else {
+          await saveFloorOps(tables)
+        }
+        await broadcast('floor-updated')
+      } catch (err) {
+        console.warn('[plano] reconcile empty', err)
+      }
+    }
     if (typeof onChange === 'function') onChange(getSnapshot())
     return tables
   }
@@ -566,16 +605,19 @@
       throw new Error('Elige qué camarera está accediendo en el desplegable')
     }
 
-    if (
+    const qty = cartQty(tpvCarts[id])
+    // Mesa sin productos: no es “la atiende X”, está libre aunque el store tuviera basura
+    const reallyOccupied =
+      qty > 0 &&
       row.status === 'ocupada' &&
       row.current_waiter_id &&
       row.current_waiter_id !== waiter.id
-    ) {
+
+    if (reallyOccupied) {
       const ok = confirm(
         `Mesa ${id} la atiende ${row.current_waiter_name || 'otro'}. ¿Abrir igual?`,
       )
       if (!ok) return { action: 'cancel', tableId: id, role }
-      // Conservar la camarera ya asignada (control del salón)
       return {
         action: 'open',
         tableId: id,
@@ -587,13 +629,23 @@
       }
     }
 
-    // Asignar / refrescar nombre en libre o si es la misma camarera
+    // Asignar camarera; en rojo de verdad al añadir el primer producto
     await patchTable(id, {
-      status: 'ocupada',
-      total_amount: Number(row.total_amount) || 0,
-      current_waiter_id: waiter.id,
-      current_waiter_name: waiter.name,
+      status: qty > 0 ? 'ocupada' : 'libre',
+      total_amount: qty > 0 ? Number(row.total_amount) || cartTotal(tpvCarts[id]) : 0,
+      current_waiter_id: qty > 0 ? waiter.id : null,
+      current_waiter_name: qty > 0 ? waiter.name : null,
     })
+    // Guardar camarera elegida en carrito para cuando se añada el 1er plato
+    const prevBlob = tpvCarts[id] && typeof tpvCarts[id] === 'object' ? tpvCarts[id] : {}
+    tpvCarts[id] = {
+      ...prevBlob,
+      cart: prevBlob.cart || {},
+      waiterId: waiter.id,
+      waiterName: waiter.name,
+      cleared: false,
+      updatedAt: Date.now(),
+    }
     return { action: 'open', tableId: id, role, waiter }
   }
 
@@ -710,23 +762,15 @@
         }
       }
 
-      if (explicitFree) {
-        if (
-          t.status !== 'libre' ||
-          t.current_waiter_id ||
-          t.current_waiter_name ||
-          Number(t.total_amount) !== 0
-        ) {
-          changed = true
-          return {
-            ...t,
-            status: 'libre',
-            total_amount: 0,
-            current_waiter_id: null,
-            current_waiter_name: null,
-            qty: 0,
-          }
-        }
+      // Sin productos → siempre libre y desasignada (también fantasmas sin cleared)
+      if (
+        explicitFree ||
+        t.status !== 'libre' ||
+        t.current_waiter_id ||
+        t.current_waiter_name ||
+        Number(t.total_amount) !== 0
+      ) {
+        changed = true
         return {
           ...t,
           status: 'libre',
@@ -736,9 +780,14 @@
           qty: 0,
         }
       }
-
-      // qty 0 sin vaciado explícito: no borrar asignación (sync a medias)
-      return { ...t, qty: 0 }
+      return {
+        ...t,
+        status: 'libre',
+        total_amount: 0,
+        current_waiter_id: null,
+        current_waiter_name: null,
+        qty: 0,
+      }
     })
     tables = next
     if (changed) {

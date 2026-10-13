@@ -2799,7 +2799,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-13-plano-8'
+      const TPV_CLIENT_VERSION = '2026-10-13-plano-9'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -2936,7 +2936,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=plano-8')
+            .register('/sw-tpv.js?v=plano-9')
             .catch(() => {})
         })
         try {

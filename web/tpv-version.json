@@ -1,5 +1,5 @@
 {
-  "required": "2026-10-13-plano-8",
-  "message": "Actualiza: vaciar/cobrar libera mesa; ticket TOTAL en una línea",
-  "updatedAt": "2026-10-13T15:00:00.000Z"
+  "required": "2026-10-13-plano-9",
+  "message": "Actualiza: mesas vacías ya no muestran camarera",
+  "updatedAt": "2026-10-13T15:10:00.000Z"
 }
