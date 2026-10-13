@@ -1354,6 +1354,10 @@
       border-color: rgba(251,191,36,.5); color: #fcd34d;
       position: relative;
     }
+    .jornada-actions .btn-j.plano {
+      border-color: rgba(91,157,255,.5);
+      color: #93c5fd;
+    }
     .jornada-actions .btn-j.reservas-quick {
       border-color: rgba(52,211,153,.5); color: #6ee7b7;
       position: relative;
@@ -1996,6 +2000,101 @@
       .jornada-actions .btn-j { padding: .42rem .62rem; font-size: .68rem; }
     }
 
+    /* —— Plano mesas (overlay, no sustituye Mesas pendientes) —— */
+    #planoModal.course-modal .course-card {
+      width: min(960px, 100%);
+      max-height: min(94dvh, 920px);
+    }
+    .plano-toolbar {
+      display: flex; flex-wrap: wrap; gap: .45rem; align-items: center;
+      margin: .2rem 0 .7rem;
+    }
+    .plano-toolbar select, .plano-toolbar input {
+      border: 1px solid var(--line2); border-radius: 12px;
+      background: var(--card); color: var(--ink);
+      padding: .55rem .7rem; font: inherit; font-weight: 700;
+    }
+    .plano-toolbar .plano-hint {
+      flex: 1 1 100%; font-size: .78rem; color: var(--muted); margin: 0;
+    }
+    .plano-floor {
+      display: grid;
+      grid-template-columns: 72px 1fr 110px;
+      grid-template-rows: auto auto auto;
+      gap: .55rem;
+      background: linear-gradient(180deg, #e8e4dc, #f4f1ea);
+      border-radius: 16px;
+      padding: .65rem;
+      color: #1a1a1a;
+      min-height: 420px;
+    }
+    .plano-zone {
+      background: rgba(255,255,255,.72);
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 12px;
+      padding: .45rem;
+      position: relative;
+    }
+    .plano-zone h4 {
+      margin: 0 0 .4rem; font-size: .68rem; letter-spacing: .06em;
+      text-transform: uppercase; color: #666;
+    }
+    .plano-lateral { grid-column: 1; grid-row: 1 / span 2; }
+    .plano-salon { grid-column: 2; grid-row: 1 / span 2; background: #d9d6d0; }
+    .plano-service {
+      grid-column: 3; grid-row: 1 / span 3;
+      display: flex; flex-direction: column; gap: .4rem;
+    }
+    .plano-service .svc {
+      flex: 1; border-radius: 10px; display: grid; place-items: center;
+      font-size: .72rem; font-weight: 800; color: #444; background: #efe6dc;
+    }
+    .plano-service .svc.cocina { background: #e7d3b5; }
+    .plano-service .svc.banos { background: #dce9f2; }
+    .plano-entrada { grid-column: 1; grid-row: 3; }
+    .plano-barra {
+      grid-column: 2; grid-row: 3;
+      background: #fff;
+    }
+    .plano-barra .barra-l {
+      height: 54px; margin-top: .45rem; border-radius: 10px;
+      background: #e11d2e; color: #fff; display: grid; place-items: center;
+      font-weight: 900; letter-spacing: .08em;
+    }
+    .plano-grid {
+      display: grid; gap: .4rem;
+    }
+    .plano-grid.salon { grid-template-columns: repeat(3, 1fr); }
+    .plano-grid.col { grid-template-columns: 1fr; }
+    .plano-grid.barra-top { grid-template-columns: 1fr 1fr; max-width: 220px; margin: 0 auto; }
+    .plano-table {
+      border: 0; cursor: pointer; color: #111;
+      font: inherit; font-weight: 900;
+      min-height: 64px; padding: .35rem;
+      display: grid; place-items: center; gap: .1rem;
+      box-shadow: inset 0 0 0 2px rgba(0,0,0,.08);
+      transition: transform .12s ease, filter .12s ease;
+    }
+    .plano-table:active { transform: scale(.97); }
+    .plano-table.shape-square { border-radius: 10px; aspect-ratio: 1; }
+    .plano-table.shape-rect { border-radius: 10px; min-height: 56px; }
+    .plano-table.shape-circle { border-radius: 999px; aspect-ratio: 1; }
+    .plano-table.libre { background: #22c55e; color: #052e16; }
+    .plano-table.ocupada { background: #ef4444; color: #fff; }
+    .plano-table .n { font-size: 1.05rem; line-height: 1; }
+    .plano-table .meta {
+      font-size: .62rem; font-weight: 700; opacity: .95;
+      max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    @media (max-width: 720px) {
+      .plano-floor {
+        grid-template-columns: 64px 1fr;
+        grid-template-rows: auto auto auto auto;
+      }
+      .plano-service { grid-column: 1 / span 2; grid-row: 4; flex-direction: row; min-height: 48px; }
+      .plano-table { min-height: 54px; }
+    }
+
     /* —— Fichaje —— */
     .fichaje-fields { display: grid; gap: .85rem; margin: .35rem 0 1rem; }
     .fichaje-fields label {
@@ -2115,6 +2214,7 @@
       <div class="jornada-status" id="jornadaStatus">Jornada: <strong>sin iniciar</strong></div>
       <div class="jornada-actions">
         <button class="btn-j total" id="btnMesasOpenBar" type="button" title="Mesas pendientes de cobro"><i class="fa-solid fa-list-ul"></i> Mesas</button>
+        <button class="btn-j plano" id="btnPlanoOpen" type="button" title="Plano visual de mesas"><i class="fa-solid fa-map"></i> Plano</button>
         <button class="btn-j start" id="btnJornadaStart" type="button"><i class="fa-solid fa-play"></i> Inicio de jornada</button>
         <button class="btn-j total" id="btnJornadaTotal" type="button"><i class="fa-solid fa-chart-column"></i> Total de jornada</button>
         <button class="btn-j end" id="btnJornadaEnd" type="button" disabled><i class="fa-solid fa-flag-checkered"></i> Fin de sesión</button>
@@ -2264,6 +2364,35 @@
       <div class="mesas-list" id="mesasList"></div>
       <div class="course-actions">
         <button type="button" class="cancel" id="mesasCancel">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="course-modal" id="planoModal" hidden role="dialog" aria-modal="true" aria-labelledby="planoModalTitle">
+    <div class="course-card">
+      <div class="course-card-h">
+        <button type="button" class="btn-modal-back" id="planoBack" aria-label="Volver">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </button>
+        <h3 id="planoModalTitle">Plano de mesas</h3>
+      </div>
+      <div class="plano-toolbar">
+        <label>
+          Modo
+          <select id="planoRole" aria-label="Modo del plano">
+            <option value="waiter">Móvil camarera</option>
+            <option value="central">TPV central (Windows)</option>
+          </select>
+        </label>
+        <label>
+          Camarera/o
+          <input id="planoWaiterName" type="text" maxlength="40" placeholder="Tu nombre" autocomplete="name" />
+        </label>
+        <p class="plano-hint" id="planoHint">Verde = libre · Rojo = ocupada. El TPV actual sigue igual; esto es un modo extra.</p>
+      </div>
+      <div class="plano-floor" id="planoFloor" aria-label="Plano Casa Torino"></div>
+      <div class="course-actions">
+        <button type="button" class="cancel" id="planoCancel">Cerrar</button>
       </div>
     </div>
   </div>
@@ -2532,6 +2661,7 @@
   <script src="tpvJornada.js?v=push-msg-1"></script>
   <script src="kitchenSync.js?v=fix-create-1"></script>
   <script src="reservaAlertSync.js"></script>
+  <script src="planoMesas.js?v=plano-1"></script>
   <script>
     (() => {
       /**
@@ -2540,7 +2670,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-13-cdn-save-1'
+      const TPV_CLIENT_VERSION = '2026-10-13-plano-1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -2656,7 +2786,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=cdn-save-1')
+            .register('/sw-tpv.js?v=plano-1')
             .catch(() => {})
         })
         try {
@@ -3889,6 +4019,11 @@
         } catch (err) {
           console.warn('clearCart sync', err)
         }
+        try {
+          if (m) window.CasaTorinoPlanoMesas?.freeTable?.(m)
+        } catch (err) {
+          console.warn('plano freeTable clear', err)
+        }
         render(); closeTicket()
       }
 
@@ -4414,7 +4549,12 @@
           payDraft = { totalCents: 0, payments: [] }
           persist()
           render()
-          if (!still) closeTicket()
+          if (!still) {
+            try {
+              if (m) window.CasaTorinoPlanoMesas?.freeTable?.(m)
+            } catch {}
+            closeTicket()
+          }
           paintUndoChargeBtn()
           return
         }
@@ -4441,6 +4581,11 @@
           window.CasaTorinoTpvSync?.pushNow?.(state.tables, m)
         } catch (err) {
           console.warn('confirmPay sync', err)
+        }
+        try {
+          if (m) window.CasaTorinoPlanoMesas?.freeTable?.(m)
+        } catch (err) {
+          console.warn('plano freeTable', err)
         }
         render(); closeTicket()
         paintUndoChargeBtn()
@@ -5443,6 +5588,129 @@
       $('btnMesasOpenTop')?.addEventListener('click', () => openMesasModal())
       $('btnMesasOpenHeader')?.addEventListener('click', () => openMesasModal())
       $('btnMesasOpenBar')?.addEventListener('click', () => openMesasModal())
+
+      function paintPlanoFloor(snap) {
+        const floor = $('planoFloor')
+        if (!floor) return
+        const list = snap?.tables || []
+        const byId = Object.fromEntries(list.map((t) => [t.id, t]))
+        const cell = (id) => {
+          const t = byId[id] || { id, status: 'libre', total_amount: 0, shape: 'square' }
+          const st = t.status === 'ocupada' ? 'ocupada' : 'libre'
+          const waiter = t.current_waiter_name
+            ? `<span class="meta">${t.current_waiter_name}</span>`
+            : ''
+          const total =
+            st === 'ocupada'
+              ? `<span class="meta">${window.CasaTorinoPlanoMesas.money(t.total_amount)}</span>`
+              : `<span class="meta">Libre</span>`
+          return `<button type="button" class="plano-table shape-${t.shape || 'square'} ${st}" data-plano-mesa="${t.id}">
+            <span class="n">${t.id}</span>${waiter}${total}
+          </button>`
+        }
+        const order = (ids) => ids.map(cell).join('')
+        floor.innerHTML = `
+          <section class="plano-zone plano-lateral">
+            <h4>Lateral</h4>
+            <div class="plano-grid col">${order(['17', '16', '15'])}</div>
+          </section>
+          <section class="plano-zone plano-salon">
+            <h4>Salón</h4>
+            <div class="plano-grid salon">${order(['12', '13', '14', '11', '10', '9', '6', '7', '8'])}</div>
+          </section>
+          <aside class="plano-service" aria-hidden="true">
+            <div class="svc">Almacén</div>
+            <div class="svc banos">Baños</div>
+            <div class="svc cocina">Cocina</div>
+          </aside>
+          <section class="plano-zone plano-entrada">
+            <h4>Entrada</h4>
+            <div class="plano-grid col">${order(['3', '2', '1'])}</div>
+          </section>
+          <section class="plano-zone plano-barra">
+            <h4>Barra</h4>
+            <div class="plano-grid barra-top">${order(['4', '5'])}</div>
+            <div class="barra-l">BARRA · TPV</div>
+          </section>
+        `
+      }
+
+      async function openPlanoModal() {
+        const modal = $('planoModal')
+        if (!modal || !window.CasaTorinoPlanoMesas) {
+          alert('Plano no disponible en este dispositivo.')
+          return
+        }
+        const roleSel = $('planoRole')
+        const nameInp = $('planoWaiterName')
+        const role = window.CasaTorinoPlanoMesas.getRole()
+        if (roleSel) roleSel.value = role
+        const w = window.CasaTorinoPlanoMesas.getWaiter()
+        if (nameInp) nameInp.value = w?.name || ''
+        if ($('planoHint')) {
+          $('planoHint').textContent =
+            role === 'central'
+              ? 'TPV central (Windows): toca una mesa ocupada para cobrar. Verde libre / Rojo ocupada.'
+              : 'Móvil camarera: toca una mesa libre para asignártela y pedir. Puedes volver al plano cuando quieras.'
+        }
+        modal.hidden = false
+        try {
+          const snap = await window.CasaTorinoPlanoMesas.start((s) => paintPlanoFloor(s))
+          paintPlanoFloor(snap)
+          window.CasaTorinoPlanoMesas.syncTotalsFromLocal?.(state.tables)
+        } catch (err) {
+          console.warn('openPlanoModal', err)
+          alert('No se pudo cargar el plano.\n' + (err.message || err))
+        }
+      }
+
+      function closePlanoModal() {
+        if ($('planoModal')) $('planoModal').hidden = true
+        try {
+          window.CasaTorinoPlanoMesas?.stop?.()
+        } catch {}
+      }
+
+      $('btnPlanoOpen')?.addEventListener('click', () => openPlanoModal())
+      $('planoBack')?.addEventListener('click', () => closePlanoModal())
+      $('planoCancel')?.addEventListener('click', () => closePlanoModal())
+      $('planoRole')?.addEventListener('change', (e) => {
+        const role = window.CasaTorinoPlanoMesas?.setRole?.(e.target.value)
+        if ($('planoHint')) {
+          $('planoHint').textContent =
+            role === 'central'
+              ? 'TPV central (Windows): toca una mesa ocupada para cobrar. Verde libre / Rojo ocupada.'
+              : 'Móvil camarera: toca una mesa libre para asignártela y pedir. Puedes volver al plano cuando quieras.'
+        }
+      })
+      $('planoWaiterName')?.addEventListener('change', (e) => {
+        window.CasaTorinoPlanoMesas?.setWaiter?.(e.target.value)
+      })
+      $('planoFloor')?.addEventListener('click', async (e) => {
+        const btn = e.target.closest?.('[data-plano-mesa]')
+        if (!btn) return
+        const id = String(btn.getAttribute('data-plano-mesa') || '')
+        if (!id) return
+        try {
+          const nameInp = $('planoWaiterName')
+          if (nameInp?.value) window.CasaTorinoPlanoMesas.setWaiter(nameInp.value)
+          const res = await window.CasaTorinoPlanoMesas.claimTable(id)
+          if (!res || res.action !== 'open') return
+          closePlanoModal()
+          switchMesa(id)
+          if (res.role === 'central') {
+            try {
+              openTicket()
+            } catch {}
+          }
+        } catch (err) {
+          console.warn('plano claim', err)
+          alert(err.message || String(err))
+        }
+      })
+      $('planoModal')?.addEventListener('click', (e) => {
+        if (e.target === $('planoModal')) closePlanoModal()
+      })
       $('mesasCancel')?.addEventListener('click', () => closeMesasModal())
       $('mesasBack')?.addEventListener('click', () => closeMesasModal())
       $('mesasModal')?.addEventListener('click', (e) => {
