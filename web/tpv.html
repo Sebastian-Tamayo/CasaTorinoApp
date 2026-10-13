@@ -2359,21 +2359,31 @@
       }
       .plano-service { display: none !important; }
       .plano-zone {
-        padding: .32rem;
+        padding: .28rem;
         border-radius: 10px;
-        overflow: visible;
+        overflow: hidden;
         min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
       }
-      .plano-zone h4 { margin: 0 0 .22rem; font-size: .58rem; }
+      .plano-zone h4 {
+        margin: 0 0 .18rem;
+        font-size: .56rem;
+        flex: 0 0 auto;
+        line-height: 1.1;
+      }
 
       /* Cuadros compactos y completos (sin solaparse / sin clip) */
       .plano-table {
         min-height: 0 !important;
-        height: auto;
-        max-height: 100%;
-        padding: .18rem .12rem;
-        gap: .06rem;
+        height: 100%;
+        width: 100%;
+        max-width: 100%;
+        padding: .14rem .1rem;
+        gap: .04rem;
         box-sizing: border-box;
+        overflow: hidden;
       }
       .plano-table.shape-square,
       .plano-table.shape-rect,
@@ -2381,68 +2391,56 @@
         min-height: 0 !important;
         border-radius: 8px;
       }
-      .plano-table .n { font-size: .95rem; }
-      .plano-table .waiter { font-size: .58rem; }
-      .plano-table .meta { font-size: .55rem; }
+      .plano-table .n { font-size: .9rem; }
+      .plano-table .waiter { font-size: .55rem; }
+      .plano-table .meta { font-size: .52rem; }
 
-      /* Reservas (15–17) + Terraza: ocupan la fila alta */
-      .plano-lateral {
-        min-width: 0;
-      }
-      .plano-lateral .plano-grid.col {
-        gap: .3rem;
-        grid-template-rows: repeat(3, minmax(0, 1fr));
-        height: 100%;
+      /* Reservas + Terraza: el grid crece en el espacio bajo el título (no desborda) */
+      .plano-lateral .plano-grid.col,
+      .plano-salon .plano-grid.salon {
+        flex: 1 1 0;
         min-height: 0;
-        align-content: stretch;
+        height: auto !important;
+        gap: .25rem;
+        grid-template-rows: repeat(3, minmax(0, 1fr));
       }
-      .plano-lateral .plano-table {
+      .plano-salon .plano-grid.salon {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .plano-lateral .plano-table,
+      .plano-salon .plano-table {
         min-height: 0 !important;
         height: 100%;
-        width: 100%;
-        max-width: 100%;
-      }
-      .plano-salon {
-        min-width: 0;
-        min-height: 0;
-      }
-      .plano-grid.salon {
-        gap: .3rem;
-        grid-template-rows: repeat(3, minmax(0, 1fr));
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        height: 100%;
-        min-height: 0;
-        align-content: stretch;
-      }
-      .plano-salon .plano-table {
-        height: 100%;
-        width: 100%;
-        max-width: 100%;
       }
 
-      /* Entrada: altura propia (fila auto), mesas completas sin depender del stretch */
+      /* Entrada: altura propia (fila auto) */
       .plano-entrada {
-        min-height: 0;
-      }
-      .plano-entrada .plano-grid.col {
-        flex: 0 0 auto;
-        gap: .28rem;
-        height: auto;
-        grid-template-rows: repeat(3, auto);
-      }
-      .plano-entrada .plano-table {
-        height: auto !important;
-        min-height: 40px !important;
-      }
-
-      /* Barra: compacta — 2 mesas pequeñas + franja roja fina */
-      .plano-barra {
-        justify-content: flex-start;
-        gap: .2rem;
         min-height: 0;
         align-self: start;
         height: auto;
-        padding-bottom: .15rem;
+        overflow: hidden;
+      }
+      .plano-entrada .plano-grid.col {
+        flex: 0 0 auto;
+        gap: .22rem;
+        height: auto !important;
+        grid-template-rows: repeat(3, auto);
+      }
+      .plano-entrada .plano-table {
+        height: 38px !important;
+        min-height: 38px !important;
+        max-height: 38px;
+      }
+
+      /* Barra: solo contenido (2 mesas + rojo), no estira con la fila */
+      .plano-barra {
+        justify-content: flex-start;
+        gap: .15rem;
+        min-height: 0 !important;
+        align-self: start !important;
+        height: auto !important;
+        max-height: none;
+        overflow: hidden;
       }
       .plano-barra .barra-l {
         display: grid !important;
