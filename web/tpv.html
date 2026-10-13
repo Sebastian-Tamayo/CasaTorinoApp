@@ -2358,15 +2358,22 @@
         overflow: hidden;
       }
       .plano-service { display: none !important; }
-      .plano-zone { padding: .28rem; border-radius: 10px; }
+      .plano-zone {
+        padding: .32rem;
+        border-radius: 10px;
+        overflow: visible;
+        min-width: 0;
+      }
       .plano-zone h4 { margin: 0 0 .22rem; font-size: .58rem; }
 
-      /* Cuadros compactos y completos (sin solaparse) */
+      /* Cuadros compactos y completos (sin solaparse / sin clip) */
       .plano-table {
         min-height: 0 !important;
-        height: 100%;
+        height: auto;
+        max-height: 100%;
         padding: .18rem .12rem;
         gap: .06rem;
+        box-sizing: border-box;
       }
       .plano-table.shape-square,
       .plano-table.shape-rect,
@@ -2379,19 +2386,38 @@
       .plano-table .meta { font-size: .55rem; }
 
       /* Reservas (15–17) + Terraza: ocupan la fila alta */
+      .plano-lateral {
+        min-width: 0;
+      }
       .plano-lateral .plano-grid.col {
-        gap: .28rem;
+        gap: .3rem;
         grid-template-rows: repeat(3, minmax(0, 1fr));
         height: 100%;
+        min-height: 0;
+        align-content: stretch;
       }
       .plano-lateral .plano-table {
         min-height: 0 !important;
         height: 100%;
+        width: 100%;
+        max-width: 100%;
+      }
+      .plano-salon {
+        min-width: 0;
+        min-height: 0;
       }
       .plano-grid.salon {
-        gap: .28rem;
+        gap: .3rem;
         grid-template-rows: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         height: 100%;
+        min-height: 0;
+        align-content: stretch;
+      }
+      .plano-salon .plano-table {
+        height: 100%;
+        width: 100%;
+        max-width: 100%;
       }
 
       /* Entrada: altura propia (fila auto), mesas completas sin depender del stretch */
