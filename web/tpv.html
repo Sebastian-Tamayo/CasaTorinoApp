@@ -2001,32 +2001,62 @@
     }
 
     /* —— Plano mesas (overlay, no sustituye Mesas pendientes) —— */
+    #planoModal.course-modal {
+      align-items: start;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: .75rem;
+    }
     #planoModal.course-modal .course-card {
-      width: min(960px, 100%);
-      max-height: min(94dvh, 920px);
+      width: min(980px, 100%);
+      max-height: none;
+      display: flex;
+      flex-direction: column;
+      margin: auto;
     }
     .plano-toolbar {
-      display: flex; flex-wrap: wrap; gap: .45rem; align-items: center;
+      display: flex; flex-wrap: wrap; gap: .45rem; align-items: flex-end;
       margin: .2rem 0 .7rem;
+    }
+    .plano-toolbar label {
+      display: grid; gap: .25rem;
+      font-size: .68rem; font-weight: 800; letter-spacing: .04em;
+      text-transform: uppercase; color: var(--muted);
     }
     .plano-toolbar select, .plano-toolbar input {
       border: 1px solid var(--line2); border-radius: 12px;
       background: var(--card); color: var(--ink);
       padding: .55rem .7rem; font: inherit; font-weight: 700;
+      min-width: 140px;
     }
+    .plano-waiter-actions {
+      display: flex; flex-wrap: wrap; gap: .35rem;
+    }
+    .plano-waiter-actions button {
+      border: 1px solid var(--line2); border-radius: 10px;
+      background: var(--card); color: var(--ink);
+      padding: .45rem .65rem; font: inherit; font-size: .75rem; font-weight: 800;
+      cursor: pointer;
+    }
+    .plano-waiter-actions button:active { transform: scale(.98); }
     .plano-toolbar .plano-hint {
       flex: 1 1 100%; font-size: .78rem; color: var(--muted); margin: 0;
     }
     .plano-floor {
       display: grid;
-      grid-template-columns: 72px 1fr 110px;
-      grid-template-rows: auto auto auto;
+      grid-template-columns: 96px minmax(240px, 1fr) 100px;
+      grid-template-areas:
+        "lateral salon service"
+        "entrada barra service";
       gap: .55rem;
       background: linear-gradient(180deg, #e8e4dc, #f4f1ea);
       border-radius: 16px;
       padding: .65rem;
       color: #1a1a1a;
-      min-height: 420px;
+      min-height: 360px;
+      max-height: min(68dvh, 620px);
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
     }
     .plano-zone {
       background: rgba(255,255,255,.72);
@@ -2034,50 +2064,54 @@
       border-radius: 12px;
       padding: .45rem;
       position: relative;
+      min-width: 0;
     }
     .plano-zone h4 {
       margin: 0 0 .4rem; font-size: .68rem; letter-spacing: .06em;
       text-transform: uppercase; color: #666;
     }
-    .plano-lateral { grid-column: 1; grid-row: 1 / span 2; }
-    .plano-salon { grid-column: 2; grid-row: 1 / span 2; background: #d9d6d0; }
+    .plano-lateral { grid-area: lateral; }
+    .plano-salon { grid-area: salon; background: #d9d6d0; }
     .plano-service {
-      grid-column: 3; grid-row: 1 / span 3;
+      grid-area: service;
       display: flex; flex-direction: column; gap: .4rem;
+      background: transparent; border: 0; padding: 0;
     }
     .plano-service .svc {
       flex: 1; border-radius: 10px; display: grid; place-items: center;
       font-size: .72rem; font-weight: 800; color: #444; background: #efe6dc;
+      min-height: 48px;
     }
     .plano-service .svc.cocina { background: #e7d3b5; }
     .plano-service .svc.banos { background: #dce9f2; }
-    .plano-entrada { grid-column: 1; grid-row: 3; }
+    .plano-entrada { grid-area: entrada; }
     .plano-barra {
-      grid-column: 2; grid-row: 3;
+      grid-area: barra;
       background: #fff;
     }
     .plano-barra .barra-l {
-      height: 54px; margin-top: .45rem; border-radius: 10px;
+      height: 48px; margin-top: .45rem; border-radius: 10px;
       background: #e11d2e; color: #fff; display: grid; place-items: center;
       font-weight: 900; letter-spacing: .08em;
     }
     .plano-grid {
       display: grid; gap: .4rem;
     }
-    .plano-grid.salon { grid-template-columns: repeat(3, 1fr); }
+    .plano-grid.salon { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .plano-grid.col { grid-template-columns: 1fr; }
-    .plano-grid.barra-top { grid-template-columns: 1fr 1fr; max-width: 220px; margin: 0 auto; }
+    .plano-grid.barra-top { grid-template-columns: 1fr 1fr; max-width: 240px; margin: 0 auto; }
     .plano-table {
       border: 0; cursor: pointer; color: #111;
       font: inherit; font-weight: 900;
-      min-height: 64px; padding: .35rem;
+      min-height: 52px; padding: .3rem;
       display: grid; place-items: center; gap: .1rem;
       box-shadow: inset 0 0 0 2px rgba(0,0,0,.08);
       transition: transform .12s ease, filter .12s ease;
+      width: 100%;
     }
     .plano-table:active { transform: scale(.97); }
     .plano-table.shape-square { border-radius: 10px; aspect-ratio: 1; }
-    .plano-table.shape-rect { border-radius: 10px; min-height: 56px; }
+    .plano-table.shape-rect { border-radius: 10px; min-height: 48px; }
     .plano-table.shape-circle { border-radius: 999px; aspect-ratio: 1; }
     .plano-table.libre { background: #22c55e; color: #052e16; }
     .plano-table.ocupada { background: #ef4444; color: #fff; }
@@ -2088,11 +2122,15 @@
     }
     @media (max-width: 720px) {
       .plano-floor {
-        grid-template-columns: 64px 1fr;
-        grid-template-rows: auto auto auto auto;
+        grid-template-columns: 72px minmax(0, 1fr);
+        grid-template-areas:
+          "lateral salon"
+          "entrada barra"
+          "service service";
+        max-height: min(72dvh, 720px);
       }
-      .plano-service { grid-column: 1 / span 2; grid-row: 4; flex-direction: row; min-height: 48px; }
-      .plano-table { min-height: 54px; }
+      .plano-service { flex-direction: row; min-height: 44px; }
+      .plano-table { min-height: 48px; }
     }
 
     /* —— Fichaje —— */
@@ -2385,10 +2423,17 @@
           </select>
         </label>
         <label>
-          Camarera/o
-          <input id="planoWaiterName" type="text" maxlength="40" placeholder="Tu nombre" autocomplete="name" />
+          Quién accede
+          <select id="planoWaiterSelect" aria-label="Camarera que accede">
+            <option value="">— Elige camarera —</option>
+          </select>
         </label>
-        <p class="plano-hint" id="planoHint">Verde = libre · Rojo = ocupada. El TPV actual sigue igual; esto es un modo extra.</p>
+        <div class="plano-waiter-actions">
+          <button type="button" id="planoWaiterAdd">Añadir camarera</button>
+          <button type="button" id="planoWaiterEdit">Modificar</button>
+          <button type="button" id="planoWaiterDel">Eliminar</button>
+        </div>
+        <p class="plano-hint" id="planoHint">Verde = libre · Rojo = ocupada. Elige la camarera en el desplegable antes de tocar una mesa.</p>
       </div>
       <div class="plano-floor" id="planoFloor" aria-label="Plano Casa Torino"></div>
       <div class="course-actions">
@@ -2670,7 +2715,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-13-plano-1'
+      const TPV_CLIENT_VERSION = '2026-10-13-plano-2'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3017,7 +3062,11 @@
           }
         } catch (err) {
           console.warn('carta', err)
-          alert('No se pudo cargar la carta (data/carta.json). Revisa el deploy.')
+          alert(
+            'No se pudo cargar la carta.\n' +
+              (err && err.message ? err.message : err) +
+              '\nPulsa Actualizar o recarga la página.',
+          )
         }
       }
 
@@ -5635,6 +5684,32 @@
         `
       }
 
+      function paintPlanoWaiters(snap) {
+        const sel = $('planoWaiterSelect')
+        if (!sel || !window.CasaTorinoPlanoMesas) return
+        const list =
+          (snap && snap.waiters) ||
+          window.CasaTorinoPlanoMesas.listWaiters?.() ||
+          []
+        const cur = window.CasaTorinoPlanoMesas.getWaiter?.()
+        const curId = cur?.id || ''
+        sel.innerHTML =
+          '<option value="">— Elige camarera —</option>' +
+          list
+            .map(
+              (w) =>
+                `<option value="${w.id}" ${w.id === curId ? 'selected' : ''}>${w.name}</option>`,
+            )
+            .join('')
+        if (curId && !list.some((w) => w.id === curId)) sel.value = ''
+      }
+
+      function planoHintForRole(role) {
+        return role === 'central'
+          ? 'TPV central (Windows): toca una mesa ocupada para cobrar. Verde libre / Rojo ocupada. Mesas 1–3 están abajo a la izquierda.'
+          : 'Móvil camarera: elige tu nombre en el desplegable, toca una mesa libre y se te asigna.'
+      }
+
       async function openPlanoModal() {
         const modal = $('planoModal')
         if (!modal || !window.CasaTorinoPlanoMesas) {
@@ -5642,21 +5717,17 @@
           return
         }
         const roleSel = $('planoRole')
-        const nameInp = $('planoWaiterName')
         const role = window.CasaTorinoPlanoMesas.getRole()
         if (roleSel) roleSel.value = role
-        const w = window.CasaTorinoPlanoMesas.getWaiter()
-        if (nameInp) nameInp.value = w?.name || ''
-        if ($('planoHint')) {
-          $('planoHint').textContent =
-            role === 'central'
-              ? 'TPV central (Windows): toca una mesa ocupada para cobrar. Verde libre / Rojo ocupada.'
-              : 'Móvil camarera: toca una mesa libre para asignártela y pedir. Puedes volver al plano cuando quieras.'
-        }
+        if ($('planoHint')) $('planoHint').textContent = planoHintForRole(role)
         modal.hidden = false
         try {
-          const snap = await window.CasaTorinoPlanoMesas.start((s) => paintPlanoFloor(s))
+          const snap = await window.CasaTorinoPlanoMesas.start((s) => {
+            paintPlanoFloor(s)
+            paintPlanoWaiters(s)
+          })
           paintPlanoFloor(snap)
+          paintPlanoWaiters(snap)
           window.CasaTorinoPlanoMesas.syncTotalsFromLocal?.(state.tables)
         } catch (err) {
           console.warn('openPlanoModal', err)
@@ -5676,15 +5747,58 @@
       $('planoCancel')?.addEventListener('click', () => closePlanoModal())
       $('planoRole')?.addEventListener('change', (e) => {
         const role = window.CasaTorinoPlanoMesas?.setRole?.(e.target.value)
-        if ($('planoHint')) {
-          $('planoHint').textContent =
-            role === 'central'
-              ? 'TPV central (Windows): toca una mesa ocupada para cobrar. Verde libre / Rojo ocupada.'
-              : 'Móvil camarera: toca una mesa libre para asignártela y pedir. Puedes volver al plano cuando quieras.'
+        if ($('planoHint')) $('planoHint').textContent = planoHintForRole(role)
+      })
+      $('planoWaiterSelect')?.addEventListener('change', (e) => {
+        const id = e.target.value
+        if (id) window.CasaTorinoPlanoMesas?.setWaiterById?.(id)
+      })
+      $('planoWaiterAdd')?.addEventListener('click', async () => {
+        const name = prompt('Nombre de la nueva camarera:')
+        if (name == null) return
+        try {
+          await window.CasaTorinoPlanoMesas.addWaiter(name)
+          paintPlanoWaiters(window.CasaTorinoPlanoMesas.getSnapshot())
+        } catch (err) {
+          alert(err.message || String(err))
         }
       })
-      $('planoWaiterName')?.addEventListener('change', (e) => {
-        window.CasaTorinoPlanoMesas?.setWaiter?.(e.target.value)
+      $('planoWaiterEdit')?.addEventListener('click', async () => {
+        const sel = $('planoWaiterSelect')
+        const id = sel?.value
+        if (!id) {
+          alert('Elige una camarera en el desplegable.')
+          return
+        }
+        const cur = window.CasaTorinoPlanoMesas
+          .listWaiters()
+          .find((w) => w.id === id)
+        const name = prompt('Nuevo nombre:', cur?.name || '')
+        if (name == null) return
+        try {
+          await window.CasaTorinoPlanoMesas.updateWaiter(id, name)
+          paintPlanoWaiters(window.CasaTorinoPlanoMesas.getSnapshot())
+        } catch (err) {
+          alert(err.message || String(err))
+        }
+      })
+      $('planoWaiterDel')?.addEventListener('click', async () => {
+        const sel = $('planoWaiterSelect')
+        const id = sel?.value
+        if (!id) {
+          alert('Elige una camarera en el desplegable.')
+          return
+        }
+        const cur = window.CasaTorinoPlanoMesas
+          .listWaiters()
+          .find((w) => w.id === id)
+        if (!confirm(`¿Eliminar a ${cur?.name || 'esta camarera'}?`)) return
+        try {
+          await window.CasaTorinoPlanoMesas.removeWaiter(id)
+          paintPlanoWaiters(window.CasaTorinoPlanoMesas.getSnapshot())
+        } catch (err) {
+          alert(err.message || String(err))
+        }
       })
       $('planoFloor')?.addEventListener('click', async (e) => {
         const btn = e.target.closest?.('[data-plano-mesa]')
@@ -5692,8 +5806,8 @@
         const id = String(btn.getAttribute('data-plano-mesa') || '')
         if (!id) return
         try {
-          const nameInp = $('planoWaiterName')
-          if (nameInp?.value) window.CasaTorinoPlanoMesas.setWaiter(nameInp.value)
+          const sel = $('planoWaiterSelect')
+          if (sel?.value) window.CasaTorinoPlanoMesas.setWaiterById(sel.value)
           const res = await window.CasaTorinoPlanoMesas.claimTable(id)
           if (!res || res.action !== 'open') return
           closePlanoModal()

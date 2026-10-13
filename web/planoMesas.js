@@ -19,6 +19,15 @@
   const POLL_HIDDEN_MS = 60000
   const CHANNEL = 'casa-torino-plano'
 
+  const DEFAULT_WAITERS = [
+    { id: 'w-ana', name: 'Ana' },
+    { id: 'w-lucia', name: 'Lucía' },
+    { id: 'w-maria', name: 'María' },
+    { id: 'w-carmen', name: 'Carmen' },
+    { id: 'w-paula', name: 'Paula' },
+    { id: 'w-elena', name: 'Elena' },
+  ]
+
   const DEFAULT_TABLES = [
     { id: '1', name: 'Mesa 1', zone: 'Entrada', shape: 'rect', sort_order: 1, layout: { area: 'entrada', row: 3, col: 1 } },
     { id: '2', name: 'Mesa 2', zone: 'Entrada', shape: 'rect', sort_order: 2, layout: { area: 'entrada', row: 2, col: 1 } },
@@ -42,6 +51,7 @@
   let sb = null
   let useSqlTable = null // null=unknown, true/false
   let tables = []
+  let waiters = DEFAULT_WAITERS.map((w) => ({ ...w }))
   let tpvCarts = {}
   let channel = null
   let pollTimer = null
@@ -102,27 +112,154 @@
     return r
   }
 
+  function slugWaiterId(name) {
+    return (
+      'w-' +
+      String(name || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 28)
+    )
+  }
+
+  function listWaiters() {
+    return waiters.slice()
+  }
+
   function getWaiter() {
     try {
       const raw = localStorage.getItem(WAITER_KEY)
       if (!raw) return null
       const o = JSON.parse(raw)
-      if (o && o.id && o.name) return o
+      if (o && o.id) {
+        const found = waiters.find((w) => w.id === o.id)
+        if (found) return found
+        if (o.name) return o
+      }
     } catch {}
     return null
   }
 
-  function setWaiter(name) {
-    const n = String(name || '').trim().slice(0, 40)
-    if (!n) return null
-    const w = {
-      id: 'w-' + n.toLowerCase().replace(/\s+/g, '-').slice(0, 24),
-      name: n,
-    }
+  function setWaiterById(id) {
+    const w = waiters.find((x) => x.id === String(id || ''))
+    if (!w) return null
     try {
       localStorage.setItem(WAITER_KEY, JSON.stringify(w))
     } catch {}
     return w
+  }
+
+  /** @deprecated prefer setWaiterById — se mantiene por compat */
+  function setWaiter(nameOrId) {
+    const byId = setWaiterById(nameOrId)
+    if (byId) return byId
+    const n = String(nameOrId || '').trim().slice(0, 40)
+    if (!n) return null
+    let w = waiters.find(
+      (x) => x.name.toLowerCase() === n.toLowerCase() || x.id === n,
+    )
+    if (!w) {
+      w = { id: slugWaiterId(n) || 'w-' + Date.now(), name: n }
+      waiters.push(w)
+    }
+    return setWaiterById(w.id)
+  }
+
+  async function persistWaiters() {
+    const c = await client()
+    const { data, error } = await c
+      .from('ops_kv')
+      .select('value')
+      .eq('key', FLOOR_KEY)
+      .maybeSingle()
+    if (error) throw error
+    const prev =
+      data?.value && typeof data.value === 'object' ? data.value : {}
+    const value = {
+      ...prev,
+      kind: 'casa-torino-plano-mesas',
+      source: prev.source || 'ops_kv_overlay',
+      tables: Array.isArray(prev.tables)
+        ? prev.tables
+        : tables.map((t) => ({
+            id: t.id,
+            name: t.name,
+            zone: t.zone,
+            shape: t.shape,
+            status: t.status,
+            total_amount: Number(t.total_amount) || 0,
+            current_waiter_id: t.current_waiter_id,
+            current_waiter_name: t.current_waiter_name,
+            sort_order: t.sort_order,
+            layout: t.layout || {},
+          })),
+      waiters: waiters.map((w) => ({ id: w.id, name: w.name })),
+      updatedAt: Date.now(),
+    }
+    const { error: e2 } = await c.from('ops_kv').upsert(
+      { key: FLOOR_KEY, value, updated_at: new Date().toISOString() },
+      { onConflict: 'key' },
+    )
+    if (e2) throw e2
+    await broadcast('floor-updated')
+    if (typeof onChange === 'function') onChange(getSnapshot())
+  }
+
+  async function addWaiter(name) {
+    const n = String(name || '').trim().slice(0, 40)
+    if (!n) throw new Error('Escribe un nombre')
+    if (waiters.some((w) => w.name.toLowerCase() === n.toLowerCase())) {
+      throw new Error('Ya existe esa camarera')
+    }
+    let id = slugWaiterId(n)
+    if (!id || waiters.some((w) => w.id === id)) id = id + '-' + Date.now().toString(36).slice(-4)
+    const w = { id, name: n }
+    waiters.push(w)
+    await persistWaiters()
+    setWaiterById(w.id)
+    return w
+  }
+
+  async function updateWaiter(id, name) {
+    const n = String(name || '').trim().slice(0, 40)
+    if (!n) throw new Error('Escribe un nombre')
+    const idx = waiters.findIndex((w) => w.id === String(id || ''))
+    if (idx < 0) throw new Error('Camarera no encontrada')
+    if (
+      waiters.some(
+        (w) => w.id !== id && w.name.toLowerCase() === n.toLowerCase(),
+      )
+    ) {
+      throw new Error('Ya existe esa camarera')
+    }
+    waiters[idx] = { ...waiters[idx], name: n }
+    // Actualizar nombre en mesas asignadas
+    tables = tables.map((t) =>
+      t.current_waiter_id === id
+        ? { ...t, current_waiter_name: n }
+        : t,
+    )
+    await persistWaiters()
+    const cur = getWaiter()
+    if (cur && cur.id === id) setWaiterById(id)
+    return waiters[idx]
+  }
+
+  async function removeWaiter(id) {
+    if (waiters.length <= 1) throw new Error('Debe quedar al menos una camarera')
+    const wid = String(id || '')
+    waiters = waiters.filter((w) => w.id !== wid)
+    const cur = getWaiter()
+    if (cur && cur.id === wid) {
+      try {
+        localStorage.removeItem(WAITER_KEY)
+      } catch {}
+    }
+    await persistWaiters()
+    return listWaiters()
   }
 
   async function ensureLib() {
@@ -200,6 +337,19 @@
       .eq('key', FLOOR_KEY)
       .maybeSingle()
     if (error) throw error
+    const rawWaiters = Array.isArray(data?.value?.waiters)
+      ? data.value.waiters
+      : null
+    if (rawWaiters && rawWaiters.length) {
+      waiters = rawWaiters
+        .map((w) => ({
+          id: String(w.id || slugWaiterId(w.name) || ''),
+          name: String(w.name || '').trim().slice(0, 40),
+        }))
+        .filter((w) => w.id && w.name)
+    } else {
+      waiters = DEFAULT_WAITERS.map((w) => ({ ...w }))
+    }
     const items = Array.isArray(data?.value?.tables) ? data.value.tables : []
     if (!items.length) {
       return DEFAULT_TABLES.map((t) =>
@@ -256,6 +406,7 @@
         sort_order: t.sort_order,
         layout: t.layout || {},
       })),
+      waiters: waiters.map((w) => ({ id: w.id, name: w.name })),
       updatedAt: Date.now(),
     }
     const { error } = await c.from('ops_kv').upsert(
@@ -361,9 +512,7 @@
 
     let waiter = getWaiter()
     if (!waiter) {
-      const name = prompt('Tu nombre (camarera/o):')
-      waiter = setWaiter(name)
-      if (!waiter) throw new Error('Falta el nombre del camarero')
+      throw new Error('Elige qué camarera está accediendo en el desplegable')
     }
 
     if (row.status === 'ocupada' && row.current_waiter_id && row.current_waiter_id !== waiter.id) {
@@ -449,6 +598,7 @@
     return {
       role: getRole(),
       waiter: getWaiter(),
+      waiters: listWaiters(),
       useSqlTable: useSqlTable,
       tables: tables.slice(),
     }
@@ -490,8 +640,14 @@
     setRole,
     getWaiter,
     setWaiter,
+    setWaiterById,
+    listWaiters,
+    addWaiter,
+    updateWaiter,
+    removeWaiter,
     getSnapshot,
     money,
     DEFAULT_TABLES,
+    DEFAULT_WAITERS,
   }
 })()
