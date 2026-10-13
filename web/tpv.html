@@ -2158,9 +2158,9 @@
       background: #fff;
     }
     .plano-barra .barra-l {
-      height: 52px; margin-top: .45rem; border-radius: 10px;
+      height: 40px; margin-top: .35rem; border-radius: 10px;
       background: #e11d2e; color: #fff; display: grid; place-items: center;
-      font-weight: 900; letter-spacing: .08em;
+      font-weight: 900; letter-spacing: .08em; font-size: .85rem;
       flex: 0 0 auto;
     }
     .plano-grid {
@@ -2173,24 +2173,28 @@
       min-height: 0;
     }
     .plano-grid.col { grid-template-columns: 1fr; }
-    /* 4 y 5: separadas a lo ancho, ocupan toda la zona barra */
+    /* 4 y 5: más compactas para no comer altura al salón (6–8) */
     .plano-grid.barra-top {
-      flex: 1 1 auto;
+      flex: 0 1 auto;
       grid-template-columns: 1fr 1fr;
       width: 100%;
       max-width: none;
       margin: 0;
-      gap: clamp(2.25rem, 10vw, 5rem);
-      align-items: stretch;
-      min-height: 88px;
+      gap: clamp(1.5rem, 8vw, 3.5rem);
+      align-items: center;
+      min-height: 0;
     }
     .plano-grid.barra-top .plano-table {
       width: 100%;
-      max-width: 140px;
+      max-width: 96px;
       justify-self: center;
       aspect-ratio: auto;
-      min-height: 88px;
+      min-height: 64px !important;
+      padding: .3rem .25rem;
     }
+    .plano-grid.barra-top .plano-table .n { font-size: 1.05rem; }
+    .plano-grid.barra-top .plano-table .waiter { font-size: .68rem; }
+    .plano-grid.barra-top .plano-table .meta { font-size: .62rem; }
     .plano-grid.barra-top .plano-table[data-plano-mesa="4"] {
       justify-self: start;
     }
@@ -2255,13 +2259,14 @@
       .plano-table .waiter { font-size: .84rem; }
       .plano-table .meta { font-size: .78rem; }
       .plano-grid.barra-top {
-        min-height: 96px;
-        gap: clamp(2.5rem, 12vw, 6rem);
+        min-height: 0;
+        gap: clamp(2rem, 10vw, 4.5rem);
       }
       .plano-grid.barra-top .plano-table {
-        max-width: 160px;
-        min-height: 96px;
+        max-width: 110px;
+        min-height: 72px !important;
       }
+      .plano-barra .barra-l { height: 44px; }
       .plano-toolbar select,
       .plano-toolbar input {
         min-height: 56px;
@@ -2306,26 +2311,38 @@
     @media (max-width: 720px) {
       .plano-floor {
         grid-template-columns: minmax(88px, 0.32fr) minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1.35fr) minmax(0, 0.85fr) auto;
         grid-template-areas:
           "lateral salon"
           "entrada barra"
           "service service";
         max-height: min(72dvh, 720px);
       }
-      .plano-service { flex-direction: row; min-height: 44px; }
+      .plano-service { flex-direction: row; min-height: 40px; }
       .plano-table { min-height: 64px; }
       .plano-table.shape-square,
       .plano-table.shape-circle { min-height: 64px; }
+      /* 4 y 5 pequeñas en móvil → salón (6–8) se ve completo */
+      .plano-barra .barra-l {
+        height: 32px;
+        margin-top: .25rem;
+        font-size: .72rem;
+      }
       .plano-grid.barra-top {
-        gap: clamp(1rem, 8vw, 2rem);
-        padding: 0 .35rem;
-        min-height: 72px;
+        gap: clamp(.75rem, 6vw, 1.5rem);
+        padding: 0 .25rem;
+        min-height: 0;
+        flex: 0 0 auto;
       }
       .plano-grid.barra-top .plano-table {
-        max-width: 110px;
-        min-height: 72px;
+        max-width: 72px;
+        min-height: 52px !important;
         justify-self: center;
+        padding: .22rem .15rem;
       }
+      .plano-grid.barra-top .plano-table .n { font-size: .95rem; }
+      .plano-grid.barra-top .plano-table .waiter { font-size: .6rem; }
+      .plano-grid.barra-top .plano-table .meta { font-size: .58rem; }
       .plano-grid.barra-top .plano-table[data-plano-mesa="4"],
       .plano-grid.barra-top .plano-table[data-plano-mesa="5"] {
         justify-self: center;
@@ -2905,7 +2922,7 @@
   <script src="tpvJornada.js?v=push-msg-1"></script>
   <script src="kitchenSync.js?v=fix-create-1"></script>
   <script src="reservaAlertSync.js"></script>
-  <script src="planoMesas.js?v=plano-11"></script>
+  <script src="planoMesas.js?v=plano-12"></script>
   <script>
     (() => {
       /**
@@ -2914,7 +2931,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-13-plano-11'
+      const TPV_CLIENT_VERSION = '2026-10-13-plano-12'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3051,7 +3068,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=plano-11')
+            .register('/sw-tpv.js?v=plano-12')
             .catch(() => {})
         })
         try {
