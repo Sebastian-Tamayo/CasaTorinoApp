@@ -2044,7 +2044,8 @@
     }
     .plano-floor {
       display: grid;
-      grid-template-columns: 96px minmax(240px, 1fr) 100px;
+      grid-template-columns: minmax(112px, 0.28fr) minmax(240px, 1fr) 100px;
+      grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
       grid-template-areas:
         "lateral salon service"
         "entrada barra service";
@@ -2057,6 +2058,7 @@
       max-height: min(68dvh, 620px);
       overflow: auto;
       -webkit-overflow-scrolling: touch;
+      align-items: stretch;
     }
     .plano-zone {
       background: rgba(255,255,255,.72);
@@ -2065,12 +2067,31 @@
       padding: .45rem;
       position: relative;
       min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
     }
     .plano-zone h4 {
       margin: 0 0 .4rem; font-size: .68rem; letter-spacing: .06em;
       text-transform: uppercase; color: #666;
+      flex: 0 0 auto;
     }
     .plano-lateral { grid-area: lateral; }
+    /* 15–17: reparten toda la altura de la columna lateral */
+    .plano-lateral .plano-grid.col {
+      flex: 1 1 auto;
+      grid-template-columns: 1fr;
+      grid-template-rows: repeat(3, minmax(0, 1fr));
+      gap: .5rem;
+      min-height: 0;
+      height: 100%;
+    }
+    .plano-lateral .plano-table {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      aspect-ratio: auto;
+    }
     .plano-salon { grid-area: salon; background: #d9d6d0; }
     .plano-service {
       grid-area: service;
@@ -2085,6 +2106,18 @@
     .plano-service .svc.cocina { background: #e7d3b5; }
     .plano-service .svc.banos { background: #dce9f2; }
     .plano-entrada { grid-area: entrada; }
+    .plano-entrada .plano-grid.col {
+      flex: 1 1 auto;
+      grid-template-rows: repeat(3, minmax(0, 1fr));
+      min-height: 0;
+      height: 100%;
+    }
+    .plano-entrada .plano-table {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      aspect-ratio: auto;
+    }
     .plano-barra {
       grid-area: barra;
       background: #fff;
@@ -2093,13 +2126,40 @@
       height: 48px; margin-top: .45rem; border-radius: 10px;
       background: #e11d2e; color: #fff; display: grid; place-items: center;
       font-weight: 900; letter-spacing: .08em;
+      flex: 0 0 auto;
     }
     .plano-grid {
       display: grid; gap: .4rem;
     }
-    .plano-grid.salon { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .plano-grid.salon {
+      flex: 1 1 auto;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      min-height: 0;
+    }
     .plano-grid.col { grid-template-columns: 1fr; }
-    .plano-grid.barra-top { grid-template-columns: 1fr 1fr; max-width: 240px; margin: 0 auto; }
+    /* 4 y 5: separadas a lo ancho, ocupan toda la zona barra */
+    .plano-grid.barra-top {
+      flex: 1 1 auto;
+      grid-template-columns: 1fr 1fr;
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      gap: clamp(2.25rem, 10vw, 5rem);
+      align-items: stretch;
+      min-height: 72px;
+    }
+    .plano-grid.barra-top .plano-table {
+      width: 100%;
+      max-width: 110px;
+      justify-self: center;
+      aspect-ratio: 1;
+    }
+    .plano-grid.barra-top .plano-table[data-plano-mesa="4"] {
+      justify-self: start;
+    }
+    .plano-grid.barra-top .plano-table[data-plano-mesa="5"] {
+      justify-self: end;
+    }
     .plano-table {
       border: 0; cursor: pointer; color: #111;
       font: inherit; font-weight: 900;
@@ -2122,7 +2182,7 @@
     }
     @media (max-width: 720px) {
       .plano-floor {
-        grid-template-columns: 72px minmax(0, 1fr);
+        grid-template-columns: minmax(88px, 0.32fr) minmax(0, 1fr);
         grid-template-areas:
           "lateral salon"
           "entrada barra"
@@ -2131,6 +2191,9 @@
       }
       .plano-service { flex-direction: row; min-height: 44px; }
       .plano-table { min-height: 48px; }
+      .plano-grid.barra-top {
+        gap: clamp(1.5rem, 12vw, 3rem);
+      }
     }
 
     /* —— Fichaje —— */
