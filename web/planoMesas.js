@@ -309,7 +309,25 @@
       let status = t.status
       if (qty > 0) status = 'ocupada'
       else if (!t.current_waiter_id) status = 'libre'
-      return { ...t, status, total_amount: total, qty }
+      // Recuperar camarera desde el carrito TPV si el plano no la tiene
+      let current_waiter_id = t.current_waiter_id || null
+      let current_waiter_name = t.current_waiter_name || null
+      if (qty > 0 && cartBlob && typeof cartBlob === 'object') {
+        if (!current_waiter_id && cartBlob.waiterId) {
+          current_waiter_id = String(cartBlob.waiterId)
+        }
+        if (!current_waiter_name && cartBlob.waiterName) {
+          current_waiter_name = String(cartBlob.waiterName)
+        }
+      }
+      return {
+        ...t,
+        status,
+        total_amount: total,
+        qty,
+        current_waiter_id,
+        current_waiter_name,
+      }
     })
   }
 
@@ -520,31 +538,40 @@
     const row = tables.find((t) => t.id === id)
     if (!row) throw new Error('Mesa no encontrada')
 
-    if (role === 'central') {
-      return { action: 'open', tableId: id, role }
-    }
-
-    let waiter = getWaiter()
+    // Obligatorio en móvil Y en Windows: el plano debe mostrar quién gestiona la mesa
+    const waiter = getWaiter()
     if (!waiter) {
       throw new Error('Elige qué camarera está accediendo en el desplegable')
     }
 
-    if (row.status === 'ocupada' && row.current_waiter_id && row.current_waiter_id !== waiter.id) {
+    if (
+      row.status === 'ocupada' &&
+      row.current_waiter_id &&
+      row.current_waiter_id !== waiter.id
+    ) {
       const ok = confirm(
         `Mesa ${id} la atiende ${row.current_waiter_name || 'otro'}. ¿Abrir igual?`,
       )
       if (!ok) return { action: 'cancel', tableId: id, role }
-      return { action: 'open', tableId: id, role }
+      // Conservar la camarera ya asignada (control del salón)
+      return {
+        action: 'open',
+        tableId: id,
+        role,
+        waiter: {
+          id: row.current_waiter_id,
+          name: row.current_waiter_name || '',
+        },
+      }
     }
 
-    if (row.status === 'libre' || !row.current_waiter_id) {
-      await patchTable(id, {
-        status: 'ocupada',
-        total_amount: Number(row.total_amount) || 0,
-        current_waiter_id: waiter.id,
-        current_waiter_name: waiter.name,
-      })
-    }
+    // Asignar / refrescar nombre en libre o si es la misma camarera
+    await patchTable(id, {
+      status: 'ocupada',
+      total_amount: Number(row.total_amount) || 0,
+      current_waiter_id: waiter.id,
+      current_waiter_name: waiter.name,
+    })
     return { action: 'open', tableId: id, role, waiter }
   }
 
@@ -564,26 +591,54 @@
     tpvCarts = localTables
     let changed = false
     const next = tables.map((t) => {
-      const qty = cartQty(localTables[t.id])
-      const total = qty > 0 ? cartTotal(localTables[t.id]) : 0
-      const status = qty > 0 || t.current_waiter_id ? (qty > 0 ? 'ocupada' : t.status) : 'libre'
-      if (qty === 0 && t.current_waiter_id && t.status === 'ocupada' && total === 0) {
-        // cobrada: liberar
+      const blob = localTables[t.id]
+      const qty = cartQty(blob)
+      const total = qty > 0 ? cartTotal(blob) : 0
+      let waiterId = t.current_waiter_id || null
+      let waiterName = t.current_waiter_name || null
+      if (qty > 0 && blob && typeof blob === 'object') {
+        if (!waiterId && blob.waiterId) waiterId = String(blob.waiterId)
+        if (!waiterName && blob.waiterName) waiterName = String(blob.waiterName)
+      }
+      if (qty === 0) {
+        if (t.status === 'ocupada' || t.current_waiter_id || t.total_amount) {
+          changed = true
+          return {
+            ...t,
+            status: 'libre',
+            total_amount: 0,
+            current_waiter_id: null,
+            current_waiter_name: null,
+            qty: 0,
+          }
+        }
+        return { ...t, qty: 0, total_amount: 0 }
+      }
+      const status = 'ocupada'
+      if (
+        total !== Number(t.total_amount) ||
+        t.status !== 'ocupada' ||
+        String(waiterId || '') !== String(t.current_waiter_id || '') ||
+        String(waiterName || '') !== String(t.current_waiter_name || '')
+      ) {
         changed = true
         return {
           ...t,
-          status: 'libre',
-          total_amount: 0,
-          current_waiter_id: null,
-          current_waiter_name: null,
-          qty: 0,
+          status,
+          total_amount: total,
+          qty,
+          current_waiter_id: waiterId,
+          current_waiter_name: waiterName,
         }
       }
-      if (total !== t.total_amount || (qty > 0 && t.status !== 'ocupada')) {
-        changed = true
-        return { ...t, status: qty > 0 ? 'ocupada' : status, total_amount: total, qty }
+      return {
+        ...t,
+        status,
+        qty,
+        total_amount: total,
+        current_waiter_id: waiterId,
+        current_waiter_name: waiterName,
       }
-      return { ...t, qty, total_amount: total }
     })
     tables = next
     if (changed) {

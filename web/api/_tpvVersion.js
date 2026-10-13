@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-13-plano-4'
-const message = 'Actualiza: sync en tiempo real y borrados que no vuelven'
+const required = '2026-10-13-plano-6'
+const message = 'Actualiza: camarera visible en cada mesa + sync sin quemar Hobby'
 
 function forceInfo() {
   return { required, message }

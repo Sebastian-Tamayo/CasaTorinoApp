@@ -2176,6 +2176,11 @@
     .plano-table.libre { background: #22c55e; color: #052e16; }
     .plano-table.ocupada { background: #ef4444; color: #fff; }
     .plano-table .n { font-size: 1.05rem; line-height: 1; }
+    .plano-table .waiter {
+      font-size: .68rem; font-weight: 800; letter-spacing: .01em;
+      max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      line-height: 1.1;
+    }
     .plano-table .meta {
       font-size: .62rem; font-weight: 700; opacity: .95;
       max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -2778,7 +2783,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-13-plano-4'
+      const TPV_CLIENT_VERSION = '2026-10-13-plano-6'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3532,12 +3537,31 @@
         } catch {}
       }
 
+      function currentPlanoWaiter() {
+        try {
+          return window.CasaTorinoPlanoMesas?.getWaiter?.() || null
+        } catch {
+          return null
+        }
+      }
+
       function stampMesa(m, data, opts = {}) {
         const prev = (m && state.tables && state.tables[m]) || {}
         const now = Date.now()
         // CRÍTICO: no subir updatedAt en snapshots de lectura (poll/merge).
         // Si se bumpea en cada tick, el local siempre “gana” y resucitan borrados.
         const bump = opts.bump !== false
+        const w = currentPlanoWaiter()
+        const waiterId =
+          data.waiterId ||
+          prev.waiterId ||
+          w?.id ||
+          null
+        const waiterName =
+          data.waiterName ||
+          prev.waiterName ||
+          w?.name ||
+          null
         return {
           cart: data.cart || {},
           hist: data.hist || [],
@@ -3549,6 +3573,8 @@
               : prev.removed && typeof prev.removed === 'object'
                 ? prev.removed
                 : {},
+          waiterId: waiterId ? String(waiterId) : null,
+          waiterName: waiterName ? String(waiterName) : null,
           updatedAt: bump
             ? now
             : Math.max(0, Number(prev.updatedAt) || 0) || now,
@@ -5769,14 +5795,16 @@
         const cell = (id) => {
           const t = byId[id] || { id, status: 'libre', total_amount: 0, shape: 'square' }
           const st = t.status === 'ocupada' ? 'ocupada' : 'libre'
-          const waiter = t.current_waiter_name
-            ? `<span class="meta">${t.current_waiter_name}</span>`
-            : ''
+          const waiterName = String(t.current_waiter_name || '').trim()
+          const waiter =
+            st === 'ocupada'
+              ? `<span class="waiter">${waiterName || 'Sin asignar'}</span>`
+              : ''
           const total =
             st === 'ocupada'
               ? `<span class="meta">${window.CasaTorinoPlanoMesas.money(t.total_amount)}</span>`
               : `<span class="meta">Libre</span>`
-          return `<button type="button" class="plano-table shape-${t.shape || 'square'} ${st}" data-plano-mesa="${t.id}">
+          return `<button type="button" class="plano-table shape-${t.shape || 'square'} ${st}" data-plano-mesa="${t.id}" title="${st === 'ocupada' ? (waiterName || 'Sin asignar') : 'Libre'}">
             <span class="n">${t.id}</span>${waiter}${total}
           </button>`
         }
@@ -5829,8 +5857,8 @@
 
       function planoHintForRole(role) {
         return role === 'central'
-          ? 'TPV central (Windows): toca una mesa → vas a la carta de esa mesa. Para cobrar usa Cuenta / FAB.'
-          : 'Móvil camarera: elige tu nombre, toca una mesa y entras directo a la carta para pedir.'
+          ? 'TPV central: elige camarera en el desplegable, toca mesa → carta. En el plano se ve quién atiende + total.'
+          : 'Móvil: elige tu nombre, toca una mesa (queda asignada a ti) y entras a la carta.'
       }
 
       async function openPlanoModal() {
@@ -5933,6 +5961,33 @@
           if (sel?.value) window.CasaTorinoPlanoMesas.setWaiterById(sel.value)
           const res = await window.CasaTorinoPlanoMesas.claimTable(id)
           if (!res || res.action !== 'open') return
+          // Guardar camarera en el carrito de la mesa (sync a todos los dispositivos)
+          if (res.waiter?.id || res.waiter?.name) {
+            const prev = state.tables[id] || {
+              cart: {},
+              hist: [],
+              notes: '',
+              paid: '',
+              removed: {},
+            }
+            state.tables[id] = stampMesa(id, {
+              cart: prev.cart || {},
+              hist: prev.hist || [],
+              notes: prev.notes || '',
+              paid: prev.paid || '',
+              removed: prev.removed || {},
+              waiterId: res.waiter.id,
+              waiterName: res.waiter.name,
+            })
+            writeTablesStore({
+              mesa: id,
+              tables: state.tables,
+              opsDay: state.opsDay || '',
+            })
+            try {
+              window.CasaTorinoTpvSync?.push?.(state.tables, id)
+            } catch {}
+          }
           closePlanoModal()
           switchMesa(id)
           // Siempre a la CARTA para añadir productos (no abrir Cuenta/total).

@@ -140,6 +140,8 @@ function mergeBusyTables(a, b, preferA) {
     hist: mergeHist(newer.hist, older.hist),
     notes: String(newer.notes || older.notes || ''),
     paid: String(newer.paid || older.paid || ''),
+    waiterId: newer.waiterId || older.waiterId || null,
+    waiterName: newer.waiterName || older.waiterName || null,
     updatedAt: Math.max(aAt, bAt),
   }
 }

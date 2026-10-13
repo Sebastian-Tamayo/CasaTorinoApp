@@ -1,15 +1,16 @@
 /**
  * Casa Torino TPV — sync mesas móvil ↔ PC
- * - lastLocalWrite al instante al editar (evita que un poll viejo resucite mesas vaciadas)
- * - opsDay 08:00 Madrid: purge diario sin resucitar
- * - Mesas cobradas (cart vacío en remoto) no se resucitan
+ * - Lectura/escritura DIRECTA a Supabase ops_kv (NO quema invocaciones Vercel Hobby)
+ * - Broadcast Realtime para pull al instante; poll solo como respaldo
+ * - /api/tpv-sync queda como fallback; auth PIN sigue en Vercel (poco frecuente)
  */
 (() => {
   const API_URL = '/api/tpv-sync'
   const AUTH_URL = '/api/tpv-auth'
-  // Dinero: poll agresivo en pantalla. Oculta: más lento pero no “apagado”.
-  const POLL_MS = 2000
-  const POLL_HIDDEN_MS = 12000
+  const TPV_KEY = 'tpv'
+  // Respaldo lento: el tiempo real va por Supabase Broadcast (0 Vercel).
+  const POLL_MS = 10000
+  const POLL_HIDDEN_MS = 45000
   const PUSH_DEBOUNCE_MS = 200
   const SB_URL = 'https://fpnjtgoxljqmwuukyrrm.supabase.co'
   const SB_ANON = 'sb_publishable_A_zxEJjB3NN_hh8Qdu7ccQ_qhcWGoz0'
@@ -278,6 +279,8 @@
       hist: mergeHist(newer.hist, older.hist),
       notes: String(newer.notes || older.notes || ''),
       paid: String(newer.paid || older.paid || ''),
+      waiterId: newer.waiterId || older.waiterId || null,
+      waiterName: newer.waiterName || older.waiterName || null,
       updatedAt: Math.max(aAt, bAt),
     }
   }
@@ -371,7 +374,48 @@
     return { tables: out, keptLocal }
   }
 
+  function emptyTpvState() {
+    return {
+      kind: 'casa-torino-tpv',
+      tables: {},
+      mesa: '',
+      opsDay: opsDayId(),
+      updatedAt: 0,
+      clientId: null,
+    }
+  }
+
+  function applyTpvDayRollover(state) {
+    const day = opsDayId()
+    const base =
+      state && typeof state === 'object' ? state : emptyTpvState()
+    const opsDay = base.opsDay || null
+    if (opsDay === day) {
+      return { state: { ...base, opsDay: day }, changed: false, day }
+    }
+    if (!opsDay) {
+      return {
+        state: { ...base, kind: base.kind || 'casa-torino-tpv', opsDay: day },
+        changed: true,
+        day,
+      }
+    }
+    return {
+      state: {
+        kind: 'casa-torino-tpv',
+        tables: {},
+        mesa: '',
+        opsDay: day,
+        updatedAt: Date.now(),
+        clientId: null,
+      },
+      changed: true,
+      day,
+    }
+  }
+
   async function refreshSession() {
+    // Solo cookie PIN — poco frecuente; no es el sync de mesas
     try {
       await fetch(AUTH_URL, {
         method: 'POST',
@@ -410,27 +454,58 @@
     throw err
   }
 
-  async function pull() {
-    let lastErr = null
-    for (let i = 1; i <= 3; i++) {
+  /** Pull directo Supabase — 0 invocaciones Vercel */
+  async function pullFromSupabase() {
+    const c = await ensureSb()
+    const { data, error } = await c
+      .from('ops_kv')
+      .select('value')
+      .eq('key', TPV_KEY)
+      .maybeSingle()
+    if (error) throw error
+    const raw =
+      data?.value && typeof data.value === 'object'
+        ? data.value
+        : emptyTpvState()
+    const { state, changed } = applyTpvDayRollover(raw)
+    if (changed) {
       try {
-        const r = await fetch(API_URL, {
-          cache: 'no-store',
-          credentials: 'same-origin',
-          headers: clientHeaders(),
-        })
-        if (r.status === 426) await handleForceStatus(r)
-        if (!r.ok) throw new Error('sync GET ' + r.status)
-        const data = await r.json()
-        noteTpvForce(data)
-        return data
+        await c.from('ops_kv').upsert(
+          {
+            key: TPV_KEY,
+            value: state,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'key' },
+        )
       } catch (err) {
-        lastErr = err
-        if (err && err.status === 426) throw err
-        await sleep(200 * i)
+        console.warn('[tpvSync] rollover write', err)
       }
     }
-    throw lastErr || new Error('sync GET failed')
+    return state
+  }
+
+  /** Fallback legacy — solo si Supabase falla */
+  async function pullFromApi() {
+    const r = await fetch(API_URL, {
+      cache: 'no-store',
+      credentials: 'same-origin',
+      headers: clientHeaders(),
+    })
+    if (r.status === 426) await handleForceStatus(r)
+    if (!r.ok) throw new Error('sync GET ' + r.status)
+    const data = await r.json()
+    noteTpvForce(data)
+    return data
+  }
+
+  async function pull() {
+    try {
+      return await pullFromSupabase()
+    } catch (err) {
+      console.warn('[tpvSync] pull SB → API', err)
+      return pullFromApi()
+    }
   }
 
   function shouldBlockEmptyPush(tables) {
@@ -439,6 +514,83 @@
     if (qty > 0) return false
     if (lastRemoteQty > 0 && keys === 0) return true
     return false
+  }
+
+  async function pushViaSupabase(tables, mesa, updatedAt) {
+    const c = await ensureSb()
+    const { data, error } = await c
+      .from('ops_kv')
+      .select('value')
+      .eq('key', TPV_KEY)
+      .maybeSingle()
+    if (error) throw error
+
+    const raw =
+      data?.value && typeof data.value === 'object'
+        ? data.value
+        : emptyTpvState()
+    const { state: rolled } = applyTpvDayRollover(raw)
+    const serverDay = rolled.opsDay || opsDayId()
+    const incomingDay = opsDayId()
+    const incomingTables = tables && typeof tables === 'object' ? tables : {}
+
+    if (incomingDay && incomingDay !== serverDay) {
+      return { ...rolled, opsDay: serverDay }
+    }
+
+    const serverAt = Number(rolled.updatedAt || 0)
+    const preferIncoming = !(serverAt > updatedAt)
+    // first=server, second=incoming — NO preferLocalClear (eso protegería server vacío)
+    const incomingKeys = Object.keys(incomingTables)
+    if (incomingKeys.length === 0 && tablesQty(rolled.tables) > 0) {
+      return { ...rolled, opsDay: serverDay }
+    }
+    const merged = mergeTables(rolled.tables || {}, incomingTables, {
+      preferLocalClear: false,
+      remoteOpsDay: serverDay,
+      localOpsDay: incomingDay,
+    })
+
+    const next = {
+      kind: 'casa-torino-tpv',
+      tables: merged.tables,
+      mesa: typeof mesa === 'string' && mesa ? mesa : rolled.mesa || '',
+      opsDay: serverDay,
+      updatedAt: preferIncoming ? updatedAt : serverAt || updatedAt,
+      clientId: preferIncoming ? CLIENT_ID : rolled.clientId || CLIENT_ID,
+    }
+
+    const { error: upErr } = await c.from('ops_kv').upsert(
+      {
+        key: TPV_KEY,
+        value: next,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'key' },
+    )
+    if (upErr) throw upErr
+    return next
+  }
+
+  async function pushViaApi(body, opts = {}) {
+    const r = await fetch(API_URL, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: clientHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(body),
+      keepalive: !!opts.keepalive,
+    })
+    if (r.status === 426) await handleForceStatus(r)
+    if (r.status === 401) {
+      if (typeof onAuthLost === 'function') onAuthLost()
+      const err = new Error('Sesión caducada — vuelve a poner el PIN')
+      err.status = 401
+      throw err
+    }
+    if (!r.ok) throw new Error('sync POST ' + r.status)
+    const saved = await r.json().catch(() => body)
+    noteTpvForce(saved)
+    return saved
   }
 
   async function pushNow(tables, mesa, opts = {}) {
@@ -464,27 +616,15 @@
     let lastErr = null
     for (let i = 1; i <= 3; i++) {
       try {
-        const r = await fetch(API_URL, {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: clientHeaders({ 'Content-Type': 'application/json' }),
-          body: JSON.stringify(body),
-          keepalive: !!opts.keepalive,
-        })
-        if (r.status === 426) await handleForceStatus(r)
-        if (r.status === 401) {
-          if (typeof onAuthLost === 'function') onAuthLost()
-          const err = new Error('Sesión caducada — vuelve a poner el PIN')
-          err.status = 401
-          throw err
+        let saved
+        try {
+          saved = await pushViaSupabase(tables, mesa, updatedAt)
+        } catch (sbErr) {
+          console.warn('[tpvSync] push SB → API', sbErr)
+          saved = await pushViaApi(body, opts)
         }
-        if (!r.ok) throw new Error('sync POST ' + r.status)
-        const saved = await r.json().catch(() => body)
-        noteTpvForce(saved)
         lastRemoteUpdatedAt = Number(saved.updatedAt || updatedAt)
         lastRemoteQty = tablesQty(saved.tables || tables)
-        if (!opts.keepalive) refreshSession()
-        // Avisar al resto de dispositivos al instante (móvil ↔ Windows)
         notifyPeers('push').catch(() => {})
         return saved
       } catch (err) {
