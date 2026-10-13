@@ -2309,30 +2309,70 @@
       }
     }
     @media (max-width: 720px) {
+      #planoModal.course-modal { padding: .45rem; }
+      #planoModal .course-card-h { margin-bottom: .15rem; }
+      #planoModal .btn-modal-back {
+        min-height: 44px;
+        padding: .45rem .7rem .45rem .55rem;
+        font-size: .82rem;
+      }
+      .plano-toolbar {
+        gap: .35rem;
+        margin: 0 0 .4rem;
+      }
+      .plano-toolbar label { font-size: .62rem; gap: .2rem; flex: 1 1 120px; }
+      .plano-toolbar select,
+      .plano-toolbar input {
+        min-height: 44px;
+        padding: .45rem .55rem;
+        font-size: .9rem;
+      }
+      .plano-waiter-actions { gap: .3rem; }
+      .plano-waiter-actions button {
+        min-height: 44px;
+        padding: .45rem .55rem;
+        font-size: .78rem;
+      }
+      .plano-toolbar .plano-hint { display: none; }
+      #planoModal .course-actions { margin-top: .35rem; }
+      #planoModal .course-actions button {
+        min-height: 48px;
+        font-size: .95rem;
+        padding: .65rem .7rem;
+      }
       .plano-floor {
-        grid-template-columns: minmax(88px, 0.32fr) minmax(0, 1fr);
-        grid-template-rows: minmax(0, 1.35fr) minmax(0, 0.85fr) auto;
+        grid-template-columns: minmax(100px, 0.36fr) minmax(0, 1fr);
+        /* Sin fila service: entrada (1–3) gana altura */
+        grid-template-rows: minmax(0, 1.05fr) minmax(0, 1.2fr);
         grid-template-areas:
           "lateral salon"
-          "entrada barra"
-          "service service";
-        max-height: min(72dvh, 720px);
+          "entrada barra";
+        max-height: min(62dvh, 560px);
+        min-height: 320px;
+        gap: .45rem;
+        padding: .5rem;
       }
-      .plano-service { flex-direction: row; min-height: 40px; }
-      .plano-table { min-height: 64px; }
+      /* Almacén / Baños / Cocina: solo en TPV Windows; en móvil ocupan espacio inútil */
+      .plano-service { display: none !important; }
+      .plano-zone { padding: .35rem; }
+      .plano-zone h4 { margin: 0 0 .3rem; font-size: .62rem; }
+      .plano-table { min-height: 60px; }
       .plano-table.shape-square,
-      .plano-table.shape-circle { min-height: 64px; }
-      /* 4 y 5 pequeñas en móvil → salón (6–8) se ve completo */
-      .plano-barra .barra-l {
-        height: 32px;
-        margin-top: .25rem;
-        font-size: .72rem;
+      .plano-table.shape-circle { min-height: 60px; }
+      .plano-entrada .plano-table {
+        min-height: 72px;
       }
+      .plano-entrada .plano-grid.col {
+        gap: .4rem;
+      }
+      /* 4 y 5 pequeñas; sin franja BARRA·TPV en móvil */
+      .plano-barra .barra-l { display: none !important; }
       .plano-grid.barra-top {
         gap: clamp(.75rem, 6vw, 1.5rem);
         padding: 0 .25rem;
         min-height: 0;
-        flex: 0 0 auto;
+        flex: 1 1 auto;
+        align-content: center;
       }
       .plano-grid.barra-top .plano-table {
         max-width: 72px;
@@ -2922,7 +2962,7 @@
   <script src="tpvJornada.js?v=push-msg-1"></script>
   <script src="kitchenSync.js?v=fix-create-1"></script>
   <script src="reservaAlertSync.js"></script>
-  <script src="planoMesas.js?v=plano-12"></script>
+  <script src="planoMesas.js?v=plano-13"></script>
   <script>
     (() => {
       /**
@@ -2931,7 +2971,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-13-plano-12'
+      const TPV_CLIENT_VERSION = '2026-10-13-plano-13'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3068,7 +3108,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=plano-12')
+            .register('/sw-tpv.js?v=plano-13')
             .catch(() => {})
         })
         try {
