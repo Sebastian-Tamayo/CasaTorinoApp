@@ -11,7 +11,7 @@
  *    (ver assets/qz/LEEME-QUITAR-AVISO.txt)
  */
 (() => {
-  const BUILD_TICKET = 'cols28-total-below-20260919'
+  const BUILD_TICKET = 'cols28-total-sameline-20261013'
   const PRINTER_NAME = 'POS-58'
   const PRINTER_ALIASES = [
     /^POS-58$/i,
@@ -57,21 +57,28 @@
   let trustedSetupDone = false
 
   function money(n) {
-    return (Math.round(Number(n) * 100) / 100).toLocaleString('es-ES', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
+    // Formato fijo "12,50" (sin nbsp ni miles) — cabe en 58 mm y no parte decimales
+    const v = Math.round((Number(n) + Number.EPSILON) * 100) / 100
+    const neg = v < 0
+    const abs = Math.abs(v)
+    const [ent, dec] = abs.toFixed(2).split('.')
+    return (neg ? '-' : '') + ent + ',' + dec
   }
 
   function line(char = '-') {
     return char.repeat(BUSINESS.cols)
   }
 
-  function padRow(left, right) {
+  function padRowWidth(left, right, cols) {
     const L = String(left)
     const R = String(right)
-    const space = Math.max(1, BUSINESS.cols - L.length - R.length)
+    const width = Math.max(8, Number(cols) || BUSINESS.cols)
+    const space = Math.max(1, width - L.length - R.length)
     return L + ' '.repeat(space) + R
+  }
+
+  function padRow(left, right) {
+    return padRowWidth(left, right, BUSINESS.cols)
   }
 
   function wrapName(name, max = BUSINESS.cols - 9) {
@@ -242,11 +249,19 @@
     data.push(padRow('Base', money(base) + ' E') + ESC.LF)
     data.push(padRow('IVA ' + Math.round(ivaRate * 100) + '%', money(iva) + ' E') + ESC.LF)
     data.push(ESC.BOLD_ON)
-    data.push(ESC.SIZE_DOUBLE)
-    // En ancho doble (58 mm) no cabe label+importe a la derecha: importe debajo.
-    data.push('TOTAL' + ESC.LF)
-    data.push(money(total) + ESC.LF)
-    data.push(ESC.SIZE_NORMAL)
+    // TOTAL + importe en la MISMA línea (ancho doble ≈ mitad de cols)
+    const totalAmt = money(total)
+    const doubleCols = Math.max(12, Math.floor(BUSINESS.cols / 2))
+    const totalLine = padRowWidth('TOTAL', totalAmt, doubleCols)
+    if (totalLine.length <= doubleCols) {
+      data.push(ESC.SIZE_DOUBLE)
+      data.push(totalLine + ESC.LF)
+      data.push(ESC.SIZE_NORMAL)
+    } else {
+      // Importes muy largos: negrita normal, siempre una sola línea
+      data.push(ESC.SIZE_NORMAL)
+      data.push(padRow('TOTAL', totalAmt + ' E') + ESC.LF)
+    }
     data.push(ESC.BOLD_OFF)
 
     const payments = Array.isArray(meta.payments)
@@ -451,6 +466,10 @@
     ensureConnected,
     buildReceipt,
     resolvePrinterName,
+    money,
+    padRow,
+    padRowWidth,
+    BUILD_TICKET,
     PRINTER_NAME,
   }
 })()

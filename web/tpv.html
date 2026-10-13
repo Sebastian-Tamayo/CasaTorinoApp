@@ -2799,7 +2799,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-13-plano-7'
+      const TPV_CLIENT_VERSION = '2026-10-13-plano-8'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -2863,16 +2863,37 @@
         try {
           localStorage.setItem(TPV_ACK_KEY, String(required))
         } catch {}
+        // Limpiar SW/caché viejos para no acabar en página en blanco / otra ruta
         try {
-          const reg = await navigator.serviceWorker?.getRegistration?.()
-          if (reg) {
-            await reg.update()
-            if (reg.waiting) reg.waiting.postMessage?.({ type: 'skip-waiting' })
+          const regs = await navigator.serviceWorker?.getRegistrations?.()
+          if (regs) {
+            for (const reg of regs) {
+              try {
+                if (reg.waiting) reg.waiting.postMessage?.({ type: 'skip-waiting' })
+              } catch {}
+              try {
+                await reg.unregister()
+              } catch {}
+            }
           }
         } catch {}
-        const url = new URL(location.href)
-        url.searchParams.set('v', String(Date.now()))
-        location.replace(url.toString())
+        try {
+          if (typeof caches !== 'undefined') {
+            const keys = await caches.keys()
+            await Promise.all(keys.map((k) => caches.delete(k)))
+          }
+        } catch {}
+        // SIEMPRE volver a tpv.html (nunca / ni otra página “desconocida”)
+        const dest = new URL('/tpv.html', location.origin)
+        dest.searchParams.set('v', String(Date.now()))
+        try {
+          const cur = new URL(location.href)
+          for (const [k, val] of cur.searchParams.entries()) {
+            if (k === 'v') continue
+            if (!dest.searchParams.has(k)) dest.searchParams.set(k, val)
+          }
+        } catch {}
+        location.replace(dest.toString())
       })
 
       const TPV_VERSION_POLL_MS = 5 * 60 * 1000
@@ -2915,7 +2936,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=plano-3')
+            .register('/sw-tpv.js?v=plano-8')
             .catch(() => {})
         })
         try {
@@ -3567,19 +3588,33 @@
         // CRÍTICO: no subir updatedAt en snapshots de lectura (poll/merge).
         // Si se bumpea en cada tick, el local siempre “gana” y resucitan borrados.
         const bump = opts.bump !== false
-        const w = currentPlanoWaiter()
-        const waiterId =
-          data.waiterId ||
-          prev.waiterId ||
-          w?.id ||
-          null
-        const waiterName =
-          data.waiterName ||
-          prev.waiterName ||
-          w?.name ||
-          null
+        const cart = data.cart || {}
+        let cartQty = 0
+        if (cart && typeof cart === 'object') {
+          for (const line of Object.values(cart)) {
+            cartQty += Math.max(0, Number(line?.qty) || 0)
+          }
+        }
+        // Con productos nunca “cleared”; vaciar/cobrar marca clearWaiter
+        const cleared =
+          cartQty > 0 ? false : opts.clearWaiter === true || data.cleared === true
+        let waiterId = null
+        let waiterName = null
+        if (!cleared) {
+          const w = currentPlanoWaiter()
+          if (Object.prototype.hasOwnProperty.call(data, 'waiterId')) {
+            waiterId = data.waiterId || null
+          } else {
+            waiterId = prev.waiterId || w?.id || null
+          }
+          if (Object.prototype.hasOwnProperty.call(data, 'waiterName')) {
+            waiterName = data.waiterName || null
+          } else {
+            waiterName = prev.waiterName || w?.name || null
+          }
+        }
         return {
-          cart: data.cart || {},
+          cart,
           hist: data.hist || [],
           notes: data.notes || '',
           paid: data.paid || '',
@@ -3591,6 +3626,7 @@
                 : {},
           waiterId: waiterId ? String(waiterId) : null,
           waiterName: waiterName ? String(waiterName) : null,
+          cleared,
           updatedAt: bump
             ? now
             : Math.max(0, Number(prev.updatedAt) || 0) || now,
@@ -4181,13 +4217,67 @@
         if ($('selSummary')) $('selSummary').hidden = true
       }
 
+      async function releaseMesaAssignment(m) {
+        const id = normalizeMesa(m)
+        if (!id) return
+        const prev = state.tables[id] || {}
+        const removed = {
+          ...(state.removed && typeof state.removed === 'object' ? state.removed : {}),
+          ...(prev.removed && typeof prev.removed === 'object' ? prev.removed : {}),
+        }
+        state.tables[id] = stampMesa(
+          id,
+          {
+            cart: {},
+            hist: [],
+            notes: '',
+            paid: '',
+            removed,
+            cleared: true,
+            waiterId: null,
+            waiterName: null,
+          },
+          { clearWaiter: true },
+        )
+        const opsDay =
+          state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || ''
+        state.opsDay = opsDay
+        writeTablesStore({ mesa: id, tables: state.tables, opsDay })
+        try {
+          window.CasaTorinoTpvSync?.touch?.({ clear: true })
+          await window.CasaTorinoTpvSync?.pushNow?.(state.tables, id)
+        } catch (err) {
+          console.warn('releaseMesa sync', err)
+        }
+        try {
+          await window.CasaTorinoPlanoMesas?.freeTable?.(id)
+        } catch (err) {
+          console.warn('releaseMesa freeTable', err)
+        }
+        try {
+          await window.CasaTorinoPlanoMesas?.syncTotalsFromLocal?.(state.tables, {
+            freeIds: [id],
+          })
+        } catch {}
+        try {
+          if ($('planoModal') && !$('planoModal').hidden) {
+            paintPlanoFloor(window.CasaTorinoPlanoMesas.getSnapshot())
+          }
+        } catch {}
+      }
+
       function clearCart() {
+        const m = normalizeMesa(state.mesa)
         if (!lines().length) {
+          // Sin productos: igual desasignar si sigue en rojo / con camarera
+          if (m) {
+            void releaseMesaAssignment(m)
+          }
           clearPaySelect()
           resetSelSummaryUi()
+          render()
           return
         }
-        const m = normalizeMesa(state.mesa)
         const label = m ? ` de la mesa ${m}` : ''
         if (!confirm(`¿Vaciar la cuenta${label}?`)) return
         const now = Date.now()
@@ -4204,31 +4294,7 @@
         if ($('notes')) $('notes').value = ''
         if ($('paid')) $('paid').value = ''
         if (m) {
-          state.tables[m] = stampMesa(m, {
-            cart: {},
-            hist: [],
-            notes: '',
-            paid: '',
-            removed,
-          })
-        }
-        const opsDay =
-          state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || ''
-        state.opsDay = opsDay
-        writeTablesStore({ mesa: m || '', tables: state.tables, opsDay })
-        try {
-          window.CasaTorinoTpvSync?.touch?.({ clear: true })
-          window.CasaTorinoTpvSync?.pushNow?.(state.tables, m)
-        } catch (err) {
-          console.warn('clearCart sync', err)
-        }
-        try {
-          window.CasaTorinoPlanoMesas?.syncTotalsFromLocal?.(state.tables)
-        } catch {}
-        try {
-          if (m) window.CasaTorinoPlanoMesas?.freeTable?.(m)
-        } catch (err) {
-          console.warn('plano freeTable clear', err)
+          void releaseMesaAssignment(m)
         }
         render(); closeTicket()
       }
@@ -4748,13 +4814,7 @@
           persist()
           render()
           if (!still) {
-            try {
-              window.CasaTorinoTpvSync?.touch?.({ clear: true })
-              window.CasaTorinoTpvSync?.pushNow?.(state.tables, m)
-            } catch {}
-            try {
-              if (m) window.CasaTorinoPlanoMesas?.freeTable?.(m)
-            } catch {}
+            if (m) await releaseMesaAssignment(m)
             closeTicket()
           }
           paintUndoChargeBtn()
@@ -4773,34 +4833,8 @@
         clearPaySelect()
         if ($('notes')) $('notes').value = ''
         if ($('paid')) $('paid').value = ''
-        if (m) {
-          state.tables[m] = stampMesa(m, {
-            cart: {},
-            hist: [],
-            notes: '',
-            paid: '',
-            removed: removedPay,
-          })
-        }
         payDraft = { totalCents: 0, payments: [] }
-        const opsDay =
-          state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || ''
-        state.opsDay = opsDay
-        writeTablesStore({ mesa: m || '', tables: state.tables, opsDay })
-        try {
-          window.CasaTorinoTpvSync?.touch?.({ clear: true })
-          window.CasaTorinoTpvSync?.pushNow?.(state.tables, m)
-        } catch (err) {
-          console.warn('confirmPay sync', err)
-        }
-        try {
-          window.CasaTorinoPlanoMesas?.syncTotalsFromLocal?.(state.tables)
-        } catch {}
-        try {
-          if (m) window.CasaTorinoPlanoMesas?.freeTable?.(m)
-        } catch (err) {
-          console.warn('plano freeTable', err)
-        }
+        if (m) await releaseMesaAssignment(m)
         render(); closeTicket()
         paintUndoChargeBtn()
       }
@@ -5830,27 +5864,26 @@
           const t = byId[id] || { id, status: 'libre', total_amount: 0, shape: 'square' }
           const blob = carts[id]
           const qty = cartQtyOf(blob)
+          const cleared = Boolean(blob?.cleared) && qty === 0
           const fromCartTotal = qty > 0 ? cartTotalOf(blob) : 0
-          const waiterName = String(
-            t.current_waiter_name || blob?.waiterName || '',
-          ).trim()
-          const amount =
-            qty > 0
-              ? fromCartTotal
-              : Number(t.total_amount) || 0
-          const st =
-            t.status === 'ocupada' || qty > 0 || amount > 0 || waiterName
+          // Sin productos (vaciada/cobrada) → siempre libre, aunque quede nombre viejo
+          const amount = qty > 0 ? fromCartTotal : 0
+          const st = !cleared && (qty > 0 || (t.status === 'ocupada' && amount > 0))
+            ? 'ocupada'
+            : qty > 0
               ? 'ocupada'
               : 'libre'
-          const waiter =
-            st === 'ocupada'
-              ? `<span class="waiter">${waiterName || 'Sin asignar'}</span>`
-              : ''
-          const total =
-            st === 'ocupada'
-              ? `<span class="meta">${window.CasaTorinoPlanoMesas.money(amount)}</span>`
-              : `<span class="meta">Libre</span>`
-          return `<button type="button" class="plano-table shape-${t.shape || 'square'} ${st}" data-plano-mesa="${t.id}" title="${st === 'ocupada' ? `${waiterName || 'Sin asignar'} · ${window.CasaTorinoPlanoMesas.money(amount)}` : 'Libre'}">
+          const occupied = st === 'ocupada' && qty > 0
+          const waiterName = occupied
+            ? String(t.current_waiter_name || blob?.waiterName || '').trim()
+            : ''
+          const waiter = occupied
+            ? `<span class="waiter">${waiterName || 'Sin asignar'}</span>`
+            : ''
+          const total = occupied
+            ? `<span class="meta">${window.CasaTorinoPlanoMesas.money(amount)}</span>`
+            : `<span class="meta">Libre</span>`
+          return `<button type="button" class="plano-table shape-${t.shape || 'square'} ${occupied ? 'ocupada' : 'libre'}" data-plano-mesa="${t.id}" title="${occupied ? `${waiterName || 'Sin asignar'} · ${window.CasaTorinoPlanoMesas.money(amount)}` : 'Libre'}">
             <span class="n">${t.id}</span>${waiter}${total}
           </button>`
         }
@@ -6750,6 +6783,10 @@
             render()
             try {
               window.CasaTorinoPlanoMesas?.syncTotalsFromLocal?.(state.tables)
+              // Windows: repintar plano abierto con camarera + total al recibir sync
+              if ($('planoModal') && !$('planoModal').hidden) {
+                paintPlanoFloor(window.CasaTorinoPlanoMesas.getSnapshot())
+              }
             } catch {}
             if (remote.keptLocal) {
               try {

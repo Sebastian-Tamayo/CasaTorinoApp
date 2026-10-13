@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-13-plano-7'
-const message = 'Actualiza: nombre y total visibles en Windows + mesa 5 centrada'
+const required = '2026-10-13-plano-8'
+const message = 'Actualiza: vaciar/cobrar libera mesa; ticket TOTAL en una línea'
 
 function forceInfo() {
   return { required, message }

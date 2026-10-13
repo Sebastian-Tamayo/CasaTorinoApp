@@ -305,11 +305,22 @@
     return list.map((t) => {
       const cartBlob = tpvCarts[t.id]
       const qty = cartQty(cartBlob)
+      const cleared = Boolean(cartBlob && cartBlob.cleared)
+      // Vaciada (cobro/Vaciar): sin productos → libre y sin camarera
+      if (qty === 0 && cleared) {
+        return {
+          ...t,
+          status: 'libre',
+          total_amount: 0,
+          qty: 0,
+          current_waiter_id: null,
+          current_waiter_name: null,
+        }
+      }
       const total = qty > 0 ? cartTotal(cartBlob) : Number(t.total_amount) || 0
       let status = t.status
       if (qty > 0) status = 'ocupada'
       else if (!t.current_waiter_id) status = 'libre'
-      // Recuperar camarera desde el carrito TPV si el plano no la tiene
       let current_waiter_id = t.current_waiter_id || null
       let current_waiter_name = t.current_waiter_name || null
       if (qty > 0 && cartBlob && typeof cartBlob === 'object') {
@@ -320,10 +331,21 @@
           current_waiter_name = String(cartBlob.waiterName)
         }
       }
+      if (qty === 0 && !current_waiter_id) {
+        status = 'libre'
+        return {
+          ...t,
+          status: 'libre',
+          total_amount: 0,
+          qty: 0,
+          current_waiter_id: null,
+          current_waiter_name: null,
+        }
+      }
       return {
         ...t,
         status,
-        total_amount: total,
+        total_amount: qty > 0 ? total : Number(t.total_amount) || 0,
         qty,
         current_waiter_id,
         current_waiter_name,
@@ -578,31 +600,68 @@
   async function freeTable(tableId) {
     const id = String(tableId || '')
     if (!id) return
+    // Memoria local al instante
+    tpvCarts = {
+      ...tpvCarts,
+      [id]: {
+        cart: {},
+        hist: [],
+        notes: '',
+        paid: '',
+        removed: (tpvCarts[id] && tpvCarts[id].removed) || {},
+        waiterId: null,
+        waiterName: null,
+        cleared: true,
+        updatedAt: Date.now(),
+      },
+    }
+    tables = tables.map((t) =>
+      t.id === id
+        ? {
+            ...t,
+            status: 'libre',
+            total_amount: 0,
+            current_waiter_id: null,
+            current_waiter_name: null,
+            qty: 0,
+          }
+        : t,
+    )
     await patchTable(id, {
       status: 'libre',
       total_amount: 0,
       current_waiter_id: null,
       current_waiter_name: null,
     })
+    if (typeof onChange === 'function') onChange(getSnapshot())
   }
 
   /**
-   * Actualiza totales/camarera desde carritos locales.
-   * IMPORTANTE: si qty local es 0 NO liberamos la mesa (el Windows a menudo
-   * aún no ha recibido el carrito del móvil y borraba nombre+total del plano).
-   * Liberar solo con freeTable() tras cobro/vaciar.
+   * Actualiza totales/camarera desde carritos.
+   * - Con productos → ocupada + camarera + total
+   * - Vaciada explícita (cleared / freeIds) → libre y desasignada
+   * - qty 0 sin señal de vaciado → no wipe (sync incompleto Windows)
    */
-  async function syncTotalsFromLocal(localTables) {
+  async function syncTotalsFromLocal(localTables, opts = {}) {
     if (!localTables || typeof localTables !== 'object') return
-    // Fusionar con carritos ya conocidos (remoto) para no pisar con un local incompleto
+    const freeIds = new Set(
+      (Array.isArray(opts.freeIds) ? opts.freeIds : [])
+        .map((x) => String(x || ''))
+        .filter(Boolean),
+    )
     const mergedCarts = { ...tpvCarts }
     for (const [id, blob] of Object.entries(localTables)) {
       const prev = mergedCarts[id]
       const qNew = cartQty(blob)
       const qOld = cartQty(prev)
       if (qNew > 0 || !prev) mergedCarts[id] = blob
-      else if (qOld > 0 && qNew === 0) {
-        // Solo aceptar vaciado local si el blob trae updatedAt más nuevo
+      else if (qNew === 0) {
+        const nAt = Math.max(0, Number(blob?.updatedAt) || 0)
+        const oAt = Math.max(0, Number(prev?.updatedAt) || 0)
+        if (blob?.cleared || freeIds.has(String(id)) || nAt >= oAt) {
+          mergedCarts[id] = blob
+        }
+      } else if (qOld > 0 && qNew === 0) {
         const nAt = Math.max(0, Number(blob?.updatedAt) || 0)
         const oAt = Math.max(0, Number(prev?.updatedAt) || 0)
         if (nAt >= oAt) mergedCarts[id] = blob
@@ -613,13 +672,17 @@
     const next = tables.map((t) => {
       const blob = mergedCarts[t.id]
       const qty = cartQty(blob)
-      let waiterId = t.current_waiter_id || null
-      let waiterName = t.current_waiter_name || null
-      if (blob && typeof blob === 'object') {
-        if (!waiterId && blob.waiterId) waiterId = String(blob.waiterId)
-        if (!waiterName && blob.waiterName) waiterName = String(blob.waiterName)
-      }
+      const explicitFree =
+        freeIds.has(t.id) ||
+        Boolean(blob && blob.cleared && qty === 0)
+
       if (qty > 0) {
+        let waiterId = t.current_waiter_id || null
+        let waiterName = t.current_waiter_name || null
+        if (blob && typeof blob === 'object') {
+          if (blob.waiterId) waiterId = String(blob.waiterId)
+          if (blob.waiterName) waiterName = String(blob.waiterName)
+        }
         const total = cartTotal(blob)
         if (
           total !== Number(t.total_amount) ||
@@ -646,7 +709,35 @@
           current_waiter_name: waiterName,
         }
       }
-      // qty 0: no tocar asignación ni total del plano (evita wipe en Windows)
+
+      if (explicitFree) {
+        if (
+          t.status !== 'libre' ||
+          t.current_waiter_id ||
+          t.current_waiter_name ||
+          Number(t.total_amount) !== 0
+        ) {
+          changed = true
+          return {
+            ...t,
+            status: 'libre',
+            total_amount: 0,
+            current_waiter_id: null,
+            current_waiter_name: null,
+            qty: 0,
+          }
+        }
+        return {
+          ...t,
+          status: 'libre',
+          total_amount: 0,
+          current_waiter_id: null,
+          current_waiter_name: null,
+          qty: 0,
+        }
+      }
+
+      // qty 0 sin vaciado explícito: no borrar asignación (sync a medias)
       return { ...t, qty: 0 }
     })
     tables = next
@@ -654,17 +745,15 @@
       const c = await client()
       if (await detectSqlTable(c)) {
         for (const t of next) {
-          if (t.qty > 0 || t.status === 'ocupada') {
-            await c
-              .from('tables')
-              .update({
-                status: t.status,
-                total_amount: t.total_amount,
-                current_waiter_id: t.current_waiter_id,
-                current_waiter_name: t.current_waiter_name,
-              })
-              .eq('id', t.id)
-          }
+          await c
+            .from('tables')
+            .update({
+              status: t.status,
+              total_amount: t.total_amount,
+              current_waiter_id: t.current_waiter_id,
+              current_waiter_name: t.current_waiter_name,
+            })
+            .eq('id', t.id)
         }
       } else {
         await saveFloorOps(next)

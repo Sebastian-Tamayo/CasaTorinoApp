@@ -273,14 +273,21 @@
       older = a
     }
     const merged = mergeCarts(a.cart, b.cart, a.removed, b.removed, aAt, bAt)
+    const qty = Object.values(merged.cart).reduce(
+      (n, line) => n + Math.max(0, Number(line?.qty) || 0),
+      0,
+    )
+    // Si el lado más nuevo vació con cleared, respetarlo
+    const newerCleared = Boolean(newer.cleared) && qty === 0
     return {
       cart: merged.cart,
       removed: merged.removed,
       hist: mergeHist(newer.hist, older.hist),
       notes: String(newer.notes || older.notes || ''),
       paid: String(newer.paid || older.paid || ''),
-      waiterId: newer.waiterId || older.waiterId || null,
-      waiterName: newer.waiterName || older.waiterName || null,
+      waiterId: newerCleared ? null : newer.waiterId || older.waiterId || null,
+      waiterName: newerCleared ? null : newer.waiterName || older.waiterName || null,
+      cleared: newerCleared,
       updatedAt: Math.max(aAt, bAt),
     }
   }
