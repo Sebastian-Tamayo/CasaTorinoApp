@@ -1,13 +1,15 @@
 # Casa Torino OS — Documento técnico
 
 Fuente de verdad operativa: arquitectura, persistencia, deploy, seguridad, recuperación y anti-regresión.  
-Comercial / venta → [`COMERCIAL.md`](./COMERCIAL.md).
+Comercial / venta → [`COMERCIAL.md`](./COMERCIAL.md).  
+**Si se pierde el proyecto:** [`RECUPERACION-GITHUB.md`](./RECUPERACION-GITHUB.md) (clonar `main` + secretos + redeploy).
 
 | | |
 |---|---|
-| **Repo** | https://github.com/Sebastian-Tamayo/CasaTorinoApp |
+| **Repo (copia maestra)** | https://github.com/Sebastian-Tamayo/CasaTorinoApp |
+| **Rama desplegable** | `main` |
 | **Actualizado** | oct 2026 |
-| **Alcance** | `web/` · `reservas/` · `erp/` |
+| **Alcance** | `web/` · `reservas/` · `erp/` · `docs/` |
 
 ---
 
@@ -72,18 +74,45 @@ Auth mutaciones: header `X-Tpv-Key` o sesión TPV.
 ### Cocina (KDS)
 
 - URL `/cocina.html` · mismo PIN/sesión que TPV (`ct_tpv_session`)
-- API `/api/kitchen` · cliente `kitchenSync.js` (poll ~1 s)
+- API `/api/kitchen` · cliente `kitchenSync.js` (poll ~4 s en pantalla; 60 s si pestaña oculta)
 - TPV envía solo `categoryType: comida`
 - Estados de comanda + menús 1/2 tiempos; histórico alineado con jornada
+- PWA: `manifest-cocina.webmanifest` con `display: fullscreen` · SW `sw-cocina.js`
+- **Forzar actualización:** `cocina-version.json` + `_cocinaVersion.js` + `COCINA_CLIENT_VERSION` (poll cada 5 min, pausa si oculta). **Nunca** 426 en create/ack/syncJornada del kitchen (el TPV no manda cabecera cocina).
 
 ### Jornada TPV
 
 - API `GET/POST /api/tpv-jornada` — `start` · `end` · `sale` · `updateSale` · `updateLine` · `deleteSale` · `reset`
 - Persistencia: ops_kv clave `jornada` · cliente `tpvJornada.js`
 
+### Forzar actualización del TPV (todos los navegadores)
+
+Tras **cualquier cambio que afecte al TPV**, subir la misma versión en estos 3 sitios y desplegar `web`:
+
+1. `web/tpv-version.json` → `required`
+2. `web/api/_tpvVersion.js` → `required`
+3. `web/tpv.html` → `TPV_CLIENT_VERSION`
+
+Efecto en **cada** tablet/móvil/PC (no basta con que uno actualice):
+
+- Pantalla bloqueante: **«Actualiza para seguir»** + botón **Actualizar**
+- Ack por navegador (`localStorage`) — cada dispositivo debe pulsar
+- API `tpv-sync` y `tpv-jornada` exigen cabecera `X-Tpv-Client-Version`; si falta o no coincide → **426** (clientes viejos tampoco pueden operar)
+
 ### Purge diario
 
-- `/api/ops-daily-purge` — limpia estado operativo (madrugada / ~09:00 según config)
+- `/api/ops-daily-purge` — limpia estado operativo (madrugada / ~08:00 Madrid) y dispara backups de informes email
+
+### Informes email (semanal / mensual)
+
+- Destino por defecto: `cafebartorino@gmail.com` (`REPORT_EMAIL_TO`)
+- HTML responsive (móvil) con: total ventas, comida/bebida, efectivo/tarjeta, top productos, picos de mesas ocupadas
+- **Semanal (lun–dom):** lunes ~08:00 Madrid vía purge/cron
+- **Mensual:** día 1 del mes ~08:00 Madrid (totales por semana, no por día)
+- Prueba manual: `GET /api/ops-daily-purge?informe=semanal|mensual&dryRun=1` (sin función API extra — límite Hobby 12)
+- Envío: Resend (`RESEND_API_KEY` + `REPORT_EMAIL_FROM` en Vercel proyecto web)
+- Sin Resend: HTML en ops_kv `informe-html:{periodKey}` + log `informe-log` (idempotencia)
+- Cada cierre guarda `activityByHour` (mesas distintas / tickets por hora Madrid)
 
 ---
 

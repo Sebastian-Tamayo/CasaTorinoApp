@@ -1,17 +1,29 @@
 /**
- * Service worker mínimo para instalar Cocina como app (PWA).
- * No cachea nada: todo va a red. No altera TPV, carta ni APIs.
+ * SW Cocina: pass-through. Sin sondeo de versión (el HTML ya hace poll lento).
+ * Evita gastar cuota CDN Hobby.
  */
+const SW_VERSION = '2026-10-13-cdn-save-1'
+
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())
 })
 
 self.addEventListener('activate', (event) => {
-  // No clients.claim(): evita tomar control agresivo de otras pestañas.
-  event.waitUntil(Promise.resolve())
+  event.waitUntil(
+    (async () => {
+      try {
+        await self.clients.claim()
+      } catch {}
+    })(),
+  )
 })
 
 self.addEventListener('fetch', (event) => {
-  // Pass-through obligatorio para criterios de instalación de Chrome.
   event.respondWith(fetch(event.request))
+})
+
+self.addEventListener('message', (event) => {
+  if (event?.data?.type === 'skip-waiting') {
+    self.skipWaiting()
+  }
 })

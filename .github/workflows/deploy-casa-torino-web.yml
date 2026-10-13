@@ -23,10 +23,19 @@ jobs:
           VERCEL_ORG_ID: team_JNQ3Bn97PBn7QHSYkTZw7wXy
           VERCEL_PROJECT_ID: prj_YrLr62ys2WkZzYKrjix0NK4WmtES
         run: |
+          set -euo pipefail
           if [ -z "$VERCEL_TOKEN" ]; then
             echo "::error::Falta secrets.VERCEL_TOKEN"
             exit 1
           fi
           mkdir -p .vercel
           printf '%s\n' "{\"projectId\":\"$VERCEL_PROJECT_ID\",\"orgId\":\"$VERCEL_ORG_ID\",\"projectName\":\"casa-torino-web\"}" > .vercel/project.json
-          npx vercel@latest deploy --prod --yes --scope sebas3212 --token "$VERCEL_TOKEN"
+          npx vercel@latest deploy --prod --yes --scope sebas3212 --token "$VERCEL_TOKEN" | tee /tmp/vercel-deploy.txt
+          URL=$(grep -Eo 'https://casa-torino-[a-z0-9]+-sebas3212\.vercel\.app' /tmp/vercel-deploy.txt | tail -n1)
+          if [ -z "$URL" ]; then
+            echo "::error::No se pudo leer la URL del deploy"
+            cat /tmp/vercel-deploy.txt
+            exit 1
+          fi
+          echo "Deployed: $URL"
+          npx vercel@latest alias set "$URL" casa-torino-web.vercel.app --scope sebas3212 --token "$VERCEL_TOKEN"

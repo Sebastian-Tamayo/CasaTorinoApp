@@ -3,8 +3,9 @@
  * Preferente: /api/carta (Supabase ops_kv). Fallback: data/carta.json.
  */
 (() => {
+  // Rutas absolutas: en móvil/PWA un path relativo a veces falla tras ?v= o deep link.
   const CARTA_API = '/api/carta'
-  const CARTA_FILE = 'data/carta.json'
+  const CARTA_FILE = '/data/carta.json'
   /** @deprecated usar CARTA_API; se mantiene por compat */
   const CARTA_URL = CARTA_API
 
@@ -158,18 +159,49 @@
   }
 
   async function loadCarta() {
-    try {
-      const r = await fetch(CARTA_API, {
-        cache: 'no-store',
-        headers: { Accept: 'application/json' },
-      })
-      if (r.ok) return r.json()
-    } catch (err) {
-      console.warn('[carta] api', err)
+    let lastErr = null
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const r = await fetch(CARTA_API, {
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: { Accept: 'application/json' },
+        })
+        if (r.ok) {
+          const data = await r.json()
+          if (data && Array.isArray(data.categories) && data.categories.length) {
+            return data
+          }
+          lastErr = new Error('carta API sin categorías')
+        } else {
+          lastErr = new Error('carta API ' + r.status)
+        }
+      } catch (err) {
+        lastErr = err
+        console.warn('[carta] api', err)
+      }
+      try {
+        const r2 = await fetch(CARTA_FILE, {
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: { Accept: 'application/json' },
+        })
+        if (r2.ok) {
+          const data = await r2.json()
+          if (data && Array.isArray(data.categories) && data.categories.length) {
+            return data
+          }
+          lastErr = new Error('carta.json sin categorías')
+        } else {
+          lastErr = new Error('carta.json ' + r2.status)
+        }
+      } catch (err) {
+        lastErr = err
+        console.warn('[carta] file', err)
+      }
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 350))
     }
-    const r2 = await fetch(CARTA_FILE, { cache: 'no-store' })
-    if (!r2.ok) throw new Error('carta ' + r2.status)
-    return r2.json()
+    throw lastErr || new Error('No se pudo cargar la carta')
   }
 
   async function postCarta(action, payload = {}) {

@@ -15,6 +15,7 @@
  */
 const { getJson, updateJson } = require('./_opsStore')
 const { applyKitchenDayRollover } = require('./_opsDay')
+const cocinaVersion = require('./_cocinaVersion')
 
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'kitchen'
@@ -29,7 +30,7 @@ function cors(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Content-Type, X-Tpv-Key, Cache-Control',
+    'Content-Type, X-Tpv-Key, Cache-Control, X-Cocina-Client-Version',
   )
   res.setHeader('Cache-Control', 'no-store')
 }
@@ -294,12 +295,24 @@ module.exports = async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const state = await loadState()
+      // Aviso soft para el panel cocina; NUNCA bloquear el GET (TPV/cocina).
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify(publicPayload(state)))
+      return res.end(
+        JSON.stringify({
+          ...publicPayload(state),
+          cocinaForce: cocinaVersion.forceInfo(),
+        }),
+      )
     }
 
     if (req.method === 'POST') {
+      // ═══════════════════════════════════════════════════════════════
+      // CRÍTICO — COMUNICACIÓN TPV → COCINA
+      // NUNCA llamar cocinaVersion.rejectIfClientOutdated aquí.
+      // El TPV crea comandas sin X-Cocina-Client-Version; un 426 corta
+      // el servicio en sala. Aviso de app = poll/SW en cocina.html.
+      // ═══════════════════════════════════════════════════════════════
       const body = parseBody(req)
       const action = String(body.action || '').trim()
 

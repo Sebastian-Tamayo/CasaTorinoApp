@@ -1,9 +1,15 @@
 /**
  * Limpieza diaria 08:00 Europe/Madrid — cocina + mesas TPV.
+ * También dispara informes email (Hobby: máx. 2 crons / 12 functions).
+ *   - Lunes ~08:00 Madrid: informe semanal (lun–dom) — envío principal
+ *   - Día 1 ~08:00 Madrid: informe mensual del mes anterior
  *
  * GET|POST /api/ops-daily-purge
  * Invocado por Vercel Cron (06:00 y 07:00 UTC → cubre CEST/CET = 08:00 Madrid)
  * y de forma idempotente: solo actúa si cambió el día operativo.
+ *
+ * Manual informes (sin ruta API extra — límite Hobby):
+ *   ?informe=semanal|mensual&dryRun=1&force=1  → solo informe, sin purge
  *
  * Auth: header x-vercel-cron, Bearer CRON_SECRET / TPV_SYNC_KEY, o cookie TPV.
  */
@@ -13,6 +19,12 @@ const {
   applyKitchenDayRollover,
   applyTpvDayRollover,
 } = require('./_opsDay')
+const {
+  runInforme,
+  maybeTriggerWeeklyMondayBackup,
+  madridWeekday,
+  madridParts,
+} = require('./_informeReports')
 
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const CRON_SECRET = process.env.CRON_SECRET || SYNC_KEY || ''
@@ -42,6 +54,41 @@ function authorized(req) {
     if (auth === `Bearer ${CRON_SECRET}`) return true
   }
   return false
+}
+
+function flag(req, name) {
+  const url = new URL(req.url || '/', 'http://local')
+  if (url.searchParams.get(name) === '1') return true
+  const body =
+    typeof req.body === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(req.body || '{}')
+          } catch {
+            return {}
+          }
+        })()
+      : req.body || {}
+  return body[name] === true || body[name] === 1 || body[name] === '1'
+}
+
+function informeKind(req) {
+  const url = new URL(req.url || '/', 'http://local')
+  const q = String(url.searchParams.get('informe') || '').toLowerCase()
+  if (q === 'semanal' || q === 'mensual') return q
+  const body =
+    typeof req.body === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(req.body || '{}')
+          } catch {
+            return {}
+          }
+        })()
+      : req.body || {}
+  const b = String(body.informe || '').toLowerCase()
+  if (b === 'semanal' || b === 'mensual') return b
+  return null
 }
 
 async function purgeKitchen() {
@@ -120,14 +167,48 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    // Solo informe (dry-run / force / prueba manual) — no toca cocina/mesas
+    const kind = informeKind(req)
+    if (kind) {
+      const result = await runInforme(kind, {
+        dryRun: flag(req, 'dryRun'),
+        force: flag(req, 'force'),
+      })
+      res.statusCode = 200
+      res.setHeader('Content-Type', 'application/json')
+      return res.end(JSON.stringify(result))
+    }
+
     const day = opsDayId()
     const [kitchen, tpv] = await Promise.all([purgeKitchen(), purgeTpv()])
+
+    // Informes email (idempotentes; no rompen el purge si fallan)
+    let informes = null
+    try {
+      const now = new Date()
+      const wd = madridWeekday(now)
+      const { day: madridDay } = madridParts(now)
+      informes = { weekly: null, monthly: null }
+      if (wd === 'Mon') {
+        informes.weekly = await maybeTriggerWeeklyMondayBackup(now)
+      }
+      if (madridDay === 1) {
+        informes.monthly = await runInforme('mensual', { force: false, now })
+      }
+    } catch (err) {
+      console.warn('[ops-daily-purge] informes', err)
+      informes = {
+        error: String(err && err.message ? err.message : err),
+      }
+    }
+
     const payload = {
       ok: true,
       day,
       purgeAt: '08:00 Europe/Madrid',
       kitchen,
       tpv,
+      informes,
       ranAt: new Date().toISOString(),
     }
     res.statusCode = 200

@@ -10,12 +10,17 @@ Sin cuotas mensuales de TPV comercial · sync en tiempo real · PIN en zonas int
 
 | Doc | Contenido |
 |-----|-----------|
+| [`docs/RECUPERACION-GITHUB.md`](./docs/RECUPERACION-GITHUB.md) | **Si se pierde todo:** clonar GitHub y redesplegar |
 | [`docs/PRD.md`](./docs/PRD.md) | **Documento madre** del producto |
 | [`docs/ESPECIFICACIONES-TECNICAS.md`](./docs/ESPECIFICACIONES-TECNICAS.md) | Especificaciones técnicas |
 | [`docs/COMERCIAL.md`](./docs/COMERCIAL.md) | Pitch / packs / demo |
 | [`docs/MAPA-CODIGO.md`](./docs/MAPA-CODIGO.md) | Mapa por página y bloque |
 | [`docs/TECNICO.md`](./docs/TECNICO.md) | Deploy, seguridad, backup |
 | [`docs/ORGANIZACION.md`](./docs/ORGANIZACION.md) | Ramas, backups, propuestas |
+| [`docs/PLANO-MESAS.md`](./docs/PLANO-MESAS.md) | Plano TPV + sync mesas |
+| [`docs/INFORMES-EMAIL.md`](./docs/INFORMES-EMAIL.md) | Informes semanal / mensual |
+
+> **GitHub es la copia maestra** del código (`main`). Backups diarios: `backup/daily-YYYY-MM-DD`. Los secretos viven en Vercel/Supabase/GitHub Secrets (no en el repo).
 
 <p align="center">
   <img src="docs/media/web/logo.jpeg" alt="Casa Torino" width="120" />

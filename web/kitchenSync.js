@@ -6,12 +6,15 @@
 (() => {
   const API_URL = '/api/kitchen'
   const AUTH_URL = '/api/tpv-auth'
-  const POLL_MS = 3500
+  // Visible: ~4s (comandas rápidas). Oculta: 60s (no quemar cuota de noche).
+  const POLL_MS = 4000
+  const POLL_HIDDEN_MS = 60000
   const RETRIES = 3
 
   let timer = null
   let heartbeat = null
   let polling = false
+  let visibilityBound = false
   let lastUpdatedAt = 0
   let knownIds = new Set()
   let knownPickupIds = new Set()
@@ -24,12 +27,39 @@
     return new Promise((r) => setTimeout(r, ms))
   }
 
+  function clientHeaders(extra) {
+    // Cocina panel → cabecera cocina. TPV → cabecera TPV (create/ack/jornada).
+    if (typeof window.__casaTorinoCocinaClientHeaders === 'function') {
+      return window.__casaTorinoCocinaClientHeaders(extra)
+    }
+    if (typeof window.__casaTorinoTpvClientHeaders === 'function') {
+      return window.__casaTorinoTpvClientHeaders(extra)
+    }
+    return Object.assign({ 'Cache-Control': 'no-store' }, extra || {})
+  }
+
+  function noteForce(data) {
+    try {
+      // Solo el panel de cocina aplica el overlay; el TPV no debe bloquearse
+      // por cocinaForce al enviar comandas.
+      if (
+        data &&
+        data.cocinaForce &&
+        typeof window.__casaTorinoApplyCocinaForce === 'function' &&
+        typeof window.__casaTorinoCocinaClientHeaders === 'function'
+      ) {
+        window.__casaTorinoCocinaForceRequired = data.cocinaForce.required
+        window.__casaTorinoApplyCocinaForce(data.cocinaForce)
+      }
+    } catch {}
+  }
+
   async function refreshSession() {
     try {
       await fetch(AUTH_URL, {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
+        headers: clientHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ refresh: true }),
       })
     } catch {}
@@ -42,12 +72,22 @@
         const r = await fetch(API_URL, {
           cache: 'no-store',
           credentials: 'same-origin',
-          headers: { 'Cache-Control': 'no-store' },
+          headers: clientHeaders(),
         })
+        const data = await r.json().catch(() => ({}))
+        if (r.status === 426) {
+          noteForce(data)
+          const err = new Error('update_required')
+          err.status = 426
+          err.data = data
+          throw err
+        }
         if (!r.ok) throw new Error('kitchen GET ' + r.status)
-        return await r.json()
+        noteForce(data)
+        return data
       } catch (err) {
         lastErr = err
+        if (err && err.status === 426) throw err
         await sleep(200 * i)
       }
     }
@@ -61,10 +101,17 @@
         const r = await fetch(API_URL, {
           method: 'POST',
           credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
+          headers: clientHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ action, ...payload }),
         })
         const data = await r.json().catch(() => ({}))
+        if (r.status === 426) {
+          noteForce(data)
+          const err = new Error(data.error || 'update_required')
+          err.status = 426
+          err.data = data
+          throw err
+        }
         if (r.status === 401) {
           if (typeof onAuthLost === 'function') onAuthLost()
           const err = new Error(data.error || 'Sesión caducada — vuelve a introducir el PIN')
@@ -80,7 +127,14 @@
         return data
       } catch (err) {
         lastErr = err
-        if (err.status === 401 || err.status === 400 || err.status === 404) throw err
+        if (
+          err.status === 401 ||
+          err.status === 426 ||
+          err.status === 400 ||
+          err.status === 404
+        ) {
+          throw err
+        }
         await sleep(250 * i * i)
       }
     }
@@ -145,17 +199,36 @@
     }
   }
 
+  function pollDelay() {
+    return typeof document !== 'undefined' && document.hidden
+      ? POLL_HIDDEN_MS
+      : POLL_MS
+  }
+
+  function schedule() {
+    if (timer) clearInterval(timer)
+    timer = setInterval(tick, pollDelay())
+  }
+
+  function onVisibility() {
+    schedule()
+    if (!(typeof document !== 'undefined' && document.hidden)) tick()
+  }
+
   function start(handler, authLostHandler, pickupHandler) {
     onUpdate = handler
     onAuthLost = authLostHandler || null
     onPickup = pickupHandler || null
     bootstrapped = false
     tick()
-    if (timer) clearInterval(timer)
-    timer = setInterval(tick, POLL_MS)
+    schedule()
     if (heartbeat) clearInterval(heartbeat)
     heartbeat = setInterval(refreshSession, 15 * 60 * 1000)
     refreshSession()
+    if (!visibilityBound && typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibility)
+      visibilityBound = true
+    }
   }
 
   function stop() {

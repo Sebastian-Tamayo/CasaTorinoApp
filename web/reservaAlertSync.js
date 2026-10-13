@@ -4,7 +4,9 @@
  */
 (() => {
   const API_URL = 'https://reservas-casatorino.vercel.app/api/reservas-alerts'
-  const POLL_MS = 3500
+  // Avisos de reserva: 10s en pantalla; 60s si la pestaña está oculta.
+  const POLL_MS = 10000
+  const POLL_HIDDEN_MS = 60000
   const RETRIES = 3
 
   let timer = null
@@ -13,6 +15,7 @@
   let bootstrapped = false
   let onUpdate = null
   let onNew = null
+  let visibilityBound = false
 
   function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms))
@@ -86,13 +89,30 @@
     }
   }
 
+  function pollDelay() {
+    return typeof document !== 'undefined' && document.hidden
+      ? POLL_HIDDEN_MS
+      : POLL_MS
+  }
+
+  function schedule() {
+    if (timer) clearInterval(timer)
+    timer = setInterval(tick, pollDelay())
+  }
+
   function start(updateHandler, newHandler) {
     onUpdate = updateHandler || null
     onNew = newHandler || null
     bootstrapped = false
     tick()
-    if (timer) clearInterval(timer)
-    timer = setInterval(tick, POLL_MS)
+    schedule()
+    if (!visibilityBound && typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        schedule()
+        if (!document.hidden) tick()
+      })
+      visibilityBound = true
+    }
   }
 
   function stop() {

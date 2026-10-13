@@ -9,6 +9,8 @@
  */
 const { getJson, setJson, updateJson } = require('./_opsStore')
 const { opsDayId, applyTpvDayRollover } = require('./_opsDay')
+const { mergeTables, tablesQty } = require('./_tpvMerge')
+const tpvVersion = require('./_tpvVersion')
 
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'tpv'
@@ -20,7 +22,7 @@ function cors(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Content-Type, X-Tpv-Key, Cache-Control',
+    'Content-Type, X-Tpv-Key, Cache-Control, X-Tpv-Client-Version',
   )
   res.setHeader('Cache-Control', 'no-store')
 }
@@ -36,78 +38,15 @@ function emptyState() {
   }
 }
 
-function cartQty(table) {
-  let n = 0
-  const cart = table && table.cart
-  if (!cart || typeof cart !== 'object' || Array.isArray(cart)) return 0
-  for (const line of Object.values(cart)) n += Math.max(0, Number(line?.qty) || 0)
-  return n
-}
-
-function tablesQty(tables) {
-  let n = 0
-  if (!tables || typeof tables !== 'object') return 0
-  for (const t of Object.values(tables)) n += cartQty(t)
-  return n
-}
-
-function tableAt(t) {
-  return Math.max(0, Number(t && t.updatedAt) || 0)
-}
-
-/**
- * Fusiona mesas en servidor con updatedAt POR MESA.
- * - POST {} sin claves: no borra (anti-wipe refresh).
- * - Vaciar/cobrar (cart vacío + updatedAt nuevo) GANA siempre frente a datos viejos.
- * - Un cliente viejo NO puede rellenar una mesa ya vaciada.
- */
-function mergeTables(serverTables, incomingTables, preferIncoming) {
-  const server = serverTables && typeof serverTables === 'object' ? serverTables : {}
-  const incoming =
-    incomingTables && typeof incomingTables === 'object' ? incomingTables : {}
-  const sTotal = tablesQty(server)
-  const incomingKeys = Object.keys(incoming)
-
-  if (incomingKeys.length === 0 && sTotal > 0) {
-    return { tables: server, rejectedEmpty: true }
+function withTpvForce(state) {
+  const base = state && typeof state === 'object' ? state : emptyState()
+  return {
+    ...base,
+    tpvForce: {
+      required: tpvVersion.required,
+      message: tpvVersion.message || 'Actualiza para seguir',
+    },
   }
-
-  const keys = new Set([...Object.keys(server), ...incomingKeys])
-  const out = {}
-  for (const k of keys) {
-    const S = server[k]
-    const I = incoming[k]
-    const hasI = Object.prototype.hasOwnProperty.call(incoming, k)
-    const hasS = Object.prototype.hasOwnProperty.call(server, k)
-    const sq = cartQty(S)
-    const iq = cartQty(I)
-    const sAt = tableAt(S)
-    const iAt = tableAt(I)
-
-    if (hasI && hasS) {
-      // Mesa vaciada en servidor: solo se rellena si el incoming es MÁS NUEVO
-      if (sq === 0 && iq > 0) {
-        out[k] = iAt > sAt ? I : S
-        continue
-      }
-      // Incoming vacía la mesa: aceptar si es más nuevo o LWW global
-      if (iq === 0 && sq > 0) {
-        out[k] = iAt >= sAt || preferIncoming ? I : S
-        continue
-      }
-      // Ambos con/sin qty: gana el updatedAt de mesa más reciente
-      if (iAt !== sAt) {
-        out[k] = iAt > sAt ? I : S
-      } else {
-        out[k] = preferIncoming ? I : S
-      }
-    } else if (hasI) {
-      out[k] = I
-    } else if (hasS) {
-      out[k] = S
-    }
-  }
-  return { tables: out, rejectedEmpty: false }
 }
 
 function hasTpvSession(req) {
@@ -145,16 +84,18 @@ module.exports = async function handler(req, res) {
     res.statusCode = 401
     return res.end(JSON.stringify({ error: 'unauthorized' }))
   }
-
   try {
     if (req.method === 'GET') {
+      // Soft-force: GET entrega tpvForce; el overlay aparece sin refrescar.
       const state = await loadTpvState()
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify(state || emptyState()))
+      return res.end(JSON.stringify(withTpvForce(state || emptyState())))
     }
 
     if (req.method === 'POST') {
+      // Mutaciones: sin versión actual → 426
+      if (tpvVersion.rejectIfClientOutdated(req, res)) return
       const body =
         typeof req.body === 'string'
           ? JSON.parse(req.body || '{}')
@@ -218,7 +159,7 @@ module.exports = async function handler(req, res) {
 
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify(next))
+      return res.end(JSON.stringify(withTpvForce(next)))
     }
 
     res.statusCode = 405

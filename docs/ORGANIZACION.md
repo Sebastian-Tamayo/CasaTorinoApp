@@ -8,11 +8,13 @@ Objetivo: **proyecto limpio para exposición a clientes**, intervenciones barata
 
 | Pieza | Política |
 |---|---|
-| `main` | Única rama de verdad = lo que debe poder desplegarse |
-| Features | `cursor/<tema>-580d` → PR → merge → borrar rama |
+| `main` | **Única rama de verdad** = código completo desplegable (GitHub = padre del proyecto) |
+| Features | `cursor/<tema>-580d` → PR → merge a `main` → borrar rama |
 | Backups | `backup/daily-YYYY-MM-DD` + tags `backup-YYYY-MM-DD`, **14 días**, workflow diario 03:00 Madrid |
-| Docs | `docs/` + Cursor Rules `.cursor/rules/` (no cambian runtime) |
-| Producción | No redeploy ni “limpiezas” de código estable sin petición explícita |
+| Docs | `docs/` + Cursor Rules `.cursor/rules/` · recuperación: [`RECUPERACION-GITHUB.md`](./RECUPERACION-GITHUB.md) |
+| Producción | Deploy web desde `main` (Actions) o workflow_dispatch; secretos solo en Vercel/GH |
+
+**Regla:** si un cambio importa para el restaurante, debe estar en `origin/main` (no solo en el portátil ni solo en una rama efímera).
 
 ---
 

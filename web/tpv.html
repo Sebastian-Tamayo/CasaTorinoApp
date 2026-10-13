@@ -1258,6 +1258,61 @@
     body.tpv-locked .backdrop,
     body.tpv-locked .fab { visibility: hidden; pointer-events: none; }
 
+    /* —— Forzar actualización TPV —— */
+    .tpv-force-update {
+      position: fixed; inset: 0; z-index: 99999;
+      display: flex; align-items: center; justify-content: center;
+      padding: 1.25rem;
+      background: rgba(6, 10, 16, .94);
+      backdrop-filter: blur(10px);
+    }
+    .tpv-force-update[hidden] { display: none !important; }
+    .tpv-force-card {
+      width: min(22rem, 100%);
+      text-align: center;
+      background: var(--card);
+      border: 1px solid rgba(245,197,24,.45);
+      border-radius: 22px;
+      padding: 1.75rem 1.35rem 1.5rem;
+      box-shadow: 0 20px 50px rgba(0,0,0,.45);
+    }
+    .tpv-force-icon {
+      width: 4.5rem; height: 4.5rem; margin: 0 auto .9rem;
+      border-radius: 999px;
+      display: grid; place-items: center;
+      background: rgba(245,197,24,.16);
+      border: 2px solid rgba(245,197,24,.55);
+      color: var(--gold);
+      font-size: 1.85rem;
+    }
+    .tpv-force-card h2 {
+      margin: 0 0 .45rem; font-size: 1.35rem; font-weight: 900;
+      letter-spacing: -.02em; color: var(--ink);
+    }
+    .tpv-force-card p {
+      margin: 0 0 1.25rem; color: var(--muted);
+      font-size: .95rem; font-weight: 700; line-height: 1.35;
+    }
+    .tpv-force-btn {
+      width: 100%; border: 0; border-radius: 16px;
+      padding: 1rem 1.1rem;
+      background: var(--gold); color: #1a1408;
+      font: inherit; font-size: 1.05rem; font-weight: 900;
+      cursor: pointer; letter-spacing: .01em;
+    }
+    .tpv-force-btn:active { transform: scale(.98); }
+    body.tpv-force-blocked .app,
+    body.tpv-force-blocked .gate,
+    body.tpv-force-blocked .backdrop,
+    body.tpv-force-blocked .fab,
+    body.tpv-force-blocked .pickup-alert,
+    body.tpv-force-blocked .reserva-alert,
+    body.tpv-force-blocked .jornada-modal,
+    body.tpv-force-blocked .mesas-modal {
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
+
     /* —— Jornada / caja —— */
     .jornada-bar {
       display: flex; flex-wrap: wrap; align-items: center; gap: .45rem;
@@ -1298,6 +1353,10 @@
     .jornada-actions .btn-j.shift-notes {
       border-color: rgba(251,191,36,.5); color: #fcd34d;
       position: relative;
+    }
+    .jornada-actions .btn-j.plano {
+      border-color: rgba(91,157,255,.5);
+      color: #93c5fd;
     }
     .jornada-actions .btn-j.reservas-quick {
       border-color: rgba(52,211,153,.5); color: #6ee7b7;
@@ -1941,6 +2000,223 @@
       .jornada-actions .btn-j { padding: .42rem .62rem; font-size: .68rem; }
     }
 
+    /* —— Plano mesas (overlay, no sustituye Mesas pendientes) —— */
+    #planoModal.course-modal {
+      align-items: start;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: .75rem;
+    }
+    #planoModal.course-modal .course-card {
+      width: min(980px, 100%);
+      max-height: none;
+      display: flex;
+      flex-direction: column;
+      margin: auto;
+    }
+    .plano-toolbar {
+      display: flex; flex-wrap: wrap; gap: .45rem; align-items: flex-end;
+      margin: .2rem 0 .7rem;
+    }
+    .plano-toolbar label {
+      display: grid; gap: .25rem;
+      font-size: .68rem; font-weight: 800; letter-spacing: .04em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .plano-toolbar select, .plano-toolbar input {
+      border: 1px solid var(--line2); border-radius: 12px;
+      background: var(--card); color: var(--ink);
+      padding: .55rem .7rem; font: inherit; font-weight: 700;
+      min-width: 140px;
+    }
+    .plano-waiter-actions {
+      display: flex; flex-wrap: wrap; gap: .35rem;
+    }
+    .plano-waiter-actions button {
+      border: 1px solid var(--line2); border-radius: 10px;
+      background: var(--card); color: var(--ink);
+      padding: .45rem .65rem; font: inherit; font-size: .75rem; font-weight: 800;
+      cursor: pointer;
+    }
+    .plano-waiter-actions button:active { transform: scale(.98); }
+    .plano-toolbar .plano-hint {
+      flex: 1 1 100%; font-size: .78rem; color: var(--muted); margin: 0;
+    }
+    .plano-floor {
+      display: grid;
+      grid-template-columns: minmax(112px, 0.28fr) minmax(240px, 1fr) 100px;
+      grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-areas:
+        "lateral salon service"
+        "entrada barra service";
+      gap: .55rem;
+      background: linear-gradient(180deg, #e8e4dc, #f4f1ea);
+      border-radius: 16px;
+      padding: .65rem;
+      color: #1a1a1a;
+      min-height: 360px;
+      max-height: min(68dvh, 620px);
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      align-items: stretch;
+    }
+    .plano-zone {
+      background: rgba(255,255,255,.72);
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 12px;
+      padding: .45rem;
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .plano-zone h4 {
+      margin: 0 0 .4rem; font-size: .68rem; letter-spacing: .06em;
+      text-transform: uppercase; color: #666;
+      flex: 0 0 auto;
+    }
+    .plano-lateral { grid-area: lateral; }
+    /* 15–17: reparten toda la altura de la columna lateral */
+    .plano-lateral .plano-grid.col {
+      flex: 1 1 auto;
+      grid-template-columns: 1fr;
+      grid-template-rows: repeat(3, minmax(0, 1fr));
+      gap: .5rem;
+      min-height: 0;
+      height: 100%;
+    }
+    .plano-lateral .plano-table {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      aspect-ratio: auto;
+    }
+    .plano-salon { grid-area: salon; background: #d9d6d0; }
+    .plano-service {
+      grid-area: service;
+      display: flex; flex-direction: column; gap: .4rem;
+      background: transparent; border: 0; padding: 0;
+    }
+    .plano-service .svc {
+      flex: 1; border-radius: 10px; display: grid; place-items: center;
+      font-size: .72rem; font-weight: 800; color: #444; background: #efe6dc;
+      min-height: 48px;
+    }
+    .plano-service .svc.cocina { background: #e7d3b5; }
+    .plano-service .svc.banos { background: #dce9f2; }
+    .plano-entrada { grid-area: entrada; }
+    .plano-entrada .plano-grid.col {
+      flex: 1 1 auto;
+      grid-template-rows: repeat(3, minmax(0, 1fr));
+      min-height: 0;
+      height: 100%;
+    }
+    .plano-entrada .plano-table {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      aspect-ratio: auto;
+    }
+    .plano-barra {
+      grid-area: barra;
+      background: #fff;
+    }
+    .plano-barra .barra-l {
+      height: 48px; margin-top: .45rem; border-radius: 10px;
+      background: #e11d2e; color: #fff; display: grid; place-items: center;
+      font-weight: 900; letter-spacing: .08em;
+      flex: 0 0 auto;
+    }
+    .plano-grid {
+      display: grid; gap: .4rem;
+    }
+    .plano-grid.salon {
+      flex: 1 1 auto;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      min-height: 0;
+    }
+    .plano-grid.col { grid-template-columns: 1fr; }
+    /* 4 y 5: separadas a lo ancho, ocupan toda la zona barra */
+    .plano-grid.barra-top {
+      flex: 1 1 auto;
+      grid-template-columns: 1fr 1fr;
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      gap: clamp(2.25rem, 10vw, 5rem);
+      align-items: stretch;
+      min-height: 72px;
+    }
+    .plano-grid.barra-top .plano-table {
+      width: 100%;
+      max-width: 110px;
+      justify-self: center;
+      aspect-ratio: auto;
+      min-height: 72px;
+    }
+    .plano-grid.barra-top .plano-table[data-plano-mesa="4"] {
+      justify-self: start;
+    }
+    .plano-grid.barra-top .plano-table[data-plano-mesa="5"] {
+      justify-self: center;
+    }
+    .plano-table {
+      border: 0; cursor: pointer; color: #111;
+      font: inherit; font-weight: 900;
+      min-height: 64px; padding: .35rem .3rem;
+      display: grid;
+      grid-template-rows: auto auto auto;
+      place-items: center;
+      align-content: center;
+      gap: .12rem;
+      box-shadow: inset 0 0 0 2px rgba(0,0,0,.08);
+      transition: transform .12s ease, filter .12s ease;
+      width: 100%;
+      overflow: hidden;
+    }
+    .plano-table:active { transform: scale(.97); }
+    /* Sin aspect-ratio fijo: en Windows debe verse nº + camarera + total */
+    .plano-table.shape-square { border-radius: 10px; aspect-ratio: auto; min-height: 72px; }
+    .plano-table.shape-rect { border-radius: 10px; min-height: 56px; }
+    .plano-table.shape-circle { border-radius: 999px; aspect-ratio: auto; min-height: 72px; }
+    .plano-table.libre { background: #22c55e; color: #052e16; }
+    .plano-table.ocupada { background: #ef4444; color: #fff; }
+    .plano-table .n { font-size: 1.05rem; line-height: 1; }
+    .plano-table .waiter {
+      font-size: .7rem; font-weight: 800; letter-spacing: .01em;
+      max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      line-height: 1.15;
+    }
+    .plano-table .meta {
+      font-size: .64rem; font-weight: 700; opacity: .95;
+      max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    @media (max-width: 720px) {
+      .plano-floor {
+        grid-template-columns: minmax(88px, 0.32fr) minmax(0, 1fr);
+        grid-template-areas:
+          "lateral salon"
+          "entrada barra"
+          "service service";
+        max-height: min(72dvh, 720px);
+      }
+      .plano-service { flex-direction: row; min-height: 44px; }
+      .plano-table { min-height: 56px; }
+      .plano-grid.barra-top {
+        gap: clamp(1rem, 8vw, 2rem);
+        padding: 0 .35rem;
+      }
+      .plano-grid.barra-top .plano-table {
+        max-width: 96px;
+        justify-self: center;
+      }
+      .plano-grid.barra-top .plano-table[data-plano-mesa="4"],
+      .plano-grid.barra-top .plano-table[data-plano-mesa="5"] {
+        justify-self: center;
+      }
+    }
+
     /* —— Fichaje —— */
     .fichaje-fields { display: grid; gap: .85rem; margin: .35rem 0 1rem; }
     .fichaje-fields label {
@@ -1992,6 +2268,15 @@
   </style>
 </head>
 <body class="tpv-locked">
+
+  <div class="tpv-force-update" id="tpvForceUpdate" hidden role="alertdialog" aria-modal="true" aria-labelledby="tpvForceTitle" aria-describedby="tpvForceMsg">
+    <div class="tpv-force-card">
+      <div class="tpv-force-icon" aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></div>
+      <h2 id="tpvForceTitle">Actualizar</h2>
+      <p id="tpvForceMsg">Actualiza para seguir</p>
+      <button type="button" class="tpv-force-btn" id="tpvForceBtn">Actualizar</button>
+    </div>
+  </div>
 
   <div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
     <div class="gate-card">
@@ -2051,6 +2336,7 @@
       <div class="jornada-status" id="jornadaStatus">Jornada: <strong>sin iniciar</strong></div>
       <div class="jornada-actions">
         <button class="btn-j total" id="btnMesasOpenBar" type="button" title="Mesas pendientes de cobro"><i class="fa-solid fa-list-ul"></i> Mesas</button>
+        <button class="btn-j plano" id="btnPlanoOpen" type="button" title="Plano visual de mesas"><i class="fa-solid fa-map"></i> Plano</button>
         <button class="btn-j start" id="btnJornadaStart" type="button"><i class="fa-solid fa-play"></i> Inicio de jornada</button>
         <button class="btn-j total" id="btnJornadaTotal" type="button"><i class="fa-solid fa-chart-column"></i> Total de jornada</button>
         <button class="btn-j end" id="btnJornadaEnd" type="button" disabled><i class="fa-solid fa-flag-checkered"></i> Fin de sesión</button>
@@ -2200,6 +2486,42 @@
       <div class="mesas-list" id="mesasList"></div>
       <div class="course-actions">
         <button type="button" class="cancel" id="mesasCancel">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="course-modal" id="planoModal" hidden role="dialog" aria-modal="true" aria-labelledby="planoModalTitle">
+    <div class="course-card">
+      <div class="course-card-h">
+        <button type="button" class="btn-modal-back" id="planoBack" aria-label="Volver">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </button>
+        <h3 id="planoModalTitle">Plano de mesas</h3>
+      </div>
+      <div class="plano-toolbar">
+        <label>
+          Modo
+          <select id="planoRole" aria-label="Modo del plano">
+            <option value="waiter">Móvil camarera</option>
+            <option value="central">TPV central (Windows)</option>
+          </select>
+        </label>
+        <label>
+          Quién accede
+          <select id="planoWaiterSelect" aria-label="Camarera que accede">
+            <option value="">— Elige camarera —</option>
+          </select>
+        </label>
+        <div class="plano-waiter-actions">
+          <button type="button" id="planoWaiterAdd">Añadir camarera</button>
+          <button type="button" id="planoWaiterEdit">Modificar</button>
+          <button type="button" id="planoWaiterDel">Eliminar</button>
+        </div>
+        <p class="plano-hint" id="planoHint">Verde = libre · Rojo = ocupada. Elige la camarera en el desplegable antes de tocar una mesa.</p>
+      </div>
+      <div class="plano-floor" id="planoFloor" aria-label="Plano Casa Torino"></div>
+      <div class="course-actions">
+        <button type="button" class="cancel" id="planoCancel">Cerrar</button>
       </div>
     </div>
   </div>
@@ -2461,17 +2783,175 @@
   <div class="tpv-toast" id="tpvToast" role="status" aria-live="polite"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.min.js"></script>
-  <script src="carta.js"></script>
-  <script src="tpv-data.js"></script>
+  <script src="carta.js?v=plano-2"></script>
+  <script src="tpv-data.js?v=plano-2"></script>
   <script src="printService.js"></script>
-  <script src="tpvSync.js?v=mesa-clear-sticky-20260920"></script>
-  <script src="tpvJornada.js"></script>
-  <script src="kitchenSync.js"></script>
+  <script src="tpvSync.js?v=push-msg-1"></script>
+  <script src="tpvJornada.js?v=push-msg-1"></script>
+  <script src="kitchenSync.js?v=fix-create-1"></script>
   <script src="reservaAlertSync.js"></script>
+  <script src="planoMesas.js?v=plano-3"></script>
   <script>
     (() => {
-      const AUTH_KEY = 'casa-torino-tpv-auth-v1'
+      /**
+       * Versión del cliente TPV. Debe coincidir con:
+       * - web/tpv-version.json → required
+       * - web/api/_tpvVersion.js → required
+       * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
+       */
+      const TPV_CLIENT_VERSION = '2026-10-13-plano-10'
+      const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
+
+      /** Cabecera que exige el servidor en TODOS los navegadores */
+      window.__casaTorinoTpvClientHeaders = function tpvClientHeaders(extra) {
+        return Object.assign(
+          {
+            'Cache-Control': 'no-store',
+            'X-Tpv-Client-Version': TPV_CLIENT_VERSION,
+          },
+          extra || {},
+        )
+      }
+
+      function showTpvForceUpdate(message) {
+        const overlay = $('tpvForceUpdate')
+        const msg = $('tpvForceMsg')
+        if (msg) msg.textContent = message || 'Actualiza para seguir'
+        if (overlay) overlay.hidden = false
+        document.body.classList.add('tpv-force-blocked')
+        // No parar sync ni cocina: el servicio debe seguir activo.
+      }
+
+      function hideTpvForceUpdate() {
+        const overlay = $('tpvForceUpdate')
+        if (overlay) overlay.hidden = true
+        document.body.classList.remove('tpv-force-blocked')
+      }
+
+      function tpvNeedsForceUpdate(required) {
+        const need = String(required || '').trim()
+        if (!need) return false
+        if (String(TPV_CLIENT_VERSION) !== need) return true
+        try {
+          if (String(localStorage.getItem(TPV_ACK_KEY) || '') !== need) return true
+        } catch {
+          return true
+        }
+        return false
+      }
+
+      function applyTpvForceInfo(info) {
+        if (!info || typeof info !== 'object') return false
+        const required = String(info.required || '').trim()
+        if (!required) return false
+        window.__casaTorinoTpvForceRequired = required
+        if (!tpvNeedsForceUpdate(required)) {
+          hideTpvForceUpdate()
+          return false
+        }
+        showTpvForceUpdate(info.message || 'Actualiza para seguir')
+        return true
+      }
+
+      window.__casaTorinoTpvClientVersion = TPV_CLIENT_VERSION
+      window.__casaTorinoApplyTpvForce = applyTpvForceInfo
+
+      $('tpvForceBtn')?.addEventListener('click', async () => {
+        const required =
+          window.__casaTorinoTpvForceRequired || TPV_CLIENT_VERSION
+        try {
+          localStorage.setItem(TPV_ACK_KEY, String(required))
+        } catch {}
+        // Limpiar SW/caché viejos para no acabar en página en blanco / otra ruta
+        try {
+          const regs = await navigator.serviceWorker?.getRegistrations?.()
+          if (regs) {
+            for (const reg of regs) {
+              try {
+                if (reg.waiting) reg.waiting.postMessage?.({ type: 'skip-waiting' })
+              } catch {}
+              try {
+                await reg.unregister()
+              } catch {}
+            }
+          }
+        } catch {}
+        try {
+          if (typeof caches !== 'undefined') {
+            const keys = await caches.keys()
+            await Promise.all(keys.map((k) => caches.delete(k)))
+          }
+        } catch {}
+        // SIEMPRE volver a tpv.html (nunca / ni otra página “desconocida”)
+        const dest = new URL('/tpv.html', location.origin)
+        dest.searchParams.set('v', String(Date.now()))
+        try {
+          const cur = new URL(location.href)
+          for (const [k, val] of cur.searchParams.entries()) {
+            if (k === 'v') continue
+            if (!dest.searchParams.has(k)) dest.searchParams.set(k, val)
+          }
+        } catch {}
+        location.replace(dest.toString())
+      })
+
+      const TPV_VERSION_POLL_MS = 5 * 60 * 1000
+      let tpvVersionTimer = null
+
+      async function pollTpvVersion() {
+        // Pantalla apagada / pestaña oculta: no quemar CDN Hobby.
+        if (typeof document !== 'undefined' && document.hidden) return
+        try {
+          const r = await fetch('/tpv-version.json', {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-store' },
+          })
+          if (!r.ok) return
+          const info = await r.json()
+          applyTpvForceInfo(info)
+        } catch (err) {
+          console.warn('[tpv] version poll', err)
+        }
+      }
+
+      function scheduleTpvVersionPoll() {
+        if (tpvVersionTimer) clearInterval(tpvVersionTimer)
+        tpvVersionTimer = null
+        if (typeof document !== 'undefined' && document.hidden) return
+        pollTpvVersion()
+        tpvVersionTimer = setInterval(pollTpvVersion, TPV_VERSION_POLL_MS)
+      }
+
+      // Bloqueo inmediato si esta carga aún no fue confirmada
+      applyTpvForceInfo({
+        required: TPV_CLIENT_VERSION,
+        message: 'Actualiza para seguir',
+      })
+      // Poll muy lento + pausa si la pestaña está oculta (cuota CDN Hobby 1M/mes).
+      scheduleTpvVersionPoll()
+      document.addEventListener('visibilitychange', scheduleTpvVersionPoll)
+
+      // SW: el aviso llega a pestañas abiertas sin que pulsen refrescar
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker
+            .register('/sw-tpv.js?v=plano-10')
+            .catch(() => {})
+        })
+        try {
+          navigator.serviceWorker.addEventListener('message', (ev) => {
+            if (ev?.data?.type === 'tpv-force-update') {
+              applyTpvForceInfo({
+                required: ev.data.required,
+                message: ev.data.message || 'Actualiza para seguir',
+              })
+            }
+          })
+        } catch {}
+      }
+
+      const AUTH_KEY = 'casa-torino-tpv-auth-v1'
 
       let pinBuf = ''
       let tpvStarted = false
@@ -2687,7 +3167,11 @@
           }
         } catch (err) {
           console.warn('carta', err)
-          alert('No se pudo cargar la carta (data/carta.json). Revisa el deploy.')
+          alert(
+            'No se pudo cargar la carta.\n' +
+              (err && err.message ? err.message : err) +
+              '\nPulsa Actualizar o recarga la página.',
+          )
         }
       }
 
@@ -2758,6 +3242,8 @@
         notes: '',
         cart: {},
         hist: [],
+        /** Tombstones de líneas borradas { [cartKey]: ts } — evita resucitar en sync */
+        removed: {},
         tables: {},
         opsDay: '',
         jornada: null,
@@ -3088,14 +3574,62 @@
         } catch {}
       }
 
-      function stampMesa(m, data) {
+      function currentPlanoWaiter() {
+        try {
+          return window.CasaTorinoPlanoMesas?.getWaiter?.() || null
+        } catch {
+          return null
+        }
+      }
+
+      function stampMesa(m, data, opts = {}) {
+        const prev = (m && state.tables && state.tables[m]) || {}
         const now = Date.now()
+        // CRÍTICO: no subir updatedAt en snapshots de lectura (poll/merge).
+        // Si se bumpea en cada tick, el local siempre “gana” y resucitan borrados.
+        const bump = opts.bump !== false
+        const cart = data.cart || {}
+        let cartQty = 0
+        if (cart && typeof cart === 'object') {
+          for (const line of Object.values(cart)) {
+            cartQty += Math.max(0, Number(line?.qty) || 0)
+          }
+        }
+        // Con productos nunca “cleared”; vaciar/cobrar marca clearWaiter
+        const cleared =
+          cartQty > 0 ? false : opts.clearWaiter === true || data.cleared === true
+        let waiterId = null
+        let waiterName = null
+        if (!cleared) {
+          const w = currentPlanoWaiter()
+          if (Object.prototype.hasOwnProperty.call(data, 'waiterId')) {
+            waiterId = data.waiterId || null
+          } else {
+            waiterId = prev.waiterId || w?.id || null
+          }
+          if (Object.prototype.hasOwnProperty.call(data, 'waiterName')) {
+            waiterName = data.waiterName || null
+          } else {
+            waiterName = prev.waiterName || w?.name || null
+          }
+        }
         return {
-          cart: data.cart || {},
+          cart,
           hist: data.hist || [],
           notes: data.notes || '',
           paid: data.paid || '',
-          updatedAt: now,
+          removed:
+            data.removed && typeof data.removed === 'object'
+              ? data.removed
+              : prev.removed && typeof prev.removed === 'object'
+                ? prev.removed
+                : {},
+          waiterId: waiterId ? String(waiterId) : null,
+          waiterName: waiterName ? String(waiterName) : null,
+          cleared,
+          updatedAt: bump
+            ? now
+            : Math.max(0, Number(prev.updatedAt) || 0) || now,
         }
       }
 
@@ -3107,6 +3641,7 @@
             hist: state.hist,
             notes: ($('notes')?.value || state.notes || '').trim(),
             paid: $('paid')?.value || '',
+            removed: state.removed || {},
           })
         }
         const opsDay =
@@ -3119,13 +3654,24 @@
         } catch (err) {
           console.warn('sync push', err)
         }
+        try {
+          window.CasaTorinoPlanoMesas?.syncTotalsFromLocal?.(state.tables)
+        } catch {}
       }
 
       function loadMesaIntoState(mesa) {
         const m = normalizeMesa(mesa)
-        const data = (m && state.tables[m]) || { cart: {}, hist: [], notes: '', paid: '' }
+        const data = (m && state.tables[m]) || {
+          cart: {},
+          hist: [],
+          notes: '',
+          paid: '',
+          removed: {},
+        }
         state.cart = data.cart || {}
         state.hist = data.hist || []
+        state.removed =
+          data.removed && typeof data.removed === 'object' ? data.removed : {}
         state.notes = data.notes || ''
         if ($('notes')) $('notes').value = state.notes
         if ($('paid')) $('paid').value = data.paid || ''
@@ -3374,6 +3920,8 @@
 
       /** Quita de la cuenta las uds cobradas (selección). */
       function removeChargedFromCart(chargedLines) {
+        const now = Date.now()
+        if (!state.removed || typeof state.removed !== 'object') state.removed = {}
         for (const cl of chargedLines || []) {
           const key = lineKeyOf(cl)
           const line = state.cart[key]
@@ -3381,11 +3929,13 @@
           const payQty = Math.max(0, Number(cl.qty) || 0)
           const left = Math.max(0, (Number(line.qty) || 0) - payQty)
           if (left <= 0) {
+            state.removed[key] = now
             delete state.cart[key]
             state.hist = state.hist.filter((h) => h !== key)
             continue
           }
           line.qty = left
+          line.updatedAt = now
           if ((Number(line.sentQty) || 0) > left) line.sentQty = left
         }
         clearPaySelect()
@@ -3538,9 +4088,12 @@
         const ctype = categoryTypeOf(item)
         const key = cartKeyFor(item.id, note)
         const now = Date.now()
+        if (!state.removed || typeof state.removed !== 'object') state.removed = {}
+        if (state.removed[key]) delete state.removed[key]
         if (state.cart[key]) {
           state.cart[key].qty += 1
           if (!state.cart[key].addedAt) state.cart[key].addedAt = now
+          state.cart[key].updatedAt = now
         } else {
           state.cart[key] = {
             id: item.id,
@@ -3559,6 +4112,7 @@
             primero: meta?.primero || '',
             segundo: meta?.segundo || '',
             addedAt: now,
+            updatedAt: now,
           }
         }
         if (!state.cart[key].categoryType) state.cart[key].categoryType = ctype
@@ -3633,12 +4187,18 @@
 
       function setQty(id, qty) {
         if (!state.cart[id]) return
+        const now = Date.now()
+        if (!state.removed || typeof state.removed !== 'object') state.removed = {}
         if (qty <= 0) {
+          // Tombstone: el borrado gana al merge aunque otro dispositivo aún tenga la línea
+          state.removed[id] = now
           delete state.cart[id]
           if (state.paySelect) delete state.paySelect[id]
         } else {
+          if (state.removed[id]) delete state.removed[id]
           state.cart[id].qty = qty
-          if (!state.cart[id].addedAt) state.cart[id].addedAt = Date.now()
+          if (!state.cart[id].addedAt) state.cart[id].addedAt = now
+          state.cart[id].updatedAt = now
           if ((state.cart[id].sentQty || 0) > qty) state.cart[id].sentQty = qty
         }
         clampPaySelect()
@@ -3657,37 +4217,84 @@
         if ($('selSummary')) $('selSummary').hidden = true
       }
 
+      async function releaseMesaAssignment(m) {
+        const id = normalizeMesa(m)
+        if (!id) return
+        const prev = state.tables[id] || {}
+        const removed = {
+          ...(state.removed && typeof state.removed === 'object' ? state.removed : {}),
+          ...(prev.removed && typeof prev.removed === 'object' ? prev.removed : {}),
+        }
+        state.tables[id] = stampMesa(
+          id,
+          {
+            cart: {},
+            hist: [],
+            notes: '',
+            paid: '',
+            removed,
+            cleared: true,
+            waiterId: null,
+            waiterName: null,
+          },
+          { clearWaiter: true },
+        )
+        const opsDay =
+          state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || ''
+        state.opsDay = opsDay
+        writeTablesStore({ mesa: id, tables: state.tables, opsDay })
+        try {
+          window.CasaTorinoTpvSync?.touch?.({ clear: true })
+          await window.CasaTorinoTpvSync?.pushNow?.(state.tables, id)
+        } catch (err) {
+          console.warn('releaseMesa sync', err)
+        }
+        try {
+          await window.CasaTorinoPlanoMesas?.freeTable?.(id)
+        } catch (err) {
+          console.warn('releaseMesa freeTable', err)
+        }
+        try {
+          await window.CasaTorinoPlanoMesas?.syncTotalsFromLocal?.(state.tables, {
+            freeIds: [id],
+          })
+        } catch {}
+        try {
+          if ($('planoModal') && !$('planoModal').hidden) {
+            paintPlanoFloor(window.CasaTorinoPlanoMesas.getSnapshot())
+          }
+        } catch {}
+      }
+
       function clearCart() {
+        const m = normalizeMesa(state.mesa)
         if (!lines().length) {
+          // Sin productos: igual desasignar si sigue en rojo / con camarera
+          if (m) {
+            void releaseMesaAssignment(m)
+          }
           clearPaySelect()
           resetSelSummaryUi()
+          render()
           return
         }
-        const m = normalizeMesa(state.mesa)
         const label = m ? ` de la mesa ${m}` : ''
         if (!confirm(`¿Vaciar la cuenta${label}?`)) return
-        state.cart = {}; state.hist = []; state.notes = ''
+        const now = Date.now()
+        const removed = {
+          ...(state.removed && typeof state.removed === 'object' ? state.removed : {}),
+        }
+        for (const key of Object.keys(state.cart || {})) removed[key] = now
+        state.cart = {}
+        state.hist = []
+        state.notes = ''
+        state.removed = removed
         clearPaySelect()
         resetSelSummaryUi()
         if ($('notes')) $('notes').value = ''
         if ($('paid')) $('paid').value = ''
         if (m) {
-          state.tables[m] = stampMesa(m, {
-            cart: {},
-            hist: [],
-            notes: '',
-            paid: '',
-          })
-        }
-        const opsDay =
-          state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || ''
-        state.opsDay = opsDay
-        writeTablesStore({ mesa: m || '', tables: state.tables, opsDay })
-        try {
-          window.CasaTorinoTpvSync?.touch?.()
-          window.CasaTorinoTpvSync?.pushNow?.(state.tables, m)
-        } catch (err) {
-          console.warn('clearCart sync', err)
+          void releaseMesaAssignment(m)
         }
         render(); closeTicket()
       }
@@ -4203,45 +4810,31 @@
           removeChargedFromCart(chargeLines)
           if ($('paid')) $('paid').value = ''
           const still = Object.keys(state.cart).length > 0
-          if (m) {
-            state.tables[m] = {
-              cart: state.cart,
-              hist: state.hist,
-              notes: state.notes || '',
-              paid: '',
-            }
-          }
           payDraft = { totalCents: 0, payments: [] }
           persist()
           render()
-          if (!still) closeTicket()
+          if (!still) {
+            if (m) await releaseMesaAssignment(m)
+            closeTicket()
+          }
           paintUndoChargeBtn()
           return
         }
 
-        state.cart = {}; state.hist = []; state.notes = ''
+        const nowPay = Date.now()
+        const removedPay = {
+          ...(state.removed && typeof state.removed === 'object' ? state.removed : {}),
+        }
+        for (const key of Object.keys(state.cart || {})) removedPay[key] = nowPay
+        state.cart = {}
+        state.hist = []
+        state.notes = ''
+        state.removed = removedPay
         clearPaySelect()
         if ($('notes')) $('notes').value = ''
         if ($('paid')) $('paid').value = ''
-        if (m) {
-          state.tables[m] = stampMesa(m, {
-            cart: {},
-            hist: [],
-            notes: '',
-            paid: '',
-          })
-        }
         payDraft = { totalCents: 0, payments: [] }
-        const opsDay =
-          state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || ''
-        state.opsDay = opsDay
-        writeTablesStore({ mesa: m || '', tables: state.tables, opsDay })
-        try {
-          window.CasaTorinoTpvSync?.touch?.()
-          window.CasaTorinoTpvSync?.pushNow?.(state.tables, m)
-        } catch (err) {
-          console.warn('confirmPay sync', err)
-        }
+        if (m) await releaseMesaAssignment(m)
         render(); closeTicket()
         paintUndoChargeBtn()
       }
@@ -5243,6 +5836,256 @@
       $('btnMesasOpenTop')?.addEventListener('click', () => openMesasModal())
       $('btnMesasOpenHeader')?.addEventListener('click', () => openMesasModal())
       $('btnMesasOpenBar')?.addEventListener('click', () => openMesasModal())
+
+      function paintPlanoFloor(snap) {
+        const floor = $('planoFloor')
+        if (!floor) return
+        const list = snap?.tables || []
+        const byId = Object.fromEntries(list.map((t) => [t.id, t]))
+        // Windows: cruzar siempre con carritos TPV locales (sync), no solo floor_plan
+        const carts = state.tables && typeof state.tables === 'object' ? state.tables : {}
+        const cartQtyOf = (blob) => {
+          if (!blob?.cart || typeof blob.cart !== 'object') return 0
+          let n = 0
+          for (const line of Object.values(blob.cart)) n += Math.max(0, Number(line?.qty) || 0)
+          return n
+        }
+        const cartTotalOf = (blob) => {
+          if (!blob?.cart || typeof blob.cart !== 'object') return 0
+          let cents = 0
+          for (const line of Object.values(blob.cart)) {
+            const price = Number(line?.price) || 0
+            const qty = Math.max(0, Number(line?.qty) || 0)
+            cents += Math.round(price * 100) * qty
+          }
+          return Math.round(cents) / 100
+        }
+        const cell = (id) => {
+          const t = byId[id] || { id, status: 'libre', total_amount: 0, shape: 'square' }
+          const blob = carts[id]
+          const qty = cartQtyOf(blob)
+          const cleared = Boolean(blob?.cleared) && qty === 0
+          const fromCartTotal = qty > 0 ? cartTotalOf(blob) : 0
+          // Sin productos (vaciada/cobrada) → siempre libre, aunque quede nombre viejo
+          const amount = qty > 0 ? fromCartTotal : 0
+          const st = !cleared && (qty > 0 || (t.status === 'ocupada' && amount > 0))
+            ? 'ocupada'
+            : qty > 0
+              ? 'ocupada'
+              : 'libre'
+          const occupied = st === 'ocupada' && qty > 0
+          const waiterName = occupied
+            ? String(t.current_waiter_name || blob?.waiterName || '').trim()
+            : ''
+          const waiter = occupied
+            ? `<span class="waiter">${waiterName || 'Sin asignar'}</span>`
+            : ''
+          const total = occupied
+            ? `<span class="meta">${window.CasaTorinoPlanoMesas.money(amount)}</span>`
+            : `<span class="meta">Libre</span>`
+          return `<button type="button" class="plano-table shape-${t.shape || 'square'} ${occupied ? 'ocupada' : 'libre'}" data-plano-mesa="${t.id}" title="${occupied ? `${waiterName || 'Sin asignar'} · ${window.CasaTorinoPlanoMesas.money(amount)}` : 'Libre'}">
+            <span class="n">${t.id}</span>${waiter}${total}
+          </button>`
+        }
+        const order = (ids) => ids.map(cell).join('')
+        floor.innerHTML = `
+          <section class="plano-zone plano-lateral">
+            <h4>Lateral</h4>
+            <div class="plano-grid col">${order(['17', '16', '15'])}</div>
+          </section>
+          <section class="plano-zone plano-salon">
+            <h4>Salón</h4>
+            <div class="plano-grid salon">${order(['12', '13', '14', '11', '10', '9', '6', '7', '8'])}</div>
+          </section>
+          <aside class="plano-service" aria-hidden="true">
+            <div class="svc">Almacén</div>
+            <div class="svc banos">Baños</div>
+            <div class="svc cocina">Cocina</div>
+          </aside>
+          <section class="plano-zone plano-entrada">
+            <h4>Entrada</h4>
+            <div class="plano-grid col">${order(['3', '2', '1'])}</div>
+          </section>
+          <section class="plano-zone plano-barra">
+            <h4>Barra</h4>
+            <div class="plano-grid barra-top">${order(['4', '5'])}</div>
+            <div class="barra-l">BARRA · TPV</div>
+          </section>
+        `
+      }
+
+      function paintPlanoWaiters(snap) {
+        const sel = $('planoWaiterSelect')
+        if (!sel || !window.CasaTorinoPlanoMesas) return
+        const list =
+          (snap && snap.waiters) ||
+          window.CasaTorinoPlanoMesas.listWaiters?.() ||
+          []
+        const cur = window.CasaTorinoPlanoMesas.getWaiter?.()
+        const curId = cur?.id || ''
+        sel.innerHTML =
+          '<option value="">— Elige camarera —</option>' +
+          list
+            .map(
+              (w) =>
+                `<option value="${w.id}" ${w.id === curId ? 'selected' : ''}>${w.name}</option>`,
+            )
+            .join('')
+        if (curId && !list.some((w) => w.id === curId)) sel.value = ''
+      }
+
+      function planoHintForRole(role) {
+        return role === 'central'
+          ? 'TPV central: elige camarera en el desplegable, toca mesa → carta. En el plano se ve quién atiende + total.'
+          : 'Móvil: elige tu nombre, toca una mesa (queda asignada a ti) y entras a la carta.'
+      }
+
+      async function openPlanoModal() {
+        const modal = $('planoModal')
+        if (!modal || !window.CasaTorinoPlanoMesas) {
+          alert('Plano no disponible en este dispositivo.')
+          return
+        }
+        const roleSel = $('planoRole')
+        const role = window.CasaTorinoPlanoMesas.getRole()
+        if (roleSel) roleSel.value = role
+        if ($('planoHint')) $('planoHint').textContent = planoHintForRole(role)
+        modal.hidden = false
+        try {
+          const snap = await window.CasaTorinoPlanoMesas.start((s) => {
+            paintPlanoFloor(s)
+            paintPlanoWaiters(s)
+          })
+          paintPlanoFloor(snap)
+          paintPlanoWaiters(snap)
+          window.CasaTorinoPlanoMesas.syncTotalsFromLocal?.(state.tables)
+        } catch (err) {
+          console.warn('openPlanoModal', err)
+          alert('No se pudo cargar el plano.\n' + (err.message || err))
+        }
+      }
+
+      function closePlanoModal() {
+        if ($('planoModal')) $('planoModal').hidden = true
+        try {
+          window.CasaTorinoPlanoMesas?.stop?.()
+        } catch {}
+      }
+
+      $('btnPlanoOpen')?.addEventListener('click', () => openPlanoModal())
+      $('planoBack')?.addEventListener('click', () => closePlanoModal())
+      $('planoCancel')?.addEventListener('click', () => closePlanoModal())
+      $('planoRole')?.addEventListener('change', (e) => {
+        const role = window.CasaTorinoPlanoMesas?.setRole?.(e.target.value)
+        if ($('planoHint')) $('planoHint').textContent = planoHintForRole(role)
+      })
+      $('planoWaiterSelect')?.addEventListener('change', (e) => {
+        const id = e.target.value
+        if (id) window.CasaTorinoPlanoMesas?.setWaiterById?.(id)
+      })
+      $('planoWaiterAdd')?.addEventListener('click', async () => {
+        const name = prompt('Nombre de la nueva camarera:')
+        if (name == null) return
+        try {
+          await window.CasaTorinoPlanoMesas.addWaiter(name)
+          paintPlanoWaiters(window.CasaTorinoPlanoMesas.getSnapshot())
+        } catch (err) {
+          alert(err.message || String(err))
+        }
+      })
+      $('planoWaiterEdit')?.addEventListener('click', async () => {
+        const sel = $('planoWaiterSelect')
+        const id = sel?.value
+        if (!id) {
+          alert('Elige una camarera en el desplegable.')
+          return
+        }
+        const cur = window.CasaTorinoPlanoMesas
+          .listWaiters()
+          .find((w) => w.id === id)
+        const name = prompt('Nuevo nombre:', cur?.name || '')
+        if (name == null) return
+        try {
+          await window.CasaTorinoPlanoMesas.updateWaiter(id, name)
+          paintPlanoWaiters(window.CasaTorinoPlanoMesas.getSnapshot())
+        } catch (err) {
+          alert(err.message || String(err))
+        }
+      })
+      $('planoWaiterDel')?.addEventListener('click', async () => {
+        const sel = $('planoWaiterSelect')
+        const id = sel?.value
+        if (!id) {
+          alert('Elige una camarera en el desplegable.')
+          return
+        }
+        const cur = window.CasaTorinoPlanoMesas
+          .listWaiters()
+          .find((w) => w.id === id)
+        if (!confirm(`¿Eliminar a ${cur?.name || 'esta camarera'}?`)) return
+        try {
+          await window.CasaTorinoPlanoMesas.removeWaiter(id)
+          paintPlanoWaiters(window.CasaTorinoPlanoMesas.getSnapshot())
+        } catch (err) {
+          alert(err.message || String(err))
+        }
+      })
+      $('planoFloor')?.addEventListener('click', async (e) => {
+        const btn = e.target.closest?.('[data-plano-mesa]')
+        if (!btn) return
+        const id = String(btn.getAttribute('data-plano-mesa') || '')
+        if (!id) return
+        try {
+          const sel = $('planoWaiterSelect')
+          if (sel?.value) window.CasaTorinoPlanoMesas.setWaiterById(sel.value)
+          const res = await window.CasaTorinoPlanoMesas.claimTable(id)
+          if (!res || res.action !== 'open') return
+          // Guardar camarera en el carrito de la mesa (sync a todos los dispositivos)
+          if (res.waiter?.id || res.waiter?.name) {
+            const prev = state.tables[id] || {
+              cart: {},
+              hist: [],
+              notes: '',
+              paid: '',
+              removed: {},
+            }
+            state.tables[id] = stampMesa(id, {
+              cart: prev.cart || {},
+              hist: prev.hist || [],
+              notes: prev.notes || '',
+              paid: prev.paid || '',
+              removed: prev.removed || {},
+              waiterId: res.waiter.id,
+              waiterName: res.waiter.name,
+            })
+            writeTablesStore({
+              mesa: id,
+              tables: state.tables,
+              opsDay: state.opsDay || '',
+            })
+            try {
+              window.CasaTorinoTpvSync?.push?.(state.tables, id)
+            } catch {}
+          }
+          closePlanoModal()
+          switchMesa(id)
+          // Siempre a la CARTA para añadir productos (no abrir Cuenta/total).
+          // Cobrar: FAB / botón Cuenta cuando toque.
+          try {
+            closeTicket()
+          } catch {}
+          try {
+            $('products')?.scrollIntoView?.({ block: 'start' })
+            $('search')?.focus?.({ preventScroll: true })
+          } catch {}
+        } catch (err) {
+          console.warn('plano claim', err)
+          alert(err.message || String(err))
+        }
+      })
+      $('planoModal')?.addEventListener('click', (e) => {
+        if (e.target === $('planoModal')) closePlanoModal()
+      })
       $('mesasCancel')?.addEventListener('click', () => closeMesasModal())
       $('mesasBack')?.addEventListener('click', () => closeMesasModal())
       $('mesasModal')?.addEventListener('click', (e) => {
@@ -5886,23 +6729,66 @@
       function startTpvSyncPolling() {
         window.CasaTorinoTpvSync?.start(
           (remote) => {
-            const merged = window.CasaTorinoTpvSync.mergeTables
-              ? window.CasaTorinoTpvSync.mergeTables(state.tables, remote.tables || {})
-              : { tables: remote.tables || {}, keptLocal: false }
-            const nextTables = merged.tables || remote.tables || {}
+            // remote.tables ya viene mergeado (unión de líneas) desde tpvSync.applyRemotePayload.
+            // Antes de aplicar, sellamos la mesa activa en memoria para no perder toques en vuelo.
+            const mActive = normalizeMesa(state.mesa)
+            let nextTables = remote.tables && typeof remote.tables === 'object' ? { ...remote.tables } : {}
+            if (mActive) {
+              // bump:false — no inventar updatedAt más nuevo que el remoto
+              const live = stampMesa(
+                mActive,
+                {
+                  cart: state.cart,
+                  hist: state.hist,
+                  notes: ($('notes')?.value || state.notes || '').trim(),
+                  paid: $('paid')?.value || '',
+                  removed: state.removed || {},
+                },
+                { bump: false },
+              )
+              const remoteMesa = nextTables[mActive]
+              const lq = tableCartQty(live)
+              const rq = tableCartQty(remoteMesa)
+              if ((lq > 0 || rq > 0) && window.CasaTorinoTpvSync?.mergeTables) {
+                const one = window.CasaTorinoTpvSync.mergeTables(
+                  { [mActive]: live },
+                  { [mActive]: remoteMesa || { cart: {}, removed: {}, updatedAt: 0 } },
+                  { preferLocalClear: false },
+                )
+                nextTables[mActive] = one.tables[mActive] || remoteMesa || live
+              } else if (lq > 0 && !remoteMesa) {
+                nextTables[mActive] = live
+              }
+            }
             const prevJson = JSON.stringify(state.tables)
             const nextJson = JSON.stringify(nextTables)
-            if (prevJson === nextJson) return
+            if (prevJson === nextJson) {
+              // Aun si tablas iguales, rehidratar mesa activa por si cart en memoria diverge
+              if (mActive) loadMesaIntoState(mActive)
+              return
+            }
             state.tables = nextTables
+            if (remote.opsDay) state.opsDay = remote.opsDay
             const m = normalizeMesa(state.mesa || remote.mesa)
             if (m) {
               state.mesa = m
               syncMesaInputs(m)
               loadMesaIntoState(m)
             }
-            writeTablesStore({ mesa: m || '', tables: state.tables, opsDay: state.opsDay || '' })
+            writeTablesStore({
+              mesa: m || '',
+              tables: state.tables,
+              opsDay: state.opsDay || '',
+            })
             render()
-            if (merged.keptLocal) {
+            try {
+              window.CasaTorinoPlanoMesas?.syncTotalsFromLocal?.(state.tables)
+              // Windows: repintar plano abierto con camarera + total al recibir sync
+              if ($('planoModal') && !$('planoModal').hidden) {
+                paintPlanoFloor(window.CasaTorinoPlanoMesas.getSnapshot())
+              }
+            } catch {}
+            if (remote.keptLocal) {
               try {
                 window.CasaTorinoTpvSync?.push(state.tables, m)
               } catch {}
@@ -5911,11 +6797,28 @@
           () => lockTpvForPin('Sesión caducada — introduce el PIN'),
           {
             skipInitialTick: true,
-            getLocalSnapshot: () => ({
-              tables: state.tables,
-              mesa: normalizeMesa(state.mesa),
-              opsDay: state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || '',
-            }),
+            getLocalSnapshot: () => {
+              const m = normalizeMesa(state.mesa)
+              const tables = { ...state.tables }
+              if (m) {
+                tables[m] = stampMesa(
+                  m,
+                  {
+                    cart: state.cart,
+                    hist: state.hist,
+                    notes: ($('notes')?.value || state.notes || '').trim(),
+                    paid: $('paid')?.value || '',
+                    removed: state.removed || {},
+                  },
+                  { bump: false },
+                )
+              }
+              return {
+                tables,
+                mesa: m,
+                opsDay: state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || '',
+              }
+            },
           },
         )
       }
@@ -5972,12 +6875,12 @@
         try {
           const m = normalizeMesa(state.mesa)
           if (m) {
-            state.tables[m] = {
+            state.tables[m] = stampMesa(m, {
               cart: state.cart,
               hist: state.hist,
               notes: ($('notes')?.value || state.notes || '').trim(),
               paid: $('paid')?.value || '',
-            }
+            })
           }
           writeTablesStore({ mesa: m || '', tables: state.tables, opsDay: state.opsDay || '' })
           window.CasaTorinoTpvSync?.flush?.()

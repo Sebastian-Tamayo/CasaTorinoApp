@@ -15,6 +15,12 @@ const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'jornada'
 const SALES_MAX = 500
 const { getJson, setJson, updateJson } = require('./_opsStore')
+const { opsDayId } = require('./_opsDay')
+const {
+  buildActivityByHour,
+  maybeTriggerWeeklyAfterSundayClose,
+} = require('./_informeReports')
+const tpvVersion = require('./_tpvVersion')
 
 function cors(req, res) {
   const origin = req.headers.origin || '*'
@@ -23,7 +29,7 @@ function cors(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Content-Type, X-Tpv-Key, Cache-Control',
+    'Content-Type, X-Tpv-Key, Cache-Control, X-Tpv-Client-Version',
   )
   res.setHeader('Cache-Control', 'no-store')
 }
@@ -78,12 +84,23 @@ function madridMonthDay(ts) {
   }
 }
 
-/** Archiva / actualiza el cierre en Blob `cierres` para el ERP. */
+/**
+ * Archiva UN cierre por jornada en ops_kv `cierres`.
+ *
+ * Día del informe = día operativo de cuando ABRIÓ la jornada (08:00 Madrid).
+ * Ejemplo: abren sábado y cierran a las 00:30 → cuenta como sábado.
+ * No se parte la jornada ni se mezcla con el domingo.
+ */
 async function archiveToCierres(stateWithTotals) {
   const startedAt = Number(stateWithTotals.startedAt) || null
   const endedAt = Number(stateWithTotals.endedAt) || Date.now()
-  const { dayKey, monthKey } = madridMonthDay(endedAt)
+  const sales = Array.isArray(stateWithTotals.sales)
+    ? stateWithTotals.sales
+    : []
+  const dayKey = opsDayId(new Date(startedAt || endedAt))
+  const monthKey = dayKey.slice(0, 7)
   const totals = stateWithTotals.totals || buildTotals(stateWithTotals)
+  const activityByHour = buildActivityByHour(sales)
   const cierre = {
     id: `cierre-${startedAt || endedAt}`,
     source: 'tpv',
@@ -92,17 +109,15 @@ async function archiveToCierres(stateWithTotals) {
     dayKey,
     monthKey,
     totals,
-    salesCount: Array.isArray(stateWithTotals.sales)
-      ? stateWithTotals.sales.length
-      : 0,
-    salesPreview: Array.isArray(stateWithTotals.sales)
-      ? stateWithTotals.sales.slice(-30).map((s) => ({
-          id: s.id,
-          at: s.at,
-          mesa: s.mesa,
-          total: s.total,
-        }))
-      : [],
+    salesCount: sales.length,
+    sales,
+    salesPreview: sales.slice(-30).map((s) => ({
+      id: s.id,
+      at: s.at,
+      mesa: s.mesa,
+      total: s.total,
+    })),
+    activityByHour,
     updatedAt: Date.now(),
   }
 
@@ -111,9 +126,12 @@ async function archiveToCierres(stateWithTotals) {
     () => ({ kind: 'casa-torino-cierres', items: [], updatedAt: 0 }),
     (store) => {
       let items = Array.isArray(store.items) ? store.items.slice() : []
-      const idx = items.findIndex((c) => c && c.id === cierre.id)
-      if (idx >= 0) items[idx] = cierre
-      else items.push(cierre)
+      // Quitar variantes partidas antiguas de la misma jornada
+      const prefix = `cierre-${startedAt || endedAt}`
+      items = items.filter(
+        (c) => c && c.id !== prefix && !String(c.id || '').startsWith(prefix + '-'),
+      )
+      items.push(cierre)
       items.sort((a, b) => (Number(b.endedAt) || 0) - (Number(a.endedAt) || 0))
       while (items.length > 400) items.pop()
       return {
@@ -426,16 +444,22 @@ module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json')
     return res.end(JSON.stringify({ error: 'unauthorized' }))
   }
-
   try {
     if (req.method === 'GET') {
+      // Soft-force: el aviso viaja en la respuesta; no hace falta refrescar.
       const state = await getState()
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify(withTotals(state)))
+      return res.end(
+        JSON.stringify({
+          ...withTotals(state),
+          tpvForce: tpvVersion.forceInfo(),
+        }),
+      )
     }
 
     if (req.method === 'POST') {
+      if (tpvVersion.rejectIfClientOutdated(req, res)) return
       const body =
         typeof req.body === 'string'
           ? JSON.parse(req.body || '{}')
@@ -636,6 +660,7 @@ module.exports = async function handler(req, res) {
 
       // Si la jornada está cerrada (fin de sesión o corrección), sincronizar al historial ERP
       let cierre = null
+      let informeSemanal = null
       if (state.status === 'ended') {
         try {
           const full = withTotals(state)
@@ -643,11 +668,22 @@ module.exports = async function handler(req, res) {
         } catch (err) {
           console.warn('[tpv-jornada] archive', err)
         }
+        // Domingos: tras cerrar caja → mail semanal CON el domingo incluido.
+        // force en el trigger: el último cierre del domingo pisa un envío prematuro.
+        if (action === 'end') {
+          try {
+            informeSemanal = await maybeTriggerWeeklyAfterSundayClose()
+          } catch (err) {
+            console.warn('[tpv-jornada] informe semanal', err)
+          }
+        }
       }
 
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify({ ...withTotals(state), cierre }))
+      return res.end(
+        JSON.stringify({ ...withTotals(state), cierre, informeSemanal }),
+      )
     }
 
     res.statusCode = 405
