@@ -2309,80 +2309,142 @@
       }
     }
     @media (max-width: 720px) {
-      #planoModal.course-modal { padding: .45rem; }
-      #planoModal .course-card-h { margin-bottom: .15rem; }
+      #planoModal.course-modal { padding: .4rem; }
+      #planoModal .course-card-h { margin-bottom: .1rem; }
       #planoModal .btn-modal-back {
-        min-height: 44px;
-        padding: .45rem .7rem .45rem .55rem;
-        font-size: .82rem;
+        min-height: 42px;
+        padding: .4rem .65rem .4rem .5rem;
+        font-size: .8rem;
       }
       .plano-toolbar {
-        gap: .35rem;
-        margin: 0 0 .4rem;
+        gap: .3rem;
+        margin: 0 0 .3rem;
       }
-      .plano-toolbar label { font-size: .62rem; gap: .2rem; flex: 1 1 120px; }
+      .plano-toolbar label { font-size: .6rem; gap: .15rem; flex: 1 1 110px; }
       .plano-toolbar select,
       .plano-toolbar input {
-        min-height: 44px;
-        padding: .45rem .55rem;
-        font-size: .9rem;
+        min-height: 42px;
+        padding: .4rem .5rem;
+        font-size: .85rem;
       }
-      .plano-waiter-actions { gap: .3rem; }
+      .plano-waiter-actions { gap: .25rem; }
       .plano-waiter-actions button {
-        min-height: 44px;
-        padding: .45rem .55rem;
-        font-size: .78rem;
+        min-height: 42px;
+        padding: .4rem .5rem;
+        font-size: .74rem;
       }
       .plano-toolbar .plano-hint { display: none; }
-      #planoModal .course-actions { margin-top: .35rem; }
+      #planoModal .course-actions { margin-top: .3rem; }
       #planoModal .course-actions button {
-        min-height: 48px;
-        font-size: .95rem;
-        padding: .65rem .7rem;
+        min-height: 46px;
+        font-size: .92rem;
+        padding: .55rem .65rem;
       }
+      /*
+        Móvil: Terraza (salón) manda en altura.
+        Barra solo 2 mesas → fila inferior auto (no roba espacio).
+        Sin Almacén/Baños/Cocina.
+      */
       .plano-floor {
-        grid-template-columns: minmax(100px, 0.36fr) minmax(0, 1fr);
-        /* Sin fila service: entrada (1–3) gana altura */
-        grid-template-rows: minmax(0, 1.05fr) minmax(0, 1.2fr);
+        grid-template-columns: minmax(86px, 0.3fr) minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) auto;
         grid-template-areas:
           "lateral salon"
           "entrada barra";
-        max-height: min(62dvh, 560px);
-        min-height: 320px;
-        gap: .45rem;
-        padding: .5rem;
+        max-height: min(72dvh, 640px);
+        min-height: 420px;
+        gap: .35rem;
+        padding: .4rem;
+        overflow: hidden;
       }
-      /* Almacén / Baños / Cocina: solo en TPV Windows; en móvil ocupan espacio inútil */
       .plano-service { display: none !important; }
-      .plano-zone { padding: .35rem; }
-      .plano-zone h4 { margin: 0 0 .3rem; font-size: .62rem; }
-      .plano-table { min-height: 60px; }
+      .plano-zone { padding: .28rem; border-radius: 10px; }
+      .plano-zone h4 { margin: 0 0 .22rem; font-size: .58rem; }
+
+      /* Cuadros compactos y completos (sin solaparse) */
+      .plano-table {
+        min-height: 0 !important;
+        height: 100%;
+        padding: .18rem .12rem;
+        gap: .06rem;
+      }
       .plano-table.shape-square,
-      .plano-table.shape-circle { min-height: 60px; }
-      .plano-entrada .plano-table {
-        min-height: 72px;
+      .plano-table.shape-rect,
+      .plano-table.shape-circle {
+        min-height: 0 !important;
+        border-radius: 8px;
+      }
+      .plano-table .n { font-size: .95rem; }
+      .plano-table .waiter { font-size: .58rem; }
+      .plano-table .meta { font-size: .55rem; }
+
+      /* Reservas (15–17) + Terraza: ocupan la fila alta */
+      .plano-lateral .plano-grid.col {
+        gap: .28rem;
+        grid-template-rows: repeat(3, minmax(0, 1fr));
+        height: 100%;
+      }
+      .plano-lateral .plano-table {
+        min-height: 0 !important;
+        height: 100%;
+      }
+      .plano-grid.salon {
+        gap: .28rem;
+        grid-template-rows: repeat(3, minmax(0, 1fr));
+        height: 100%;
+      }
+
+      /* Entrada: altura propia (fila auto), mesas completas sin depender del stretch */
+      .plano-entrada {
+        min-height: 0;
       }
       .plano-entrada .plano-grid.col {
-        gap: .4rem;
+        flex: 0 0 auto;
+        gap: .28rem;
+        height: auto;
+        grid-template-rows: repeat(3, auto);
       }
-      /* 4 y 5 pequeñas; sin franja BARRA·TPV en móvil */
-      .plano-barra .barra-l { display: none !important; }
-      .plano-grid.barra-top {
-        gap: clamp(.75rem, 6vw, 1.5rem);
-        padding: 0 .25rem;
+      .plano-entrada .plano-table {
+        height: auto !important;
+        min-height: 40px !important;
+      }
+
+      /* Barra: compacta — 2 mesas pequeñas + franja roja fina */
+      .plano-barra {
+        justify-content: flex-start;
+        gap: .2rem;
         min-height: 0;
-        flex: 1 1 auto;
-        align-content: center;
+        align-self: start;
+        height: auto;
+        padding-bottom: .15rem;
+      }
+      .plano-barra .barra-l {
+        display: grid !important;
+        height: 22px;
+        margin-top: .1rem;
+        font-size: .62rem;
+        letter-spacing: .06em;
+        border-radius: 8px;
+      }
+      .plano-grid.barra-top {
+        flex: 0 0 auto;
+        gap: .55rem;
+        padding: 0 .1rem;
+        min-height: 0;
+        align-items: center;
+        justify-items: center;
       }
       .plano-grid.barra-top .plano-table {
-        max-width: 72px;
-        min-height: 52px !important;
+        max-width: 52px;
+        width: 52px;
+        height: 40px !important;
+        min-height: 40px !important;
+        padding: .1rem .08rem;
         justify-self: center;
-        padding: .22rem .15rem;
       }
-      .plano-grid.barra-top .plano-table .n { font-size: .95rem; }
-      .plano-grid.barra-top .plano-table .waiter { font-size: .6rem; }
-      .plano-grid.barra-top .plano-table .meta { font-size: .58rem; }
+      .plano-grid.barra-top .plano-table .n { font-size: .88rem; }
+      .plano-grid.barra-top .plano-table .waiter { font-size: .52rem; }
+      .plano-grid.barra-top .plano-table .meta { font-size: .5rem; }
       .plano-grid.barra-top .plano-table[data-plano-mesa="4"],
       .plano-grid.barra-top .plano-table[data-plano-mesa="5"] {
         justify-self: center;
@@ -2962,7 +3024,7 @@
   <script src="tpvJornada.js?v=push-msg-1"></script>
   <script src="kitchenSync.js?v=fix-create-1"></script>
   <script src="reservaAlertSync.js"></script>
-  <script src="planoMesas.js?v=plano-13"></script>
+  <script src="planoMesas.js?v=plano-14"></script>
   <script>
     (() => {
       /**
@@ -2971,7 +3033,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-13-plano-13'
+      const TPV_CLIENT_VERSION = '2026-10-13-plano-14'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3108,7 +3170,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=plano-13')
+            .register('/sw-tpv.js?v=plano-14')
             .catch(() => {})
         })
         try {
@@ -6064,11 +6126,11 @@
         const order = (ids) => ids.map(cell).join('')
         floor.innerHTML = `
           <section class="plano-zone plano-lateral">
-            <h4>Lateral</h4>
+            <h4>Reservas</h4>
             <div class="plano-grid col">${order(['17', '16', '15'])}</div>
           </section>
           <section class="plano-zone plano-salon">
-            <h4>Salón</h4>
+            <h4>Terraza</h4>
             <div class="plano-grid salon">${order(['12', '13', '14', '11', '10', '9', '6', '7', '8'])}</div>
           </section>
           <aside class="plano-service" aria-hidden="true">
