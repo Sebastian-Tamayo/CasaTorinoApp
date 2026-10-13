@@ -2000,71 +2000,105 @@
       .jornada-actions .btn-j { padding: .42rem .62rem; font-size: .68rem; }
     }
 
-    /* —— Plano mesas (overlay, no sustituye Mesas pendientes) —— */
+    /* —— Plano mesas (overlay, no sustituye Mesas pendientes) ——
+       Targets táctiles ≥48px también en TPV Windows (pointer:fine + touch). */
     #planoModal.course-modal {
       align-items: start;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       padding: .75rem;
+      touch-action: pan-y;
+      -ms-touch-action: pan-y;
     }
     #planoModal.course-modal .course-card {
-      width: min(980px, 100%);
+      width: min(1040px, 100%);
       max-height: none;
       display: flex;
       flex-direction: column;
       margin: auto;
     }
+    #planoModal .btn-modal-back {
+      min-height: 52px;
+      height: auto;
+      padding: .65rem 1rem .65rem .85rem;
+      font-size: .92rem;
+      touch-action: manipulation;
+      -ms-touch-action: manipulation;
+    }
+    #planoModal .course-actions {
+      grid-template-columns: 1fr;
+      margin-top: .55rem;
+    }
+    #planoModal .course-actions button {
+      min-height: 56px;
+      font-size: 1rem;
+      touch-action: manipulation;
+      -ms-touch-action: manipulation;
+    }
     .plano-toolbar {
-      display: flex; flex-wrap: wrap; gap: .45rem; align-items: flex-end;
+      display: flex; flex-wrap: wrap; gap: .55rem; align-items: flex-end;
       margin: .2rem 0 .7rem;
     }
     .plano-toolbar label {
-      display: grid; gap: .25rem;
-      font-size: .68rem; font-weight: 800; letter-spacing: .04em;
+      display: grid; gap: .3rem;
+      font-size: .72rem; font-weight: 800; letter-spacing: .04em;
       text-transform: uppercase; color: var(--muted);
+      flex: 1 1 160px;
     }
     .plano-toolbar select, .plano-toolbar input {
-      border: 1px solid var(--line2); border-radius: 12px;
+      border: 1px solid var(--line2); border-radius: 14px;
       background: var(--card); color: var(--ink);
-      padding: .55rem .7rem; font: inherit; font-weight: 700;
-      min-width: 140px;
+      padding: .7rem .85rem; font: inherit; font-weight: 700; font-size: 1rem;
+      min-width: 160px;
+      min-height: 52px;
+      touch-action: manipulation;
+      -ms-touch-action: manipulation;
     }
     .plano-waiter-actions {
-      display: flex; flex-wrap: wrap; gap: .35rem;
+      display: flex; flex-wrap: wrap; gap: .45rem;
+      align-items: stretch;
+      flex: 1 1 100%;
     }
     .plano-waiter-actions button {
-      border: 1px solid var(--line2); border-radius: 10px;
+      border: 1px solid var(--line2); border-radius: 12px;
       background: var(--card); color: var(--ink);
-      padding: .45rem .65rem; font: inherit; font-size: .75rem; font-weight: 800;
+      padding: .7rem 1rem; font: inherit; font-size: .9rem; font-weight: 800;
+      min-height: 52px;
+      flex: 1 1 auto;
       cursor: pointer;
+      touch-action: manipulation;
+      -ms-touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     .plano-waiter-actions button:active { transform: scale(.98); }
     .plano-toolbar .plano-hint {
-      flex: 1 1 100%; font-size: .78rem; color: var(--muted); margin: 0;
+      flex: 1 1 100%; font-size: .82rem; color: var(--muted); margin: 0;
     }
     .plano-floor {
       display: grid;
-      grid-template-columns: minmax(112px, 0.28fr) minmax(240px, 1fr) 100px;
+      grid-template-columns: minmax(120px, 0.28fr) minmax(260px, 1fr) 100px;
       grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
       grid-template-areas:
         "lateral salon service"
         "entrada barra service";
-      gap: .55rem;
+      gap: .65rem;
       background: linear-gradient(180deg, #e8e4dc, #f4f1ea);
       border-radius: 16px;
-      padding: .65rem;
+      padding: .75rem;
       color: #1a1a1a;
-      min-height: 360px;
-      max-height: min(68dvh, 620px);
+      min-height: 400px;
+      max-height: min(72dvh, 700px);
       overflow: auto;
       -webkit-overflow-scrolling: touch;
+      touch-action: pan-x pan-y;
+      -ms-touch-action: pan-x pan-y;
       align-items: stretch;
     }
     .plano-zone {
       background: rgba(255,255,255,.72);
       border: 1px solid rgba(0,0,0,.08);
       border-radius: 12px;
-      padding: .45rem;
+      padding: .5rem;
       position: relative;
       min-width: 0;
       min-height: 0;
@@ -2072,7 +2106,7 @@
       flex-direction: column;
     }
     .plano-zone h4 {
-      margin: 0 0 .4rem; font-size: .68rem; letter-spacing: .06em;
+      margin: 0 0 .45rem; font-size: .7rem; letter-spacing: .06em;
       text-transform: uppercase; color: #666;
       flex: 0 0 auto;
     }
@@ -2082,14 +2116,14 @@
       flex: 1 1 auto;
       grid-template-columns: 1fr;
       grid-template-rows: repeat(3, minmax(0, 1fr));
-      gap: .5rem;
+      gap: .55rem;
       min-height: 0;
       height: 100%;
     }
     .plano-lateral .plano-table {
       width: 100%;
       height: 100%;
-      min-height: 0;
+      min-height: 72px;
       aspect-ratio: auto;
     }
     .plano-salon { grid-area: salon; background: #d9d6d0; }
@@ -2109,13 +2143,14 @@
     .plano-entrada .plano-grid.col {
       flex: 1 1 auto;
       grid-template-rows: repeat(3, minmax(0, 1fr));
+      gap: .55rem;
       min-height: 0;
       height: 100%;
     }
     .plano-entrada .plano-table {
       width: 100%;
       height: 100%;
-      min-height: 0;
+      min-height: 72px;
       aspect-ratio: auto;
     }
     .plano-barra {
@@ -2123,38 +2158,43 @@
       background: #fff;
     }
     .plano-barra .barra-l {
-      height: 48px; margin-top: .45rem; border-radius: 10px;
+      height: 40px; margin-top: .35rem; border-radius: 10px;
       background: #e11d2e; color: #fff; display: grid; place-items: center;
-      font-weight: 900; letter-spacing: .08em;
+      font-weight: 900; letter-spacing: .08em; font-size: .85rem;
       flex: 0 0 auto;
     }
     .plano-grid {
-      display: grid; gap: .4rem;
+      display: grid; gap: .5rem;
     }
     .plano-grid.salon {
       flex: 1 1 auto;
       grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .55rem;
       min-height: 0;
     }
     .plano-grid.col { grid-template-columns: 1fr; }
-    /* 4 y 5: separadas a lo ancho, ocupan toda la zona barra */
+    /* 4 y 5: más compactas para no comer altura al salón (6–8) */
     .plano-grid.barra-top {
-      flex: 1 1 auto;
+      flex: 0 1 auto;
       grid-template-columns: 1fr 1fr;
       width: 100%;
       max-width: none;
       margin: 0;
-      gap: clamp(2.25rem, 10vw, 5rem);
-      align-items: stretch;
-      min-height: 72px;
+      gap: clamp(1.5rem, 8vw, 3.5rem);
+      align-items: center;
+      min-height: 0;
     }
     .plano-grid.barra-top .plano-table {
       width: 100%;
-      max-width: 110px;
+      max-width: 96px;
       justify-self: center;
       aspect-ratio: auto;
-      min-height: 72px;
+      min-height: 64px !important;
+      padding: .3rem .25rem;
     }
+    .plano-grid.barra-top .plano-table .n { font-size: 1.05rem; }
+    .plano-grid.barra-top .plano-table .waiter { font-size: .68rem; }
+    .plano-grid.barra-top .plano-table .meta { font-size: .62rem; }
     .plano-grid.barra-top .plano-table[data-plano-mesa="4"] {
       justify-self: start;
     }
@@ -2164,53 +2204,145 @@
     .plano-table {
       border: 0; cursor: pointer; color: #111;
       font: inherit; font-weight: 900;
-      min-height: 64px; padding: .35rem .3rem;
+      min-height: 80px; padding: .45rem .35rem;
       display: grid;
       grid-template-rows: auto auto auto;
       place-items: center;
       align-content: center;
-      gap: .12rem;
+      gap: .15rem;
       box-shadow: inset 0 0 0 2px rgba(0,0,0,.08);
       transition: transform .12s ease, filter .12s ease;
       width: 100%;
       overflow: hidden;
+      touch-action: manipulation;
+      -ms-touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
     }
-    .plano-table:active { transform: scale(.97); }
+    .plano-table:active { transform: scale(.97); filter: brightness(.96); }
     /* Sin aspect-ratio fijo: en Windows debe verse nº + camarera + total */
-    .plano-table.shape-square { border-radius: 10px; aspect-ratio: auto; min-height: 72px; }
-    .plano-table.shape-rect { border-radius: 10px; min-height: 56px; }
-    .plano-table.shape-circle { border-radius: 999px; aspect-ratio: auto; min-height: 72px; }
+    .plano-table.shape-square { border-radius: 12px; aspect-ratio: auto; min-height: 80px; }
+    .plano-table.shape-rect { border-radius: 12px; min-height: 72px; }
+    .plano-table.shape-circle { border-radius: 999px; aspect-ratio: auto; min-height: 80px; }
     .plano-table.libre { background: #22c55e; color: #052e16; }
     .plano-table.ocupada { background: #ef4444; color: #fff; }
-    .plano-table .n { font-size: 1.05rem; line-height: 1; }
+    .plano-table .n { font-size: 1.2rem; line-height: 1; }
     .plano-table .waiter {
-      font-size: .7rem; font-weight: 800; letter-spacing: .01em;
+      font-size: .78rem; font-weight: 800; letter-spacing: .01em;
       max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       line-height: 1.15;
     }
     .plano-table .meta {
-      font-size: .64rem; font-weight: 700; opacity: .95;
+      font-size: .72rem; font-weight: 700; opacity: .95;
       max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    /* TPV Windows / caja ancha: mesas y acciones aún más cómodas al dedo */
+    @media (min-width: 900px) {
+      #planoModal.course-modal { padding: 1rem; }
+      .plano-floor {
+        min-height: 460px;
+        max-height: min(78dvh, 780px);
+        gap: .75rem;
+        padding: .85rem;
+      }
+      .plano-grid.salon { gap: .65rem; }
+      .plano-lateral .plano-grid.col,
+      .plano-entrada .plano-grid.col { gap: .65rem; }
+      .plano-table {
+        min-height: 88px;
+        padding: .5rem .4rem;
+      }
+      .plano-table.shape-square,
+      .plano-table.shape-circle { min-height: 88px; }
+      .plano-table .n { font-size: 1.28rem; }
+      .plano-table .waiter { font-size: .84rem; }
+      .plano-table .meta { font-size: .78rem; }
+      .plano-grid.barra-top {
+        min-height: 0;
+        gap: clamp(2rem, 10vw, 4.5rem);
+      }
+      .plano-grid.barra-top .plano-table {
+        max-width: 110px;
+        min-height: 72px !important;
+      }
+      .plano-barra .barra-l { height: 44px; }
+      .plano-toolbar select,
+      .plano-toolbar input {
+        min-height: 56px;
+        font-size: 1.05rem;
+      }
+      .plano-waiter-actions button {
+        min-height: 56px;
+        font-size: .95rem;
+        padding: .8rem 1.15rem;
+      }
+      #planoModal .btn-modal-back {
+        min-height: 56px;
+        font-size: 1rem;
+      }
+      #planoModal .course-actions button {
+        min-height: 60px;
+        font-size: 1.05rem;
+      }
+    }
+    /* El gesto táctil de caja no debe anular toques del plano */
+    @media (min-width: 1024px) {
+      html.tpv-touch-scroll #planoModal,
+      html.tpv-touch-scroll #planoModal .course-card {
+        touch-action: auto !important;
+        -ms-touch-action: auto !important;
+      }
+      html.tpv-touch-scroll #planoModal .plano-floor {
+        touch-action: pan-x pan-y !important;
+        -ms-touch-action: pan-x pan-y !important;
+      }
+      html.tpv-touch-scroll #planoModal button,
+      html.tpv-touch-scroll #planoModal select,
+      html.tpv-touch-scroll #planoModal .plano-table,
+      html.tpv-touch-scroll #planoModal .plano-waiter-actions button,
+      html.tpv-touch-scroll #planoModal .btn-modal-back,
+      html.tpv-touch-scroll #planoModal .course-actions button {
+        touch-action: manipulation !important;
+        -ms-touch-action: manipulation !important;
+        pointer-events: auto !important;
+      }
     }
     @media (max-width: 720px) {
       .plano-floor {
         grid-template-columns: minmax(88px, 0.32fr) minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1.35fr) minmax(0, 0.85fr) auto;
         grid-template-areas:
           "lateral salon"
           "entrada barra"
           "service service";
         max-height: min(72dvh, 720px);
       }
-      .plano-service { flex-direction: row; min-height: 44px; }
-      .plano-table { min-height: 56px; }
+      .plano-service { flex-direction: row; min-height: 40px; }
+      .plano-table { min-height: 64px; }
+      .plano-table.shape-square,
+      .plano-table.shape-circle { min-height: 64px; }
+      /* 4 y 5 pequeñas en móvil → salón (6–8) se ve completo */
+      .plano-barra .barra-l {
+        height: 32px;
+        margin-top: .25rem;
+        font-size: .72rem;
+      }
       .plano-grid.barra-top {
-        gap: clamp(1rem, 8vw, 2rem);
-        padding: 0 .35rem;
+        gap: clamp(.75rem, 6vw, 1.5rem);
+        padding: 0 .25rem;
+        min-height: 0;
+        flex: 0 0 auto;
       }
       .plano-grid.barra-top .plano-table {
-        max-width: 96px;
+        max-width: 72px;
+        min-height: 52px !important;
         justify-self: center;
+        padding: .22rem .15rem;
       }
+      .plano-grid.barra-top .plano-table .n { font-size: .95rem; }
+      .plano-grid.barra-top .plano-table .waiter { font-size: .6rem; }
+      .plano-grid.barra-top .plano-table .meta { font-size: .58rem; }
       .plano-grid.barra-top .plano-table[data-plano-mesa="4"],
       .plano-grid.barra-top .plano-table[data-plano-mesa="5"] {
         justify-self: center;
@@ -2790,7 +2922,7 @@
   <script src="tpvJornada.js?v=push-msg-1"></script>
   <script src="kitchenSync.js?v=fix-create-1"></script>
   <script src="reservaAlertSync.js"></script>
-  <script src="planoMesas.js?v=plano-3"></script>
+  <script src="planoMesas.js?v=plano-12"></script>
   <script>
     (() => {
       /**
@@ -2799,7 +2931,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-13-plano-10'
+      const TPV_CLIENT_VERSION = '2026-10-13-plano-12'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -2936,7 +3068,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=plano-10')
+            .register('/sw-tpv.js?v=plano-12')
             .catch(() => {})
         })
         try {
@@ -5231,6 +5363,8 @@
         function pickScroller(target) {
           if (!target || !target.closest) return null
           if (target.closest(SKIP)) return null
+          // Overlay plano / modales: no hijack del dedo (toques en mesas y acciones)
+          if (target.closest('#planoModal, .course-modal')) return null
           // Si tocas la cuenta, prioriza la zona bajo el dedo
           const direct = target.closest(ZONE)
           if (direct) return direct
