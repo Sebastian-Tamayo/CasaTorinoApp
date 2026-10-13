@@ -1333,7 +1333,7 @@
     .jornada-status strong { color: var(--ink); font-weight: 800; }
     .jornada-status.open strong { color: var(--ok); }
     .jornada-status.ended strong { color: var(--gold); }
-    .jornada-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+    .jornada-actions { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
     .jornada-actions .btn-j {
       border: 1px solid var(--line2); background: var(--card); color: var(--ink);
       border-radius: 999px; padding: .45rem .75rem;
@@ -1349,14 +1349,34 @@
     }
     .jornada-actions .btn-j.fichaje {
       border-color: rgba(56,189,248,.5); color: #7dd3fc;
+      width: 2.4rem;
+      min-width: 2.4rem;
+      height: 2.4rem;
+      padding: 0;
+      display: inline-grid;
+      place-items: center;
+      font-size: 1.05rem;
     }
+    .jornada-actions .btn-j.fichaje i { margin: 0; }
     .jornada-actions .btn-j.shift-notes {
       border-color: rgba(251,191,36,.5); color: #fcd34d;
       position: relative;
     }
+    /* Plano: última opción, compacta pero destacada (uso frecuente) */
     .jornada-actions .btn-j.plano {
-      border-color: rgba(91,157,255,.5);
-      color: #93c5fd;
+      margin-left: auto;
+      border: 0;
+      background: linear-gradient(135deg, #f5c518, #e0a800);
+      color: #1a1200;
+      font-size: .85rem;
+      font-weight: 900;
+      padding: .58rem 1.1rem;
+      box-shadow: 0 1px 0 rgba(0,0,0,.25);
+    }
+    .jornada-actions .btn-j.plano i { color: #1a1200; }
+    .jornada-actions .btn-j.plano:active {
+      filter: brightness(1.06);
+      transform: scale(.98);
     }
     .jornada-actions .btn-j.reservas-quick {
       border-color: rgba(52,211,153,.5); color: #6ee7b7;
@@ -2604,22 +2624,22 @@
       <div class="jornada-status" id="jornadaStatus">Jornada: <strong>sin iniciar</strong></div>
       <div class="jornada-actions">
         <button class="btn-j total" id="btnMesasOpenBar" type="button" title="Mesas pendientes de cobro"><i class="fa-solid fa-list-ul"></i> Mesas</button>
-        <button class="btn-j plano" id="btnPlanoOpen" type="button" title="Plano visual de mesas"><i class="fa-solid fa-map"></i> Plano</button>
-        <button class="btn-j start" id="btnJornadaStart" type="button"><i class="fa-solid fa-play"></i> Inicio de jornada</button>
-        <button class="btn-j total" id="btnJornadaTotal" type="button"><i class="fa-solid fa-chart-column"></i> Total de jornada</button>
-        <button class="btn-j end" id="btnJornadaEnd" type="button" disabled><i class="fa-solid fa-flag-checkered"></i> Fin de sesión</button>
-        <button class="btn-j edit-carta" id="btnEditarCarta" type="button" title="Editar productos y precios"><i class="fa-solid fa-pen-to-square"></i> Editar Carta</button>
-        <button class="btn-j fichaje" id="btnFichaje" type="button" title="Registro horario camareras"><i class="fa-solid fa-fingerprint"></i> Fichaje</button>
-        <button class="btn-j shift-notes" id="btnShiftNotes" type="button" title="Notas de turno / proveedores">
+        <button class="btn-j start" id="btnJornadaStart" type="button" title="Inicio de jornada"><i class="fa-solid fa-play"></i> Inicio</button>
+        <button class="btn-j total" id="btnJornadaTotal" type="button" title="Total del día"><i class="fa-solid fa-chart-column"></i> Total día</button>
+        <button class="btn-j end" id="btnJornadaEnd" type="button" disabled title="Fin de sesión"><i class="fa-solid fa-flag-checkered"></i> Fin</button>
+        <button class="btn-j edit-carta" id="btnEditarCarta" type="button" title="Editar carta"><i class="fa-solid fa-pen-to-square"></i> Carta</button>
+        <button class="btn-j fichaje" id="btnFichaje" type="button" aria-label="Fichar" title="Fichar"><i class="fa-solid fa-fingerprint"></i></button>
+        <button class="btn-j shift-notes" id="btnShiftNotes" type="button" title="Notas de turno">
           <i class="fa-solid fa-clipboard-list"></i> Notas
           <span class="notes-badge" id="shiftNotesBadge" hidden>0</span>
         </button>
-        <button class="btn-j reservas-quick" id="btnReservasQuick" type="button" title="Resumen de reservas del día">
+        <button class="btn-j reservas-quick" id="btnReservasQuick" type="button" title="Reservas">
           <i class="fa-solid fa-calendar-check"></i> Reservas
           <span class="notes-badge" id="reservasQuickBadge" hidden>0</span>
         </button>
-        <button class="btn-j add-plato" id="btnAddPlato" type="button" hidden title="Añadir plato nuevo"><i class="fa-solid fa-plus"></i> Añadir plato</button>
-        <button class="btn-j close-edit" id="btnCerrarEdicion" type="button" hidden title="Volver al modo comandas"><i class="fa-solid fa-xmark"></i> Cerrar Edición</button>
+        <button class="btn-j plano" id="btnPlanoOpen" type="button" title="Plano de mesas"><i class="fa-solid fa-map"></i> Plano</button>
+        <button class="btn-j add-plato" id="btnAddPlato" type="button" hidden title="Añadir plato"><i class="fa-solid fa-plus"></i> Añadir</button>
+        <button class="btn-j close-edit" id="btnCerrarEdicion" type="button" hidden title="Cerrar edición"><i class="fa-solid fa-xmark"></i> Cerrar</button>
       </div>
     </div>
 
@@ -2924,7 +2944,7 @@
         <button type="button" class="btn-modal-back" id="jornadaBack" aria-label="Volver">
           <i class="fa-solid fa-arrow-left"></i> Volver
         </button>
-        <h3 id="jornadaModalTitle">Total de jornada</h3>
+        <h3 id="jornadaModalTitle">Total día</h3>
       </div>
       <p class="sub" id="jornadaModalSub">—</p>
       <div class="jornada-grand">
@@ -3058,7 +3078,7 @@
   <script src="tpvJornada.js?v=push-msg-1"></script>
   <script src="kitchenSync.js?v=fix-create-1"></script>
   <script src="reservaAlertSync.js"></script>
-  <script src="planoMesas.js?v=plano-14"></script>
+  <script src="planoMesas.js?v=menu-1"></script>
   <script>
     (() => {
       /**
@@ -3067,7 +3087,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-13-plano-14'
+      const TPV_CLIENT_VERSION = '2026-10-13-menu-1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3204,7 +3224,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=plano-14')
+            .register('/sw-tpv.js?v=menu-1')
             .catch(() => {})
         })
         try {
