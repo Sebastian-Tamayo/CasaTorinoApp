@@ -2699,14 +2699,14 @@
   <div class="tpv-toast" id="tpvToast" role="status" aria-live="polite"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.min.js"></script>
-  <script src="carta.js"></script>
-  <script src="tpv-data.js"></script>
+  <script src="carta.js?v=plano-2"></script>
+  <script src="tpv-data.js?v=plano-2"></script>
   <script src="printService.js"></script>
   <script src="tpvSync.js?v=push-msg-1"></script>
   <script src="tpvJornada.js?v=push-msg-1"></script>
   <script src="kitchenSync.js?v=fix-create-1"></script>
   <script src="reservaAlertSync.js"></script>
-  <script src="planoMesas.js?v=plano-1"></script>
+  <script src="planoMesas.js?v=plano-3"></script>
   <script>
     (() => {
       /**
@@ -2715,7 +2715,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-13-plano-2'
+      const TPV_CLIENT_VERSION = '2026-10-13-plano-3'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -2831,7 +2831,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=plano-1')
+            .register('/sw-tpv.js?v=plano-3')
             .catch(() => {})
         })
         try {
@@ -5706,8 +5706,8 @@
 
       function planoHintForRole(role) {
         return role === 'central'
-          ? 'TPV central (Windows): toca una mesa ocupada para cobrar. Verde libre / Rojo ocupada. Mesas 1–3 están abajo a la izquierda.'
-          : 'Móvil camarera: elige tu nombre en el desplegable, toca una mesa libre y se te asigna.'
+          ? 'TPV central (Windows): toca una mesa → vas a la carta de esa mesa. Para cobrar usa Cuenta / FAB.'
+          : 'Móvil camarera: elige tu nombre, toca una mesa y entras directo a la carta para pedir.'
       }
 
       async function openPlanoModal() {
@@ -5812,11 +5812,15 @@
           if (!res || res.action !== 'open') return
           closePlanoModal()
           switchMesa(id)
-          if (res.role === 'central') {
-            try {
-              openTicket()
-            } catch {}
-          }
+          // Siempre a la CARTA para añadir productos (no abrir Cuenta/total).
+          // Cobrar: FAB / botón Cuenta cuando toque.
+          try {
+            closeTicket()
+          } catch {}
+          try {
+            $('products')?.scrollIntoView?.({ block: 'start' })
+            $('search')?.focus?.({ preventScroll: true })
+          } catch {}
         } catch (err) {
           console.warn('plano claim', err)
           alert(err.message || String(err))
