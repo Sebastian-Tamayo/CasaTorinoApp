@@ -29,4 +29,7 @@ jobs:
           fi
           mkdir -p .vercel
           printf '%s\n' "{\"projectId\":\"$VERCEL_PROJECT_ID\",\"orgId\":\"$VERCEL_ORG_ID\",\"projectName\":\"casa-torino-web\"}" > .vercel/project.json
-          npx vercel@latest deploy --prod --yes --scope sebas3212 --token "$VERCEL_TOKEN"
+          URL=$(npx vercel@latest deploy --prod --yes --scope sebas3212 --token "$VERCEL_TOKEN")
+          echo "Deployed: $URL"
+          # Alias canónico de producción (Windows TPV + móviles)
+          npx vercel@latest alias set "$URL" casa-torino-web.vercel.app --scope sebas3212 --token "$VERCEL_TOKEN"
