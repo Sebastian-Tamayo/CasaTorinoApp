@@ -3078,7 +3078,7 @@
   <script src="tpvJornada.js?v=push-msg-1"></script>
   <script src="kitchenSync.js?v=fix-create-1"></script>
   <script src="reservaAlertSync.js"></script>
-  <script src="planoMesas.js?v=menu-1"></script>
+  <script src="planoMesas.js?v=menu-2"></script>
   <script>
     (() => {
       /**
@@ -3087,7 +3087,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-13-menu-1'
+      const TPV_CLIENT_VERSION = '2026-10-13-menu-2'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3224,7 +3224,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=menu-1')
+            .register('/sw-tpv.js?v=menu-2')
             .catch(() => {})
         })
         try {
@@ -3565,26 +3565,16 @@
         if (!el) return
         const status = j?.status || 'closed'
         el.classList.remove('open', 'ended')
+        // Sin importes en la barra: las camareras no ven caja aquí.
+        // Totales solo en «Total día» (PIN dueña).
         if (status === 'open') {
           el.classList.add('open')
-          const t = j?.totals?.total
-          const ef = j?.totals?.byPayment?.efectivo?.total
-          const tj = j?.totals?.byPayment?.tarjeta?.total
-          const payHint =
-            Number.isFinite(ef) || Number.isFinite(tj)
-              ? ` · E ${money(ef || 0)} / T ${money(tj || 0)}`
-              : ''
-          el.innerHTML = `Jornada: <strong>abierta</strong> · desde ${fmtHm(j.startedAt)}${
-            Number.isFinite(t) ? ` · ${money(t)}` : ''
-          }${payHint}`
+          el.innerHTML = `Jornada: <strong>abierta</strong> · desde ${fmtHm(j.startedAt)}`
           if (btnStart) btnStart.disabled = true
           if (btnEnd) btnEnd.disabled = false
         } else if (status === 'ended') {
           el.classList.add('ended')
-          const t = j?.totals?.total
-          el.innerHTML = `Jornada: <strong>cerrada</strong> · ${fmtHm(j.startedAt)}–${fmtHm(j.endedAt)}${
-            Number.isFinite(t) ? ` · ${money(t)}` : ''
-          }`
+          el.innerHTML = `Jornada: <strong>cerrada</strong> · ${fmtHm(j.startedAt)}–${fmtHm(j.endedAt)}`
           if (btnStart) btnStart.disabled = false
           if (btnEnd) btnEnd.disabled = true
         } else {
@@ -3592,6 +3582,31 @@
           if (btnStart) btnStart.disabled = false
           if (btnEnd) btnEnd.disabled = true
         }
+      }
+
+      async function requireOwnerPin(reason) {
+        const pin = window.prompt(reason || 'PIN de dueña')
+        if (pin == null) return false
+        const entered = String(pin).trim()
+        if (!entered) {
+          alert('PIN incorrecto')
+          return false
+        }
+        try {
+          if (typeof window.CasaTorinoCarta?.postCarta === 'function') {
+            await window.CasaTorinoCarta.postCarta('verifyEditPin', { pin: entered })
+            return true
+          }
+        } catch (err) {
+          if (err && err.status === 401) {
+            alert('PIN incorrecto')
+            return false
+          }
+          // Fallback local si el endpoint no responde
+        }
+        if (entered === '2908') return true
+        alert('PIN incorrecto')
+        return false
       }
 
       function openJornadaModal(opts) {
@@ -6959,6 +6974,8 @@
       $('btnJornadaStart').onclick = startJornada
       $('btnJornadaEnd').onclick = endJornada
       $('btnJornadaTotal').onclick = async () => {
+        const ok = await requireOwnerPin('PIN para ver Total día')
+        if (!ok) return
         try {
           const j = await window.CasaTorinoTpvJornada.refresh()
           paintJornadaStatus(j)
