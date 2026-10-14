@@ -3087,7 +3087,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-13-menu-2'
+      const TPV_CLIENT_VERSION = '2026-10-14-ticket-1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3224,7 +3224,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=menu-2')
+            .register('/sw-tpv.js?v=ticket-1')
             .catch(() => {})
         })
         try {

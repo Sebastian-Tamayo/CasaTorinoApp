@@ -1,5 +1,5 @@
 {
-  "required": "2026-10-13-menu-2",
-  "message": "Total día con PIN; barra jornada sin importes de caja",
-  "updatedAt": "2026-10-13T19:35:00.000Z"
+  "required": "2026-10-14-ticket-1",
+  "message": "Ticket: precios e importes en la misma línea (POS-58)",
+  "updatedAt": "2026-10-14T11:00:00.000Z"
 }
