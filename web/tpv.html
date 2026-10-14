@@ -2964,6 +2964,10 @@
         <div id="jornadaByProd"></div>
       </div>
       <div class="jornada-sec">
+        <h4>Por mesa</h4>
+        <div id="jornadaByMesa"></div>
+      </div>
+      <div class="jornada-sec">
         <h4>Corregir tickets</h4>
         <p class="jornada-hint">Si hay un error al final del día, abre un ticket y cambia cantidad o precio, o bórralo. También funciona con la jornada ya cerrada.</p>
         <div id="jornadaTickets"></div>
@@ -3087,7 +3091,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-14-ticket-1'
+      const TPV_CLIENT_VERSION = '2026-10-14-ticket-2'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3224,7 +3228,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=ticket-1')
+            .register('/sw-tpv.js?v=ticket-2')
             .catch(() => {})
         })
         try {
@@ -3670,6 +3674,65 @@
         }
 
         const sales = Array.isArray(j?.sales) ? j.sales.slice().reverse() : []
+        let mesas = Array.isArray(totals.byMesa) ? totals.byMesa : []
+        if (!mesas.length && sales.length) {
+          const map = {}
+          for (const s of j.sales || []) {
+            const key = String(s.mesa || '').trim() || 'sin-mesa'
+            if (!map[key]) {
+              map[key] = {
+                mesa: key === 'sin-mesa' ? '' : key,
+                tickets: 0,
+                total: 0,
+                waiters: {},
+              }
+            }
+            map[key].tickets += 1
+            map[key].total =
+              Math.round((map[key].total + (Number(s.total) || 0)) * 100) / 100
+            const wn = String(s.waiterName || '').trim()
+            if (wn) map[key].waiters[wn] = (map[key].waiters[wn] || 0) + 1
+          }
+          mesas = Object.values(map)
+            .map((row) => {
+              const waiterNames = Object.keys(row.waiters).sort(
+                (a, b) => (row.waiters[b] || 0) - (row.waiters[a] || 0),
+              )
+              return {
+                mesa: row.mesa,
+                tickets: row.tickets,
+                total: row.total,
+                waiterName: waiterNames[0] || '',
+                waiterNames,
+              }
+            })
+            .sort((a, b) => {
+              const na = Number(a.mesa) || 0
+              const nb = Number(b.mesa) || 0
+              if (na && nb && na !== nb) return na - nb
+              return String(a.mesa).localeCompare(String(b.mesa), 'es')
+            })
+        }
+        if ($('jornadaByMesa')) {
+          $('jornadaByMesa').innerHTML = mesas.length
+            ? mesas
+                .map((row) => {
+                  const label = row.mesa ? `Mesa ${row.mesa}` : 'Sin mesa'
+                  const names = Array.isArray(row.waiterNames)
+                    ? row.waiterNames.filter(Boolean)
+                    : row.waiterName
+                      ? [row.waiterName]
+                      : []
+                  const who = names.length ? names.join(', ') : 'Sin asignar'
+                  const tk = row.tickets || 0
+                  return `<div class="jornada-row"><span>${label} <em>· ${who} · ${tk} ticket${
+                    tk === 1 ? '' : 's'
+                  }</em></span><strong>${money(row.total)}</strong></div>`
+                })
+                .join('')
+            : '<div class="jornada-row">Sin ventas</div>'
+        }
+
         if ($('jornadaTickets')) {
           if (!sales.length) {
             $('jornadaTickets').innerHTML = '<div class="jornada-row">Sin tickets todavía.</div>'
@@ -3681,6 +3744,7 @@
               .map((s) => {
                 const open = keepOpenId && keepOpenId === s.id ? ' open' : ''
                 const mesa = s.mesa ? `Mesa ${s.mesa}` : 'Sin mesa'
+                const who = String(s.waiterName || '').trim() || 'Sin asignar'
                 const lines = (s.lines || [])
                   .map((l) => {
                     const ctype = l.categoryType === 'bebida' ? 'bebida' : 'comida'
@@ -3701,7 +3765,7 @@
                   .join('')
                 return `<div class="jornada-ticket${open}" data-sale-id="${s.id}">
                   <button type="button" class="jornada-ticket-h" data-jact="toggle">
-                    <span>${mesa} <em>· ${fmtHm(s.at)}</em></span>
+                    <span>${mesa} <em>· ${who} · ${fmtHm(s.at)}</em></span>
                     <strong>${money(s.total)}</strong>
                   </button>
                   <div class="jornada-ticket-b">
@@ -5083,6 +5147,10 @@
         }
 
         try {
+          const tableBlob = (m && state.tables && state.tables[m]) || {}
+          const planoW = currentPlanoWaiter()
+          const waiterId = tableBlob.waiterId || planoW?.id || null
+          const waiterName = tableBlob.waiterName || planoW?.name || null
           const sale = {
             id: saleId,
             at: Date.now(),
@@ -5093,6 +5161,8 @@
             tip,
             paymentMethod,
             payments,
+            waiterId: waiterId ? String(waiterId) : null,
+            waiterName: waiterName ? String(waiterName) : null,
             lines: saleLines,
           }
           const j = await window.CasaTorinoTpvJornada.addSale(sale)

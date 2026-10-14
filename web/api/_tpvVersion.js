@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-14-ticket-1'
-const message = 'Actualiza: ticket con precios e importes en la misma línea'
+const required = '2026-10-14-ticket-2'
+const message = 'Actualiza: Total día muestra quién atendió cada mesa'
 
 function forceInfo() {
   return { required, message }
