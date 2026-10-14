@@ -11,7 +11,7 @@
  *    (ver assets/qz/LEEME-QUITAR-AVISO.txt)
  */
 (() => {
-  const BUILD_TICKET = 'cols28-total-sameline-20261013'
+  const BUILD_TICKET = 'cols24-prices-sameline-20261014'
   const PRINTER_NAME = 'POS-58'
   const PRINTER_ALIASES = [
     /^POS-58$/i,
@@ -25,10 +25,11 @@
     subtitle: 'Bar · Restaurante',
     footer: '¡Gracias por su visita!',
     /**
-     * Ancho útil POS-58 (58 mm). 32 corta la derecha en muchas unidades;
-     * 28 + margen 0 desplaza el bloque a la izquierda y cabe entero.
+     * Ancho útil POS-58 (58 mm). Con 28 muchas unidades parten el precio
+     * (p.ej. "2,60" → "2," + "60") aunque quede hueco en el papel.
+     * 24 deja margen y mantiene importe + " E" en la misma fila.
      */
-    cols: 28,
+    cols: 24,
   }
 
   /** Comandos ESC/POS */
@@ -70,21 +71,27 @@
   }
 
   function padRowWidth(left, right, cols) {
-    const L = String(left)
     const R = String(right)
     const width = Math.max(8, Number(cols) || BUSINESS.cols)
+    let L = String(left)
+    // El importe (derecha) nunca se parte: si no cabe, se recorta el nombre.
+    const maxLeft = Math.max(1, width - R.length - 1)
+    if (L.length > maxLeft) {
+      L = maxLeft <= 1 ? L.slice(0, 1) : L.slice(0, maxLeft - 1) + '…'
+    }
     const space = Math.max(1, width - L.length - R.length)
-    return L + ' '.repeat(space) + R
+    const row = L + ' '.repeat(space) + R
+    return row.length > width ? row.slice(0, width) : row
   }
 
   function padRow(left, right) {
     return padRowWidth(left, right, BUSINESS.cols)
   }
 
-  function wrapName(name, max = BUSINESS.cols - 9) {
+  function wrapName(name, max = BUSINESS.cols - 8) {
     const s = String(name || '')
     if (s.length <= max) return s
-    return s.slice(0, max - 1) + '…'
+    return s.slice(0, Math.max(1, max - 1)) + '…'
   }
 
   function rememberPrinter(name) {
@@ -251,14 +258,14 @@
     data.push(ESC.BOLD_ON)
     // TOTAL + importe en la MISMA línea (ancho doble ≈ mitad de cols)
     const totalAmt = money(total)
-    const doubleCols = Math.max(12, Math.floor(BUSINESS.cols / 2))
+    const doubleCols = Math.max(10, Math.floor(BUSINESS.cols / 2))
     const totalLine = padRowWidth('TOTAL', totalAmt, doubleCols)
-    if (totalLine.length <= doubleCols) {
+    if (totalLine.length <= doubleCols && totalAmt.length <= 6) {
       data.push(ESC.SIZE_DOUBLE)
       data.push(totalLine + ESC.LF)
       data.push(ESC.SIZE_NORMAL)
     } else {
-      // Importes muy largos: negrita normal, siempre una sola línea
+      // Importes largos o que no caben a doble: negrita normal, una sola línea
       data.push(ESC.SIZE_NORMAL)
       data.push(padRow('TOTAL', totalAmt + ' E') + ESC.LF)
     }

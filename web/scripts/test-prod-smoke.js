@@ -40,25 +40,38 @@ try {
     return (neg ? '-' : '') + ent + ',' + dec
   }
   function padRowWidth(left, right, cols) {
-    const L = String(left)
     const R = String(right)
-    const width = Math.max(8, Number(cols) || 28)
+    const width = Math.max(8, Number(cols) || 24)
+    let L = String(left)
+    const maxLeft = Math.max(1, width - R.length - 1)
+    if (L.length > maxLeft) {
+      L = maxLeft <= 1 ? L.slice(0, 1) : L.slice(0, maxLeft - 1) + '…'
+    }
     const space = Math.max(1, width - L.length - R.length)
-    return L + ' '.repeat(space) + R
+    const row = L + ' '.repeat(space) + R
+    return row.length > width ? row.slice(0, width) : row
   }
-  const cols = 28
-  const dcols = Math.max(12, Math.floor(cols / 2))
-  for (const amt of [12.5, 0.5, 99.99, 123.45, 8]) {
+  const cols = 24
+  const dcols = Math.max(10, Math.floor(cols / 2))
+  for (const amt of [12.5, 0.5, 99.99, 123.45, 8, 4.1]) {
     const line = padRowWidth('TOTAL', money(amt), dcols)
     assert.ok(!line.includes('\n'), 'sin salto')
     assert.ok(line.startsWith('TOTAL'), 'label')
     assert.ok(line.includes(','), 'decimales en misma línea: ' + line)
     assert.ok(line.length <= dcols, 'cabe en doble ancho: ' + line)
+    assert.ok(line.endsWith(money(amt)), 'importe completo al final: ' + line)
   }
-  // Líneas de producto también
-  const item = padRowWidth('2x Menu', money(25.5) + ' E', cols)
-  assert.ok(item.includes('25,50'))
+  // Líneas de producto / base: importe entero en la misma fila
+  const item = padRowWidth('1x Caña rubia', money(2.6), cols)
+  assert.ok(item.includes('2,60'), 'precio producto: ' + item)
+  assert.strictEqual(item.length, cols)
   assert.ok(!item.includes('\n'))
+  const base = padRowWidth('Base', money(3.73) + ' E', cols)
+  assert.ok(base.endsWith('3,73 E'), 'base con E: ' + base)
+  assert.strictEqual(base.length, cols)
+  const iva = padRowWidth('IVA 10%', money(0.37) + ' E', cols)
+  assert.ok(iva.endsWith('0,37 E'), 'iva con E: ' + iva)
+  assert.strictEqual(iva.length, cols)
   ok('ticket-total-sameline')
 } catch (err) {
   fail('ticket-total-sameline', err)

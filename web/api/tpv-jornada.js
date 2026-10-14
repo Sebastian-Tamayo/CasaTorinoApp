@@ -334,6 +334,8 @@ function normalizeSale(raw) {
     Number.isFinite(tipRaw) && tipRaw >= 0 ? round2(tipRaw) : 0
   const payments = normalizePayments(raw, total)
   const paymentMethod = derivePaymentMethod(payments)
+  const waiterId = String(raw.waiterId || '').trim().slice(0, 64) || null
+  const waiterName = String(raw.waiterName || '').trim().slice(0, 60) || null
   return {
     id:
       String(raw.id || '').slice(0, 64) ||
@@ -346,6 +348,8 @@ function normalizeSale(raw) {
     paymentMethod,
     payments,
     tip,
+    waiterId,
+    waiterName,
     lines,
   }
 }
@@ -362,6 +366,7 @@ function buildTotals(state) {
     efectivo: { total: 0, tickets: 0 },
     tarjeta: { total: 0, tickets: 0 },
   }
+  const byMesaMap = {}
   let tickets = 0
   let grand = 0
   let tipTotal = 0
@@ -371,6 +376,22 @@ function buildTotals(state) {
     const saleTotal = Number(sale.total) || 0
     grand = round2(grand + saleTotal)
     tipTotal = round2(tipTotal + (Number(sale.tip) || 0))
+
+    const mesaKey = String(sale.mesa || '').trim() || 'sin-mesa'
+    if (!byMesaMap[mesaKey]) {
+      byMesaMap[mesaKey] = {
+        mesa: mesaKey === 'sin-mesa' ? '' : mesaKey,
+        tickets: 0,
+        total: 0,
+        waiters: {},
+      }
+    }
+    byMesaMap[mesaKey].tickets += 1
+    byMesaMap[mesaKey].total = round2(byMesaMap[mesaKey].total + saleTotal)
+    const wn = String(sale.waiterName || '').trim()
+    if (wn) {
+      byMesaMap[mesaKey].waiters[wn] = (byMesaMap[mesaKey].waiters[wn] || 0) + 1
+    }
 
     const payments = normalizePayments(sale, saleTotal)
     const seen = { efectivo: false, tarjeta: false }
@@ -418,6 +439,26 @@ function buildTotals(state) {
     }
   }
 
+  const byMesa = Object.values(byMesaMap)
+    .map((row) => {
+      const waiterNames = Object.keys(row.waiters || {}).sort(
+        (a, b) => (row.waiters[b] || 0) - (row.waiters[a] || 0),
+      )
+      return {
+        mesa: row.mesa,
+        tickets: row.tickets,
+        total: row.total,
+        waiterName: waiterNames[0] || '',
+        waiterNames,
+      }
+    })
+    .sort((a, b) => {
+      const na = Number(a.mesa) || 0
+      const nb = Number(b.mesa) || 0
+      if (na && nb && na !== nb) return na - nb
+      return String(a.mesa).localeCompare(String(b.mesa), 'es')
+    })
+
   return {
     tickets,
     total: grand,
@@ -426,6 +467,7 @@ function buildTotals(state) {
     tipTotal,
     byCategory: Object.values(byCategory).sort((a, b) => b.total - a.total),
     byProduct: Object.values(byProduct).sort((a, b) => b.total - a.total),
+    byMesa,
   }
 }
 
@@ -561,8 +603,12 @@ module.exports = async function handler(req, res) {
             JSON.stringify({ error: 'Ticket no encontrado', ...withTotals(state) }),
           )
         }
-        // Conservar hora original del ticket si no viene
+        // Conservar hora y camarera originales si la corrección no las trae
         sale.at = Number(body.sale?.at) || sales[idx].at || sale.at
+        if (!sale.waiterName && sales[idx].waiterName) {
+          sale.waiterId = sales[idx].waiterId || null
+          sale.waiterName = sales[idx].waiterName || null
+        }
         sales[idx] = sale
         state = { ...state, sales, updatedAt: now }
       } else if (action === 'deletesale' || action === 'delete_sale') {
