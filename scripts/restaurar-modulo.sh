@@ -21,13 +21,13 @@ case "$MOD" in
   web)
     echo "==> web/TPV → $ROOT/web"
     echo "    Vercel Root Directory: web"
-    echo "    Env: ver web/.env.example (TPV_PIN, Edge Config...)"
+    echo "    Env: ver web/.env.example (TPV_PIN, SUPABASE_*)"
     test -f "$ROOT/web/api/tpv-auth.js" && test -f "$ROOT/web/api/tpv-sync.js"
     check_no_secrets "$ROOT/web"
     ;;
   reservas)
     echo "==> reservas → $ROOT/reservas"
-    echo "    Env: RESERVAS_STORE_URL + PINs reales en runtime (staff.example.json)"
+    echo "    Env: SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (ops_kv)"
     check_no_secrets "$ROOT/reservas"
     ;;
   erp)

@@ -53,7 +53,7 @@ Para portfolio: producto **pequeño, desplegado y usado de verdad** (UX simple +
 - [x] Cambiar estado (Hecha / No vino / Anular)
 - [x] Acceso WhatsApp al teléfono del cliente
 - [x] API serverless (`/api/reservas`)
-- [x] Persistencia estable (**Vercel Edge Config**)
+- [x] Persistencia estable (**Supabase ops_kv**)
 - [x] Healthcheck (`/api/reservas-health`)
 
 ---
@@ -66,11 +66,11 @@ Para portfolio: producto **pequeño, desplegado y usado de verdad** (UX simple +
 | Estilos | CSS propio (mobile-first) |
 | Routing | React Router |
 | API | Vercel Serverless (`api/`) |
-| Persistencia | **Vercel Edge Config** (clave `reservas`) |
+| Persistencia | **Supabase `ops_kv`** (claves `reservas`, `tpvReservaAlerts`) |
 | Hosting | Vercel · proyecto `reservas-casatorino` · Root Directory = `reservas` |
 | Auth | PIN por perfil |
 
-> Nota histórica: se abandonó CrudCrud (límite ~100 req/día). Anti-regresión: [`../docs/DOSSIER-TECNICO-COMERCIAL.md`](../docs/DOSSIER-TECNICO-COMERCIAL.md) §7.
+> Nota histórica: se abandonó CrudCrud y Edge Config. Anti-regresión: [`../docs/DOSSIER-TECNICO-COMERCIAL.md`](../docs/DOSSIER-TECNICO-COMERCIAL.md) §7.
 
 ---
 
@@ -78,9 +78,8 @@ Para portfolio: producto **pequeño, desplegado y usado de verdad** (UX simple +
 
 ```text
 reservas/
-├── docs/                 # Producto, arquitectura, deploy, media
 ├── api/                  # Serverless Vercel
-├── server/               # Store Edge Config + servidor local
+├── server/               # Store ops_kv + servidor local
 ├── src/
 │   ├── components/
 │   ├── pages/
