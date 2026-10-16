@@ -66,7 +66,7 @@ El **TPV es el núcleo operativo**; web y ERP cierran marca y oficina.
 | PR | Qué aporta |
 |----|------------|
 | #76 · ticket + Total día | POS-58: precios en una línea (24 cols). Total día (PIN): Por mesa con camarera |
-| #75 · Total día PIN | Importes de caja ocultos a camareros; Total día con PIN 2908 |
+| #75 · Total día PIN | Importes de caja ocultos a camareros; Total día con PIN dueña |
 | #74–#71 · menú + plano | Barra jornada corta; plano táctil Windows/móvil compacto |
 | #70 · plano + recuperación | Sync plano mesas + guía RECUPERACION-GITHUB.md |
 
@@ -218,7 +218,7 @@ Terminal de sala por mesa. Móvil camarera + PC Windows sincronizados. Plano int
 | Carta editable | `/api/carta` · `/api/carta-image` |
 | Notas turno | `/api/shift-notes` |
 
-**Regla de producto:** camareros no ven importes de caja en la barra; Total día (PIN 2908) muestra totales, sección **Por mesa** con nombre de quien atendió, y corrección de tickets.
+**Regla de producto:** camareros no ven importes de caja en la barra; Total día (PIN dueña en env) muestra totales, sección **Por mesa** con nombre de quien atendió, y corrección de tickets.
 
 ### Cocina KDS (PWA)
 
