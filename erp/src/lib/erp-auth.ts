@@ -4,10 +4,8 @@ export const ERP_PIN_COOKIE = "ct_erp_session";
 export const ERP_PIN_MAX_AGE = 60 * 60 * 24; // 24 h ecosistema
 
 export function expectedErpPin() {
-  return (
-    process.env.ERP_PIN ||
-    "2908"
-  ).trim();
+  // Solo ERP_PIN en Vercel / env (sin fallback hardcodeado en el repo)
+  return String(process.env.ERP_PIN || "").trim();
 }
 
 export async function hasErpPinSession() {

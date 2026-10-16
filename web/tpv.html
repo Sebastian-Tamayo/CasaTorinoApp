@@ -3091,7 +3091,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-14-ticket-2'
+      const TPV_CLIENT_VERSION = '2026-10-16-pin-1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3597,20 +3597,20 @@
           return false
         }
         try {
-          if (typeof window.CasaTorinoCarta?.postCarta === 'function') {
-            await window.CasaTorinoCarta.postCarta('verifyEditPin', { pin: entered })
-            return true
+          if (typeof window.CasaTorinoCarta?.postCarta !== 'function') {
+            alert('No se pudo verificar el PIN')
+            return false
           }
+          await window.CasaTorinoCarta.postCarta('verifyEditPin', { pin: entered })
+          return true
         } catch (err) {
           if (err && err.status === 401) {
             alert('PIN incorrecto')
             return false
           }
-          // Fallback local si el endpoint no responde
+          alert(err?.message || 'No se pudo verificar el PIN')
+          return false
         }
-        if (entered === '2908') return true
-        alert('PIN incorrecto')
-        return false
       }
 
       function openJornadaModal(opts) {
@@ -6004,11 +6004,6 @@
         } catch (err) {
           if (err && err.status === 401) {
             alert('PIN incorrecto')
-            return
-          }
-          // Fallback local si el endpoint no responde (p.ej. sin sesión)
-          if (String(pin).trim() === '2908') {
-            await setModoEdicion(true)
             return
           }
           alert(err.message || 'No se pudo activar la edición')
