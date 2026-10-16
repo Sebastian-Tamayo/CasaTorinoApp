@@ -16,7 +16,7 @@ Detalle operativo + comercial: [`DOSSIER-TECNICO-COMERCIAL.md`](./DOSSIER-TECNIC
 ```text
 ┌──────────────┐   ┌─────────────────┐   ┌──────────────────┐
 │ Web pública  │   │ TPV / KDS /     │   │ Reservas staff   │
-│ index/casa   │   │ fichaje/interno │   │ (React + Vite)   │
+│ index.html   │   │ fichaje/interno │   │ (React + Vite)   │
 └──────┬───────┘   └────────┬────────┘   └────────┬─────────┘
        │                    │                     │
        └──────────┬─────────┴──────────┬──────────┘

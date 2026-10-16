@@ -9,7 +9,7 @@ Las Cursor Rules en `.cursor/rules/` resumen lo mismo para el agente.
 
 | Página | Bloques | Archivos |
 |---|---|---|
-| **Landing** `index.html` / `casa.html` | Hero · menú del día · carta · parking · CTAs | + `carta-public.js`, `carta.js`, `styles.css`, `main.js` |
+| **Landing** `index.html` (`casa.html` → redirect `/`) | Hero · menú del día · carta · parking · CTAs | + `carta-public.js`, `carta.js`, `styles.css`, `main.js` |
 | **Interno** `interno.html` | Gate PIN · enlaces módulos | — |
 | **TPV** `tpv.html` | Barra (jornada, Notas, Reservas, Editar Carta, Fichaje) · mesas · carta · ticket · cobro · modales | `tpvSync.js`, `tpvJornada.js`, `tpv-data.js`, `printService.js`, `api/tpv-*`, `api/shift-notes.js`, `api/kitchen.js`, `api/carta*` |
 | **Cocina** `cocina.html` | Gate · grid tickets · histórico · PWA | `kitchenSync.js`, `api/kitchen.js`, `manifest-cocina.webmanifest`, `sw-cocina.js` |

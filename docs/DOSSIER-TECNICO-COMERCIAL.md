@@ -198,7 +198,7 @@ Cliente → Web pública
 
 ### Web pública (marca + carta)
 
-Landing clara (`index.html` / `casa.html`): hero, menú del día automático, carta con precios alineados al TPV, parking, Maps, WhatsApp, reserva web. Misma fuente de carta: `ops_kv` clave `carta` vía `/api/carta`. Fotos en Storage `menu_images`.
+Landing clara (`index.html`; `casa.html` redirige a `/`): hero, menú del día automático, carta con precios alineados al TPV, parking, Maps, WhatsApp, reserva web. Misma fuente de carta: `ops_kv` clave `carta` vía `/api/carta`. Fotos en Storage `menu_images`.
 
 - Archivos: `carta-public.js`, `carta.js`, `styles.css`, `main.js`  
 - Precios menú: entre semana **13 €** · sábado **16 €** · domingo/festivo **18 €** (festivos Gijón = domingo)
