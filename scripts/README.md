@@ -11,7 +11,7 @@ Utilidades de **respaldo y recuperación** del monorepo. No sustituyen el flujo 
 | `push-backup-hoy.sh` | Backup del día |
 | `daily-backup.sh` | Respaldo programable: rama `backup/daily-YYYY-MM-DD` + purga (>14 días) |
 
-Operación detallada: [`../docs/TECNICO.md`](../docs/TECNICO.md) (§7 recuperación, §8 backup, §9 seguridad).
+Operación detallada: [`../docs/DOSSIER-TECNICO-COMERCIAL.md`](../docs/DOSSIER-TECNICO-COMERCIAL.md) §7.
 
 ### Respaldo automático (GitHub Actions)
 Workflow [`.github/workflows/daily-backup.yml`](../.github/workflows/daily-backup.yml): ~**03:00 Europe/Madrid**, sin tocar `main` ni Vercel. Retención 14 días.

@@ -112,7 +112,7 @@ Abre `http://localhost:3000`.
 |--------|--------|
 | Web + TPV + Cocina | [`../web/README.md`](../web/README.md) |
 | Reservas | [`../reservas/README.md`](../reservas/README.md) |
-| Docs | [`../docs/COMERCIAL.md`](../docs/COMERCIAL.md) · [`../docs/TECNICO.md`](../docs/TECNICO.md) |
+| Docs | [`../docs/DOSSIER-TECNICO-COMERCIAL.md`](../docs/DOSSIER-TECNICO-COMERCIAL.md) |
 
 ---
 

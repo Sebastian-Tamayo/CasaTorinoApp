@@ -142,7 +142,7 @@ cd web
 bash scripts/assert-light-theme.sh
 ```
 
-Deploy de producción (proyecto Vercel `casa-torino-web`): [`../docs/TECNICO.md`](../docs/TECNICO.md) §4.
+Deploy de producción (proyecto Vercel `casa-torino-web`): [`../docs/DOSSIER-TECNICO-COMERCIAL.md`](../docs/DOSSIER-TECNICO-COMERCIAL.md) §7.
 
 Secretos: `web/.env.example` → Vercel / `.env.local` (`TPV_PIN`, credenciales ops, etc.).
 
@@ -152,7 +152,7 @@ Secretos: `web/.env.example` → Vercel / `.env.local` (`TPV_PIN`, credenciales 
 
 - Reservas del personal → [`../reservas/`](../reservas/)
 - ERP (caja TPV, fiscal, RRHH) → [`../erp/`](../erp/)
-- Docs → [`../docs/TECNICO.md`](../docs/TECNICO.md) · [`../docs/COMERCIAL.md`](../docs/COMERCIAL.md)
+- Docs → [`../docs/DOSSIER-TECNICO-COMERCIAL.md`](../docs/DOSSIER-TECNICO-COMERCIAL.md)
 
 ---
 

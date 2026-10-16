@@ -35,14 +35,13 @@ Objetivo: **proyecto limpio para exposición a clientes**, intervenciones barata
 ### A. Estructura de docs (recomendada — ya iniciada)
 ```text
 docs/
-  PRD.md                      ← documento madre producto
-  COMERCIAL.md                ← venta / pitch
+  PRD.md                         ← documento madre producto
+  DOSSIER-TECNICO-COMERCIAL.md   ← venta + técnico unificado
   ESPECIFICACIONES-TECNICAS.md
-  TECNICO.md                  ← runbook ops/deploy/seguridad
   MAPA-CODIGO.md
-  ORGANIZACION.md             ← este archivo
-  media/                      ← demos
-.cursor/rules/                ← ahorra tokens al agente
+  ORGANIZACION.md                ← este archivo
+  media/                         ← demos
+.cursor/rules/                   ← ahorra tokens al agente
 ```
 
 ### B. Política de ramas (recomendada)
@@ -59,7 +58,7 @@ docs/
 
 ### D. Exposición a clientes
 - README raíz = landing del repo (demos + enlaces).
-- PRD + COMERCIAL = dossier.
+- PRD + DOSSIER-TECNICO-COMERCIAL = dossier de estudio/venta.
 - ESPECIFICACIONES = anexo técnico.
 - Media en `docs/media/` ya lista para pantalla.
 

@@ -70,7 +70,7 @@ Para portfolio: producto **pequeño, desplegado y usado de verdad** (UX simple +
 | Hosting | Vercel · proyecto `reservas-casatorino` · Root Directory = `reservas` |
 | Auth | PIN por perfil |
 
-> Nota histórica: se abandonó CrudCrud (límite ~100 req/día). Anti-regresión: [`../docs/TECNICO.md`](../docs/TECNICO.md) §6.
+> Nota histórica: se abandonó CrudCrud (límite ~100 req/día). Anti-regresión: [`../docs/DOSSIER-TECNICO-COMERCIAL.md`](../docs/DOSSIER-TECNICO-COMERCIAL.md) §7.
 
 ---
 
@@ -90,7 +90,7 @@ reservas/
 └── README.md
 ```
 
-Docs del monorepo: [`../docs/COMERCIAL.md`](../docs/COMERCIAL.md) · [`../docs/TECNICO.md`](../docs/TECNICO.md)
+Docs del monorepo: [`../docs/DOSSIER-TECNICO-COMERCIAL.md`](../docs/DOSSIER-TECNICO-COMERCIAL.md)
 
 ---
 
@@ -116,7 +116,7 @@ Variables: `reservas/.env.example` → `.env.local` / Vercel
 Proyecto Vercel: `reservas-casatorino` (Root Directory `reservas`).  
 Push a `main` en este monorepo redeploya solo si cambian archivos bajo `reservas/`.
 
-Guía: [`../docs/TECNICO.md`](../docs/TECNICO.md) §4 y §6.
+Guía: [`../docs/DOSSIER-TECNICO-COMERCIAL.md`](../docs/DOSSIER-TECNICO-COMERCIAL.md) §7.
 
 ---
 

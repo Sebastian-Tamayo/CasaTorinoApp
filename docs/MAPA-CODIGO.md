@@ -50,7 +50,7 @@ Las Cursor Rules en `.cursor/rules/` resumen lo mismo para el agente.
 
 | Qué | Dónde |
 |---|---|
-| PRD / comercial / técnico | `docs/PRD.md`, `COMERCIAL.md`, `TECNICO.md`, `ESPECIFICACIONES-TECNICAS.md` |
+| PRD / dossier unificado | `docs/PRD.md`, `DOSSIER-TECNICO-COMERCIAL.md`, `ESPECIFICACIONES-TECNICAS.md` |
 | Media demo | `docs/media/` |
 | Backup diario | `.github/workflows/daily-backup.yml`, `scripts/daily-backup.sh` |
 | Deploy web Action | `.github/workflows/deploy-casa-torino-web.yml` |
