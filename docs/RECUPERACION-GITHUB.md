@@ -197,7 +197,7 @@ git checkout backup/daily-$(TZ=Europe/Madrid date -d yesterday +%F)   # o listar
 - [ ] Workflow **Deploy casa-torino-web** + secret `VERCEL_TOKEN`  
 - [ ] Env vars en los 3 proyectos Vercel  
 - [ ] Supabase con `ops_kv` + SQL aplicados  
-- [ ] Este documento + [`TECNICO.md`](./TECNICO.md) leídos  
+- [ ] Este documento + [`DOSSIER-TECNICO-COMERCIAL.md`](./DOSSIER-TECNICO-COMERCIAL.md) §7 leídos  
 - [ ] Tras deploy TPV: **Actualizar** en todos los dispositivos  
 
 **Regla de oro:** ningún cambio importante se da por hecho hasta que esté en `origin/main` (o al menos pusheado en una rama remota visible en GitHub). El portátil no es la copia maestra.

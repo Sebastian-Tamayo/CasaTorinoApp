@@ -1,7 +1,7 @@
 # Especificaciones técnicas — Casa Torino OS
 
 Documento de especificación para exposición / onboarding técnico.  
-Detalle operativo ampliado: [`TECNICO.md`](./TECNICO.md). Mapa de archivos: [`MAPA-CODIGO.md`](./MAPA-CODIGO.md).
+Detalle operativo + comercial: [`DOSSIER-TECNICO-COMERCIAL.md`](./DOSSIER-TECNICO-COMERCIAL.md). Mapa de archivos: [`MAPA-CODIGO.md`](./MAPA-CODIGO.md).
 
 | | |
 |---|---|

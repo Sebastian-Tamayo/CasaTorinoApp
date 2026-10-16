@@ -12,10 +12,9 @@ Sin cuotas mensuales de TPV comercial · sync en tiempo real · PIN en zonas int
 |-----|-----------|
 | [`docs/RECUPERACION-GITHUB.md`](./docs/RECUPERACION-GITHUB.md) | **Si se pierde todo:** clonar GitHub y redesplegar |
 | [`docs/PRD.md`](./docs/PRD.md) | **Documento madre** del producto |
-| [`docs/ESPECIFICACIONES-TECNICAS.md`](./docs/ESPECIFICACIONES-TECNICAS.md) | Especificaciones técnicas |
-| [`docs/COMERCIAL.md`](./docs/COMERCIAL.md) | Pitch / packs / demo |
+| [`docs/DOSSIER-TECNICO-COMERCIAL.md`](./docs/DOSSIER-TECNICO-COMERCIAL.md) | **Qué has creado** — técnico + comercial unificado |
+| [`docs/ESPECIFICACIONES-TECNICAS.md`](./docs/ESPECIFICACIONES-TECNICAS.md) | Especificaciones técnicas (anexo) |
 | [`docs/MAPA-CODIGO.md`](./docs/MAPA-CODIGO.md) | Mapa por página y bloque |
-| [`docs/TECNICO.md`](./docs/TECNICO.md) | Deploy, seguridad, backup |
 | [`docs/ORGANIZACION.md`](./docs/ORGANIZACION.md) | Ramas, backups, propuestas |
 | [`docs/PLANO-MESAS.md`](./docs/PLANO-MESAS.md) | Plano TPV + sync mesas |
 | [`docs/INFORMES-EMAIL.md`](./docs/INFORMES-EMAIL.md) | Informes semanal / mensual |
@@ -134,7 +133,7 @@ Cliente → Web pública
 | Datos ops | Supabase `ops_kv` / `time_logs` / `shift_notes` / Storage |
 | Hosting | Vercel Hobby |
 
-Docs: [`docs/PRD.md`](docs/PRD.md) · [`docs/ESPECIFICACIONES-TECNICAS.md`](docs/ESPECIFICACIONES-TECNICAS.md) · [`docs/TECNICO.md`](docs/TECNICO.md).
+Docs: [`docs/PRD.md`](docs/PRD.md) · [`docs/DOSSIER-TECNICO-COMERCIAL.md`](docs/DOSSIER-TECNICO-COMERCIAL.md) · [`docs/ESPECIFICACIONES-TECNICAS.md`](docs/ESPECIFICACIONES-TECNICAS.md).
 
 ---
 
@@ -146,7 +145,7 @@ bash scripts/assert-light-theme.sh
 bash scripts/deploy-web.sh
 ```
 
-Detalle: [`docs/TECNICO.md`](docs/TECNICO.md). Nunca subir `.env`, PINs reales ni tokens a GitHub.
+Detalle: [`docs/DOSSIER-TECNICO-COMERCIAL.md`](docs/DOSSIER-TECNICO-COMERCIAL.md) §7. Nunca subir `.env`, PINs reales ni tokens a GitHub.
 
 ---
 

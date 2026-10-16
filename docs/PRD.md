@@ -1,7 +1,7 @@
 # PRD — Casa Torino OS
 
 **Documento madre del producto.** Define qué es, para quién, qué incluye y qué queda fuera.  
-Lecturas hermanas: [`COMERCIAL.md`](./COMERCIAL.md) (venta) · [`ESPECIFICACIONES-TECNICAS.md`](./ESPECIFICACIONES-TECNICAS.md) (cómo está hecho) · [`MAPA-CODIGO.md`](./MAPA-CODIGO.md) (dónde tocar).
+Lecturas hermanas: [`DOSSIER-TECNICO-COMERCIAL.md`](./DOSSIER-TECNICO-COMERCIAL.md) (venta + técnico) · [`ESPECIFICACIONES-TECNICAS.md`](./ESPECIFICACIONES-TECNICAS.md) (cómo está hecho) · [`MAPA-CODIGO.md`](./MAPA-CODIGO.md) (dónde tocar).
 
 | Campo | Valor |
 |---|---|

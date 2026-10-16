@@ -41,4 +41,4 @@ case "$MOD" in
   *) usage ;;
 esac
 echo
-echo "Docs: docs/TECNICO.md"
+echo "Docs: docs/DOSSIER-TECNICO-COMERCIAL.md"
