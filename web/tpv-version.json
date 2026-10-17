@@ -1,5 +1,5 @@
 {
-  "required": "2026-10-16-pin-1",
-  "message": "PIN dueña solo vía env/servidor; sin valores en el código",
-  "updatedAt": "2026-10-16T10:35:00.000Z"
+  "required": "2026-10-17-plano-w1",
+  "message": "Plano: camareras del desplegable ya no se borran solas",
+  "updatedAt": "2026-10-17T11:45:00.000Z"
 }

@@ -25,7 +25,8 @@ Código: `web/planoMesas.js` · `web/tpvSync.js` · `web/tpv.html` · merge `web
 
 1. **Carritos / cobros:** siguen en `ops_kv` clave `tpv` (igual que siempre).
 2. **Overlay plano:** `ops_kv` clave `floor_plan` (ya sembrada) **o** tabla SQL `public.tables` si ejecutas `web/supabase/011_plano_mesas.sql`.
-3. No se eliminan claves ni registros existentes.
+3. **Desplegable camareras:** siempre en `ops_kv.floor_plan.waiters` (también con SQL `tables`). Solo se borran con el botón Eliminar; el refresh/purge de mesas **no** las resetea a los defaults.
+4. No se eliminan claves ni registros existentes.
 
 ## Tiempo real (sin APIs Vercel)
 
