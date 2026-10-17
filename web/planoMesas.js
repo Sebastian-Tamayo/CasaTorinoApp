@@ -341,6 +341,48 @@
     return useSqlTable
   }
 
+  function normalizeWaitersList(raw) {
+    if (!Array.isArray(raw)) return null
+    return raw
+      .map((w) => ({
+        id: String(w?.id || slugWaiterId(w?.name) || ''),
+        name: String(w?.name || '').trim().slice(0, 40),
+      }))
+      .filter((w) => w.id && w.name)
+  }
+
+  /**
+   * Lista del desplegable: siempre en ops_kv.floor_plan.waiters.
+   * Independiente de public.tables (SQL). Nunca se resetea a DEFAULT
+   * si ya hay nombres guardados; solo se borran con «Eliminar».
+   */
+  async function loadWaitersFromOps(c) {
+    const { data, error } = await c
+      .from('ops_kv')
+      .select('value')
+      .eq('key', FLOOR_KEY)
+      .maybeSingle()
+    if (error) throw error
+    const parsed = normalizeWaitersList(data?.value?.waiters)
+    if (parsed && parsed.length) {
+      waiters = parsed
+      return waiters
+    }
+    // Primera instalación (sin clave waiters): sembrar defaults una vez
+    if (!data?.value || !Object.prototype.hasOwnProperty.call(data.value, 'waiters')) {
+      waiters = DEFAULT_WAITERS.map((w) => ({ ...w }))
+      try {
+        await persistWaiters()
+      } catch (err) {
+        console.warn('[plano] seed waiters', err)
+      }
+      return waiters
+    }
+    // waiters: [] explícito — no pisar con Ana/Lucía ficticias
+    waiters = parsed || []
+    return waiters
+  }
+
   async function loadFloorFromSql(c) {
     const { data, error } = await c
       .from('tables')
@@ -359,19 +401,7 @@
       .eq('key', FLOOR_KEY)
       .maybeSingle()
     if (error) throw error
-    const rawWaiters = Array.isArray(data?.value?.waiters)
-      ? data.value.waiters
-      : null
-    if (rawWaiters && rawWaiters.length) {
-      waiters = rawWaiters
-        .map((w) => ({
-          id: String(w.id || slugWaiterId(w.name) || ''),
-          name: String(w.name || '').trim().slice(0, 40),
-        }))
-        .filter((w) => w.id && w.name)
-    } else {
-      waiters = DEFAULT_WAITERS.map((w) => ({ ...w }))
-    }
+    // Waiters ya cargados en refresh() vía loadWaitersFromOps
     const items = Array.isArray(data?.value?.tables) ? data.value.tables : []
     if (!items.length) {
       return DEFAULT_TABLES.map((t) =>
@@ -405,6 +435,8 @@
   async function refresh() {
     const c = await client()
     await loadTpvCarts(c)
+    // Siempre recargar desplegable desde ops_kv (también con SQL tables)
+    await loadWaitersFromOps(c)
     const sql = await detectSqlTable(c)
     const prev = tables.slice()
     tables = mergeWithCarts(sql ? await loadFloorFromSql(c) : await loadFloorFromOps(c))
@@ -471,6 +503,23 @@
 
   async function saveFloorOps(list) {
     const c = await client()
+    // Conservar waiters del store: este guardado es de mesas, no del desplegable
+    let storedWaiters = null
+    try {
+      const { data } = await c
+        .from('ops_kv')
+        .select('value')
+        .eq('key', FLOOR_KEY)
+        .maybeSingle()
+      storedWaiters = normalizeWaitersList(data?.value?.waiters)
+    } catch {}
+    const waitersOut =
+      storedWaiters && storedWaiters.length
+        ? storedWaiters
+        : waiters.map((w) => ({ id: w.id, name: w.name }))
+    if (storedWaiters && storedWaiters.length) {
+      waiters = storedWaiters
+    }
     const value = {
       kind: 'casa-torino-plano-mesas',
       source: 'ops_kv_overlay',
@@ -486,7 +535,7 @@
         sort_order: t.sort_order,
         layout: t.layout || {},
       })),
-      waiters: waiters.map((w) => ({ id: w.id, name: w.name })),
+      waiters: waitersOut,
       updatedAt: Date.now(),
     }
     const { error } = await c.from('ops_kv').upsert(

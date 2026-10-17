@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-16-pin-1'
-const message = 'Actualiza: PIN dueña solo en servidor (sin fallback en cliente)'
+const required = '2026-10-17-plano-w1'
+const message = 'Actualiza: nombres del desplegable del plano se conservan'
 
 function forceInfo() {
   return { required, message }
