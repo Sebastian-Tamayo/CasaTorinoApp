@@ -6,7 +6,7 @@
   <title>Menú del día · TV · Casa Torino</title>
   <meta name="robots" content="noindex,nofollow" />
   <meta name="theme-color" content="#0c1018" />
-  <meta name="description" content="Pantalla TV: menú del día a pantalla completa." />
+  <meta name="description" content="Pantalla TV: cartel del menú del día completo, sin recortar." />
   <link rel="icon" type="image/jpeg" href="assets/logo.jpg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -15,43 +15,92 @@
     :root {
       --bg: #0c1018;
       --ink: #fff8e8;
-      --muted: rgba(255, 248, 232, .62);
+      --muted: rgba(255, 248, 232, .7);
       --gold: #f1c40f;
       --red: #c8102e;
     }
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
+      width: 100%;
       height: 100%;
       background: var(--bg);
       color: var(--ink);
       font-family: Montserrat, system-ui, sans-serif;
       overflow: hidden;
     }
+    /* Toda la pantalla = el cartel. Cabecera/pie van encima, no restan altura. */
     .tv {
       position: fixed;
       inset: 0;
-      display: grid;
-      grid-template-rows: auto 1fr auto;
-      padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+      width: 100vw;
+      height: 100dvh;
+      background:
+        radial-gradient(ellipse at 50% 40%, rgba(241,196,15,.07), transparent 55%),
+        var(--bg);
     }
-    .tv-top {
+    .tv-stage {
+      position: absolute;
+      inset: 0;
+      display: block;
+      overflow: hidden;
+    }
+    .tv-stage img {
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      display: block;
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      object-position: center center;
+      background: transparent;
+    }
+    .tv-stage img[hidden] { display: none !important; }
+    .tv-empty {
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      height: fit-content;
+      max-width: 28rem;
+      padding: 1.5rem;
+      text-align: center;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: clamp(1rem, 2.2vw, 1.35rem);
+      line-height: 1.45;
+    }
+    .tv-empty[hidden] { display: none !important; }
+    .tv-chrome {
+      position: absolute;
+      left: 0;
+      right: 0;
+      z-index: 2;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: .75rem 1.25rem;
-      padding: .65rem 1.1rem .35rem;
-      flex-wrap: wrap;
+      gap: .75rem 1rem;
+      padding: .55rem 1rem;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(12,16,24,.72), transparent);
+    }
+    .tv-chrome.is-bottom {
+      top: auto;
+      bottom: 0;
+      background: linear-gradient(0deg, rgba(12,16,24,.78), transparent);
+      pointer-events: none;
     }
     .tv-brand {
       display: flex;
       align-items: center;
-      gap: .65rem;
+      gap: .55rem;
       min-width: 0;
     }
     .tv-brand img {
-      width: 42px;
-      height: 42px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
       object-fit: cover;
       border: 2px solid var(--gold);
@@ -59,102 +108,81 @@
     }
     .tv-brand strong {
       font-family: 'Playfair Display', Georgia, serif;
-      font-size: clamp(1.05rem, 2.2vw, 1.55rem);
+      font-size: clamp(.95rem, 1.8vw, 1.25rem);
       font-weight: 700;
-      letter-spacing: .01em;
+      text-shadow: 0 2px 10px rgba(0,0,0,.55);
     }
     .tv-brand strong em {
       font-style: italic;
       color: var(--gold);
-      font-weight: 700;
     }
-    .tv-meta {
-      text-align: right;
-      min-width: 0;
-    }
+    .tv-meta { text-align: right; min-width: 0; }
     .tv-meta .label {
       display: block;
-      font-size: .72rem;
+      font-size: .68rem;
       font-weight: 800;
       letter-spacing: .12em;
       text-transform: uppercase;
-      color: var(--red);
+      color: #ff6b81;
+      text-shadow: 0 1px 6px rgba(0,0,0,.5);
     }
     .tv-meta .price {
-      font-size: clamp(1.15rem, 2.4vw, 1.7rem);
+      font-size: clamp(1.05rem, 2.2vw, 1.45rem);
       font-weight: 800;
       color: var(--gold);
       font-variant-numeric: tabular-nums;
+      text-shadow: 0 2px 10px rgba(0,0,0,.55);
     }
-    .tv-stage {
-      position: relative;
-      min-height: 0;
-      margin: 0 .55rem;
-      border-radius: 12px;
-      background:
-        radial-gradient(ellipse at 50% 0%, rgba(241,196,15,.08), transparent 55%),
-        #070a10;
-      border: 1px solid rgba(241,196,15,.18);
-      display: grid;
-      place-items: center;
-      overflow: hidden;
-    }
-    .tv-stage img {
-      display: block;
-      width: auto;
-      height: auto;
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-      object-position: center center;
-      background: #fff;
-      box-shadow: 0 18px 50px rgba(0,0,0,.45);
-    }
-    .tv-stage img[hidden] { display: none !important; }
-    .tv-empty {
-      margin: 0;
-      padding: 1.5rem;
-      text-align: center;
-      color: var(--muted);
-      font-weight: 700;
-      font-size: clamp(1rem, 2.2vw, 1.35rem);
-      max-width: 28rem;
-      line-height: 1.45;
-    }
-    .tv-empty[hidden] { display: none !important; }
-    .tv-foot {
+    .tv-foot-inner {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: .75rem;
-      padding: .4rem 1.1rem .7rem;
+      width: 100%;
       color: var(--muted);
-      font-size: .78rem;
+      font-size: .74rem;
       font-weight: 600;
+      text-shadow: 0 1px 6px rgba(0,0,0,.5);
     }
-    .tv-foot button {
-      border: 1px solid rgba(241,196,15,.35);
-      background: rgba(241,196,15,.1);
+    .tv-foot-inner button {
+      pointer-events: auto;
+      border: 1px solid rgba(241,196,15,.4);
+      background: rgba(12,16,24,.75);
       color: var(--gold);
       border-radius: 999px;
-      padding: .4rem .85rem;
+      padding: .42rem .9rem;
       font: inherit;
       font-weight: 800;
-      font-size: .78rem;
+      font-size: .76rem;
       cursor: pointer;
     }
-    .tv-foot button:active { transform: scale(.98); }
-    /* En TV ancha: más aire al menú; en móvil no rompe (página aparte) */
-    @media (min-width: 1200px) and (min-height: 700px) {
-      .tv-top { padding: .85rem 1.4rem .45rem; }
-      .tv-brand img { width: 52px; height: 52px; }
-      .tv-stage { margin: 0 .9rem; }
+    .tv-foot-inner button:active { transform: scale(.98); }
+    /* En TV: chrome más discreto para maximizar el cartel */
+    @media (min-width: 1100px) and (min-height: 650px) {
+      .tv-chrome { padding: .45rem 1.15rem; opacity: .92; }
+      .tv-brand img { width: 40px; height: 40px; }
+    }
+    /* Pantalla completa: ocultar chrome salvo hover/focus cerca de bordes */
+    :fullscreen .tv-chrome,
+    :-webkit-full-screen .tv-chrome {
+      opacity: 0;
+      transition: opacity .25s ease;
+    }
+    :fullscreen .tv:hover .tv-chrome,
+    :fullscreen .tv:focus-within .tv-chrome,
+    :-webkit-full-screen .tv:hover .tv-chrome,
+    :-webkit-full-screen .tv:focus-within .tv-chrome {
+      opacity: 1;
     }
   </style>
 </head>
 <body>
   <div class="tv" id="tvRoot">
-    <header class="tv-top">
+    <main class="tv-stage" id="tvStage" aria-live="polite">
+      <img id="tvImg" alt="Menú del día" hidden />
+      <p class="tv-empty" id="tvEmpty">Cargando menú del día…</p>
+    </main>
+    <header class="tv-chrome" aria-hidden="false">
       <div class="tv-brand">
         <img src="assets/logo.jpg" alt="" />
         <strong>Casa <em>Torino</em></strong>
@@ -164,13 +192,11 @@
         <span class="price" id="tvPrice"></span>
       </div>
     </header>
-    <main class="tv-stage" id="tvStage" aria-live="polite">
-      <img id="tvImg" alt="Menú del día" hidden />
-      <p class="tv-empty" id="tvEmpty">Cargando menú del día…</p>
-    </main>
-    <footer class="tv-foot">
-      <span id="tvStatus">Actualiza sola cada pocos minutos</span>
-      <button type="button" id="tvFullscreen" aria-label="Pantalla completa">Pantalla completa</button>
+    <footer class="tv-chrome is-bottom">
+      <div class="tv-foot-inner">
+        <span id="tvStatus">Cartel completo · toca pantalla completa</span>
+        <button type="button" id="tvFullscreen" aria-label="Pantalla completa">Pantalla completa</button>
+      </div>
     </footer>
   </div>
 
@@ -272,11 +298,11 @@
               minute: '2-digit',
             })
             status.textContent = pick.fromApi
-              ? `Menú de hoy · actualizado ${t}`
-              : `Foto de respaldo · ${t}`
+              ? `Cartel completo · actualizado ${t}`
+              : `Cartel de respaldo · ${t}`
           }
         }
-        if (img.getAttribute('src') === next) {
+        if (img.getAttribute('src') === next && !img.hidden) {
           apply()
           return
         }
@@ -312,7 +338,7 @@
         show(pickMenu(data))
       }
 
-      $('tvFullscreen')?.addEventListener('click', async () => {
+      async function toggleFullscreen() {
         try {
           if (!document.fullscreenElement) {
             await document.documentElement.requestFullscreen?.()
@@ -322,12 +348,14 @@
         } catch (err) {
           console.warn('[menu-tv] fullscreen', err)
         }
-      })
+      }
 
-      // Doble clic en la foto también pide pantalla completa (útil en mando TV)
-      $('tvStage')?.addEventListener('dblclick', () => {
-        $('tvFullscreen')?.click()
+      $('tvFullscreen')?.addEventListener('click', (e) => {
+        e.stopPropagation()
+        toggleFullscreen()
       })
+      // Un toque en el cartel pide pantalla completa (mando / TV)
+      $('tvStage')?.addEventListener('dblclick', () => toggleFullscreen())
 
       refresh()
       setInterval(refresh, 3 * 60 * 1000)
