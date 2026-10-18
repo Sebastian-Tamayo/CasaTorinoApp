@@ -3971,7 +3971,8 @@
         return null
       }
 
-      /** Marca en la línea quién hizo el último add / cambio de cantidad. */
+      /** Marca en la línea quién hizo el último add / cambio de cantidad.
+       *  No borra byName/addedBy previos si no hay camarera activa. */
       function stampLineActor(line) {
         if (!line || typeof line !== 'object') return
         const actor = actorWaiter()
@@ -3980,6 +3981,9 @@
         line.byName = name
         line.addedBy = name
         if (actor.id) line.byId = String(actor.id)
+        else if (line.byId == null && line.addedById != null) {
+          /* conservar id legado si existiera */
+        }
       }
 
       function stampMesa(m, data, opts = {}) {
@@ -5444,13 +5448,14 @@
               const pickBtn = isMenuPick
                 ? `<button type="button" class="btn-pick" data-pick="${key}">Cambiar N1/N2</button>`
                 : ''
-              const atTs = Number(l.updatedAt || l.addedAt || l.at || 0)
+              // Hora original de alta (addedAt/at); líneas viejas sin byName siguen igual.
+              const atTs = Number(l.addedAt || l.at || 0)
               const who = String(l.byName || l.addedBy || '').trim().replace(/</g, '&lt;')
               const atLabel = atTs
                 ? (who ? `${fmtHm(atTs)} · ${who}` : fmtHm(atTs))
                 : (who || '')
               const atTitle = who
-                ? `Última modificación: ${who}`
+                ? (atTs ? `Añadido ${fmtHm(atTs)} · ${who}` : who)
                 : 'Hora de añadido'
               const editable = isPriceEditable(l)
               const priceBlock = editable
