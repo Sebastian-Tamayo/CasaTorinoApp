@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-18-linea-w1'
-const message = 'Actualiza: cada producto muestra la camarera que lo añadió o modificó'
+const required = '2026-10-18-varios-k1'
+const message = 'Actualiza: en Varios puedes elegir Barra o Cocina'
 
 function forceInfo() {
   return { required, message }
