@@ -3091,7 +3091,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-17-plano-w1'
+      const TPV_CLIENT_VERSION = '2026-10-18-linea-w1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3949,6 +3949,39 @@
         }
       }
 
+      /** Camarera que actúa ahora: desplegable del plano, o la asignada a la mesa. */
+      function actorWaiter() {
+        const w = currentPlanoWaiter()
+        const fromPlano = String(w?.name || '').trim()
+        if (fromPlano) {
+          return {
+            id: w?.id ? String(w.id) : null,
+            name: fromPlano,
+          }
+        }
+        const m = normalizeMesa(state.mesa)
+        const blob = (m && state.tables && state.tables[m]) || {}
+        const fromMesa = String(blob.waiterName || '').trim()
+        if (fromMesa) {
+          return {
+            id: blob.waiterId ? String(blob.waiterId) : null,
+            name: fromMesa,
+          }
+        }
+        return null
+      }
+
+      /** Marca en la línea quién hizo el último add / cambio de cantidad. */
+      function stampLineActor(line) {
+        if (!line || typeof line !== 'object') return
+        const actor = actorWaiter()
+        const name = actor?.name || ''
+        if (!name) return
+        line.byName = name
+        line.addedBy = name
+        if (actor.id) line.byId = String(actor.id)
+      }
+
       function stampMesa(m, data, opts = {}) {
         const prev = (m && state.tables && state.tables[m]) || {}
         const now = Date.now()
@@ -4417,11 +4450,14 @@
         closeCoursePick()
         if (editKey && state.cart[editKey]) {
           const line = state.cart[editKey]
+          const now = Date.now()
           const newKey = cartKeyFor(line.productId || line.id, note)
           if (newKey === editKey) {
             line.note = note
             line.primero = courseSel.primero
             line.segundo = courseSel.segundo
+            line.updatedAt = now
+            stampLineActor(line)
           } else {
             // Mover / fusionar si ya existe esa misma elección
             const moved = {
@@ -4432,7 +4468,9 @@
               note,
               primero: courseSel.primero,
               segundo: courseSel.segundo,
+              updatedAt: now,
             }
+            stampLineActor(moved)
             delete state.cart[editKey]
             if (state.cart[newKey]) {
               state.cart[newKey].qty += Number(moved.qty || 1)
@@ -4440,6 +4478,8 @@
                 Number(state.cart[newKey].sentQty || 0) + Number(moved.sentQty || 0),
                 state.cart[newKey].qty,
               )
+              state.cart[newKey].updatedAt = now
+              stampLineActor(state.cart[newKey])
             } else {
               state.cart[newKey] = moved
             }
@@ -4461,6 +4501,7 @@
           state.cart[key].qty += 1
           if (!state.cart[key].addedAt) state.cart[key].addedAt = now
           state.cart[key].updatedAt = now
+          stampLineActor(state.cart[key])
         } else {
           state.cart[key] = {
             id: item.id,
@@ -4481,6 +4522,7 @@
             addedAt: now,
             updatedAt: now,
           }
+          stampLineActor(state.cart[key])
         }
         if (!state.cart[key].categoryType) state.cart[key].categoryType = ctype
         if (isPriceEditable(item) || isPriceEditable(state.cart[key])) state.cart[key].priceEditable = true
@@ -4566,6 +4608,7 @@
           state.cart[id].qty = qty
           if (!state.cart[id].addedAt) state.cart[id].addedAt = now
           state.cart[id].updatedAt = now
+          stampLineActor(state.cart[id])
           if ((state.cart[id].sentQty || 0) > qty) state.cart[id].sentQty = qty
         }
         clampPaySelect()
@@ -5401,8 +5444,14 @@
               const pickBtn = isMenuPick
                 ? `<button type="button" class="btn-pick" data-pick="${key}">Cambiar N1/N2</button>`
                 : ''
-              const atTs = Number(l.addedAt || l.at || 0)
-              const atLabel = atTs ? fmtHm(atTs) : ''
+              const atTs = Number(l.updatedAt || l.addedAt || l.at || 0)
+              const who = String(l.byName || l.addedBy || '').trim().replace(/</g, '&lt;')
+              const atLabel = atTs
+                ? (who ? `${fmtHm(atTs)} · ${who}` : fmtHm(atTs))
+                : (who || '')
+              const atTitle = who
+                ? `Última modificación: ${who}`
+                : 'Hora de añadido'
               const editable = isPriceEditable(l)
               const priceBlock = editable
                 ? `<div class="line-price-edit">
@@ -5424,7 +5473,7 @@
                 <i class="fa-solid fa-check" aria-hidden="true"></i>
               </button>
               <div>
-                <div class="line-name">${l.name}${tags}${atLabel ? `<span class="line-at" title="Hora de añadido">${atLabel}</span>` : ''}</div>
+                <div class="line-name">${l.name}${tags}${atLabel ? `<span class="line-at" title="${atTitle.replace(/"/g, '&quot;')}">${atLabel}</span>` : ''}</div>
                 ${priceBlock}
                 ${note}
                 ${pickBtn}
