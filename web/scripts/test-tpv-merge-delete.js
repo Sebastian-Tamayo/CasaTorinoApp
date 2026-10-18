@@ -85,4 +85,73 @@ const t2 = now - 1000
   assert.ok(r.removed.b)
 }
 
+// 5) Regresión bocatas fantasma: mesa sigue editándose tras borrar una línea.
+// El updatedAt de la mesa NO debe inflar la presencia de la línea borrada.
+{
+  const delAt = t1
+  const later = t2
+  const stale = {
+    cart: {
+      'picoteo-bocata': {
+        id: 'picoteo-bocata',
+        name: 'Bocata',
+        qty: 1,
+        addedAt: t0,
+        updatedAt: t0,
+      },
+      'picoteo-empanada': {
+        id: 'picoteo-empanada',
+        name: 'Empanada',
+        qty: 1,
+        addedAt: later,
+        updatedAt: later,
+      },
+    },
+    removed: {},
+    updatedAt: later,
+  }
+  const deleted = {
+    cart: {
+      'picoteo-empanada': {
+        id: 'picoteo-empanada',
+        name: 'Empanada',
+        qty: 1,
+        addedAt: later,
+        updatedAt: later,
+      },
+    },
+    removed: { 'picoteo-bocata': delAt },
+    updatedAt: delAt,
+  }
+  const m = mergeBusyTables(stale, deleted, true)
+  assert.strictEqual(
+    m.cart['picoteo-bocata'],
+    undefined,
+    'bocata borrada no debe resucitar al añadir otro producto',
+  )
+  assert.ok(m.cart['picoteo-empanada'], 'empanada se conserva')
+  assert.ok(m.removed['picoteo-bocata'] >= delAt, 'tombstone bocata')
+
+  // Sin timestamps de línea (legado): tombstone también gana
+  const legacy = {
+    cart: {
+      'picoteo-bocata': { id: 'picoteo-bocata', name: 'Bocata', qty: 1 },
+      'picoteo-empanada': {
+        id: 'picoteo-empanada',
+        qty: 1,
+        addedAt: later,
+        updatedAt: later,
+      },
+    },
+    removed: {},
+    updatedAt: later,
+  }
+  const m2 = mergeBusyTables(legacy, deleted, true)
+  assert.strictEqual(
+    m2.cart['picoteo-bocata'],
+    undefined,
+    'bocata legado sin updatedAt tampoco resucita',
+  )
+}
+
 console.log('OK test-tpv-merge-delete')

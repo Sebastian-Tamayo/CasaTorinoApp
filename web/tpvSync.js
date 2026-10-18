@@ -174,13 +174,15 @@
       : {}
   }
 
-  function linePresentTs(line, tableAtMs) {
+  /**
+   * Presencia por línea (no usar updatedAt de la mesa: resucita borrados).
+   */
+  function linePresentTs(line, _tableAtMs) {
     if (!line || typeof line !== 'object') return 0
     return Math.max(
       0,
       Number(line.updatedAt) || 0,
       Number(line.addedAt) || 0,
-      Number(tableAtMs) || 0,
     )
   }
 

@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-18-varios-k1'
-const message = 'Actualiza: en Varios puedes elegir Barra o Cocina'
+const required = '2026-10-18-merge-fix1'
+const message = 'Importante: actualiza — corrige productos fantasma (bocatas) al sincronizar'
 
 function forceInfo() {
   return { required, message }

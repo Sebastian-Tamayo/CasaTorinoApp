@@ -33,13 +33,18 @@ function normRemoved(removed) {
     : {}
 }
 
-function linePresentTs(line, tableAtMs) {
+/**
+ * Timestamp de presencia de UNA línea.
+ * IMPORTANTE: no usar tableAtMs. Si se usa el updatedAt de la mesa, cualquier
+ * otro producto añadido después “infla” líneas viejas y pueden resucitar
+ * borrados (p. ej. bocatas fantasma al sincronizar entre móviles).
+ */
+function linePresentTs(line, _tableAtMs) {
   if (!line || typeof line !== 'object') return 0
   return Math.max(
     0,
     Number(line.updatedAt) || 0,
     Number(line.addedAt) || 0,
-    Number(tableAtMs) || 0,
   )
 }
 
