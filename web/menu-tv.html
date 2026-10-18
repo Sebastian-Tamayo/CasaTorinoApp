@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Menú del día · TV · Casa Torino</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#0c1018" />
+  <meta name="description" content="Pantalla TV: menú del día a pantalla completa." />
+  <link rel="icon" type="image/jpeg" href="assets/logo.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0c1018;
+      --ink: #fff8e8;
+      --muted: rgba(255, 248, 232, .62);
+      --gold: #f1c40f;
+      --red: #c8102e;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Montserrat, system-ui, sans-serif;
+      overflow: hidden;
+    }
+    .tv {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+    }
+    .tv-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .75rem 1.25rem;
+      padding: .65rem 1.1rem .35rem;
+      flex-wrap: wrap;
+    }
+    .tv-brand {
+      display: flex;
+      align-items: center;
+      gap: .65rem;
+      min-width: 0;
+    }
+    .tv-brand img {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--gold);
+      flex: 0 0 auto;
+    }
+    .tv-brand strong {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(1.05rem, 2.2vw, 1.55rem);
+      font-weight: 700;
+      letter-spacing: .01em;
+    }
+    .tv-brand strong em {
+      font-style: italic;
+      color: var(--gold);
+      font-weight: 700;
+    }
+    .tv-meta {
+      text-align: right;
+      min-width: 0;
+    }
+    .tv-meta .label {
+      display: block;
+      font-size: .72rem;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--red);
+    }
+    .tv-meta .price {
+      font-size: clamp(1.15rem, 2.4vw, 1.7rem);
+      font-weight: 800;
+      color: var(--gold);
+      font-variant-numeric: tabular-nums;
+    }
+    .tv-stage {
+      position: relative;
+      min-height: 0;
+      margin: 0 .55rem;
+      border-radius: 12px;
+      background:
+        radial-gradient(ellipse at 50% 0%, rgba(241,196,15,.08), transparent 55%),
+        #070a10;
+      border: 1px solid rgba(241,196,15,.18);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+    .tv-stage img {
+      display: block;
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      object-position: center center;
+      background: #fff;
+      box-shadow: 0 18px 50px rgba(0,0,0,.45);
+    }
+    .tv-stage img[hidden] { display: none !important; }
+    .tv-empty {
+      margin: 0;
+      padding: 1.5rem;
+      text-align: center;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: clamp(1rem, 2.2vw, 1.35rem);
+      max-width: 28rem;
+      line-height: 1.45;
+    }
+    .tv-empty[hidden] { display: none !important; }
+    .tv-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .75rem;
+      padding: .4rem 1.1rem .7rem;
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 600;
+    }
+    .tv-foot button {
+      border: 1px solid rgba(241,196,15,.35);
+      background: rgba(241,196,15,.1);
+      color: var(--gold);
+      border-radius: 999px;
+      padding: .4rem .85rem;
+      font: inherit;
+      font-weight: 800;
+      font-size: .78rem;
+      cursor: pointer;
+    }
+    .tv-foot button:active { transform: scale(.98); }
+    /* En TV ancha: más aire al menú; en móvil no rompe (página aparte) */
+    @media (min-width: 1200px) and (min-height: 700px) {
+      .tv-top { padding: .85rem 1.4rem .45rem; }
+      .tv-brand img { width: 52px; height: 52px; }
+      .tv-stage { margin: 0 .9rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="tv" id="tvRoot">
+    <header class="tv-top">
+      <div class="tv-brand">
+        <img src="assets/logo.jpg" alt="" />
+        <strong>Casa <em>Torino</em></strong>
+      </div>
+      <div class="tv-meta">
+        <span class="label" id="tvLabel">Hoy · menú del día</span>
+        <span class="price" id="tvPrice"></span>
+      </div>
+    </header>
+    <main class="tv-stage" id="tvStage" aria-live="polite">
+      <img id="tvImg" alt="Menú del día" hidden />
+      <p class="tv-empty" id="tvEmpty">Cargando menú del día…</p>
+    </main>
+    <footer class="tv-foot">
+      <span id="tvStatus">Actualiza sola cada pocos minutos</span>
+      <button type="button" id="tvFullscreen" aria-label="Pantalla completa">Pantalla completa</button>
+    </footer>
+  </div>
+
+  <script src="carta.js"></script>
+  <script>
+    (() => {
+      const FALLBACK = 'assets/menu-diario.jpg'
+      const ORDER = [
+        'menu-dia-unificado-semana',
+        'menu-dia-co-finde',
+        'menu-dia-es-finde',
+        'menu-dia-sabado',
+        'menu-dia-domingo',
+      ]
+      const $ = (id) => document.getElementById(id)
+      const money = (n) =>
+        Number(n).toLocaleString('es-ES', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }) + '\u00a0€'
+
+      async function loadCarta() {
+        try {
+          const r = await fetch('/api/carta', {
+            cache: 'no-store',
+            headers: { Accept: 'application/json' },
+          })
+          if (r.ok) return r.json()
+        } catch (err) {
+          console.warn('[menu-tv] api', err)
+        }
+        try {
+          const r2 = await fetch('data/carta.json', { cache: 'no-store' })
+          if (r2.ok) return r2.json()
+        } catch (err) {
+          console.warn('[menu-tv] json', err)
+        }
+        return null
+      }
+
+      function pickMenu(data) {
+        const kindInfo =
+          window.CasaTorinoCarta?.menuDayKind?.(data) || {
+            schedule: 'weekday',
+            kind: 'weekday',
+          }
+        const schedule = kindInfo.schedule || 'weekday'
+        const md = data?.menuDay || {}
+        const sat = md.saturday || {}
+        const sun = md.sunday || {}
+        const week = md.weekday || {}
+        const satP = Number.isFinite(Number(sat.price)) ? Number(sat.price) : 16
+        const sunP = Number.isFinite(Number(sun.price)) ? Number(sun.price) : 18
+        const weekP = Number.isFinite(Number(week.price ?? week.unified))
+          ? Number(week.price ?? week.unified)
+          : 13
+        const price =
+          schedule === 'saturday' ? satP : schedule === 'sunday' ? sunP : weekP
+
+        const menus = (data?.categories || []).find((c) => c && c.id === 'menus-dia')
+        const itemSchedule = (it) =>
+          window.CasaTorinoCarta?.menuItemSchedule?.(it) || ''
+        let items = (menus?.items || []).filter(
+          (it) =>
+            it &&
+            it.image_url &&
+            !it.customProduct &&
+            itemSchedule(it) === schedule,
+        )
+        items = [...items].sort((a, b) => {
+          const ia = ORDER.indexOf(a.id)
+          const ib = ORDER.indexOf(b.id)
+          return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
+        })
+        const item = items[0] || null
+        return {
+          schedule,
+          price,
+          image: item?.image_url || FALLBACK,
+          name: item?.name || 'Menú del día',
+          fromApi: Boolean(item?.image_url),
+        }
+      }
+
+      function show(pick) {
+        const img = $('tvImg')
+        const empty = $('tvEmpty')
+        const price = $('tvPrice')
+        const status = $('tvStatus')
+        if (price) price.textContent = money(pick.price)
+        if (!img) return
+        const next = pick.image
+        const apply = () => {
+          img.hidden = false
+          if (empty) empty.hidden = true
+          if (status) {
+            const t = new Date().toLocaleTimeString('es-ES', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+            status.textContent = pick.fromApi
+              ? `Menú de hoy · actualizado ${t}`
+              : `Foto de respaldo · ${t}`
+          }
+        }
+        if (img.getAttribute('src') === next) {
+          apply()
+          return
+        }
+        img.onload = () => apply()
+        img.onerror = () => {
+          if (next !== FALLBACK) {
+            img.src = FALLBACK
+            return
+          }
+          img.hidden = true
+          if (empty) {
+            empty.hidden = false
+            empty.textContent =
+              'No hay foto del menú del día. Súbela en Editar carta (TPV).'
+          }
+        }
+        img.alt = pick.name
+        img.src = next
+      }
+
+      async function refresh() {
+        const data = await loadCarta()
+        if (!data) {
+          show({
+            schedule: 'weekday',
+            price: 13,
+            image: FALLBACK,
+            name: 'Menú del día',
+            fromApi: false,
+          })
+          return
+        }
+        show(pickMenu(data))
+      }
+
+      $('tvFullscreen')?.addEventListener('click', async () => {
+        try {
+          if (!document.fullscreenElement) {
+            await document.documentElement.requestFullscreen?.()
+          } else {
+            await document.exitFullscreen?.()
+          }
+        } catch (err) {
+          console.warn('[menu-tv] fullscreen', err)
+        }
+      })
+
+      // Doble clic en la foto también pide pantalla completa (útil en mando TV)
+      $('tvStage')?.addEventListener('dblclick', () => {
+        $('tvFullscreen')?.click()
+      })
+
+      refresh()
+      setInterval(refresh, 3 * 60 * 1000)
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') refresh()
+      })
+    })()
+  </script>
+</body>
+</html>
