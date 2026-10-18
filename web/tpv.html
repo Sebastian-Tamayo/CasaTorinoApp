@@ -744,6 +744,28 @@
       border-radius: 999px; padding: .25rem .55rem;
       font: inherit; font-size: .72rem; font-weight: 800; cursor: pointer;
     }
+    .extra-dest {
+      display: grid; grid-template-columns: 1fr 1fr; gap: .45rem;
+    }
+    .extra-dest button {
+      border: 1px solid var(--line2);
+      border-radius: 14px;
+      padding: .85rem .5rem;
+      font: inherit; font-weight: 800; cursor: pointer;
+      background: var(--card2); color: var(--ink);
+    }
+    .extra-dest button[aria-pressed="true"] {
+      border-color: rgba(245,197,24,.55);
+      background: rgba(245,197,24,.16);
+      color: #fde68a;
+      box-shadow: inset 0 0 0 1px rgba(245,197,24,.28);
+    }
+    .extra-dest button.dest-kitchen[aria-pressed="true"] {
+      border-color: rgba(251,146,60,.55);
+      background: rgba(251,146,60,.18);
+      color: #fdba74;
+      box-shadow: inset 0 0 0 1px rgba(251,146,60,.3);
+    }
 
     /* Modal elección menú (1º / 2º) — solo si coursePick */
     .course-modal {
@@ -2876,14 +2898,21 @@
         </button>
         <h3 id="extraModalTitle">Producto libre</h3>
       </div>
-      <p class="sub">Pon el nombre y el precio. Luego podrás cambiar el precio en la cuenta.</p>
+      <p class="sub">Pon el nombre y el precio. Elige si va a barra o a cocina.</p>
       <div class="course-block">
         <h4>Nombre</h4>
         <input id="extraName" type="text" inputmode="text" enterkeyhint="next" maxlength="80" placeholder="Ej. Pan, tapa, encargo…" autocomplete="off" spellcheck="true" style="width:100%;border:1px solid var(--line2);border-radius:12px;background:var(--card);color:var(--ink);font:inherit;font-weight:700;padding:.7rem .8rem;outline:none" />
       </div>
       <div class="course-block">
         <h4>Precio (€)</h4>
-        <input id="extraPrice" type="text" inputmode="decimal" enterkeyhint="done" placeholder="0,00" autocomplete="off" spellcheck="false" style="width:100%;border:1px solid var(--line2);border-radius:12px;background:var(--card);color:var(--ink);font:inherit;font-weight:800;padding:.7rem .8rem;outline:none" />
+        <input id="extraPrice" type="text" inputmode="decimal" enterkeyhint="next" placeholder="0,00" autocomplete="off" spellcheck="false" style="width:100%;border:1px solid var(--line2);border-radius:12px;background:var(--card);color:var(--ink);font:inherit;font-weight:800;padding:.7rem .8rem;outline:none" />
+      </div>
+      <div class="course-block">
+        <h4>¿Dónde se prepara?</h4>
+        <div class="extra-dest" role="group" aria-label="Destino del producto">
+          <button type="button" id="extraDestBarra" aria-pressed="true">Barra</button>
+          <button type="button" id="extraDestCocina" class="dest-kitchen" aria-pressed="false">Cocina</button>
+        </div>
       </div>
       <div class="course-actions">
         <button type="button" class="cancel" id="extraCancel">Cancelar</button>
@@ -3091,7 +3120,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-18-linea-w1'
+      const TPV_CLIENT_VERSION = '2026-10-18-varios-k1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -4347,12 +4376,22 @@
 
       function categoryTypeOf(itemOrLine) {
         const catId = String(itemOrLine?.catId || '').toLowerCase()
-        // Barra: bebidas, cafés, postres y varios (no van a cocina)
-        if (catId === 'bebidas' || catId === 'cafes' || catId === 'postres' || catId === 'extras') return 'bebida'
+        // Varios: la camarera elige barra o cocina (categoryType en la línea)
+        if (catId === 'extras') {
+          return itemOrLine?.categoryType === 'comida' ? 'comida' : 'bebida'
+        }
+        // Barra fija: bebidas, cafés y postres
+        if (catId === 'bebidas' || catId === 'cafes' || catId === 'postres') return 'bebida'
         if (itemOrLine?.categoryType === 'bebida' || itemOrLine?.categoryType === 'comida') {
           return itemOrLine.categoryType
         }
         return 'comida'
+      }
+
+      function isExtrasLine(itemOrLine) {
+        return String(itemOrLine?.catId || '').toLowerCase() === 'extras'
+          || Boolean(itemOrLine?.customProduct)
+          || String(itemOrLine?.id || itemOrLine?.productId || '').startsWith('extras-')
       }
 
       function isSpanishMenu(itemOrLine) {
@@ -4549,10 +4588,21 @@
         addWithNote(item, '', null)
       }
 
+      let extraDest = 'barra' // 'barra' | 'cocina'
+
+      function setExtraDest(dest) {
+        extraDest = dest === 'cocina' ? 'cocina' : 'barra'
+        const barra = $('extraDestBarra')
+        const cocina = $('extraDestCocina')
+        if (barra) barra.setAttribute('aria-pressed', extraDest === 'barra' ? 'true' : 'false')
+        if (cocina) cocina.setAttribute('aria-pressed', extraDest === 'cocina' ? 'true' : 'false')
+      }
+
       function openExtraModal() {
         if (!requireMesa()) return
         if ($('extraName')) $('extraName').value = ''
         if ($('extraPrice')) $('extraPrice').value = ''
+        setExtraDest('barra')
         if ($('extraModal')) $('extraModal').hidden = false
         setTimeout(() => { try { $('extraName')?.focus() } catch {} }, 50)
       }
@@ -4574,6 +4624,7 @@
           $('extraPrice')?.focus()
           return
         }
+        const toKitchen = extraDest === 'cocina'
         const slug = name
           .toLowerCase()
           .normalize('NFD')
@@ -4581,7 +4632,8 @@
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-|-$/g, '')
           .slice(0, 40) || 'libre'
-        const id = 'extras-' + slug
+        // Ids distintos barra/cocina para no fusionar el mismo nombre con destinos distintos
+        const id = 'extras-' + slug + (toKitchen ? '-k' : '')
         closeExtraModal()
         addWithNote(
           {
@@ -4589,13 +4641,33 @@
             name,
             price,
             catId: 'extras',
-            categoryType: 'bebida',
+            categoryType: toKitchen ? 'comida' : 'bebida',
             customProduct: true,
             priceEditable: true,
           },
           '',
           null,
         )
+      }
+
+      function toggleExtrasDestination(key) {
+        const line = state.cart[key]
+        if (!line || !isExtrasLine(line)) return
+        const now = Date.now()
+        const cur = categoryTypeOf(line)
+        if (cur === 'comida') {
+          line.categoryType = 'bebida'
+        } else {
+          line.categoryType = 'comida'
+          // Pendiente de enviar: no marcar como ya enviado
+          if ((Number(line.sentQty) || 0) > (Number(line.qty) || 0)) {
+            line.sentQty = Number(line.qty) || 0
+          }
+        }
+        line.updatedAt = now
+        stampLineActor(line)
+        persist()
+        render()
       }
 
       function setQty(id, qty) {
@@ -4737,15 +4809,24 @@
         if (!foodPending.length) {
           const hasFood = lines().some((l) => categoryTypeOf(l) === 'comida')
           const hasDrink = lines().some((l) => categoryTypeOf(l) === 'bebida')
+          const hasExtrasBarra = lines().some(
+            (l) => isExtrasLine(l) && categoryTypeOf(l) !== 'comida',
+          )
           if (hasFood) alert('Toda la comida de esta mesa ya está enviada a cocina.\nAñade más platos o espera.')
-          else if (hasDrink) alert('Solo hay productos de barra en la cuenta.\nBebidas, cafés y postres se preparan en barra y no van a cocina.')
-          else alert('La cuenta está vacía.')
+          else if (hasExtrasBarra) {
+            alert(
+              'Solo hay productos de barra (o Varios marcados como barra).\n' +
+                'En Varios elige «Cocina» al añadir, o toca «Pasar a cocina» en la línea.',
+            )
+          } else if (hasDrink) {
+            alert('Solo hay productos de barra en la cuenta.\nBebidas, cafés y postres se preparan en barra y no van a cocina.')
+          } else alert('La cuenta está vacía.')
           return
         }
         const resumen = foodPending
           .map((x) => `${x.qty} × ${x.name}${x.note ? ` (${x.note})` : ''}`)
           .join('\n')
-        if (!confirm(`Mesa ${m}\nEnviar a cocina:\n\n${resumen}\n\n(Bebidas, cafés y postres no se envían)`)) return
+        if (!confirm(`Mesa ${m}\nEnviar a cocina:\n\n${resumen}\n\n(Bebidas, cafés, postres y Varios-barra no se envían)`)) return
 
         const btn = $('btnKitchen')
         if (btn) btn.disabled = true
@@ -5448,6 +5529,11 @@
               const pickBtn = isMenuPick
                 ? `<button type="button" class="btn-pick" data-pick="${key}">Cambiar N1/N2</button>`
                 : ''
+              const extrasDestBtn = isExtrasLine(l)
+                ? `<button type="button" class="btn-pick" data-extra-dest="${String(key).replace(/"/g, '&quot;')}">${
+                    ctype === 'comida' ? 'Pasar a barra' : 'Pasar a cocina'
+                  }</button>`
+                : ''
               // Hora original de alta (addedAt/at); líneas viejas sin byName siguen igual.
               const atTs = Number(l.addedAt || l.at || 0)
               const who = String(l.byName || l.addedBy || '').trim().replace(/</g, '&lt;')
@@ -5482,6 +5568,7 @@
                 ${priceBlock}
                 ${note}
                 ${pickBtn}
+                ${extrasDestBtn}
                 ${selQtyUi}
               </div>
               <div class="line-right">
@@ -5852,7 +5939,7 @@
         }
         add(item)
       })
-      bindTap($('lines'), '[data-pick], button[data-act], [data-sel-toggle], [data-sel-act]', (_e, el) => {
+      bindTap($('lines'), '[data-pick], [data-extra-dest], button[data-act], [data-sel-toggle], [data-sel-act]', (_e, el) => {
         if (el.hasAttribute('data-sel-toggle')) {
           togglePaySelect(el.getAttribute('data-sel-toggle'))
           return
@@ -5864,6 +5951,10 @@
           const cur = selectedQtyOf(key) || Number(line.qty) || 0
           const next = el.getAttribute('data-sel-act') === '+' ? cur + 1 : cur - 1
           setPaySelectQty(key, next)
+          return
+        }
+        if (el.hasAttribute('data-extra-dest')) {
+          toggleExtrasDestination(el.getAttribute('data-extra-dest'))
           return
         }
         if (el.hasAttribute('data-pick')) {
@@ -5906,6 +5997,8 @@
       $('extraCancel')?.addEventListener('click', () => closeExtraModal())
       $('extraBack')?.addEventListener('click', () => closeExtraModal())
       $('extraOk')?.addEventListener('click', () => commitExtraProduct())
+      $('extraDestBarra')?.addEventListener('click', () => setExtraDest('barra'))
+      $('extraDestCocina')?.addEventListener('click', () => setExtraDest('cocina'))
       $('extraModal')?.addEventListener('click', (e) => {
         if (e.target === $('extraModal')) closeExtraModal()
       })
