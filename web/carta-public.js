@@ -301,19 +301,35 @@
 
   function openDishModal(it, opts = {}) {
     if (!it?.image_url) return
+    const isMenu =
+      Boolean(opts.menuSheet) ||
+      String(it.id || '').startsWith('menu-dia') ||
+      String(it.catId || '') === 'menus-dia'
+    // En TV / landscape: pantalla dedicada = cartel completo sin barra blanca
+    try {
+      const tvLike =
+        isMenu &&
+        window.matchMedia('(orientation: landscape) and (min-width: 900px)').matches
+      if (tvLike && !opts.forceModal) {
+        window.location.href = 'menu-tv.html'
+        return
+      }
+    } catch {}
     const modal = ensureDishModal()
     const img = document.getElementById('dishModalImg')
     const title = document.getElementById('dishModalTitle')
     const desc = document.getElementById('dishModalDesc')
     const price = document.getElementById('dishModalPrice')
-    const isMenu =
-      Boolean(opts.menuSheet) ||
-      String(it.id || '').startsWith('menu-dia') ||
-      String(it.catId || '') === 'menus-dia'
     modal.classList.toggle('is-menu-sheet', isMenu)
     if (img) {
       img.src = it.image_url
       img.alt = it.name || (isMenu ? 'Menú del día' : 'Plato')
+      // Forzar layout tras cargar (TVs que miden mal el alto antes del decode)
+      img.onload = () => {
+        try {
+          img.style.maxHeight = '100%'
+        } catch {}
+      }
     }
     if (title) title.textContent = it.name || ''
     if (desc) {
@@ -327,7 +343,19 @@
         desc.hidden = !text
       }
     }
-    if (price) price.textContent = money(it.price)
+    if (price) {
+      price.textContent = money(it.price)
+      // En menú el precio ya está en el cartel; ocultar barra en landscape
+      try {
+        const hideBar =
+          isMenu &&
+          window.matchMedia('(orientation: landscape) and (min-width: 900px)').matches
+        price.hidden = hideBar
+        if (title) title.hidden = hideBar
+      } catch {
+        price.hidden = false
+      }
+    }
     modal.hidden = false
     requestAnimationFrame(() => modal.classList.add('is-open'))
     document.body.classList.add('dish-modal-open')

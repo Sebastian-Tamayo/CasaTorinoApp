@@ -964,60 +964,80 @@ body.dish-modal-open { overflow: hidden; }
   max-height: 48vh;
   object-fit: cover;
 }
-/* Menú del día: foto completa legible (sin recortar) */
+/* Menú del día: cartel entero siempre (contain). Sin width:100% que lo recorta. */
+.dish-modal.is-menu-sheet {
+  padding: .4rem;
+  align-items: stretch;
+  justify-items: stretch;
+}
 .dish-modal.is-menu-sheet .dish-modal-card {
-  width: min(920px, 96vw);
-  max-height: min(96vh, 980px);
+  width: min(96vw, 920px);
+  max-width: 96vw;
+  height: min(96vh, 100%);
+  max-height: 96vh;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .dish-modal.is-menu-sheet .dish-modal-media {
-  max-height: min(82vh, 860px);
-  overflow: auto;
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
   background: #1a2332;
-  -webkit-overflow-scrolling: touch;
+  display: grid;
+  place-items: center;
 }
 .dish-modal.is-menu-sheet .dish-modal-media img {
-  width: 100%;
-  max-height: none;
-  height: auto;
+  display: block;
+  width: auto !important;
+  height: auto !important;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
+  object-position: center center;
   background: #fff;
 }
 .dish-modal.is-menu-sheet .dish-modal-body {
-  padding: .75rem 1rem 1rem;
+  flex: 0 0 auto;
+  padding: .65rem 1rem .8rem;
 }
-/* Solo pantallas tipo TV (≥1600×900): cartel entero sin scroll a trozos.
-   Móvil y portátil siguen igual. */
-@media (min-width: 1600px) and (min-height: 900px) {
+/* TV / landscape ancho: el precio ya va en el cartel → quitar barra blanca que come altura */
+@media (orientation: landscape) and (min-width: 900px) {
   .dish-modal.is-menu-sheet {
-    padding: .35rem;
+    padding: .25rem;
   }
   .dish-modal.is-menu-sheet .dish-modal-card {
     width: auto;
-    max-width: 98vw;
-    height: 98vh;
-    max-height: 98vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .dish-modal.is-menu-sheet .dish-modal-media {
-    flex: 1 1 auto;
-    min-height: 0;
-    max-height: none;
-    overflow: hidden;
-    display: grid;
-    place-items: center;
-  }
-  .dish-modal.is-menu-sheet .dish-modal-media img {
-    width: auto;
-    height: auto;
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
+    max-width: 99vw;
+    height: 99vh;
+    max-height: 99vh;
+    border-radius: 10px;
   }
   .dish-modal.is-menu-sheet .dish-modal-body {
-    flex: 0 0 auto;
-    padding: .5rem .85rem .65rem;
+    display: none;
+  }
+  .dish-modal.is-menu-sheet .dish-modal-close {
+    top: .4rem;
+    right: .4rem;
+  }
+}
+/* Móvil vertical: si el cartel es muy alto, permitir scroll suave sin recortar al ancho */
+@media (orientation: portrait) and (max-width: 900px) {
+  .dish-modal.is-menu-sheet .dish-modal-card {
+    height: auto;
+    max-height: 96vh;
+  }
+  .dish-modal.is-menu-sheet .dish-modal-media {
+    max-height: min(78vh, calc(96vh - 4.5rem));
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dish-modal.is-menu-sheet .dish-modal-media img {
+    max-height: none;
+    width: 100% !important;
   }
 }
 .dish-modal-body {
