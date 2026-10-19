@@ -1,9 +1,13 @@
 ---
-description: Mapa maestro Casa Torino — a dónde ir según la petición (organización, no cambia prod)
+description: Mapa maestro Casa Torino — navegación ligera (reglas globales en global-obligatorias + practicas/produccion/recomendaciones)
 alwaysApply: true
 ---
 
 # Casa Torino OS — Guía de navegación para el agente
+
+**Reglas globales obligatorias en toda tarea:** `global-obligatorias.mdc` + `practicas.mdc` + `produccion.mdc` + `recomendaciones.mdc` (siempre activas).
+
+**Rutas detalladas por módulo:** solo si el usuario dice `@tpv`, `@cocina`, etc. → entonces `rutas.mdc`.
 
 Monorepo en producción. **Antes de tocar código de runtime**, confirma módulo y archivo.
 Documentación madre: `docs/PRD.md` · mapa: `docs/MAPA-CODIGO.md` · técnico: `docs/ESPECIFICACIONES-TECNICAS.md`.

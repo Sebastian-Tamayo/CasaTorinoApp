@@ -1,9 +1,9 @@
 ---
-description: "Comando /produccion — alerta máxima, restaurante en servicio, cero regresiones"
+description: "Producción en vivo (global obligatoria). También @produccion /produccion"
 alwaysApply: true
 ---
 
-# /produccion — Producción en vivo
+# Produccion — Producción en vivo (obligatoria en toda tarea)
 
 ## Alerta máxima
 
