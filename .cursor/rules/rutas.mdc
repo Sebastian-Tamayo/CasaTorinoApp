@@ -1,11 +1,18 @@
 ---
-description: "Comandos /cocina /tpv /erp /pagina /reservas /fichaje — enrutamiento rápido sin escanear todo el repo"
+description: "Enrutamiento bajo demanda: @tpv @cocina @erp @pagina @reservas @fichaje (o /tpv, /cocina…). No alwaysApply."
 alwaysApply: false
 ---
 
-# Rutas por comando
+# Rutas por comando (solo bajo demanda)
 
-Usa esto cuando el usuario invoque un comando o diga el módulo. Detalle ampliado: `docs/MAPA-CODIGO.md` y `.cursor/rules/00-casa-torino.mdc`.
+**Aplica este archivo solo** cuando el usuario mencione un comando de ruta, por ejemplo:
+
+`@tpv` · `@cocina` · `@erp` · `@pagina` · `@reservas` · `@fichaje`  
+(o equivalentes `/tpv`, `/cocina`, `/erp`, `/pagina`, `/reservas`, `/fichaje`).
+
+Sin ese comando, **no** uses esta rule para acotar carpetas; mantén el alcance mínimo del mensaje.
+
+Detalle ampliado: `docs/MAPA-CODIGO.md` y `.cursor/rules/00-casa-torino.mdc`.
 
 ## /cocina
 
@@ -39,11 +46,11 @@ Usa esto cuando el usuario invoque un comando o diga el módulo. Detalle ampliad
 
 ## /reservas
 
-- **Frontend staff:** `reservas/` (React + Vite)
+- **Frontend staff:** `reservas/` (**React + Vite**)
 - **UI:** `reservas/src/App.tsx`, páginas/components bajo `reservas/src/`
 - **Backend / store:** `reservas/server/reservas-store.js` → **Supabase `ops_kv`**
-- **API routes:** `reservas/api/reservas*.js`, alertas/capacity/health
-- **Nota:** despliegue **reservas-casatorino**; runtime Vercel/Edge en APIs — **no romper** contrato con TPV (alertas reserva).
+- **API routes:** `reservas/api/reservas*.js`, alertas/capacity/health (runtime **Vercel Edge** / Edge Config donde aplique en env)
+- **Nota:** despliegue **reservas-casatorino** — **no romper** contrato con TPV (alertas reserva).
 
 ## /fichaje
 

@@ -1,11 +1,11 @@
 ---
-description: "Comando /practicas — buenas prácticas Casa Torino (web, TPV, secretos, impresión)"
-alwaysApply: false
+description: "Buenas prácticas Casa Torino (global obligatoria). También @practicas /practicas"
+alwaysApply: true
 ---
 
-# /practicas — Buenas prácticas
+# Practicas — Buenas prácticas (obligatorias en toda tarea)
 
-Reglas de estilo y operación. **No sustituyen** `/produccion` ni la lógica de `/recomendaciones`.
+Reglas de estilo y operación. Van **junto con** `produccion.mdc` y `recomendaciones.mdc` (ver `global-obligatorias.mdc`).
 
 ## Web pública (tema claro)
 

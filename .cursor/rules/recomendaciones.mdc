@@ -1,9 +1,9 @@
 ---
-description: "Comando /recomendaciones — lógica de negocio sala (barra/cocina, menús, precios)"
-alwaysApply: false
+description: "Lógica de negocio sala (global obligatoria). También @recomendaciones /recomendaciones"
+alwaysApply: true
 ---
 
-# /recomendaciones — Lógica de negocio
+# Recomendaciones — Lógica de negocio (obligatoria en toda tarea)
 
 Referencia para implementar sin inventar reglas distintas a las del restaurante.
 

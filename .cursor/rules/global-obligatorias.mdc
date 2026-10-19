@@ -1,0 +1,26 @@
+---
+description: Reglas globales obligatorias Casa Torino — aplicar en TODA tarea sin que el usuario las cite
+alwaysApply: true
+---
+
+# Reglas globales obligatorias (Casa Torino)
+
+En **cualquier** prompt o tarea de este proyecto, aplica **siempre y de forma automática** el contenido completo de:
+
+1. `.cursor/rules/practicas.mdc`
+2. `.cursor/rules/produccion.mdc`
+3. `.cursor/rules/recomendaciones.mdc`
+
+Trátalas como si el usuario las hubiera invocado con `@` en cada mensaje. **No las ignores** aunque el usuario no escriba `/practicas`, `/produccion` ni `/recomendaciones`.
+
+## Enrutamiento dinámico (alcance de carpetas)
+
+- **Por defecto:** no escanees todo el monorepo; cambios mínimos y acotados al tema del mensaje.
+- **Solo cuando el usuario mencione un comando de ruta** (ej. `@tpv`, `@cocina`, `@erp`, `@pagina`, `@reservas`, `@fichaje`, o `/tpv`, `/cocina`, etc.), abre y sigue **`.cursor/rules/rutas.mdc`** y limita ediciones a las carpetas/archivos de esa ruta.
+- Sin comando de ruta: usa el mapa ligero de `00-casa-torino.mdc` o pregunta implícita del mensaje; **no** cargues rutas detalladas de todos los módulos a la vez.
+
+## Prioridad en conflicto
+
+1. Seguridad y **produccion.mdc** (servicio en vivo, `ops_kv`, cero regresiones)
+2. **recomendaciones.mdc** (lógica de negocio barra/cocina, menús, precios)
+3. **practicas.mdc** (tema web claro, secretos, POS-58, táctil, versiones)
