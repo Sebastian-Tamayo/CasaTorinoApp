@@ -1,0 +1,36 @@
+---
+description: "Comando /produccion — alerta máxima, restaurante en servicio, cero regresiones"
+alwaysApply: true
+---
+
+# /produccion — Producción en vivo
+
+## Alerta máxima
+
+- El personal del restaurante **está trabajando AHORA MISMO** (TPV, cocina, reservas, cobro).
+- **Cero regresiones**: preferir el diff más pequeño que resuelva el bug; no refactorizar “de paso”.
+- Si la petición es solo consulta o docs, **no tocar** HTML/JS/API de runtime.
+
+## Código defensivo
+
+- Asumir **varios dispositivos** en la misma mesa (móviles + PC): merge con tombstones (`removed`), no resucitar líneas borradas.
+- Merge espejo cliente/servidor: `web/tpvSync.js` ↔ `web/api/_tpvMerge.js` — **cambios en uno suelen requerir el otro**.
+- `stampMesa` / `loadMesaIntoState`: no subir `updatedAt` de mesa en lecturas (poll) si eso hace ganar siempre al local.
+- Carta: GET público; mutaciones con sesión TPV / versión cliente correcta (426 si desactualizado).
+
+## Sincronización Supabase `ops_kv`
+
+- **No romper** la persistencia compartida: núcleo `web/api/_opsStore.js`.
+- Claves habituales: TPV mesas/jornada, cocina, carta, cierres, reservas (según módulo).
+- **No reintroducir** Vercel Blob ni Edge Config como fuente de verdad operativa (migrado a Supabase).
+- Purga diaria: `web/api/ops-daily-purge.js` — no desactivar sin entender impacto en datos vivos.
+
+## Despliegue
+
+- Tres proyectos Vercel: **web** (TPV+cocina+landing), **reservas**, **erp** — no mezclar roots ni env vars.
+- Forzar actualización TPV/cocina con versión + mensaje claro; el personal debe pulsar **Actualizar** cuando toque.
+
+## Cuando dudar
+
+- Parar, leer el flujo en `docs/MAPA-CODIGO.md` y la rule del módulo (`tpv-cocina.mdc`, etc.).
+- Probar smoke local; no mergear cambios amplios en pleno servicio sin prueba explícita.
