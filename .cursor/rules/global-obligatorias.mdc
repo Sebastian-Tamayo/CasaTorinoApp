@@ -16,8 +16,23 @@ Trátalas como si el usuario las hubiera invocado con `@` en cada mensaje. **No 
 ## Enrutamiento dinámico (alcance de carpetas)
 
 - **Por defecto:** no escanees todo el monorepo; cambios mínimos y acotados al tema del mensaje.
-- **Solo cuando el usuario mencione un comando de ruta** (ej. `@tpv`, `@cocina`, `@erp`, `@pagina`, `@reservas`, `@fichaje`, o `/tpv`, `/cocina`, etc.), abre y sigue **`.cursor/rules/rutas.mdc`** y limita ediciones a las carpetas/archivos de esa ruta.
+- **Solo cuando el usuario mencione un comando de ruta** (ej. `@tpv`, `@cocina`, `@erp`, `@pagina`, `@reservas`, `@fichaje`, o `/tpv`, `/cocina`, etc.), abre y sigue **`.cursor/rules/rutas.mdc`**: el **punto de entrada** es la carpeta de ese comando, no el único código que puedes tocar.
 - Sin comando de ruta: usa el mapa ligero de `00-casa-torino.mdc` o pregunta implícita del mensaje; **no** cargues rutas detalladas de todos los módulos a la vez.
+
+## Producción = varias apps enlazadas (contexto obligatorio)
+
+En servicio real **no son silos**: son **pantallas/deploys distintos** que comparten **`ops_kv`**, APIs y contratos. Aunque enrutes con `@tpv` o `@cocina`, **entiende y respeta el flujo cruzado**; si el bug es “de punta a punta”, toca **ambos lados** (cliente + API + store), con el diff mínimo.
+
+| Flujo típico | Origen | Enlace | Destino |
+|---|---|---|---|
+| Pedido a cocina | Camarera `tpv.html` · `sendToKitchen` | `api/kitchen.js` · `ops_kv` | KDS `cocina.html` · `kitchenSync.js` |
+| Listo / recoger | Cocina marca listo | sync + avisos | TPV pickup / vibración |
+| Cobro / jornada | TPV cobra | `tpv-jornada.js` · jornada en kv | ERP caja / top ventas (`erp/` · `ops-kv`) |
+| Carta / menú | Editar carta TPV | `api/carta.js` | Web pública `carta-public.js` |
+| Reserva staff | `reservas/` | alertas API | TPV `reservaAlertSync.js` |
+| Mesas / sync | Varios móviles TPV | `tpvSync.js` ↔ `_tpvMerge.js` | Misma mesa en todos los dispositivos |
+
+**Regla:** `@cocina` no impide leer o ajustar `api/kitchen.js` o el envío en `tpv.html` si el síntoma es “no llega a cocina”. Igual `@tpv` con KDS o jornada/ERP cuando el enlace lo exija.
 
 ## Prioridad en conflicto
 
