@@ -12,6 +12,7 @@
  * Requiere sesión TPV (cookie) o X-Tpv-Key.
  */
 const { getJson, setJson, hasSupabase } = require('./_opsStore')
+const { hasTpvSession } = require('./_tpvSession')
 const { applySecurityHeaders } = require('./_securityHeaders')
 
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
@@ -58,11 +59,6 @@ function cors(res) {
     'Content-Type, Authorization, X-Tpv-Key, Cache-Control',
   )
   res.setHeader('Cache-Control', 'no-store')
-}
-
-function hasTpvSession(req) {
-  const raw = req.headers.cookie || ''
-  return raw.split(';').some((c) => c.trim() === 'ct_tpv_session=1')
 }
 
 function authorized(req) {

@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-18-merge-fix1'
-const message = 'Importante: actualiza — corrige productos fantasma (bocatas) al sincronizar'
+const required = '2026-10-19-ops-harden1'
+const message = 'Importante: actualiza — sync seguro (purge, cobros concurrentes, sesión)'
 
 function forceInfo() {
   return { required, message }

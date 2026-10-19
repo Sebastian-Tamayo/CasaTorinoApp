@@ -3120,7 +3120,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-18-merge-fix1'
+      const TPV_CLIENT_VERSION = '2026-10-19-ops-harden1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -7255,6 +7255,26 @@
       function startTpvSyncPolling() {
         window.CasaTorinoTpvSync?.start(
           (remote) => {
+            // Purge / cambio de día: vaciar memoria y no reinyectar carrito activo
+            const todayOps = window.CasaTorinoTpvSync?.opsDayId?.() || ''
+            if (
+              remote.dayRollover ||
+              (todayOps && state.opsDay && state.opsDay !== todayOps) ||
+              (remote.opsDay && state.opsDay && remote.opsDay !== state.opsDay)
+            ) {
+              state.tables = {}
+              state.mesa = ''
+              state.cart = {}
+              state.hist = []
+              state.notes = ''
+              state.removed = {}
+              state.opsDay = remote.opsDay || todayOps || ''
+              syncMesaInputs('')
+              writeTablesStore({ mesa: '', tables: {}, opsDay: state.opsDay })
+              render()
+              return
+            }
+
             // remote.tables ya viene mergeado (unión de líneas) desde tpvSync.applyRemotePayload.
             // Antes de aplicar, sellamos la mesa activa en memoria para no perder toques en vuelo.
             const mActive = normalizeMesa(state.mesa)
@@ -7324,6 +7344,10 @@
           {
             skipInitialTick: true,
             getLocalSnapshot: () => {
+              const today = window.CasaTorinoTpvSync?.opsDayId?.() || ''
+              if (today && state.opsDay && state.opsDay !== today) {
+                return { tables: {}, mesa: '', opsDay: state.opsDay }
+              }
               const m = normalizeMesa(state.mesa)
               const tables = { ...state.tables }
               if (m) {
@@ -7342,7 +7366,7 @@
               return {
                 tables,
                 mesa: m,
-                opsDay: state.opsDay || window.CasaTorinoTpvSync?.opsDayId?.() || '',
+                opsDay: state.opsDay || today || '',
               }
             },
           },

@@ -324,7 +324,9 @@
       const list = await qz.printers.find()
       if (Array.isArray(list)) return list.map(String)
       if (list) return [String(list)]
-    } catch (_) {}
+    } catch (err) {
+      console.error('[printService] listPrinters', err)
+    }
     return []
   }
 
@@ -339,7 +341,9 @@
           return String(name)
         }
       }
-    } catch (_) {}
+    } catch (err) {
+      console.error('[printService] find exact', err)
+    }
 
     // 2) Buscar en la lista por alias / recuerdo
     const names = await listPrinterNames()
@@ -358,7 +362,9 @@
     try {
       const def = await qz.printers.getDefault()
       if (def) return String(def)
-    } catch (_) {}
+    } catch (err) {
+      console.error('[printService] getDefault', err)
+    }
     return names[0] || null
   }
 
@@ -446,8 +452,11 @@
       rememberPrinter(printer)
       return true
     } catch (err) {
-      console.warn('[printService] drawer', err)
-      // No bloquear el cobro si el cajón falla
+      console.error('[printService] drawer', err)
+      // No bloquear el cobro, pero avisar (cajón / QZ)
+      try {
+        qzPrintErrorAlert(err)
+      } catch (_) {}
       return false
     }
   }

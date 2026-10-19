@@ -130,6 +130,31 @@ async function writeRow(key, value) {
 }
 
 /**
+ * Compare-and-swap: PATCH solo si updated_at de fila coincide.
+ * @returns {object|null} fila escrita, o null si conflicto
+ */
+async function writeRowIfMatch(key, value, expectedUpdatedAt) {
+  if (!expectedUpdatedAt) {
+    return writeRow(key, value)
+  }
+  const payload = {
+    value,
+    updated_at: new Date().toISOString(),
+  }
+  const rows = await sbFetch(
+    `ops_kv?key=eq.${encodeURIComponent(key)}&updated_at=eq.${encodeURIComponent(expectedUpdatedAt)}`,
+    {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify(payload),
+    },
+  )
+  if (!Array.isArray(rows) || !rows.length) return null
+  memory[key] = { value, at: Date.now() }
+  return rows[0]
+}
+
+/**
  * @param {string} key
  * @param {any|Function} fallback
  * @param {{ fresh?: boolean }} [opts]
@@ -165,16 +190,25 @@ async function setJson(key, value) {
 }
 
 /**
- * Read-modify-write con reintento ANTES de escribir.
+ * Read-modify-write con CAS en ops_kv.updated_at (PostgREST PATCH filtrado).
  * No re-ejecuta el mutator tras un put exitoso (evita duplicar comandas).
  */
 async function updateJson(key, fallback, mutator) {
   let lastErr = null
-  for (let attempt = 1; attempt <= 4; attempt++) {
-    const current = await getJson(key, fallback, { fresh: true })
-    const baseVersion = Number(
-      current && typeof current === 'object' ? current.updatedAt || 0 : 0,
-    )
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    let row = null
+    try {
+      row = await readRow(key)
+    } catch (err) {
+      lastErr = err
+      await sleep(40 * attempt * attempt)
+      continue
+    }
+
+    let current = row && row.value != null ? row.value : null
+    if (current == null) {
+      current = typeof fallback === 'function' ? fallback() : fallback
+    }
     const base =
       current && typeof current === 'object'
         ? JSON.parse(JSON.stringify(current))
@@ -185,18 +219,29 @@ async function updateJson(key, fallback, mutator) {
     if (!next || typeof next !== 'object') {
       throw new Error('updateJson mutator must return object')
     }
-    const latest = await getJson(key, fallback, { fresh: true })
-    const latestVersion = Number(
-      latest && typeof latest === 'object' ? latest.updatedAt || 0 : 0,
-    )
-    if (latestVersion !== baseVersion) {
-      lastErr = new Error('updateJson conflict')
-      await sleep(35 * attempt * attempt)
-      continue
-    }
     next.updatedAt = Date.now()
-    await setJson(key, next)
-    return next
+
+    try {
+      if (!row) {
+        // Primera escritura: upsert; carrera rara en create
+        await writeRow(key, next)
+        memory[key] = { value: next, at: Date.now() }
+        return next
+      }
+      const written = await writeRowIfMatch(key, next, row.updated_at)
+      if (!written) {
+        lastErr = new Error('updateJson conflict')
+        await sleep(35 * attempt * attempt)
+        continue
+      }
+      return next
+    } catch (err) {
+      lastErr = err
+      if (err && err.status && err.status >= 400 && err.status < 500 && err.status !== 429) {
+        throw err
+      }
+      await sleep(40 * attempt * attempt)
+    }
   }
   throw lastErr || new Error('updateJson conflict')
 }

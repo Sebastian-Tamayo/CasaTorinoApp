@@ -1,3 +1,4 @@
+const { hasTpvSession } = require('./_tpvSession')
 /**
  * Fotos de platos → Supabase Storage bucket `menu_images`.
  *
@@ -52,11 +53,6 @@ function cors(res) {
     'Content-Type, Authorization, X-Tpv-Key',
   )
   res.setHeader('Cache-Control', 'no-store')
-}
-
-function hasTpvSession(req) {
-  const raw = req.headers.cookie || ''
-  return raw.split(';').some((c) => c.trim() === 'ct_tpv_session=1')
 }
 
 function authorized(req) {

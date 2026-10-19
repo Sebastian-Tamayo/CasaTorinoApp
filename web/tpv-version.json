@@ -1,5 +1,5 @@
 {
-  "required": "2026-10-18-merge-fix1",
-  "message": "Importante: actualiza — corrige productos fantasma (bocatas) al sincronizar",
-  "updatedAt": "2026-10-18T12:55:00.000Z"
+  "required": "2026-10-19-ops-harden1",
+  "message": "Importante: actualiza — sync seguro (purge, cobros concurrentes, sesión)",
+  "updatedAt": "2026-10-19T13:55:00.000Z"
 }

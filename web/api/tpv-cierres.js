@@ -3,6 +3,7 @@
  * Persistencia: Supabase ops_kv (opsStore), clave `cierres`.
  */
 const { getJson, setJson } = require('./_opsStore')
+const { hasTpvSession } = require('./_tpvSession')
 
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'cierres'
@@ -22,11 +23,6 @@ function cors(req, res) {
 
 function emptyState() {
   return { kind: 'casa-torino-cierres', items: [], updatedAt: 0 }
-}
-
-function hasTpvSession(req) {
-  const raw = req.headers.cookie || ''
-  return raw.split(';').some((c) => c.trim() === 'ct_tpv_session=1')
 }
 
 function authorized(req) {

@@ -319,15 +319,26 @@
     const remoteOpsDay = opts.remoteOpsDay ? String(opts.remoteOpsDay) : ''
     const localOpsDay = opts.localOpsDay ? String(opts.localOpsDay) : ''
     const today = opsDayId()
+    const localStale = Boolean(localOpsDay && localOpsDay !== today)
     const dayChanged =
+      localStale ||
       (remoteOpsDay && localOpsDay && remoteOpsDay !== localOpsDay) ||
       (remoteOpsDay && remoteOpsDay === today && localOpsDay && localOpsDay !== today)
 
+    // Cambio de día operativo / purge 08:00: NUNCA resucitar mesas locales de ayer
     if (dayChanged) {
-      return { tables: remote, keptLocal: false, dayRollover: true }
+      return {
+        tables: remoteOpsDay === today || !rKeys.length ? remote : {},
+        keptLocal: false,
+        dayRollover: true,
+      }
     }
 
+    // Remoto vacío del día actual (tras purge) → descartar local lleno
     if (rKeys.length === 0 && lTotal > 0) {
+      if (remoteOpsDay && remoteOpsDay === today) {
+        return { tables: {}, keptLocal: false, dayRollover: true }
+      }
       return { tables: local, keptLocal: true }
     }
 
@@ -544,58 +555,93 @@
 
   async function pushViaSupabase(tables, mesa, updatedAt) {
     const c = await ensureSb()
-    const { data, error } = await c
-      .from('ops_kv')
-      .select('value')
-      .eq('key', TPV_KEY)
-      .maybeSingle()
-    if (error) throw error
+    let lastErr = null
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      const { data, error } = await c
+        .from('ops_kv')
+        .select('value, updated_at')
+        .eq('key', TPV_KEY)
+        .maybeSingle()
+      if (error) throw error
 
-    const raw =
-      data?.value && typeof data.value === 'object'
-        ? data.value
-        : emptyTpvState()
-    const { state: rolled } = applyTpvDayRollover(raw)
-    const serverDay = rolled.opsDay || opsDayId()
-    const incomingDay = opsDayId()
-    const incomingTables = tables && typeof tables === 'object' ? tables : {}
+      const raw =
+        data?.value && typeof data.value === 'object'
+          ? data.value
+          : emptyTpvState()
+      const rowAt = data?.updated_at || null
+      const { state: rolled } = applyTpvDayRollover(raw)
+      const serverDay = rolled.opsDay || opsDayId()
+      const incomingDay = opsDayId()
+      const incomingTables = tables && typeof tables === 'object' ? tables : {}
 
-    if (incomingDay && incomingDay !== serverDay) {
-      return { ...rolled, opsDay: serverDay }
+      // Cliente de ayer no puede repoblar tras purge
+      if (incomingDay && incomingDay !== serverDay) {
+        return { ...rolled, opsDay: serverDay }
+      }
+      if (
+        tablesQty(rolled.tables) === 0 &&
+        tablesQty(incomingTables) > 0 &&
+        rolled.opsDay === serverDay &&
+        serverDay === incomingDay
+      ) {
+        // Tras purge del día: servidor vacío — solo aceptar si incoming es del mismo día
+        // y el remoto no está vacío por race; si server qty=0 tras purge, OK aceptar
+        // mesas nuevas del día. Bloquear solo si localOpsDay estaba stale (ya arriba).
+      }
+
+      const serverAt = Number(rolled.updatedAt || 0)
+      const preferIncoming = !(serverAt > updatedAt)
+      const incomingKeys = Object.keys(incomingTables)
+      if (incomingKeys.length === 0 && tablesQty(rolled.tables) > 0) {
+        return { ...rolled, opsDay: serverDay }
+      }
+      const merged = mergeTables(rolled.tables || {}, incomingTables, {
+        preferLocalClear: false,
+        remoteOpsDay: serverDay,
+        localOpsDay: incomingDay,
+      })
+      if (merged.dayRollover && tablesQty(merged.tables) === 0) {
+        return { ...rolled, tables: {}, opsDay: serverDay }
+      }
+
+      const next = {
+        kind: 'casa-torino-tpv',
+        tables: merged.tables,
+        mesa: typeof mesa === 'string' && mesa ? mesa : rolled.mesa || '',
+        opsDay: serverDay,
+        updatedAt: Date.now(),
+        clientId: preferIncoming ? CLIENT_ID : rolled.clientId || CLIENT_ID,
+      }
+
+      if (!rowAt) {
+        const { error: upErr } = await c.from('ops_kv').upsert(
+          {
+            key: TPV_KEY,
+            value: next,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'key' },
+        )
+        if (upErr) throw upErr
+        return next
+      }
+
+      // CAS: solo escribe si nadie más cambió updated_at
+      const { data: patched, error: patchErr } = await c
+        .from('ops_kv')
+        .update({
+          value: next,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('key', TPV_KEY)
+        .eq('updated_at', rowAt)
+        .select('key')
+      if (patchErr) throw patchErr
+      if (Array.isArray(patched) && patched.length > 0) return next
+      lastErr = new Error('tpv CAS conflict')
+      await sleep(40 * attempt * attempt)
     }
-
-    const serverAt = Number(rolled.updatedAt || 0)
-    const preferIncoming = !(serverAt > updatedAt)
-    // first=server, second=incoming — NO preferLocalClear (eso protegería server vacío)
-    const incomingKeys = Object.keys(incomingTables)
-    if (incomingKeys.length === 0 && tablesQty(rolled.tables) > 0) {
-      return { ...rolled, opsDay: serverDay }
-    }
-    const merged = mergeTables(rolled.tables || {}, incomingTables, {
-      preferLocalClear: false,
-      remoteOpsDay: serverDay,
-      localOpsDay: incomingDay,
-    })
-
-    const next = {
-      kind: 'casa-torino-tpv',
-      tables: merged.tables,
-      mesa: typeof mesa === 'string' && mesa ? mesa : rolled.mesa || '',
-      opsDay: serverDay,
-      updatedAt: preferIncoming ? updatedAt : serverAt || updatedAt,
-      clientId: preferIncoming ? CLIENT_ID : rolled.clientId || CLIENT_ID,
-    }
-
-    const { error: upErr } = await c.from('ops_kv').upsert(
-      {
-        key: TPV_KEY,
-        value: next,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'key' },
-    )
-    if (upErr) throw upErr
-    return next
+    throw lastErr || new Error('tpv push CAS failed')
   }
 
   async function pushViaApi(body, opts = {}) {
@@ -725,15 +771,17 @@
     if (typeof onRemote === 'function') {
       onRemote({
         tables: merged.tables,
-        mesa: remote.mesa || localSnap.mesa || '',
+        mesa: merged.dayRollover ? '' : remote.mesa || localSnap.mesa || '',
         updatedAt: remoteAt,
         keptLocal: merged.keptLocal,
-        opsDay: remote?.opsDay,
+        opsDay: remote?.opsDay || opsDayId(),
         fromOther: Boolean(fromOther),
+        dayRollover: Boolean(merged.dayRollover),
       })
     }
 
-    if (merged.keptLocal) {
+    // Tras rollover/purge: no empujar mesas locales de ayer
+    if (merged.keptLocal && !merged.dayRollover) {
       const m = localSnap.mesa || remote.mesa || ''
       push(merged.tables, m)
     }

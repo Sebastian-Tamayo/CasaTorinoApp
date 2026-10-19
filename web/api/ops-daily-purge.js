@@ -14,6 +14,7 @@
  * Auth: header x-vercel-cron, Bearer CRON_SECRET / TPV_SYNC_KEY, o cookie TPV.
  */
 const { updateJson } = require('./_opsStore')
+const { hasTpvSession } = require('./_tpvSession')
 const {
   opsDayId,
   applyKitchenDayRollover,
@@ -37,11 +38,6 @@ function cors(res) {
     'Content-Type, Authorization, X-Tpv-Key, Cache-Control',
   )
   res.setHeader('Cache-Control', 'no-store')
-}
-
-function hasTpvSession(req) {
-  const raw = req.headers.cookie || ''
-  return raw.split(';').some((c) => c.trim() === 'ct_tpv_session=1')
 }
 
 function authorized(req) {

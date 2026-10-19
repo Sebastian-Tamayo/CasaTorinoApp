@@ -14,6 +14,7 @@
  *   - Pedidos anteriores a la jornada actual se purgan al leer (GET)
  */
 const { getJson, updateJson } = require('./_opsStore')
+const { hasTpvSession } = require('./_tpvSession')
 const { applyKitchenDayRollover, opsDayId } = require('./_opsDay')
 const cocinaVersion = require('./_cocinaVersion')
 
@@ -47,11 +48,6 @@ function emptyState() {
     pickups: [],
     updatedAt: 0,
   }
-}
-
-function hasTpvSession(req) {
-  const raw = req.headers.cookie || ''
-  return raw.split(';').some((c) => c.trim() === 'ct_tpv_session=1')
 }
 
 function authorized(req) {

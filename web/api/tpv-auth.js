@@ -8,11 +8,13 @@
  */
 
 const PIN = process.env.TPV_PIN || ''
-const COOKIE = 'ct_tpv_session'
-// Cookie 24h + sliding renewal (heartbeat cliente cada 15 min)
-const MAX_AGE = 60 * 60 * 24 // 24 h
-
 const { applySecurityHeaders } = require('./_securityHeaders')
+const {
+  hasTpvSession,
+  setSessionCookie,
+  MAX_AGE_SEC,
+  sessionSecret,
+} = require('./_tpvSession')
 
 function cors(res) {
   applySecurityHeaders(res)
@@ -35,25 +37,6 @@ function parseBody(req) {
   return req.body
 }
 
-function hasSession(req) {
-  const raw = req.headers.cookie || ''
-  return raw.split(';').some((c) => c.trim() === COOKIE + '=1')
-}
-
-function setSession(res, on) {
-  if (on) {
-    res.setHeader(
-      'Set-Cookie',
-      `${COOKIE}=1; Path=/; Max-Age=${MAX_AGE}; HttpOnly; SameSite=Lax; Secure`,
-    )
-  } else {
-    res.setHeader(
-      'Set-Cookie',
-      `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure`,
-    )
-  }
-}
-
 module.exports = async function handler(req, res) {
   res.req = req
   cors(res)
@@ -64,15 +47,17 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const ok = hasSession(req)
-      if (ok) setSession(res, true) // sliding renewal
+      const ok = hasTpvSession(req)
+      if (ok) setSessionCookie(res, true) // sliding renewal
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify({ ok, maxAgeHours: 24 }))
+      return res.end(
+        JSON.stringify({ ok, maxAgeHours: Math.round(MAX_AGE_SEC / 3600) }),
+      )
     }
 
     if (req.method === 'DELETE') {
-      setSession(res, false)
+      setSessionCookie(res, false)
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
       return res.end(JSON.stringify({ ok: true }))
@@ -81,14 +66,13 @@ module.exports = async function handler(req, res) {
     if (req.method === 'POST') {
       const body = parseBody(req)
 
-      // Renovar sesión existente (heartbeat 24h)
       if (body.refresh) {
-        if (!hasSession(req)) {
+        if (!hasTpvSession(req)) {
           res.statusCode = 401
           res.setHeader('Content-Type', 'application/json')
           return res.end(JSON.stringify({ ok: false, error: 'Sesión caducada' }))
         }
-        setSession(res, true)
+        setSessionCookie(res, true)
         res.statusCode = 200
         res.setHeader('Content-Type', 'application/json')
         return res.end(JSON.stringify({ ok: true, refreshed: true }))
@@ -104,9 +88,19 @@ module.exports = async function handler(req, res) {
           }),
         )
       }
+      if (!sessionSecret()) {
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'application/json')
+        return res.end(
+          JSON.stringify({
+            ok: false,
+            error: 'Falta secreto de sesión (TPV_SYNC_KEY o TPV_PIN)',
+          }),
+        )
+      }
       const pin = String(body.pin || '').trim()
       if (pin && pin === PIN) {
-        setSession(res, true)
+        setSessionCookie(res, true)
         res.statusCode = 200
         res.setHeader('Content-Type', 'application/json')
         return res.end(JSON.stringify({ ok: true }))

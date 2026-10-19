@@ -8,6 +8,7 @@
  * (opsDay distinto → se descarta el push de mesas antiguas).
  */
 const { getJson, setJson, updateJson } = require('./_opsStore')
+const { hasTpvSession } = require('./_tpvSession')
 const { opsDayId, applyTpvDayRollover } = require('./_opsDay')
 const { mergeTables, tablesQty } = require('./_tpvMerge')
 const tpvVersion = require('./_tpvVersion')
@@ -47,11 +48,6 @@ function withTpvForce(state) {
       message: tpvVersion.message || 'Actualiza para seguir',
     },
   }
-}
-
-function hasTpvSession(req) {
-  const raw = req.headers.cookie || ''
-  return raw.split(';').some((c) => c.trim() === 'ct_tpv_session=1')
 }
 
 function authorized(req) {
@@ -115,15 +111,15 @@ module.exports = async function handler(req, res) {
           return { ...rolled, opsDay: serverDay }
         }
 
-        // Tras purge del día: servidor vacío + cliente sin opsDay (app vieja)
+        // Tras purge del día: servidor vacío + cliente sin opsDay o de otro día
         // no puede volver a llenar con mesas de ayer.
         const serverQty = tablesQty(rolled.tables)
         const incomingQty = tablesQty(incomingTables)
         if (
           serverQty === 0 &&
           incomingQty > 0 &&
-          !incomingDay &&
-          rolled.opsDay === serverDay
+          rolled.opsDay === serverDay &&
+          (!incomingDay || incomingDay !== serverDay)
         ) {
           return { ...rolled, opsDay: serverDay }
         }

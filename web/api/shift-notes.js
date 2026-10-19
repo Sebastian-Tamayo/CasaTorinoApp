@@ -14,6 +14,7 @@
  * Persistencia: Supabase tabla public.shift_notes vía service role (bypass RLS).
  */
 const { applySecurityHeaders } = require('./_securityHeaders')
+const { hasTpvSession } = require('./_tpvSession')
 
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const CATEGORIES = new Set(['proveedor', 'general'])
@@ -50,11 +51,6 @@ function cors(res) {
     'Content-Type, Authorization, X-Tpv-Key, Cache-Control',
   )
   res.setHeader('Cache-Control', 'no-store')
-}
-
-function hasTpvSession(req) {
-  const raw = req.headers.cookie || ''
-  return raw.split(';').some((c) => c.trim() === 'ct_tpv_session=1')
 }
 
 function authorized(req) {

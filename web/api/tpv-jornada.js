@@ -15,6 +15,7 @@ const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'jornada'
 const SALES_MAX = 500
 const { getJson, setJson, updateJson } = require('./_opsStore')
+const { hasTpvSession } = require('./_tpvSession')
 const { opsDayId } = require('./_opsDay')
 const {
   buildActivityByHour,
@@ -43,11 +44,6 @@ function emptyState() {
     sales: [],
     updatedAt: 0,
   }
-}
-
-function hasTpvSession(req) {
-  const raw = req.headers.cookie || ''
-  return raw.split(';').some((c) => c.trim() === 'ct_tpv_session=1')
 }
 
 function authorized(req) {
