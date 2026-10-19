@@ -3897,7 +3897,9 @@
           } catch (err) {
             console.warn('sync cocina jornada', err)
           }
-          alert('Jornada iniciada.\nHistórico de cocina renovado.')
+          alert(
+            'Jornada iniciada.\nHistórico de cocina renovado.\nCada camarera debe introducir su PIN (4 dígitos) al empezar a tomar pedido.',
+          )
         } catch (err) {
           console.warn('startJornada', err)
           if (err.data) paintJornadaStatus(err.data)
