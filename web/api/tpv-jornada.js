@@ -502,13 +502,59 @@ module.exports = async function handler(req, res) {
 
     if (req.method === 'POST') {
       if (tpvVersion.rejectIfClientOutdated(req, res)) return
-      const body =
-        typeof req.body === 'string'
-          ? JSON.parse(req.body || '{}')
-          : req.body || {}
+      let body = {}
+      try {
+        body =
+          typeof req.body === 'string'
+            ? JSON.parse(req.body || '{}')
+            : req.body || {}
+      } catch {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json')
+        return res.end(JSON.stringify({ error: 'invalid json' }))
+      }
       const action = String(body.action || '').toLowerCase()
       let state = await getState()
       const now = Date.now()
+
+      // Cobros concurrentes: mutar dentro de updateJson (no setJson a ciegas)
+      if (action === 'sale') {
+        const sale = normalizeSale(body.sale)
+        if (!sale) {
+          res.statusCode = 400
+          res.setHeader('Content-Type', 'application/json')
+          return res.end(JSON.stringify({ error: 'sale inválida' }))
+        }
+        try {
+          state = await updateJson(ITEM_KEY, emptyState, (cur) => {
+            if (cur.status !== 'open') {
+              const err = new Error('Abre la jornada antes de registrar cobros')
+              err.httpStatus = 409
+              err.state = cur
+              throw err
+            }
+            const sales = Array.isArray(cur.sales) ? cur.sales.slice() : []
+            if (!sales.some((s) => s && s.id === sale.id)) sales.push(sale)
+            while (sales.length > SALES_MAX) sales.shift()
+            return { ...cur, sales, updatedAt: Date.now() }
+          })
+        } catch (err) {
+          if (err.httpStatus) {
+            res.statusCode = err.httpStatus
+            res.setHeader('Content-Type', 'application/json')
+            return res.end(
+              JSON.stringify({
+                error: err.message,
+                ...withTotals(err.state || emptyState()),
+              }),
+            )
+          }
+          throw err
+        }
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json')
+        return res.end(JSON.stringify(withTotals(state)))
+      }
 
       if (action === 'start') {
         if (state.status === 'open') {
@@ -549,33 +595,6 @@ module.exports = async function handler(req, res) {
           sales: Array.isArray(state.sales) ? state.sales : [],
         }
         await syncKitchenJornada('end', state)
-      } else if (action === 'sale') {
-        if (state.status !== 'open') {
-          res.statusCode = 409
-          res.setHeader('Content-Type', 'application/json')
-          return res.end(
-            JSON.stringify({
-              error: 'Abre la jornada antes de registrar cobros',
-              ...withTotals(state),
-            }),
-          )
-        }
-        const sale = normalizeSale(body.sale)
-        if (!sale) {
-          res.statusCode = 400
-          res.setHeader('Content-Type', 'application/json')
-          return res.end(JSON.stringify({ error: 'sale inválida' }))
-        }
-        const sales = Array.isArray(state.sales) ? state.sales.slice() : []
-        if (!sales.some((s) => s && s.id === sale.id)) {
-          sales.push(sale)
-        }
-        while (sales.length > SALES_MAX) sales.shift()
-        state = {
-          ...state,
-          sales,
-          updatedAt: now,
-        }
       } else if (action === 'updatesale' || action === 'update_sale') {
         // Corrección al final del día: permitir editar con jornada abierta O cerrada
         if (state.status !== 'open' && state.status !== 'ended') {
@@ -714,13 +733,17 @@ module.exports = async function handler(req, res) {
         } catch (err) {
           console.warn('[tpv-jornada] archive', err)
         }
-        // Domingos: tras cerrar caja → mail semanal CON el domingo incluido.
-        // force en el trigger: el último cierre del domingo pisa un envío prematuro.
-        if (action === 'end') {
+        // Solo semanal si el cierre quedó archivado (si no, el lunes reintenta).
+        if (action === 'end' && cierre) {
           try {
             informeSemanal = await maybeTriggerWeeklyAfterSundayClose()
           } catch (err) {
             console.warn('[tpv-jornada] informe semanal', err)
+          }
+        } else if (action === 'end' && !cierre) {
+          informeSemanal = {
+            triggered: false,
+            reason: 'archive_failed_skip_informe',
           }
         }
       }

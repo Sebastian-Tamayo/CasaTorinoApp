@@ -45,14 +45,20 @@ function hasTpvSession(req) {
 }
 
 function authorized(req) {
-  if (req.headers['x-vercel-cron'] === '1') return true
+  const auth = String(req.headers.authorization || '')
+  // Bearer CRON_SECRET o TPV_SYNC_KEY (manual / curl)
+  if (CRON_SECRET && auth === `Bearer ${CRON_SECRET}`) return true
+  // Vercel inyecta Bearer solo si existe env CRON_SECRET (no el fallback).
+  // Si está definido, no aceptar x-vercel-cron solo (forjable).
+  if (req.headers['x-vercel-cron'] === '1') {
+    if (process.env.CRON_SECRET) {
+      return auth === `Bearer ${process.env.CRON_SECRET}`
+    }
+    return true
+  }
   if (hasTpvSession(req)) return true
   const key = req.headers['x-tpv-key']
   if (SYNC_KEY && key && key === SYNC_KEY) return true
-  if (CRON_SECRET) {
-    const auth = String(req.headers.authorization || '')
-    if (auth === `Bearer ${CRON_SECRET}`) return true
-  }
   return false
 }
 
@@ -174,7 +180,10 @@ module.exports = async function handler(req, res) {
         dryRun: flag(req, 'dryRun'),
         force: flag(req, 'force'),
       })
-      res.statusCode = 200
+      const ok =
+        result &&
+        (result.ok === true || result.skipped === true || result.dryRun === true)
+      res.statusCode = ok ? 200 : 502
       res.setHeader('Content-Type', 'application/json')
       return res.end(JSON.stringify(result))
     }

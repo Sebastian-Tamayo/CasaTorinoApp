@@ -14,7 +14,7 @@
  *   - Pedidos anteriores a la jornada actual se purgan al leer (GET)
  */
 const { getJson, updateJson } = require('./_opsStore')
-const { applyKitchenDayRollover } = require('./_opsDay')
+const { applyKitchenDayRollover, opsDayId } = require('./_opsDay')
 const cocinaVersion = require('./_cocinaVersion')
 
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
@@ -636,7 +636,8 @@ module.exports = async function handler(req, res) {
           state.history = []
           state.lastCompleted = null
           state.pickups = []
-          state.historyDay = new Date().toISOString().slice(0, 10)
+          // Día operativo Madrid (08:00), nunca UTC calendar — evita wipe 01:00–08:00
+          state.historyDay = opsDayId()
           return { state }
         })
         res.statusCode = 200
@@ -658,12 +659,11 @@ module.exports = async function handler(req, res) {
             state.lastCompleted = null
             state.pickups = []
             if (clearOrders) state.orders = []
-            state.historyDay = new Date(startedAt).toISOString().slice(0, 10)
+            state.historyDay = opsDayId(new Date(startedAt))
             state.jornadaId = jId
             state.jornadaStartedAt = startedAt
           } else if (phase === 'end') {
-            state.historyDay =
-              state.historyDay || new Date().toISOString().slice(0, 10)
+            state.historyDay = state.historyDay || opsDayId()
             state.jornadaId = jId || state.jornadaId
           }
           return { state }
