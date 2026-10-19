@@ -1,0 +1,45 @@
+---
+description: "Comando /recomendaciones — lógica de negocio sala (barra/cocina, menús, precios)"
+alwaysApply: false
+---
+
+# /recomendaciones — Lógica de negocio
+
+Referencia para implementar sin inventar reglas distintas a las del restaurante.
+
+## Barra vs cocina
+
+- **Postres, bebidas, cafés** → **barra** (`categoryType: 'bebida'`); **no** van al KDS por defecto.
+- **Platos / comida** → **cocina** (`categoryType: 'comida'`); envío con «Enviar a cocina» / `sendToKitchen`.
+- Implementación: `categoryTypeOf()` en `web/tpv.html`; envío filtra `ctype === 'comida'`.
+- Cocina: `web/cocina.html` + `web/api/kitchen.js` + `web/kitchenSync.js`.
+
+## Varios (producto libre)
+
+- Categoría `extras` / «Varios»: la camarera elige **Barra** o **Cocina** al añadir (modal); se puede cambiar en la línea de la cuenta.
+- Solo las líneas marcadas cocina entran en el envío a cocina.
+
+## Menús del día
+
+- **Menú español** (elección 1º/2º): **2 tiempos** — modal `coursePick` / nota «Primero N… Segundo N…»; cocina puede usar `kind: menu_dia` y cursos en `kitchen.js`.
+- **Menú colombiano / fin de semana un plato**: **1 tiempo** — no forzar modal 1º/2º salvo `coursePick` explícito en carta.
+- Precios menú: `data.menuDay` en carta (`weekday` / `saturday` / `sunday`); lógica horaria en `web/carta.js` (`menuDayKind`, `menuItemSchedule`).
+
+## Precios editables al vuelo
+
+- **Menús del día** y **Varios** deben poder cambiar precio en la cuenta (inputs en línea / `setLinePrice`).
+- `isPriceEditable`: `menus-dia`, `extras`, `customProduct`, `priceEditable`.
+- Cambios de carta permanente: modo «Editar carta» en TPV → `api/carta.js` + PIN.
+
+## Mesas y camareras
+
+- Plano / desplegable camarera: asignación en blob de mesa; líneas pueden llevar `byName` / hora de modificación.
+- Cobrar o vaciar mesa: desasignar camarera cuando proceda (`releaseMesaAssignment`, `cleared`).
+
+## Reservas y avisos
+
+- Reserva web → alerta TPV (`reservaAlertSync.js`); no bloquear mesa sin flujo acordado.
+
+## Impresión y cobro (recordatorio)
+
+- Cobrar abre cajón en efectivo y cierra ciclo de mesa según implementación actual — ver `/practicas`.

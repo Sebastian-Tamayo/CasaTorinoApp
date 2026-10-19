@@ -1,0 +1,56 @@
+---
+description: "Comando /practicas — buenas prácticas Casa Torino (web, TPV, secretos, impresión)"
+alwaysApply: false
+---
+
+# /practicas — Buenas prácticas
+
+Reglas de estilo y operación. **No sustituyen** `/produccion` ni la lógica de `/recomendaciones`.
+
+## Web pública (tema claro)
+
+- La web pública **SIEMPRE** en tema claro/crema: fondo **`#fff8e8`**, `--bg` / `--card` en `web/styles.css`.
+- Archivos típicos: `web/index.html`, `web/casa.html`, `web/styles.css`, `web/carta-public.js`, `web/main.js`, `web/reservar.html`, `web/menu-tv.html` (TV es pantalla aparte, no mezclar estilos globales de la landing).
+- **Prohibido** volcar estilos globales oscuros del TPV (`web/tpv.html` usa `color-scheme: dark`) sobre la web pública.
+
+## TPV / Cocina (tema oscuro local)
+
+- El TPV y cocina tienen su propio CSS embebido o módulo; cambios acotados al archivo del módulo.
+- Al tocar `tpv.html`, no modificar `styles.css` salvo que el cambio sea explícitamente de web pública.
+
+## Secretos y configuración
+
+- Secretos **solo** en Vercel (por proyecto) y `.env` local — **nunca** en Git, README ni ejemplos con PINs reales.
+- Variables típicas: Supabase, `TPV_*`, `ERP_PIN`, `CARTA_EDIT_PIN`, QZ/signing, etc.
+
+## Táctil / scroll
+
+- **Prohibido** `touch-action: none` **global** en `html`/`body` de toda la app.
+- En TPV, `touch-action: none` solo en contenedores concretos de arrastre (p. ej. plano en layout ancho ≥1024px), no en móvil carta/cuenta.
+- Preferir `pan-y` / `manipulation` en botones y zonas de scroll.
+
+## Impresión
+
+- Impresión de tickets vía **QZ Tray** → impresora **`POS-58`** (58 mm, nombre exacto en Windows).
+- Código: `web/printService.js`, firma `web/api/qz-sign.js`.
+- Tras cambios de ticket: comprobar columnas (~24 cols útiles) y que TOTAL no parta línea.
+
+## Cobro (comportamiento de negocio en código)
+
+- **«Cobrar»** (todo o selección): registra venta en jornada, **abre cajón** si hay efectivo (`openCashDrawer`), **limpia mesa** / libera asignación cuando corresponde, sync `ops_kv` vía `tpvSync.js`.
+- No cambiar el flujo de cobro sin entender `chargeScope`, `removeChargedFromCart`, `releaseMesaAssignment`.
+
+## Versiones TPV / Cocina
+
+- Al publicar cambios de cliente TPV, alinear **los tres**: `web/tpv.html` (`TPV_CLIENT_VERSION`), `web/tpv-version.json`, `web/api/_tpvVersion.js`, y `web/sw-tpv.js` (`SW_VERSION`).
+- Cocina: `web/cocina-version.json` + `_cocinaVersion.js` + `sw-cocina.js`.
+
+## Calidad mínima antes de merge
+
+- `node web/scripts/test-prod-smoke.js` (incluye merge TPV).
+- Diff pequeño; reutilizar convenciones del archivo que tocas.
+
+## Git / ramas
+
+- Features en `cursor/<nombre>-580d` → PR → `main`.
+- No force-push a `main`; no deploy experimental en horario de servicio sin necesidad.

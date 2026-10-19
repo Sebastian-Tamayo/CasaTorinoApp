@@ -1,0 +1,62 @@
+---
+description: "Comandos /cocina /tpv /erp /pagina /reservas /fichaje — enrutamiento rápido sin escanear todo el repo"
+alwaysApply: false
+---
+
+# Rutas por comando
+
+Usa esto cuando el usuario invoque un comando o diga el módulo. Detalle ampliado: `docs/MAPA-CODIGO.md` y `.cursor/rules/00-casa-torino.mdc`.
+
+## /cocina
+
+- **UI:** `web/cocina.html`
+- **Cliente sync:** `web/kitchenSync.js`, `web/sw-cocina.js`, `web/manifest-cocina.webmanifest`
+- **API:** `web/api/kitchen.js`, `web/api/_cocinaVersion.js`
+- **Versión:** `web/cocina-version.json`
+- PIN / sesión alineada con TPV (`tpv-auth`).
+
+## /tpv
+
+- **UI monolito:** `web/tpv.html` (carta, mesas, ticket, cobro, plano, modales)
+- **Sync / datos:** `web/tpvSync.js`, `web/tpvJornada.js`, `web/tpv-data.js`, `web/carta.js`, `web/planoMesas.js`, `web/printService.js`, `web/reservaAlertSync.js`
+- **API:** `web/api/tpv-sync.js`, `tpv-jornada.js`, `tpv-auth.js`, `tpv-cierres.js`, `carta.js`, `carta-image.js`, `shift-notes.js`, `kitchen.js`, `_tpvMerge.js`, `_tpvVersion.js`, `_opsStore.js`
+- **Tests merge:** `web/scripts/test-tpv-merge-delete.js`, `test-prod-smoke.js`
+
+## /erp
+
+- **App Next.js:** carpeta `erp/` (proyecto Vercel casa-torino-app)
+- **Rutas app:** `erp/src/app/gestion/*` (caja, top ventas, fiscal, RRHH, etc.)
+- **Puente ops:** `erp/src/lib/ops-kv.ts`, APIs jornada/cierres bajo `erp/src/app/api/`
+- **Migraciones Supabase:** `erp/supabase/migrations/` (si aplica al cambio)
+
+## /pagina
+
+- **Landing / web pública tema claro:** `web/index.html`, `web/casa.html`
+- **Estilos:** `web/styles.css` (crema `#fff8e8`)
+- **Carta pública:** `web/carta-public.js`, `web/carta.js`, `web/data/carta.json` (fallback)
+- **Menú TV (solo tele):** `web/menu-tv.html` — no mezclar con estilos globales de landing
+- **Otros:** `web/main.js`, `web/reservar.html` (reserva cliente en web)
+
+## /reservas
+
+- **Frontend staff:** `reservas/` (React + Vite)
+- **UI:** `reservas/src/App.tsx`, páginas/components bajo `reservas/src/`
+- **Backend / store:** `reservas/server/reservas-store.js` → **Supabase `ops_kv`**
+- **API routes:** `reservas/api/reservas*.js`, alertas/capacity/health
+- **Nota:** despliegue **reservas-casatorino**; runtime Vercel/Edge en APIs — **no romper** contrato con TPV (alertas reserva).
+
+## /fichaje
+
+- **Hub acceso personal (PIN):** `web/interno.html`
+- **Pantalla fichaje / horas:** `web/fichaje.html`
+- **API:** `web/api/time-logs.js`
+
+---
+
+## Tres deploys (no confundir)
+
+| Proyecto | Carpeta raíz deploy |
+|---|---|
+| Web + TPV + cocina + landing | `web/` |
+| Reservas staff | `reservas/` |
+| ERP | `erp/` |
