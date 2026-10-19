@@ -1324,6 +1324,8 @@
     }
     .tpv-force-btn:active { transform: scale(.98); }
     body.tpv-force-blocked .app,
+    body.waiter-pin-open .app { pointer-events: none; user-select: none; }
+    .waiter-gate { z-index: 12000; }
     body.tpv-force-blocked .gate,
     body.tpv-force-blocked .backdrop,
     body.tpv-force-blocked .fab,
@@ -2615,6 +2617,38 @@
     </div>
   </div>
 
+  <div class="gate waiter-gate" id="waiterGate" hidden role="dialog" aria-modal="true" aria-labelledby="waiterGateTitle">
+    <div class="gate-card">
+      <img src="assets/logo.jpg" alt="" aria-hidden="true" />
+      <h1 id="waiterGateTitle">Acceso camarera</h1>
+      <p id="waiterGateSub">Introduce tu PIN de 4 dígitos para esta jornada.</p>
+      <div class="gate-dots" id="waiterGateDots" aria-hidden="true">
+        <i></i><i></i><i></i><i></i>
+      </div>
+      <div id="waiterGateDots2Row" hidden>
+        <div class="gate-dots" id="waiterGateDots2" aria-hidden="true">
+          <i></i><i></i><i></i><i></i>
+        </div>
+      </div>
+      <div class="gate-pad" id="waiterGatePad">
+        <button type="button" data-wk="1">1</button>
+        <button type="button" data-wk="2">2</button>
+        <button type="button" data-wk="3">3</button>
+        <button type="button" data-wk="4">4</button>
+        <button type="button" data-wk="5">5</button>
+        <button type="button" data-wk="6">6</button>
+        <button type="button" data-wk="7">7</button>
+        <button type="button" data-wk="8">8</button>
+        <button type="button" data-wk="9">9</button>
+        <button type="button" class="ghost" data-wk="clear">Borrar</button>
+        <button type="button" data-wk="0">0</button>
+        <button type="button" class="ghost" data-wk="ok">OK</button>
+      </div>
+      <div class="gate-err" id="waiterGateErr" aria-live="polite"></div>
+      <button type="button" class="gate-back" id="waiterGateCancel" style="border:none;background:none;cursor:pointer;font:inherit;">Cancelar</button>
+    </div>
+  </div>
+
   <div class="app">
     <header class="topbar">
       <div class="brand">
@@ -2825,9 +2859,10 @@
         <div class="plano-waiter-actions">
           <button type="button" id="planoWaiterAdd">Añadir camarera</button>
           <button type="button" id="planoWaiterEdit">Modificar</button>
+          <button type="button" id="planoWaiterPin">Cambiar PIN</button>
           <button type="button" id="planoWaiterDel">Eliminar</button>
         </div>
-        <p class="plano-hint" id="planoHint">Verde = libre · Rojo = ocupada. Elige la camarera en el desplegable antes de tocar una mesa.</p>
+        <p class="plano-hint" id="planoHint">Verde = libre · Rojo = ocupada. Elige camarera y PIN (4 dígitos) al inicio de cada jornada. Si olvidan el PIN: eliminar camarera y volver a crearla.</p>
       </div>
       <div class="plano-floor" id="planoFloor" aria-label="Plano Casa Torino"></div>
       <div class="course-actions">
@@ -3112,6 +3147,7 @@
   <script src="kitchenSync.js?v=fix-create-1"></script>
   <script src="reservaAlertSync.js"></script>
   <script src="planoMesas.js?v=menu-2"></script>
+  <script src="waiterPin.js?v=waiter-pin-1"></script>
   <script>
     (() => {
       /**
@@ -3120,7 +3156,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-19-ops-harden1'
+      const TPV_CLIENT_VERSION = '2026-10-19-waiter-pin1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3615,6 +3651,9 @@
           if (btnStart) btnStart.disabled = false
           if (btnEnd) btnEnd.disabled = true
         }
+        try {
+          window.CasaTorinoWaiterPin?.onJornadaChange?.(j)
+        } catch {}
       }
 
       async function requireOwnerPin(reason) {
@@ -3874,6 +3913,9 @@
           const j = await window.CasaTorinoTpvJornada.end()
           paintJornadaStatus(j)
           try {
+            window.CasaTorinoWaiterPin?.clearUnlockStore?.()
+          } catch {}
+          try {
             await window.CasaTorinoKitchenSync?.syncJornada?.('end', {
               startedAt: j.startedAt,
               endedAt: j.endedAt,
@@ -3998,6 +4040,25 @@
           }
         }
         return null
+      }
+
+      /** PIN personal por jornada abierta (Windows + móvil). */
+      async function ensureWaiterPinForActor() {
+        const j = state.jornada || window.CasaTorinoTpvJornada?.last
+        if (j?.status !== 'open') return true
+        const actor = actorWaiter()
+        if (!actor?.id) {
+          alert(
+            'Con jornada abierta, elige la camarera en el plano de mesas (icono mesas) antes de tomar pedido.',
+          )
+          return false
+        }
+        if (!window.CasaTorinoWaiterPin?.ensureUnlocked) return true
+        return window.CasaTorinoWaiterPin.ensureUnlocked(
+          actor.id,
+          actor.name,
+          j.startedAt,
+        )
       }
 
       /** Marca en la línea quién hizo el último add / cambio de cantidad.
@@ -4485,7 +4546,8 @@
         if ($('courseModal')) $('courseModal').hidden = true
       }
 
-      function commitCoursePick() {
+      async function commitCoursePick() {
+        if (!(await ensureWaiterPinForActor())) return
         if (!coursePickCtx?.item || !courseSel.primero || !courseSel.segundo) return
         const item = coursePickCtx.item
         const note = formatCourseNote(courseSel.primero, courseSel.segundo)
@@ -4533,7 +4595,8 @@
         addWithNote(item, note, { primero: courseSel.primero, segundo: courseSel.segundo })
       }
 
-      function addWithNote(item, note, meta) {
+      async function addWithNote(item, note, meta) {
+        if (!(await ensureWaiterPinForActor())) return
         if (!requireMesa()) return
         const ctype = categoryTypeOf(item)
         const key = cartKeyFor(item.id, note)
@@ -4574,7 +4637,7 @@
         try { navigator.vibrate?.(12) } catch {}
       }
 
-      function add(item) {
+      async function add(item) {
         if (!requireMesa()) return
         if (item.customProduct || item.id === 'extras-libre' || item.catId === 'extras') {
           openExtraModal()
@@ -4598,7 +4661,8 @@
         if (cocina) cocina.setAttribute('aria-pressed', extraDest === 'cocina' ? 'true' : 'false')
       }
 
-      function openExtraModal() {
+      async function openExtraModal() {
+        if (!(await ensureWaiterPinForActor())) return
         if (!requireMesa()) return
         if ($('extraName')) $('extraName').value = ''
         if ($('extraPrice')) $('extraPrice').value = ''
@@ -4611,7 +4675,8 @@
         if ($('extraModal')) $('extraModal').hidden = true
       }
 
-      function commitExtraProduct() {
+      async function commitExtraProduct() {
+        if (!(await ensureWaiterPinForActor())) return
         const name = String($('extraName')?.value || '').trim()
         const price = parsePriceInput($('extraPrice')?.value)
         if (!name) {
@@ -4670,7 +4735,8 @@
         render()
       }
 
-      function setQty(id, qty) {
+      async function setQty(id, qty) {
+        if (!(await ensureWaiterPinForActor())) return
         if (!state.cart[id]) return
         const now = Date.now()
         if (!state.removed || typeof state.removed !== 'object') state.removed = {}
@@ -6503,9 +6569,34 @@
         const role = window.CasaTorinoPlanoMesas?.setRole?.(e.target.value)
         if ($('planoHint')) $('planoHint').textContent = planoHintForRole(role)
       })
-      $('planoWaiterSelect')?.addEventListener('change', (e) => {
+      $('planoWaiterSelect')?.addEventListener('change', async (e) => {
         const id = e.target.value
-        if (id) window.CasaTorinoPlanoMesas?.setWaiterById?.(id)
+        if (!id) return
+        window.CasaTorinoPlanoMesas?.setWaiterById?.(id)
+        const j = state.jornada || window.CasaTorinoTpvJornada?.last
+        if (j?.status !== 'open' || !window.CasaTorinoWaiterPin?.ensureUnlocked) return
+        const w = window.CasaTorinoPlanoMesas?.listWaiters?.().find((x) => x.id === id)
+        const ok = await window.CasaTorinoWaiterPin.ensureUnlocked(id, w?.name, j.startedAt)
+        if (!ok) {
+          e.target.value = ''
+          try {
+            localStorage.removeItem('ct-plano-waiter')
+          } catch {}
+        }
+      })
+      $('planoWaiterPin')?.addEventListener('click', async () => {
+        const sel = $('planoWaiterSelect')
+        const id = sel?.value
+        if (!id) {
+          alert('Elige una camarera en el desplegable.')
+          return
+        }
+        const cur = window.CasaTorinoPlanoMesas?.listWaiters?.().find((w) => w.id === id)
+        try {
+          await window.CasaTorinoWaiterPin?.promptChangePin?.(id, cur?.name)
+        } catch (err) {
+          alert(err?.message || 'No se pudo cambiar el PIN')
+        }
       })
       $('planoWaiterAdd')?.addEventListener('click', async () => {
         const name = prompt('Nombre de la nueva camarera:')
@@ -6546,9 +6637,17 @@
         const cur = window.CasaTorinoPlanoMesas
           .listWaiters()
           .find((w) => w.id === id)
-        if (!confirm(`¿Eliminar a ${cur?.name || 'esta camarera'}?`)) return
+        if (
+          !confirm(
+            `¿Eliminar a ${cur?.name || 'esta camarera'}?\n\nSi olvidó su PIN, al recrearla podrá definir uno nuevo.`,
+          )
+        )
+          return
         try {
           await window.CasaTorinoPlanoMesas.removeWaiter(id)
+          try {
+            await window.CasaTorinoWaiterPin?.deletePinForWaiter?.(id)
+          } catch {}
           paintPlanoWaiters(window.CasaTorinoPlanoMesas.getSnapshot())
         } catch (err) {
           alert(err.message || String(err))
@@ -6562,6 +6661,21 @@
         try {
           const sel = $('planoWaiterSelect')
           if (sel?.value) window.CasaTorinoPlanoMesas.setWaiterById(sel.value)
+          const j = state.jornada || window.CasaTorinoTpvJornada?.last
+          if (j?.status === 'open') {
+            const wid = sel?.value || window.CasaTorinoPlanoMesas.getWaiter?.()?.id
+            const w = window.CasaTorinoPlanoMesas?.listWaiters?.().find((x) => x.id === wid)
+            if (!wid) {
+              alert('Elige camarera en el desplegable antes de abrir la mesa.')
+              return
+            }
+            const ok = await window.CasaTorinoWaiterPin?.ensureUnlocked?.(
+              wid,
+              w?.name,
+              j.startedAt,
+            )
+            if (!ok) return
+          }
           const res = await window.CasaTorinoPlanoMesas.claimTable(id)
           if (!res || res.action !== 'open') return
           // Guardar camarera en el carrito de la mesa (sync a todos los dispositivos)
