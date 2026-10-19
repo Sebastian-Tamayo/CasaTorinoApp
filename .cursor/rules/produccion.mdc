@@ -21,7 +21,8 @@ alwaysApply: true
 ## Sincronización Supabase `ops_kv`
 
 - **No romper** la persistencia compartida: núcleo `web/api/_opsStore.js`.
-- Claves habituales: TPV mesas/jornada, cocina, carta, cierres, reservas (según módulo).
+- Claves habituales: TPV mesas/jornada, **cocina (pedidos KDS)**, carta, cierres, reservas (según módulo).
+- Varios **deploys** (web TPV+cocina, reservas, ERP) leen/escriben el **mismo** store: un fix en cocina puede requerir TPV o API compartida, y al revés.
 - **No reintroducir** Vercel Blob ni Edge Config como fuente de verdad operativa (migrado a Supabase).
 - Purga diaria: `web/api/ops-daily-purge.js` — no desactivar sin entender impacto en datos vivos.
 

@@ -14,6 +14,17 @@ Sin ese comando, **no** uses esta rule para acotar carpetas; mantén el alcance 
 
 Detalle ampliado: `docs/MAPA-CODIGO.md` y `.cursor/rules/00-casa-torino.mdc`.
 
+## Apps distintas que se enlazan (leer siempre)
+
+El enrutamiento elige **dónde empezar**, no una cerca hermética. En producción muchos tickets cruzan apps:
+
+- **TPV (camarera) ↔ Cocina (KDS):** mismo backend `web/api/kitchen.js` y datos cocina en **`ops_kv`**. Envío desde `tpv.html` / `CasaTorinoKitchenSync.create`; recepción en `cocina.html` / `kitchenSync.js`. Cambios en estados, `categoryType`, menú 2 tiempos → revisar **ambos** lados + API.
+- **TPV ↔ ERP:** ventas/jornada/cierres vía kv; bridge en `erp/src/lib/ops-kv.ts`.
+- **Reservas ↔ TPV:** alertas hacia TPV (`reservaAlertSync.js`, APIs reservas).
+- **Carta:** una fuente (`api/carta.js`); consumidores web + TPV.
+
+Si el usuario nombra solo `@tpv` o `@cocina` pero el fallo es de **sync o contrato**, extiende el alcance al par enlazado sin refactorizar módulos ajenos.
+
 ## /cocina
 
 - **UI:** `web/cocina.html`
