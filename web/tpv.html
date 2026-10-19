@@ -5298,11 +5298,14 @@
           writeLastCharge({ ...undoSnapshot, saleId })
         } catch (err) {
           console.warn('jornada sale', err)
+          writeLastCharge(null)
           alert(
-            'Cobro hecho en la mesa, pero no se pudo guardar en el total de jornada.\n' +
+            'No se pudo guardar el cobro en el total de jornada.\n' +
+              'La cuenta de la mesa se mantiene para que no se pierda el dinero.\n\n' +
               (err.message || err),
           )
-          writeLastCharge(null)
+          paintUndoChargeBtn()
+          return
         }
 
         // Ticket siempre opcional: usar el botón Ticket antes o después. No auto-imprimir.

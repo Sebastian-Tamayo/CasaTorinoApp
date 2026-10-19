@@ -188,6 +188,26 @@ module.exports = async function handler(req, res) {
       const now = new Date()
       const wd = madridWeekday(now)
       const { day: madridDay } = madridParts(now)
+      // #region agent log
+      try {
+        console.log(
+          '[informeReports]',
+          JSON.stringify({
+            sessionId: '258f1c',
+            hypothesisId: 'H2',
+            location: 'ops-daily-purge.js:handler',
+            message: 'purge schedule check',
+            data: {
+              wd,
+              madridDay,
+              isCron: req.headers['x-vercel-cron'] === '1',
+              day,
+            },
+            timestamp: Date.now(),
+          }),
+        )
+      } catch {}
+      // #endregion
       informes = { weekly: null, monthly: null }
       if (wd === 'Mon') {
         informes.weekly = await maybeTriggerWeeklyMondayBackup(now)

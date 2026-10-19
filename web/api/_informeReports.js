@@ -19,6 +19,32 @@ const REPORT_FROM =
 const RESEND_API_KEY = String(process.env.RESEND_API_KEY || '').trim()
 const LOG_KEY = 'informe-log'
 
+function dbgInforme(hypothesisId, location, message, data) {
+  // #region agent log
+  const payload = {
+    sessionId: '258f1c',
+    hypothesisId,
+    location,
+    message,
+    data: data || {},
+    timestamp: Date.now(),
+  }
+  try {
+    console.log('[informeReports]', JSON.stringify(payload))
+  } catch {}
+  try {
+    fetch('http://127.0.0.1:7422/ingest/8f75bb29-e0f3-4bb0-977f-f1e838dfc1dd', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Debug-Session-Id': '258f1c',
+      },
+      body: JSON.stringify(payload),
+    }).catch(() => {})
+  } catch {}
+  // #endregion
+}
+
 function round2(n) {
   const x = Number(n)
   if (!Number.isFinite(x)) return 0
@@ -732,7 +758,25 @@ async function runInforme(kind, opts = {}) {
     kind === 'mensual' ? previousMonthRange(now) : weekRangeEndingSunday(now)
 
   const log = await readInformeLog()
+  // #region agent log
+  dbgInforme('H2', '_informeReports.js:runInforme', 'enter', {
+    kind,
+    force,
+    dryRun,
+    periodKey: range.periodKey,
+    wd: madridWeekday(now),
+    hasKey: Boolean(RESEND_API_KEY),
+    already: Boolean(log.sent[range.periodKey]),
+    prevMode: log.sent[range.periodKey]?.mode || null,
+  })
+  // #endregion
   if (!force && !dryRun && log.sent[range.periodKey]) {
+    // #region agent log
+    dbgInforme('H5', '_informeReports.js:runInforme', 'skipped already_sent', {
+      periodKey: range.periodKey,
+      prevMode: log.sent[range.periodKey]?.mode || null,
+    })
+    // #endregion
     return {
       ok: true,
       skipped: true,
@@ -776,6 +820,12 @@ async function runInforme(kind, opts = {}) {
       totals: report.totals || null,
       endKey: range.endKey,
     })
+    // #region agent log
+    dbgInforme('H1', '_informeReports.js:runInforme', 'sent via Resend', {
+      periodKey: range.periodKey,
+      resendId: email.id || null,
+    })
+    // #endregion
     return {
       ok: true,
       sent: true,
@@ -788,23 +838,20 @@ async function runInforme(kind, opts = {}) {
     }
   }
 
-  // Sin API key: archivar HTML y no reintentar en bucle.
-  // Si Resend falla: NO marcar enviado → el cron del lunes / día 1 reintenta.
-  if (email.skipped) {
-    await markInformeSent(range.periodKey, {
-      kind,
-      subject,
-      to: REPORT_TO,
-      storageKey,
-      mode: 'stored_only',
-      error: email.reason || null,
-      totals: report.totals || null,
-      endKey: range.endKey,
-    })
-  }
+  // #region agent log
+  dbgInforme('H1', '_informeReports.js:runInforme', 'Resend failed or skipped', {
+    periodKey: range.periodKey,
+    skipped: Boolean(email.skipped),
+    reason: email.reason || null,
+    status: email.status || null,
+    error: email.error || null,
+  })
+  // #endregion
 
+  // Sin API key: archivar HTML. NO marcar sent → el cron/cierre puede reintentar.
+  // Si Resend falla: tampoco marcar → reintento lunes / force.
   return {
-    ok: Boolean(email.skipped),
+    ok: false,
     sent: false,
     stored: true,
     periodKey: range.periodKey,
@@ -813,20 +860,70 @@ async function runInforme(kind, opts = {}) {
     storageKey,
     email,
     totals: report.totals,
-    willRetry: !email.skipped,
+    willRetry: true,
     fallback:
       'HTML guardado en ops_kv. Configura RESEND_API_KEY en Vercel (proyecto web) para envío automático a ' +
       REPORT_TO +
-      '. Alternativa: GET /api/informes-semanal?dryRun=1 (o mensual) con sesión TPV y abrir el HTML en el móvil.',
+      '. Alternativa: GET /api/ops-daily-purge?informe=semanal&dryRun=1 con sesión TPV.',
   }
 }
 
 /**
- * Legacy: ya no se envía al cerrar el domingo.
- * El semanal va programado los lunes (~08:00 Madrid).
+ * Tras cerrar caja del domingo (calendario Sun, o Mon < 08:00 Madrid
+ * cuando cierran de madrugada ~00:30): envía el semanal lun–dom.
+ * force=true: el último cierre pisa un envío prematuro.
+ * Backup: cron lunes ~08:00 (ops-daily-purge).
  */
 async function maybeTriggerWeeklyAfterSundayClose() {
-  return { triggered: false, reason: 'monday_schedule_only' }
+  const now = new Date()
+  const wd = madridWeekday(now)
+  const parts = madridParts(now)
+  const hour = Number(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Madrid',
+      hour: '2-digit',
+      hour12: false,
+    }).format(now),
+  )
+  const isSunday = wd === 'Sun'
+  const isMondayEarlyClose = wd === 'Mon' && hour < 8
+  // #region agent log
+  dbgInforme('H3', '_informeReports.js:sundayClose', 'close trigger check', {
+    wd,
+    dayKey: parts.dayKey,
+    hour,
+    isSunday,
+    isMondayEarlyClose,
+  })
+  // #endregion
+  if (!isSunday && !isMondayEarlyClose) {
+    return { triggered: false, reason: 'not_sunday_close_window', wd, hour }
+  }
+  try {
+    const result = await runInforme('semanal', { force: true, now })
+    // #region agent log
+    dbgInforme('H3', '_informeReports.js:sundayClose', 'close trigger result', {
+      ok: result?.ok,
+      sent: result?.sent,
+      skipped: result?.skipped,
+      reason: result?.reason || null,
+      periodKey: result?.periodKey || null,
+      resendId: result?.resendId || null,
+      emailError: result?.email?.error || result?.email?.reason || null,
+    })
+    // #endregion
+    return { triggered: true, ...result }
+  } catch (err) {
+    // #region agent log
+    dbgInforme('H4', '_informeReports.js:sundayClose', 'close trigger threw', {
+      error: String(err && err.message ? err.message : err),
+    })
+    // #endregion
+    return {
+      triggered: false,
+      error: String(err && err.message ? err.message : err),
+    }
+  }
 }
 
 /**
