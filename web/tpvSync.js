@@ -104,10 +104,15 @@
         document.head.appendChild(s)
       })
     }
+    if (window.__casaTorinoSbClient) {
+      sbClient = window.__casaTorinoSbClient
+      return sbClient
+    }
     sbClient = window.supabase.createClient(SB_URL, SB_ANON, {
       auth: { persistSession: false, autoRefreshToken: false },
       realtime: { params: { eventsPerSecond: 8 } },
     })
+    window.__casaTorinoSbClient = sbClient
     return sbClient
   }
 

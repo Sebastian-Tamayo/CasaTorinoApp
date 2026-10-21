@@ -3107,11 +3107,11 @@
   <script src="carta.js?v=plano-2"></script>
   <script src="tpv-data.js?v=plano-2"></script>
   <script src="printService.js"></script>
-  <script src="tpvSync.js?v=push-msg-1"></script>
+  <script src="tpvSync.js?v=plano-fast1"></script>
   <script src="tpvJornada.js?v=push-msg-1"></script>
   <script src="kitchenSync.js?v=fix-create-1"></script>
   <script src="reservaAlertSync.js"></script>
-  <script src="planoMesas.js?v=plano-fix1"></script>
+  <script src="planoMesas.js?v=plano-fast1"></script>
   <script>
     (() => {
       /**
@@ -3120,7 +3120,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-21-plano-fix1'
+      const TPV_CLIENT_VERSION = '2026-10-21-plano-fast1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -6491,12 +6491,16 @@
           })
           paintPlanoFloor(snap)
           paintPlanoWaiters(snap)
-          try {
-            await window.CasaTorinoPlanoMesas.syncTotalsFromLocal?.(state.tables)
-            paintPlanoFloor(window.CasaTorinoPlanoMesas.getSnapshot())
-          } catch (err) {
-            console.warn('plano syncTotals', err)
-          }
+          // Totales locales en segundo plano (no bloquear la primera pintura)
+          void Promise.resolve(
+            window.CasaTorinoPlanoMesas.syncTotalsFromLocal?.(state.tables),
+          )
+            .then(() => {
+              if ($('planoModal') && !$('planoModal').hidden) {
+                paintPlanoFloor(window.CasaTorinoPlanoMesas.getSnapshot())
+              }
+            })
+            .catch((err) => console.warn('plano syncTotals', err))
         } catch (err) {
           console.warn('openPlanoModal', err)
           alert('No se pudo cargar el plano.\n' + (err.message || err))

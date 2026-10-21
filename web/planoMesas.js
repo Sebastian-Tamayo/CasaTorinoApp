@@ -15,8 +15,9 @@
   const TPV_KEY = 'tpv'
   const ROLE_KEY = 'ct-plano-role'
   const WAITER_KEY = 'ct-plano-waiter'
-  const POLL_MS = 3000
-  const POLL_HIDDEN_MS = 15000
+  const SQL_CACHE_KEY = 'ct-plano-use-sql'
+  const POLL_MS = 4000
+  const POLL_HIDDEN_MS = 20000
   const CHANNEL = 'casa-torino-plano'
   const TPV_LIVE_CHANNEL = 'casa-torino-tpv-live'
 
@@ -276,13 +277,19 @@
     return window.supabase
   }
 
+  /** Un solo cliente Supabase en la página (TPV sync + plano). */
   async function client() {
     if (sb) return sb
+    if (window.__casaTorinoSbClient) {
+      sb = window.__casaTorinoSbClient
+      return sb
+    }
     const lib = await ensureLib()
     sb = lib.createClient(SB_URL, SB_ANON, {
       auth: { persistSession: false, autoRefreshToken: false },
-      realtime: { params: { eventsPerSecond: 2 } },
+      realtime: { params: { eventsPerSecond: 8 } },
     })
+    window.__casaTorinoSbClient = sb
     return sb
   }
 
@@ -334,31 +341,31 @@
     })
   }
 
+  function rememberSqlFlag(flag) {
+    useSqlTable = Boolean(flag)
+    try {
+      sessionStorage.setItem(SQL_CACHE_KEY, useSqlTable ? '1' : '0')
+    } catch {}
+    return useSqlTable
+  }
+
   async function detectSqlTable(c) {
     if (useSqlTable != null) return useSqlTable
+    try {
+      const cached = sessionStorage.getItem(SQL_CACHE_KEY)
+      if (cached === '0') return rememberSqlFlag(false)
+      if (cached === '1') return rememberSqlFlag(true)
+    } catch {}
     try {
       const { error } = await c.from('tables').select('id').limit(1)
       // PGRST205 / 404 = tabla no creada → ops_kv.floor_plan (producción actual)
       if (error) {
-        const code = String(error.code || '')
-        const msg = String(error.message || '')
-        if (
-          code === 'PGRST205' ||
-          code === '42P01' ||
-          /could not find the table/i.test(msg) ||
-          /does not exist/i.test(msg)
-        ) {
-          useSqlTable = false
-          return useSqlTable
-        }
-        useSqlTable = false
-        return useSqlTable
+        return rememberSqlFlag(false)
       }
-      useSqlTable = true
+      return rememberSqlFlag(true)
     } catch {
-      useSqlTable = false
+      return rememberSqlFlag(false)
     }
-    return useSqlTable
   }
 
   function normalizeWaitersList(raw) {
@@ -369,6 +376,38 @@
         name: String(w?.name || '').trim().slice(0, 40),
       }))
       .filter((w) => w.id && w.name)
+  }
+
+  function applyWaitersFromFloorValue(value) {
+    const parsed = normalizeWaitersList(value?.waiters)
+    if (parsed && parsed.length) {
+      waiters = parsed
+      return waiters
+    }
+    if (!value || !Object.prototype.hasOwnProperty.call(value, 'waiters')) {
+      waiters = DEFAULT_WAITERS.map((w) => ({ ...w }))
+      // Semilla en segundo plano (no bloquear apertura del plano)
+      void persistWaiters().catch((err) => console.warn('[plano] seed waiters', err))
+      return waiters
+    }
+    waiters = parsed || []
+    return waiters
+  }
+
+  function tablesFromFloorValue(value) {
+    const items = Array.isArray(value?.tables) ? value.tables : []
+    if (!items.length) {
+      return DEFAULT_TABLES.map((t) =>
+        normalizeRow({
+          ...t,
+          status: 'libre',
+          total_amount: 0,
+          current_waiter_id: null,
+          current_waiter_name: null,
+        }),
+      )
+    }
+    return items.map(normalizeRow)
   }
 
   /**
@@ -383,24 +422,7 @@
       .eq('key', FLOOR_KEY)
       .maybeSingle()
     if (error) throw error
-    const parsed = normalizeWaitersList(data?.value?.waiters)
-    if (parsed && parsed.length) {
-      waiters = parsed
-      return waiters
-    }
-    // Primera instalación (sin clave waiters): sembrar defaults una vez
-    if (!data?.value || !Object.prototype.hasOwnProperty.call(data.value, 'waiters')) {
-      waiters = DEFAULT_WAITERS.map((w) => ({ ...w }))
-      try {
-        await persistWaiters()
-      } catch (err) {
-        console.warn('[plano] seed waiters', err)
-      }
-      return waiters
-    }
-    // waiters: [] explícito — no pisar con Ana/Lucía ficticias
-    waiters = parsed || []
-    return waiters
+    return applyWaitersFromFloorValue(data?.value)
   }
 
   async function loadFloorFromSql(c) {
@@ -421,20 +443,8 @@
       .eq('key', FLOOR_KEY)
       .maybeSingle()
     if (error) throw error
-    // Waiters ya cargados en refresh() vía loadWaitersFromOps
-    const items = Array.isArray(data?.value?.tables) ? data.value.tables : []
-    if (!items.length) {
-      return DEFAULT_TABLES.map((t) =>
-        normalizeRow({
-          ...t,
-          status: 'libre',
-          total_amount: 0,
-          current_waiter_id: null,
-          current_waiter_name: null,
-        }),
-      )
-    }
-    return items.map(normalizeRow)
+    applyWaitersFromFloorValue(data?.value)
+    return tablesFromFloorValue(data?.value)
   }
 
   async function loadTpvCarts(c) {
@@ -452,15 +462,8 @@
     return tablesObj
   }
 
-  async function refresh() {
+  async function reconcileGhosts(prev, sql) {
     const c = await client()
-    await loadTpvCarts(c)
-    // Siempre recargar desplegable desde ops_kv (también con SQL tables)
-    await loadWaitersFromOps(c)
-    const sql = await detectSqlTable(c)
-    const prev = tables.slice()
-    tables = mergeWithCarts(sql ? await loadFloorFromSql(c) : await loadFloorFromOps(c))
-    // Persistir liberación de fantasmas (ocupada/camarera sin productos)
     const ghosts = tables.filter((t) => {
       const before = prev.find((p) => p.id === t.id)
       return (
@@ -473,7 +476,6 @@
           Number(before.total_amount) > 0)
       )
     })
-    // También si el propio merge limpió vs lo leído del store
     const needPersist = tables.some((t) => {
       const qty = cartQty(tpvCarts[t.id])
       return (
@@ -481,43 +483,71 @@
         (t.status !== 'libre' || t.current_waiter_id || t.current_waiter_name)
       )
     })
-    if (ghosts.length || needPersist) {
-      tables = tables.map((t) =>
-        cartQty(tpvCarts[t.id]) === 0
-          ? {
-              ...t,
-              status: 'libre',
-              total_amount: 0,
-              current_waiter_id: null,
-              current_waiter_name: null,
-              qty: 0,
-            }
-          : t,
-      )
-      try {
-        if (sql) {
-          for (const t of tables) {
-            if (cartQty(tpvCarts[t.id]) === 0) {
-              await c
-                .from('tables')
-                .update({
-                  status: 'libre',
-                  total_amount: 0,
-                  current_waiter_id: null,
-                  current_waiter_name: null,
-                })
-                .eq('id', t.id)
-            }
+    if (!ghosts.length && !needPersist) return
+    tables = tables.map((t) =>
+      cartQty(tpvCarts[t.id]) === 0
+        ? {
+            ...t,
+            status: 'libre',
+            total_amount: 0,
+            current_waiter_id: null,
+            current_waiter_name: null,
+            qty: 0,
           }
-        } else {
-          await saveFloorOps(tables)
+        : t,
+    )
+    try {
+      if (sql) {
+        for (const t of tables) {
+          if (cartQty(tpvCarts[t.id]) === 0) {
+            await c
+              .from('tables')
+              .update({
+                status: 'libre',
+                total_amount: 0,
+                current_waiter_id: null,
+                current_waiter_name: null,
+              })
+              .eq('id', t.id)
+          }
         }
-        await broadcast('floor-updated')
-      } catch (err) {
-        console.warn('[plano] reconcile empty', err)
+      } else {
+        await saveFloorOps(tables)
       }
+      await broadcast('floor-updated')
+      if (typeof onChange === 'function') onChange(getSnapshot())
+    } catch (err) {
+      console.warn('[plano] reconcile empty', err)
     }
+  }
+
+  async function refresh() {
+    const c = await client()
+    const sql = await detectSqlTable(c)
+    const prev = tables.slice()
+
+    if (sql) {
+      // SQL mesas + waiters/floor en paralelo
+      const [, floorRows] = await Promise.all([
+        loadTpvCarts(c),
+        loadFloorFromSql(c),
+        loadWaitersFromOps(c),
+      ])
+      tables = mergeWithCarts(floorRows)
+    } else {
+      // Una sola lectura floor_plan (mesas+camareras) + tpv en paralelo
+      const [, floorRes] = await Promise.all([
+        loadTpvCarts(c),
+        c.from('ops_kv').select('value').eq('key', FLOOR_KEY).maybeSingle(),
+      ])
+      if (floorRes.error) throw floorRes.error
+      applyWaitersFromFloorValue(floorRes.data?.value)
+      tables = mergeWithCarts(tablesFromFloorValue(floorRes.data?.value))
+    }
+
     if (typeof onChange === 'function') onChange(getSnapshot())
+    // Persistencia de fantasmas fuera del camino crítico (pinta ya el plano)
+    void reconcileGhosts(prev, sql)
     return tables
   }
 
@@ -639,34 +669,16 @@
         },
       )
     }
-    // ops_kv realtime often disabled; broadcast + poll cover it.
-    // Timeout: no bloquear el modal Plano si Realtime no responde (Windows/móvil).
-    await new Promise((resolve) => {
-      let done = false
-      const finish = (status) => {
-        if (done) return
-        done = true
-        resolve(status)
-      }
-      const timer = setTimeout(() => finish('TIMEOUT'), 4000)
-      try {
-        channel.subscribe((status) => {
-          if (
-            status === 'SUBSCRIBED' ||
-            status === 'CHANNEL_ERROR' ||
-            status === 'TIMED_OUT' ||
-            status === 'CLOSED'
-          ) {
-            clearTimeout(timer)
-            finish(status)
-          }
-        })
-      } catch (err) {
-        clearTimeout(timer)
-        console.warn('[plano] subscribe', err)
-        finish('ERROR')
-      }
-    })
+    // No await largo: el plano ya se pintó; Realtime en segundo plano.
+    try {
+      channel.subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[plano] realtime', status)
+        }
+      })
+    } catch (err) {
+      console.warn('[plano] subscribe', err)
+    }
 
     // Cuando el TPV (móvil/Windows) guarda carrito, refrescar totales al instante
     try {
@@ -718,14 +730,7 @@
       }
     }
 
-    // Asignar camarera; en rojo de verdad al añadir el primer producto
-    await patchTable(id, {
-      status: qty > 0 ? 'ocupada' : 'libre',
-      total_amount: qty > 0 ? Number(row.total_amount) || cartTotal(tpvCarts[id]) : 0,
-      current_waiter_id: qty > 0 ? waiter.id : null,
-      current_waiter_name: qty > 0 ? waiter.name : null,
-    })
-    // Guardar camarera elegida en carrito para cuando se añada el 1er plato
+    // Guardar camarera en carrito (local) para cuando se añada el 1er plato
     const prevBlob = tpvCarts[id] && typeof tpvCarts[id] === 'object' ? tpvCarts[id] : {}
     tpvCarts[id] = {
       ...prevBlob,
@@ -734,6 +739,30 @@
       waiterName: waiter.name,
       cleared: false,
       updatedAt: Date.now(),
+    }
+
+    if (qty > 0) {
+      // Mesa con productos: actualizar overlay en red
+      await patchTable(id, {
+        status: 'ocupada',
+        total_amount: Number(row.total_amount) || cartTotal(tpvCarts[id]),
+        current_waiter_id: waiter.id,
+        current_waiter_name: waiter.name,
+      })
+    } else {
+      // Mesa libre: sin round-trip (entra a carta al instante)
+      tables = tables.map((t) =>
+        t.id === id
+          ? {
+              ...t,
+              status: 'libre',
+              total_amount: 0,
+              current_waiter_id: null,
+              current_waiter_name: null,
+              qty: 0,
+            }
+          : t,
+      )
     }
     return { action: 'open', tableId: id, role, waiter }
   }
@@ -916,12 +945,8 @@
     await refresh()
     if (!started) {
       started = true
-      try {
-        await startRealtime()
-      } catch (err) {
-        // Plano usable con poll aunque falle Realtime
-        console.warn('[plano] realtime', err)
-      }
+      // Realtime en background: no retrasa el modal
+      void startRealtime().catch((err) => console.warn('[plano] realtime', err))
       schedulePoll()
       if (typeof document !== 'undefined') {
         document.addEventListener('visibilitychange', () => {
@@ -931,7 +956,6 @@
       }
     } else {
       schedulePoll()
-      await refresh()
     }
     return getSnapshot()
   }
