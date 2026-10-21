@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-19-ops-harden1'
-const message = 'Importante: actualiza — sync seguro (purge, cobros concurrentes, sesión)'
+const required = '2026-10-21-plano-fix1'
+const message = 'Importante: actualiza — plano de mesas arreglado'
 
 function forceInfo() {
   return { required, message }
