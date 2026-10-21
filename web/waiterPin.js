@@ -170,16 +170,17 @@
     const gate = $('waiterGate')
     if (gate) gate.hidden = true
     document.body.classList.remove('waiter-pin-open')
+    pinBuf = ''
+    pinBuf2 = ''
     const r = resolveFlow
     resolveFlow = null
     rejectFlow = null
-    if (typeof r === 'function') r(result)
+    if (typeof r === 'function') r(Boolean(result))
   }
 
   function cancelModal() {
-    const rej = rejectFlow
+    // Solo resolve(false): no reject (evita desbloqueo accidental / unhandledrejection)
     closeModal(false)
-    if (typeof rej === 'function') rej(new Error('cancelled'))
   }
 
   function failPin(msg) {
@@ -346,15 +347,15 @@
       return false
     }
 
+    let ok = false
     try {
-      if (!hasPin) {
-        await showModal('setup', waiter)
-      } else {
-        await showModal('verify', waiter)
-      }
+      ok = hasPin
+        ? await showModal('verify', waiter)
+        : await showModal('setup', waiter)
     } catch {
-      return false
+      ok = false
     }
+    if (!ok) return false
 
     markUnlocked(id, startedAt)
     return true
@@ -370,11 +371,9 @@
     try {
       const hasPin = await apiGetHasPin(id)
       if (!hasPin) {
-        await showModal('setup', waiter)
-        return true
+        return Boolean(await showModal('setup', waiter))
       }
-      await showModal('change', waiter, { changeStep: 1 })
-      return true
+      return Boolean(await showModal('change', waiter, { changeStep: 1 }))
     } catch {
       return false
     }

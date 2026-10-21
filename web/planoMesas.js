@@ -336,8 +336,28 @@
 
   async function detectSqlTable(c) {
     if (useSqlTable != null) return useSqlTable
-    const { error } = await c.from('tables').select('id').limit(1)
-    useSqlTable = !error
+    try {
+      const { error } = await c.from('tables').select('id').limit(1)
+      // PGRST205 / 404 = tabla no creada → ops_kv.floor_plan (producción actual)
+      if (error) {
+        const code = String(error.code || '')
+        const msg = String(error.message || '')
+        if (
+          code === 'PGRST205' ||
+          code === '42P01' ||
+          /could not find the table/i.test(msg) ||
+          /does not exist/i.test(msg)
+        ) {
+          useSqlTable = false
+          return useSqlTable
+        }
+        useSqlTable = false
+        return useSqlTable
+      }
+      useSqlTable = true
+    } catch {
+      useSqlTable = false
+    }
     return useSqlTable
   }
 
@@ -619,13 +639,33 @@
         },
       )
     }
-    // ops_kv realtime often disabled; broadcast + poll cover it
+    // ops_kv realtime often disabled; broadcast + poll cover it.
+    // Timeout: no bloquear el modal Plano si Realtime no responde (Windows/móvil).
     await new Promise((resolve) => {
-      channel.subscribe((status) => {
-        if (status === 'SUBSCRIBED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          resolve(status)
-        }
-      })
+      let done = false
+      const finish = (status) => {
+        if (done) return
+        done = true
+        resolve(status)
+      }
+      const timer = setTimeout(() => finish('TIMEOUT'), 4000)
+      try {
+        channel.subscribe((status) => {
+          if (
+            status === 'SUBSCRIBED' ||
+            status === 'CHANNEL_ERROR' ||
+            status === 'TIMED_OUT' ||
+            status === 'CLOSED'
+          ) {
+            clearTimeout(timer)
+            finish(status)
+          }
+        })
+      } catch (err) {
+        clearTimeout(timer)
+        console.warn('[plano] subscribe', err)
+        finish('ERROR')
+      }
     })
 
     // Cuando el TPV (móvil/Windows) guarda carrito, refrescar totales al instante
@@ -876,7 +916,12 @@
     await refresh()
     if (!started) {
       started = true
-      await startRealtime()
+      try {
+        await startRealtime()
+      } catch (err) {
+        // Plano usable con poll aunque falle Realtime
+        console.warn('[plano] realtime', err)
+      }
       schedulePoll()
       if (typeof document !== 'undefined') {
         document.addEventListener('visibilitychange', () => {
