@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-21-plano-fix1'
-const message = 'Importante: actualiza — plano de mesas arreglado'
+const required = '2026-10-21-plano-fast1'
+const message = 'Importante: actualiza — plano más rápido'
 
 function forceInfo() {
   return { required, message }
