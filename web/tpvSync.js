@@ -9,8 +9,9 @@
   const AUTH_URL = '/api/tpv-auth'
   const TPV_KEY = 'tpv'
   // Respaldo lento: el tiempo real va por Supabase Broadcast (0 Vercel).
-  const POLL_MS = 10000
-  const POLL_HIDDEN_MS = 45000
+  // Respaldo lento (Realtime lleva el vivo). Menos carga si cae a /api/tpv-sync.
+  const POLL_MS = 25000
+  const POLL_HIDDEN_MS = 90000
   const PUSH_DEBOUNCE_MS = 200
   const SB_URL = 'https://fpnjtgoxljqmwuukyrrm.supabase.co'
   const SB_ANON = 'sb_publishable_A_zxEJjB3NN_hh8Qdu7ccQ_qhcWGoz0'
@@ -894,7 +895,7 @@
     schedule()
     startRealtime().catch(() => {})
     if (heartbeat) clearInterval(heartbeat)
-    heartbeat = setInterval(refreshSession, 15 * 60 * 1000)
+    heartbeat = setInterval(refreshSession, 20 * 60 * 1000)
     refreshSession()
     if (!options.skipInitialTick) tick()
     if (!visibilityBound && typeof document !== 'undefined') {

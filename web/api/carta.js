@@ -142,7 +142,8 @@ function cartaNeedsHistoricoPersist(carta) {
 async function loadFromStore() {
   if (!hasSupabase()) return null
   try {
-    const v = await getJson(CARTA_KEY, null, { fresh: true })
+    // Cache corto en warm instance (GET carta muy frecuente en web/TV)
+    const v = await getJson(CARTA_KEY, null)
     if (isValidCarta(v)) return v
   } catch (err) {
     console.warn('[carta] supabase get', err && err.message)
@@ -371,6 +372,11 @@ module.exports = async function handler(req, res) {
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.setHeader('X-Carta-Source', source)
+      // CDN edge: menos invocaciones Fluid en web pública / menu-tv
+      res.setHeader(
+        'Cache-Control',
+        'public, s-maxage=60, stale-while-revalidate=300',
+      )
       return res.end(JSON.stringify(withMeta(data, source)))
     } catch (err) {
       console.error('[carta] GET', err)

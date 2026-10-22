@@ -4,8 +4,9 @@
 (() => {
   const API_URL = '/api/tpv-jornada'
   const AUTH_URL = '/api/tpv-auth'
-  const POLL_MS = 15000
-  const POLL_HIDDEN_MS = 60000
+  // Poll más lento: la UI refresca tras cobros; respaldo cada ~45s
+  const POLL_MS = 45000
+  const POLL_HIDDEN_MS = 180000
   const RETRIES = 3
   let timer = null
   let heartbeat = null
@@ -181,7 +182,7 @@
     refresh().catch((err) => console.warn('[tpvJornada]', err))
     schedulePolling()
     if (heartbeat) clearInterval(heartbeat)
-    heartbeat = setInterval(refreshSession, 15 * 60 * 1000)
+    heartbeat = setInterval(refreshSession, 20 * 60 * 1000)
     refreshSession()
     if (!visibilityBound && typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
