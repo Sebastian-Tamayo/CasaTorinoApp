@@ -147,6 +147,85 @@
         if (it?.image_url) openDishModal(it, { menuSheet: true })
       })
     })
+
+    void setupMenusAnteriores(data)
+  }
+
+  /** Colección visual de menús pasados: solo fotos, sin nombres ni precios. */
+  async function setupMenusAnteriores(data) {
+    const btn = document.getElementById('menusAnterioresBtn')
+    const panel = document.getElementById('menusAnterioresPanel')
+    const grid = document.getElementById('menusAnterioresGrid')
+    if (!btn || !panel || !grid) return
+
+    const urls = []
+    const push = (u) => {
+      const src = String(u || '').trim()
+      if (!src || src.startsWith('data:')) return
+      if (urls.includes(src)) return
+      urls.push(src)
+    }
+
+    // 1) Archivo en carta (al cambiar foto del menú en el TPV)
+    if (Array.isArray(data?.menusAnteriores)) {
+      data.menusAnteriores.forEach(push)
+    }
+    // 2) Semilla / extras locales
+    try {
+      const r = await fetch('/data/menus-anteriores.json', { cache: 'no-store' })
+      if (r.ok) {
+        const j = await r.json()
+        ;(j.photos || []).forEach(push)
+      }
+    } catch {}
+    // 3) Fotos actuales de menús-día (colección visual)
+    const menus = (data?.categories || []).find((c) => c && c.id === 'menus-dia')
+    for (const it of menus?.items || []) {
+      if (it?.image_url && !it.customProduct) push(it.image_url)
+    }
+
+    if (!urls.length) {
+      grid.innerHTML =
+        '<p class="menus-anteriores-empty">Pronto verás aquí fotos de menús de días pasados.</p>'
+    } else {
+      grid.innerHTML = urls
+        .slice(0, 24)
+        .map(
+          (src, i) =>
+            `<button type="button" style="--i:${i}" data-menu-photo="${escapeHtml(src)}" aria-label="Ver foto del menú">
+              <img src="${escapeHtml(src)}" alt="" loading="lazy" decoding="async" />
+            </button>`,
+        )
+        .join('')
+      grid.querySelectorAll('button[data-menu-photo]').forEach((el) => {
+        el.addEventListener('click', () => {
+          const src = el.getAttribute('data-menu-photo')
+          if (src) openPhotoOnly(src)
+        })
+      })
+    }
+
+    if (btn.dataset.bound === '1') return
+    btn.dataset.bound = '1'
+    btn.addEventListener('click', () => {
+      const open = panel.hidden
+      panel.hidden = !open
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false')
+      if (open) {
+        try {
+          panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        } catch {}
+      }
+    })
+  }
+
+  function openPhotoOnly(src) {
+    const url = String(src || '').trim()
+    if (!url) return
+    openDishModal(
+      { id: 'menu-foto', name: '', price: 0, image_url: url, desc: '' },
+      { menuSheet: true, photoOnly: true, forceModal: true },
+    )
   }
 
   function dishLi(it) {
@@ -301,6 +380,7 @@
 
   function openDishModal(it, opts = {}) {
     if (!it?.image_url) return
+    const photoOnly = Boolean(opts.photoOnly)
     const isMenu =
       Boolean(opts.menuSheet) ||
       String(it.id || '').startsWith('menu-dia') ||
@@ -309,6 +389,7 @@
     try {
       const tvLike =
         isMenu &&
+        !photoOnly &&
         window.matchMedia('(orientation: landscape) and (min-width: 900px)').matches
       if (tvLike && !opts.forceModal) {
         window.location.href = 'menu-tv.html'
@@ -321,9 +402,10 @@
     const desc = document.getElementById('dishModalDesc')
     const price = document.getElementById('dishModalPrice')
     modal.classList.toggle('is-menu-sheet', isMenu)
+    modal.classList.toggle('is-photo-only', photoOnly)
     if (img) {
       img.src = it.image_url
-      img.alt = it.name || (isMenu ? 'Menú del día' : 'Plato')
+      img.alt = photoOnly ? 'Menú' : it.name || (isMenu ? 'Menú del día' : 'Plato')
       // Forzar layout tras cargar (TVs que miden mal el alto antes del decode)
       img.onload = () => {
         try {
@@ -331,10 +413,13 @@
         } catch {}
       }
     }
-    if (title) title.textContent = it.name || ''
+    if (title) {
+      title.textContent = photoOnly ? '' : it.name || ''
+      title.hidden = photoOnly
+    }
     if (desc) {
       // En menú del día la foto es el contenido: no repetir descripción
-      if (isMenu) {
+      if (isMenu || photoOnly) {
         desc.textContent = ''
         desc.hidden = true
       } else {
@@ -344,16 +429,21 @@
       }
     }
     if (price) {
-      price.textContent = money(it.price)
-      // En menú el precio ya está en el cartel; ocultar barra en landscape
-      try {
-        const hideBar =
-          isMenu &&
-          window.matchMedia('(orientation: landscape) and (min-width: 900px)').matches
-        price.hidden = hideBar
-        if (title) title.hidden = hideBar
-      } catch {
-        price.hidden = false
+      if (photoOnly) {
+        price.textContent = ''
+        price.hidden = true
+      } else {
+        price.textContent = money(it.price)
+        // En menú el precio ya está en el cartel; ocultar barra en landscape
+        try {
+          const hideBar =
+            isMenu &&
+            window.matchMedia('(orientation: landscape) and (min-width: 900px)').matches
+          price.hidden = hideBar
+          if (title) title.hidden = hideBar
+        } catch {
+          price.hidden = false
+        }
       }
     }
     modal.hidden = false
@@ -366,11 +456,16 @@
     if (!modal || modal.hidden) return
     modal.classList.remove('is-open')
     modal.classList.remove('is-menu-sheet')
+    modal.classList.remove('is-photo-only')
     document.body.classList.remove('dish-modal-open')
     window.setTimeout(() => {
       modal.hidden = true
       const img = document.getElementById('dishModalImg')
       if (img) img.removeAttribute('src')
+      const title = document.getElementById('dishModalTitle')
+      const price = document.getElementById('dishModalPrice')
+      if (title) title.hidden = false
+      if (price) price.hidden = false
     }, 220)
   }
 
