@@ -291,6 +291,99 @@ a { color: inherit; }
   color: var(--ink);
   margin: 0;
   text-align: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: .35rem .65rem;
+}
+.menus-prev-link {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--blue);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: .18em;
+  text-decoration-thickness: 1.5px;
+}
+.menus-prev-link:hover,
+.menus-prev-link:focus-visible {
+  color: var(--red);
+  outline: none;
+}
+.menus-prev-link[aria-expanded="true"] {
+  color: var(--red);
+}
+.menus-anteriores {
+  margin: .85rem 0 0;
+  padding: .85rem .2rem .15rem;
+  border-top: 1px solid rgba(26, 35, 50, .1);
+  animation: estrellaIn .4s ease both;
+}
+.menus-anteriores[hidden] { display: none !important; }
+.menus-anteriores-lead {
+  margin: 0 0 .65rem;
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-align: center;
+}
+.menus-anteriores-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: .55rem;
+}
+.menus-anteriores-grid button {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  aspect-ratio: 3 / 4;
+  box-shadow: 0 6px 16px rgba(26, 35, 50, .08);
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+.menus-anteriores-grid button:hover,
+.menus-anteriores-grid button:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(26, 35, 50, .12);
+  outline: none;
+}
+.menus-anteriores-grid img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  display: block;
+  background: #fff;
+}
+.menus-anteriores-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--muted);
+  padding: .5rem 0 .2rem;
+}
+/* Lightbox solo foto (sin nombre ni precio) */
+#dishPhotoModal.is-photo-only .dish-modal-meta {
+  display: none !important;
+}
+#dishPhotoModal.is-photo-only .dish-modal-card {
+  background: transparent;
+  box-shadow: none;
+  border: 0;
 }
 .menu-dia-gallery {
   display: grid;

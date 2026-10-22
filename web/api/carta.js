@@ -136,6 +136,14 @@ function upsertItemInCarta(carta, categoryId, item) {
   }
   if (idx >= 0) {
     const prev = cat.items[idx] || {}
+    // Si cambia la foto de un menú del día, archivar la anterior (colección web)
+    const isMenuDia =
+      catId === 'menus-dia' || String(prev.id || item.id || '').startsWith('menu-dia')
+    const prevUrl = prev.image_url != null ? String(prev.image_url).trim() : ''
+    const nextUrl = normalized.image_url != null ? String(normalized.image_url).trim() : ''
+    if (isMenuDia && prevUrl && nextUrl && prevUrl !== nextUrl) {
+      archiveMenuAnterior(next, prevUrl)
+    }
     cat.items[idx] = { ...prev, ...normalized }
     // Si el cliente no manda star:true, no borrar la estrella existente
     if (!item.star && prev.star && item.star !== false) {
@@ -150,6 +158,18 @@ function upsertItemInCarta(carta, categoryId, item) {
   next.updatedAt = Date.now()
   syncMenuDayFromItems(next)
   return next
+}
+
+/** Fotos de menús pasados para la web (solo URLs; máx. 30). */
+function archiveMenuAnterior(carta, url) {
+  const src = String(url || '').trim()
+  if (!src || src.startsWith('data:')) return
+  if (!Array.isArray(carta.menusAnteriores)) carta.menusAnteriores = []
+  carta.menusAnteriores = carta.menusAnteriores.filter((u) => String(u) !== src)
+  carta.menusAnteriores.unshift(src)
+  if (carta.menusAnteriores.length > 30) {
+    carta.menusAnteriores = carta.menusAnteriores.slice(0, 30)
+  }
 }
 
 /** Mantén precios del bloque «Menú del día» de la web alineados con los platos. */

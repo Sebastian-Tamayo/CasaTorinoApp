@@ -88,7 +88,12 @@
 
         <div class="hero-menus" aria-label="Precios menú del día">
           <div class="hero-menus-head">
-            <p class="hero-menus-title">Menú del día</p>
+            <p class="hero-menus-title">
+              <span>Menú del día</span>
+              <button type="button" class="menus-prev-link" id="menusAnterioresBtn" aria-expanded="false" aria-controls="menusAnterioresPanel">
+                Menús anteriores
+              </button>
+            </p>
             <a
               class="menu-wa-btn"
               href="https://wa.me/34612254719?text=Hola%2C%20%C2%BFqu%C3%A9%20men%C3%BA%20del%20d%C3%ADa%20ten%C3%A9is%20hoy%3F"
@@ -106,6 +111,10 @@
             </li>
           </ul>
           <div class="menu-dia-gallery" aria-label="Ver menú del día" hidden></div>
+          <div class="menus-anteriores" id="menusAnterioresPanel" hidden>
+            <p class="menus-anteriores-lead">Así se ven nuestros menús</p>
+            <div class="menus-anteriores-grid" id="menusAnterioresGrid" aria-label="Fotos de menús anteriores"></div>
+          </div>
         </div>
 
         <ul class="estrellas-list hero-estrellas">
