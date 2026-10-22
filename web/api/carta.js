@@ -83,7 +83,14 @@ function withMeta(data, source) {
 function ensureMenusHistorico(carta) {
   if (!carta || typeof carta !== 'object') return carta
   if (!Array.isArray(carta.categories)) carta.categories = []
-  if (!Array.isArray(carta.menusAnteriores)) carta.menusAnteriores = []
+  // Una vez: vaciar histórico auto-generado (carteles menú del día).
+  // A partir de aquí solo entran fotos subidas al plato TPV «Menús anteriores».
+  if (carta.menusAnterioresMode !== 'tpv-only') {
+    carta.menusAnteriores = []
+    carta.menusAnterioresMode = 'tpv-only'
+  } else if (!Array.isArray(carta.menusAnteriores)) {
+    carta.menusAnteriores = []
+  }
   let cat = carta.categories.find((c) => c && c.id === 'menus-historico')
   if (!cat) {
     cat = {
@@ -106,7 +113,7 @@ function ensureMenusHistorico(carta) {
       id: 'menu-historico',
       name: 'Menús anteriores',
       price: 0,
-      desc: 'Sube aquí fotos de menús pasados. Solo histórico web; no sale en la carta.',
+      desc: 'Sube aquí las fotos del histórico. Solo salen en «Menús anteriores» de la web, no en la carta.',
       base: 'Menús anteriores',
       categoryType: 'comida',
       customProduct: true,
@@ -114,6 +121,9 @@ function ensureMenusHistorico(carta) {
     })
   } else {
     item.name = 'Menús anteriores'
+    item.desc =
+      item.desc ||
+      'Sube aquí las fotos del histórico. Solo salen en «Menús anteriores» de la web, no en la carta.'
     item.customProduct = true
     item.historicoOnly = true
     item.price = 0
@@ -123,6 +133,7 @@ function ensureMenusHistorico(carta) {
 
 function cartaNeedsHistoricoPersist(carta) {
   if (!carta || !Array.isArray(carta.categories)) return true
+  if (carta.menusAnterioresMode !== 'tpv-only') return true
   const cat = carta.categories.find((c) => c && c.id === 'menus-historico')
   if (!cat || !Array.isArray(cat.items)) return true
   return !cat.items.some((it) => it && it.id === 'menu-historico')
@@ -202,15 +213,8 @@ function upsertItemInCarta(carta, categoryId, item) {
   }
   if (idx >= 0) {
     const prev = cat.items[idx] || {}
-    // Si cambia la foto de un menú del día, archivar la anterior (colección web)
-    const isMenuDia =
-      catId === 'menus-dia' || String(prev.id || item.id || '').startsWith('menu-dia')
-    const prevUrl = prev.image_url != null ? String(prev.image_url).trim() : ''
     const nextUrl = normalized.image_url != null ? String(normalized.image_url).trim() : ''
-    if (isMenuDia && prevUrl && nextUrl && prevUrl !== nextUrl) {
-      archiveMenuAnterior(next, prevUrl)
-    }
-    // Histórico: cada foto nueva se añade a la galería pública (no sale en carta)
+    // Solo el plato «Menús anteriores» alimenta la galería web (nunca menú del día / carta)
     if (isHistorico && nextUrl) {
       archiveMenuAnterior(next, nextUrl)
     }
