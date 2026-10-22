@@ -16,8 +16,9 @@
   const ROLE_KEY = 'ct-plano-role'
   const WAITER_KEY = 'ct-plano-waiter'
   const SQL_CACHE_KEY = 'ct-plano-use-sql'
-  const POLL_MS = 4000
-  const POLL_HIDDEN_MS = 20000
+  // Respaldo si Realtime falla (Supabase directo, 0 Vercel).
+  const POLL_MS = 12000
+  const POLL_HIDDEN_MS = 45000
   const CHANNEL = 'casa-torino-plano'
   const TPV_LIVE_CHANNEL = 'casa-torino-tpv-live'
 

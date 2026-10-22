@@ -54,7 +54,8 @@ function authorized(req) {
 }
 
 async function readEdge() {
-  return getJson(ITEM_KEY, emptyState, { fresh: true })
+  // Cache corto en instancia warm — menos CPU Fluid en polls del TPV
+  return getJson(ITEM_KEY, emptyState)
 }
 
 async function writeEdge(state) {

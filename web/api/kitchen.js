@@ -134,7 +134,8 @@ function scrubKitchenState(raw) {
 }
 
 async function loadState() {
-  const value = await getJson(ITEM_KEY, emptyState, { fresh: true })
+  // Sin fresh: aprovecha MEM_TTL del store en lecturas seguidas (poll / mutaciones).
+  const value = await getJson(ITEM_KEY, emptyState)
   const { state, changed } = scrubKitchenState(value)
   if (changed) {
     try {

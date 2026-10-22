@@ -4,9 +4,9 @@
  */
 (() => {
   const API_URL = 'https://reservas-casatorino.vercel.app/api/reservas-alerts'
-  // Avisos de reserva: 10s en pantalla; 60s si la pestaña está oculta.
-  const POLL_MS = 10000
-  const POLL_HIDDEN_MS = 60000
+  // Avisos de reserva: menos invocaciones Vercel (proyecto reservas).
+  const POLL_MS = 25000
+  const POLL_HIDDEN_MS = 120000
   const RETRIES = 3
 
   let timer = null

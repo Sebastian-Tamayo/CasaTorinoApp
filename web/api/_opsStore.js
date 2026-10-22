@@ -31,7 +31,8 @@ const SUPABASE_KEY = cleanToken(
     '',
 )
 
-const MEM_TTL_MS = 400
+/** Cache en memoria por instancia warm (reduce roundtrips Supabase / CPU). */
+const MEM_TTL_MS = 2500
 
 /** @type {Record<string, { value: any, at: number }>} */
 const memory = Object.create(null)
@@ -63,7 +64,7 @@ async function sbFetch(path, options = {}) {
   assertConfig()
   const url = `${SUPABASE_URL}/rest/v1/${path.replace(/^\//, '')}`
   let lastErr = null
-  for (let attempt = 1; attempt <= 4; attempt++) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const r = await fetch(url, {
         ...options,
@@ -96,7 +97,7 @@ async function sbFetch(path, options = {}) {
       if (err && err.status && err.status >= 400 && err.status < 500 && err.status !== 429) {
         throw err
       }
-      await sleep(80 * attempt * attempt)
+      await sleep(60 * attempt * attempt)
     }
   }
   throw lastErr || new Error('supabase fetch failed')
