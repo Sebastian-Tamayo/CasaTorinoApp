@@ -151,7 +151,11 @@
     void setupMenusAnteriores(data)
   }
 
-  /** Colección visual de menús pasados: solo fotos, sin nombres ni precios. */
+  /**
+   * Galería «Menús anteriores»: SOLO fotos subidas a propósito desde el TPV
+   * (plato Menús anteriores / menusAnteriores). Nunca carteles del menú del día
+   * ni la carta pública.
+   */
   async function setupMenusAnteriores(data) {
     const btn = document.getElementById('menusAnterioresBtn')
     const panel = document.getElementById('menusAnterioresPanel')
@@ -166,22 +170,8 @@
       urls.push(src)
     }
 
-    // 1) Archivo en carta (al cambiar foto del menú en el TPV)
     if (Array.isArray(data?.menusAnteriores)) {
       data.menusAnteriores.forEach(push)
-    }
-    // 2) Semilla / extras locales
-    try {
-      const r = await fetch('/data/menus-anteriores.json', { cache: 'no-store' })
-      if (r.ok) {
-        const j = await r.json()
-        ;(j.photos || []).forEach(push)
-      }
-    } catch {}
-    // 3) Fotos actuales de menús-día (colección visual)
-    const menus = (data?.categories || []).find((c) => c && c.id === 'menus-dia')
-    for (const it of menus?.items || []) {
-      if (it?.image_url && !it.customProduct) push(it.image_url)
     }
 
     if (!urls.length) {

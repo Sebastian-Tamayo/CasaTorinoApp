@@ -1,5 +1,4 @@
 {
-  "photos": [
-    "assets/menu-diario.jpg"
-  ]
+  "photos": [],
+  "note": "Obsoleto: las fotos solo se añaden desde el TPV (plato Menús anteriores) → carta.menusAnteriores"
 }
