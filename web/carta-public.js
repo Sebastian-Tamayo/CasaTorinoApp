@@ -211,6 +211,8 @@
       const open = panel.hidden
       panel.hidden = !open
       btn.setAttribute('aria-expanded', open ? 'true' : 'false')
+      const cta = btn.querySelector('em')
+      if (cta) cta.textContent = open ? 'Ocultar' : 'Ver fotos'
       if (open) {
         try {
           panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
