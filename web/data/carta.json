@@ -182,6 +182,23 @@
       ]
     },
     {
+      "id": "menus-historico",
+      "name": "Menús anteriores",
+      "icon": "fa-images",
+      "items": [
+        {
+          "id": "menu-historico",
+          "name": "Menús anteriores",
+          "price": 0,
+          "desc": "Sube aquí fotos de menús pasados. Solo histórico web; no sale en la carta.",
+          "base": "Menús anteriores",
+          "categoryType": "comida",
+          "customProduct": true,
+          "historicoOnly": true
+        }
+      ]
+    },
+    {
       "id": "picoteo",
       "name": "Picoteo y entrantes",
       "icon": "fa-bowl-food",

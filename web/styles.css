@@ -377,6 +377,7 @@ a { color: inherit; }
   padding: .5rem 0 .2rem;
 }
 /* Lightbox solo foto (sin nombre ni precio) */
+#dishPhotoModal.is-photo-only .dish-modal-body,
 #dishPhotoModal.is-photo-only .dish-modal-meta {
   display: none !important;
 }
@@ -384,6 +385,13 @@ a { color: inherit; }
   background: transparent;
   box-shadow: none;
   border: 0;
+}
+#dishPhotoModal.is-photo-only .dish-modal-media {
+  min-height: min(78vh, 720px);
+}
+#dishPhotoModal.is-photo-only .dish-modal-media img {
+  max-height: min(82vh, 760px);
+  object-fit: contain;
 }
 .menu-dia-gallery {
   display: grid;
