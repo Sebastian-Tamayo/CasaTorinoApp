@@ -69,9 +69,63 @@ function withMeta(data, source) {
     data && typeof data === 'object'
       ? { ...data }
       : { version: 1, categories: [] }
+  ensureMenusHistorico(out)
+  if (!Array.isArray(out.menusAnteriores)) out.menusAnteriores = []
   out._source = source
   out._servedAt = new Date().toISOString()
   return out
+}
+
+/**
+ * Plato solo TPV (modo edición): subir fotos al histórico de la web.
+ * No forma parte de la carta pública ni se vende en sala.
+ */
+function ensureMenusHistorico(carta) {
+  if (!carta || typeof carta !== 'object') return carta
+  if (!Array.isArray(carta.categories)) carta.categories = []
+  if (!Array.isArray(carta.menusAnteriores)) carta.menusAnteriores = []
+  let cat = carta.categories.find((c) => c && c.id === 'menus-historico')
+  if (!cat) {
+    cat = {
+      id: 'menus-historico',
+      name: 'Menús anteriores',
+      icon: 'fa-images',
+      items: [],
+    }
+    // Justo después de menús del día si existe
+    const menusIdx = carta.categories.findIndex((c) => c && c.id === 'menus-dia')
+    if (menusIdx >= 0) carta.categories.splice(menusIdx + 1, 0, cat)
+    else carta.categories.unshift(cat)
+  }
+  if (!Array.isArray(cat.items)) cat.items = []
+  cat.name = 'Menús anteriores'
+  cat.icon = cat.icon || 'fa-images'
+  let item = cat.items.find((it) => it && it.id === 'menu-historico')
+  if (!item) {
+    cat.items.push({
+      id: 'menu-historico',
+      name: 'Menús anteriores',
+      price: 0,
+      desc: 'Sube aquí fotos de menús pasados. Solo histórico web; no sale en la carta.',
+      base: 'Menús anteriores',
+      categoryType: 'comida',
+      customProduct: true,
+      historicoOnly: true,
+    })
+  } else {
+    item.name = 'Menús anteriores'
+    item.customProduct = true
+    item.historicoOnly = true
+    item.price = 0
+  }
+  return carta
+}
+
+function cartaNeedsHistoricoPersist(carta) {
+  if (!carta || !Array.isArray(carta.categories)) return true
+  const cat = carta.categories.find((c) => c && c.id === 'menus-historico')
+  if (!cat || !Array.isArray(cat.items)) return true
+  return !cat.items.some((it) => it && it.id === 'menu-historico')
 }
 
 async function loadFromStore() {
@@ -123,10 +177,22 @@ function upsertItemInCarta(carta, categoryId, item) {
   }
   if (item.schedule) normalized.schedule = item.schedule
   if (item.customProduct) normalized.customProduct = true
+  if (item.historicoOnly) normalized.historicoOnly = true
   if (item.priceEditable) normalized.priceEditable = true
   if (item.coursePick) normalized.coursePick = true
   if (item.star) normalized.star = true
   if (item.group) normalized.group = String(item.group)
+  const isHistorico =
+    catId === 'menus-historico' ||
+    String(item.id) === 'menu-historico' ||
+    item.historicoOnly === true
+  if (isHistorico) {
+    normalized.customProduct = true
+    normalized.historicoOnly = true
+    normalized.price = 0
+    normalized.name = 'Menús anteriores'
+    normalized.base = 'Menús anteriores'
+  }
   // image_url: solo si viene en el payload ('' = quitar foto)
   let clearImage = false
   if (Object.prototype.hasOwnProperty.call(item, 'image_url')) {
@@ -144,6 +210,10 @@ function upsertItemInCarta(carta, categoryId, item) {
     if (isMenuDia && prevUrl && nextUrl && prevUrl !== nextUrl) {
       archiveMenuAnterior(next, prevUrl)
     }
+    // Histórico: cada foto nueva se añade a la galería pública (no sale en carta)
+    if (isHistorico && nextUrl) {
+      archiveMenuAnterior(next, nextUrl)
+    }
     cat.items[idx] = { ...prev, ...normalized }
     // Si el cliente no manda star:true, no borrar la estrella existente
     if (!item.star && prev.star && item.star !== false) {
@@ -154,6 +224,10 @@ function upsertItemInCarta(carta, categoryId, item) {
   } else {
     if (clearImage) delete normalized.image_url
     cat.items.push(normalized)
+    const nextUrl = normalized.image_url != null ? String(normalized.image_url).trim() : ''
+    if (isHistorico && nextUrl) {
+      archiveMenuAnterior(next, nextUrl)
+    }
   }
   next.updatedAt = Date.now()
   syncMenuDayFromItems(next)
@@ -222,6 +296,9 @@ function deleteItemInCarta(carta, categoryId, itemId) {
   const catId = String(categoryId || '').trim()
   const id = String(itemId || '').trim()
   if (!catId || !id) throw new Error('categoryId e itemId son obligatorios')
+  if (id === 'menu-historico' || catId === 'menus-historico') {
+    throw new Error('El plato de menús anteriores no se puede borrar')
+  }
   const next = JSON.parse(JSON.stringify(carta))
   const cats = Array.isArray(next.categories) ? next.categories : []
   const cat = cats.find((c) => c.id === catId)
@@ -271,6 +348,21 @@ module.exports = async function handler(req, res) {
           source = 'file'
           console.warn('[carta] seed/fallback', err && err.message)
         }
+      }
+      // Persistimos el plato de histórico si aún no está en Supabase
+      if (data && cartaNeedsHistoricoPersist(data) && hasSupabase()) {
+        try {
+          const patched = ensureMenusHistorico(JSON.parse(JSON.stringify(data)))
+          patched.updatedAt = Date.now()
+          await setJson(CARTA_KEY, patched)
+          data = patched
+          source = source === 'file' ? 'supabase-seed' : source
+        } catch (err) {
+          console.warn('[carta] ensure historico', err && err.message)
+          ensureMenusHistorico(data)
+        }
+      } else if (data) {
+        ensureMenusHistorico(data)
       }
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -369,6 +461,7 @@ module.exports = async function handler(req, res) {
           const seeded = await seedFromFile()
           current = seeded.carta
         }
+        ensureMenusHistorico(current)
         const next = upsertItemInCarta(
           current,
           body.categoryId,

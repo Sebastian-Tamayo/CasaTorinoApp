@@ -2869,17 +2869,17 @@
             <input id="cartaEditStar" type="checkbox" style="width:auto;margin:0" />
             Destacado «Siempre» en la web
           </label>
-          <label>Foto (solo carta web)
+          <label id="cartaEditImageLabel">Foto (solo carta web)
             <input id="cartaEditImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
           </label>
           <div class="carta-edit-photo" id="cartaEditPhotoBox" hidden>
             <img id="cartaEditPhotoPreview" alt="Vista previa del plato" />
-            <label style="display:flex;align-items:center;gap:.5rem;text-transform:none;letter-spacing:0;font-size:.82rem;font-weight:600;color:var(--muted)">
+            <label id="cartaEditImageRemoveWrap" style="display:flex;align-items:center;gap:.5rem;text-transform:none;letter-spacing:0;font-size:.82rem;font-weight:600;color:var(--muted)">
               <input id="cartaEditImageRemove" type="checkbox" style="width:auto;margin:0" />
               Quitar foto al guardar
             </label>
           </div>
-          <p class="carta-edit-photo-hint">JPG / PNG / WebP · se comprime al guardar. En el TPV de sala no se muestra la foto.</p>
+          <p class="carta-edit-photo-hint" id="cartaEditPhotoHint">JPG / PNG / WebP · se comprime al guardar. En el TPV de sala no se muestra la foto.</p>
         </div>
       </div>
       <div class="course-actions carta-edit-actions">
@@ -3120,7 +3120,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-21-plano-fast1'
+      const TPV_CLIENT_VERSION = '2026-10-22-menus-hist1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3548,6 +3548,7 @@
       const CAT_META = {
         all: { label: 'Todos', icon: 'fa-border-all', accent: '#f5c518' },
         'menus-dia': { label: 'Menús', icon: 'fa-utensils', accent: '#f59e0b' },
+        'menus-historico': { label: 'Histórico', icon: 'fa-images', accent: '#94a3b8' },
         picoteo: { label: 'Picoteo', icon: 'fa-bowl-food', accent: '#fb7185' },
         colombia: { label: 'Colombia', icon: 'fa-pepper-hot', accent: '#facc15' },
         espana: { label: 'España', icon: 'fa-fish', accent: '#f87171' },
@@ -5353,11 +5354,29 @@
         setTimeout(() => el.classList.remove('flash'), 220)
       }
 
+      function isMenusHistoricoItem(item) {
+        if (!item) return false
+        return (
+          item.historicoOnly === true ||
+          String(item.id || '') === 'menu-historico' ||
+          String(item.catId || '') === 'menus-historico'
+        )
+      }
+
+      function catalogForUi() {
+        // Histórico solo en modo edición (no se vende ni se ve en sala)
+        if (state.modoEdicion) return catalog
+        return (catalog || []).filter((c) => c && c.id !== 'menus-historico')
+      }
+
       function renderCats() {
         const cats = [
           { id: 'all', name: 'Todos' },
-          ...catalog.map((c) => ({ id: c.id, name: c.name })),
+          ...catalogForUi().map((c) => ({ id: c.id, name: c.name })),
         ]
+        if (state.cat === 'menus-historico' && !state.modoEdicion) {
+          state.cat = 'all'
+        }
         $('cats').innerHTML = cats.map((c) => {
           const meta = CAT_META[c.id] || { label: c.name.split(' ')[0], icon: 'fa-circle', accent: '#f5c518' }
           return `<button class="cat ${state.cat === c.id ? 'active' : ''}" data-cat="${c.id}" type="button" style="--accent:${meta.accent}">
@@ -5371,7 +5390,10 @@
         const q = state.q.trim().toLowerCase()
           .normalize('NFD')
           .replace(/[\u0300-\u036f]/g, '')
+        const visibleCats = new Set(catalogForUi().map((c) => c.id))
         return all().filter((i) => {
+          if (!visibleCats.has(i.catId) && i.catId !== 'extras') return false
+          if (isMenusHistoricoItem(i) && !state.modoEdicion) return false
           if (state.cat !== 'all' && i.catId !== state.cat) return false
           if (!q) return true
           const name = (i.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -5455,11 +5477,20 @@
           ? items.map((i) => {
               const q = qtyOfProduct(i.id)
               const accent = accentFor(i.catId)
+              const hist = isMenusHistoricoItem(i)
+              const histN = Array.isArray(window.TPV_CARTA_META?.menusAnteriores)
+                ? window.TPV_CARTA_META.menusAnteriores.length
+                : 0
+              const priceLabel = hist
+                ? `${histN} foto${histN === 1 ? '' : 's'} en web`
+                : i.customProduct
+                  ? 'precio libre'
+                  : money(i.price)
               return `<button class="prod" data-id="${i.id}" type="button" style="--accent:${accent}">
                 <div class="name"><span>${i.name}</span>${!state.modoEdicion && q ? `<span class="qty">×${q}</span>` : ''}</div>
                 ${i.desc ? `<div class="desc">${i.desc}</div>` : '<div></div>'}
-                <div class="price">${i.customProduct ? 'precio libre' : money(i.price)}</div>
-                <span class="edit-hint"><i class="fa-solid fa-pen"></i> tocar para editar</span>
+                <div class="price">${priceLabel}</div>
+                <span class="edit-hint"><i class="fa-solid fa-pen"></i> ${hist ? 'añadir foto al histórico' : 'tocar para editar'}</span>
               </button>`
             }).join('')
           : `<p class="empty">Sin resultados.</p>`
@@ -5943,6 +5974,7 @@
           openCartaEditModal(item)
           return
         }
+        if (isMenusHistoricoItem(item)) return
         add(item)
       })
       bindTap($('lines'), '[data-pick], [data-extra-dest], button[data-act], [data-sel-toggle], [data-sel-act]', (_e, el) => {
@@ -6042,7 +6074,7 @@
         render()
       }
 
-      function fillCartaEditCategories(selectedId, { forCreate = false } = {}) {
+      function fillCartaEditCategories(selectedId, { forCreate = false, historico = false } = {}) {
         const sel = $('cartaEditCat')
         if (!sel) return
         const meta = window.TPV_CARTA_META || {}
@@ -6055,7 +6087,11 @@
         )
         // Alta nueva: solo categorías que salen en la web (misma carta pública)
         if (forCreate) {
-          cats = cats.filter((c) => publicSet.has(c.id))
+          cats = cats.filter((c) => publicSet.has(c.id) && c.id !== 'menus-historico')
+        } else if (historico) {
+          cats = cats.filter((c) => c.id === 'menus-historico')
+        } else {
+          cats = cats.filter((c) => c.id !== 'menus-historico')
         }
         sel.innerHTML = cats
           .map((c) => {
@@ -6085,6 +6121,21 @@
         if ($('cartaEditImageRemove')) $('cartaEditImageRemove').checked = false
         if ($('cartaEditPhotoPreview')) $('cartaEditPhotoPreview').removeAttribute('src')
         if ($('cartaEditPhotoBox')) $('cartaEditPhotoBox').hidden = true
+        if ($('cartaEditName')) $('cartaEditName').readOnly = false
+        if ($('cartaEditPrice')) $('cartaEditPrice').readOnly = false
+        if ($('cartaEditDesc')) $('cartaEditDesc').readOnly = false
+        if ($('cartaEditType')) $('cartaEditType').disabled = false
+        if ($('cartaEditCat')) $('cartaEditCat').disabled = false
+        const starLabel = $('cartaEditStar')?.closest('label')
+        if (starLabel) starLabel.hidden = false
+        if ($('cartaEditImageRemoveWrap')) $('cartaEditImageRemoveWrap').hidden = false
+        if ($('cartaEditImageLabel')) {
+          $('cartaEditImageLabel').childNodes[0].textContent = 'Foto (solo carta web) '
+        }
+        if ($('cartaEditPhotoHint')) {
+          $('cartaEditPhotoHint').textContent =
+            'JPG / PNG / WebP · se comprime al guardar. En el TPV de sala no se muestra la foto.'
+        }
       }
 
       function paintCartaEditPhoto(url) {
@@ -6101,38 +6152,90 @@
 
       function openCartaEditModal(item) {
         const isNew = !item
+        const historico = !isNew && isMenusHistoricoItem(item)
         cartaEditDraft = isNew
           ? { mode: 'create', image_url: '' }
-          : { mode: 'edit', id: item.id, catId: item.catId, image_url: item.image_url || '' }
-        fillCartaEditCategories(item?.catId || state.cat, { forCreate: isNew })
+          : {
+              mode: 'edit',
+              id: item.id,
+              catId: item.catId,
+              image_url: item.image_url || '',
+              historico,
+            }
+        fillCartaEditCategories(item?.catId || state.cat, {
+          forCreate: isNew,
+          historico,
+        })
+        const histN = Array.isArray(window.TPV_CARTA_META?.menusAnteriores)
+          ? window.TPV_CARTA_META.menusAnteriores.length
+          : 0
         if ($('cartaEditTitle')) {
-          $('cartaEditTitle').textContent = isNew ? 'Añadir plato' : 'Editar plato'
+          $('cartaEditTitle').textContent = historico
+            ? 'Menús anteriores'
+            : isNew
+              ? 'Añadir plato'
+              : 'Editar plato'
         }
         if ($('cartaEditSub')) {
-          $('cartaEditSub').textContent = isNew
-            ? 'Nuevo producto: se guarda en Supabase y se muestra en la carta web.'
-            : 'Cambia nombre, precio, descripción o foto. Se actualiza en TPV y en la web.'
+          $('cartaEditSub').textContent = historico
+            ? `Solo para el histórico de la web (galería de fotos). No aparece en la carta ni se vende. Ahora hay ${histN} foto${histN === 1 ? '' : 's'}.`
+            : isNew
+              ? 'Nuevo producto: se guarda en Supabase y se muestra en la carta web.'
+              : 'Cambia nombre, precio, descripción o foto. Se actualiza en TPV y en la web.'
         }
-        if ($('cartaEditName')) $('cartaEditName').value = item?.name || ''
+        if ($('cartaEditName')) {
+          $('cartaEditName').value = historico ? 'Menús anteriores' : item?.name || ''
+          $('cartaEditName').readOnly = historico
+        }
         if ($('cartaEditPrice')) {
-          $('cartaEditPrice').value = item
-            ? String(item.price ?? '').replace('.', ',')
-            : ''
+          $('cartaEditPrice').value = historico
+            ? '0'
+            : item
+              ? String(item.price ?? '').replace('.', ',')
+              : ''
+          $('cartaEditPrice').readOnly = historico
         }
-        if ($('cartaEditDesc')) $('cartaEditDesc').value = item?.desc || ''
+        if ($('cartaEditDesc')) {
+          $('cartaEditDesc').value = historico
+            ? 'Sube una foto: se añade a «Menús anteriores» en la web (solo imagen, sin precio).'
+            : item?.desc || ''
+          $('cartaEditDesc').readOnly = historico
+        }
         if ($('cartaEditType')) {
           $('cartaEditType').value =
             item?.categoryType === 'bebida' ? 'bebida' : 'comida'
+          $('cartaEditType').disabled = historico
         }
-        if ($('cartaEditStar')) $('cartaEditStar').checked = Boolean(item?.star)
+        if ($('cartaEditCat')) $('cartaEditCat').disabled = historico
+        if ($('cartaEditStar')) {
+          $('cartaEditStar').checked = Boolean(item?.star)
+          const starLabel = $('cartaEditStar').closest('label')
+          if (starLabel) starLabel.hidden = historico
+        }
+        if ($('cartaEditImageLabel')) {
+          $('cartaEditImageLabel').childNodes[0].textContent = historico
+            ? 'Añadir foto al histórico (web) '
+            : 'Foto (solo carta web) '
+        }
+        if ($('cartaEditPhotoHint')) {
+          $('cartaEditPhotoHint').textContent = historico
+            ? 'Cada foto que guardes se suma a la galería «Menús anteriores» de la página. Sin nombres ni precios.'
+            : 'JPG / PNG / WebP · se comprime al guardar. En el TPV de sala no se muestra la foto.'
+        }
+        if ($('cartaEditImageRemoveWrap')) {
+          $('cartaEditImageRemoveWrap').hidden = historico
+        }
         if ($('cartaEditImage')) $('cartaEditImage').value = ''
         paintCartaEditPhoto(item?.image_url || '')
-        if ($('cartaEditDelete')) $('cartaEditDelete').hidden = isNew
+        if ($('cartaEditDelete')) $('cartaEditDelete').hidden = isNew || historico
         if ($('cartaEditModal')) $('cartaEditModal').hidden = false
         const scrollBox = document.querySelector('#cartaEditModal .carta-edit-scroll')
         if (scrollBox) scrollBox.scrollTop = 0
         if ($('cartaEditModal')) $('cartaEditModal').scrollTop = 0
-        setTimeout(() => $('cartaEditName')?.focus(), 50)
+        setTimeout(() => {
+          if (historico) $('cartaEditImage')?.focus()
+          else $('cartaEditName')?.focus()
+        }, 50)
       }
 
       async function setModoEdicion(on) {
@@ -6164,16 +6267,25 @@
       }
 
       async function saveCartaEdit() {
-        const name = String($('cartaEditName')?.value || '').trim()
+        const historico = Boolean(cartaEditDraft?.historico)
+        const name = historico
+          ? 'Menús anteriores'
+          : String($('cartaEditName')?.value || '').trim()
         const priceRaw = String($('cartaEditPrice')?.value || '').replace(',', '.')
-        const price = Number(priceRaw)
-        const categoryId = String($('cartaEditCat')?.value || '').trim()
+        const price = historico ? 0 : Number(priceRaw)
+        const categoryId = historico
+          ? 'menus-historico'
+          : String($('cartaEditCat')?.value || '').trim()
         const categoryType =
           $('cartaEditType')?.value === 'bebida' ? 'bebida' : 'comida'
-        const desc = String($('cartaEditDesc')?.value || '').trim()
-        const star = Boolean($('cartaEditStar')?.checked)
+        const desc = historico
+          ? 'Sube aquí fotos de menús pasados. Solo histórico web; no sale en la carta.'
+          : String($('cartaEditDesc')?.value || '').trim()
+        const star = historico ? false : Boolean($('cartaEditStar')?.checked)
         const file = $('cartaEditImage')?.files?.[0] || null
-        const removePhoto = Boolean($('cartaEditImageRemove')?.checked)
+        const removePhoto = historico
+          ? false
+          : Boolean($('cartaEditImageRemove')?.checked)
         if (!name) {
           alert('Pon un nombre')
           return
@@ -6186,6 +6298,10 @@
           alert('Elige categoría')
           return
         }
+        if (historico && !file) {
+          alert('Elige una foto para añadirla al histórico de la web.')
+          return
+        }
         if (file && file.size > 1.5 * 1024 * 1024) {
           alert('La foto pesa demasiado (máx. 1,5 MB). Comprime o elige otra.')
           return
@@ -6196,14 +6312,20 @@
             : null
         const item = {
           id:
-            cartaEditDraft?.mode === 'edit' && cartaEditDraft.id
-              ? cartaEditDraft.id
-              : slugifyCartaId(name),
+            historico
+              ? 'menu-historico'
+              : cartaEditDraft?.mode === 'edit' && cartaEditDraft.id
+                ? cartaEditDraft.id
+                : slugifyCartaId(name),
           name,
           price,
           desc,
           base: existing?.base || name,
-          categoryType,
+          categoryType: historico ? 'comida' : categoryType,
+        }
+        if (historico) {
+          item.customProduct = true
+          item.historicoOnly = true
         }
         if (existing?.schedule) item.schedule = existing.schedule
         if (existing?.group) item.group = existing.group
@@ -6230,12 +6352,17 @@
             if (!window.CasaTorinoCarta?.uploadCartaImage) {
               throw new Error('uploadCartaImage no disponible')
             }
-            const up = await window.CasaTorinoCarta.uploadCartaImage(item.id, file)
+            // Histórico: id único por foto para no pisar el archivo en Storage
+            const uploadId = historico
+              ? `menu-historico-${Date.now().toString(36)}`
+              : item.id
+            const up = await window.CasaTorinoCarta.uploadCartaImage(uploadId, file)
             if (!up?.publicUrl) throw new Error('No se obtuvo URL de la foto')
             item.image_url = up.publicUrl
           }
           // Si cambió de categoría en edición, borrar del origen y crear en destino
           if (
+            !historico &&
             cartaEditDraft?.mode === 'edit' &&
             cartaEditDraft.catId &&
             cartaEditDraft.catId !== categoryId
@@ -6251,6 +6378,12 @@
           })
           closeCartaEditModal()
           await reloadCatalogFromStore()
+          if (historico) {
+            const n = Array.isArray(window.TPV_CARTA_META?.menusAnteriores)
+              ? window.TPV_CARTA_META.menusAnteriores.length
+              : 0
+            alert(`Foto añadida al histórico. La web muestra ${n} foto${n === 1 ? '' : 's'}.`)
+          }
         } catch (err) {
           console.warn('saveCartaEdit', err)
           if (err && err.status === 401) {

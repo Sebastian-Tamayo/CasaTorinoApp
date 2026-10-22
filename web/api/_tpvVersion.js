@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-21-plano-fast1'
-const message = 'Importante: actualiza — plano más rápido'
+const required = '2026-10-22-menus-hist1'
+const message = 'Importante: actualiza — histórico de menús en Editar carta'
 
 function forceInfo() {
   return { required, message }

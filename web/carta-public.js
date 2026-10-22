@@ -508,7 +508,7 @@
 
     const byId = Object.fromEntries(cats.map((c) => [c.id, c]))
     // Menús del día: solo en el hero (fotos), nunca en la carta para no repetir.
-    const HIDDEN_PUBLIC = new Set(['menus-dia', 'extras'])
+    const HIDDEN_PUBLIC = new Set(['menus-dia', 'menus-historico', 'extras'])
     // Colombia es el sello: siempre primero en la carta pública.
     let sections = (data.publicSections || []).filter(
       (id) => byId[id] && !HIDDEN_PUBLIC.has(id),
