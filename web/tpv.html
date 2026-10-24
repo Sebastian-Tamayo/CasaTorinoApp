@@ -1904,6 +1904,14 @@
     }
     .jornada-row:last-child { border-bottom: 0; }
     .jornada-row em { color: var(--muted); font-style: normal; font-weight: 600; font-size: .78rem; }
+    .jornada-row.is-pay-total {
+      margin-top: .25rem;
+      padding-top: .55rem;
+      border-top: 1px solid rgba(245,197,24,.35);
+      border-bottom: 0;
+      font-weight: 800;
+    }
+    .jornada-row.is-pay-total strong { color: var(--gold); }
     .jornada-card input,
     .jornada-card select,
     .jornada-card textarea {
@@ -2981,6 +2989,10 @@
         <strong id="jornadaGrand">0,00 €</strong>
       </div>
       <div class="jornada-sec">
+        <h4>Por forma de pago</h4>
+        <div id="jornadaByPay"></div>
+      </div>
+      <div class="jornada-sec">
         <h4>Por tipo</h4>
         <div id="jornadaByType"></div>
       </div>
@@ -3120,7 +3132,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-22-menus-hist1'
+      const TPV_CLIENT_VERSION = '2026-10-24-pay-split1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3669,6 +3681,58 @@
         }
         if ($('jornadaGrand')) $('jornadaGrand').textContent = money(totals.total || 0)
 
+        // Desglose efectivo / tarjeta (API byPayment; fallback desde tickets si falta)
+        let pay = totals.byPayment
+        if (!pay || typeof pay !== 'object') {
+          const fb = {
+            efectivo: { total: 0, tickets: 0 },
+            tarjeta: { total: 0, tickets: 0 },
+          }
+          for (const s of j?.sales || []) {
+            const saleTotal = Number(s.total) || 0
+            const parts = Array.isArray(s.payments) ? s.payments : []
+            const seen = { efectivo: false, tarjeta: false }
+            if (parts.length) {
+              for (const p of parts) {
+                const pm = p.method === 'tarjeta' ? 'tarjeta' : 'efectivo'
+                fb[pm].total =
+                  Math.round((fb[pm].total + (Number(p.amount) || 0)) * 100) / 100
+                seen[pm] = true
+              }
+            } else {
+              const pm = s.paymentMethod === 'tarjeta' ? 'tarjeta' : 'efectivo'
+              fb[pm].total = Math.round((fb[pm].total + saleTotal) * 100) / 100
+              seen[pm] = true
+            }
+            if (seen.efectivo) fb.efectivo.tickets += 1
+            if (seen.tarjeta) fb.tarjeta.tickets += 1
+          }
+          pay = fb
+        }
+        const ef = Number(pay.efectivo?.total) || 0
+        const tj = Number(pay.tarjeta?.total) || 0
+        const efTk = Number(pay.efectivo?.tickets) || 0
+        const tjTk = Number(pay.tarjeta?.tickets) || 0
+        const tipPay = Number(totals.tipTotal) || 0
+        const payRows = [
+          `<div class="jornada-row"><span><i class="fa-solid fa-money-bill" aria-hidden="true"></i> Efectivo <em>${efTk} ticket${efTk === 1 ? '' : 's'}</em></span><strong>${money(ef)}</strong></div>`,
+          `<div class="jornada-row"><span><i class="fa-solid fa-credit-card" aria-hidden="true"></i> Tarjeta <em>${tjTk} ticket${tjTk === 1 ? '' : 's'}</em></span><strong>${money(tj)}</strong></div>`,
+        ]
+        if (tipPay > 0) {
+          payRows.push(
+            `<div class="jornada-row"><span>Propinas <em>aparte</em></span><strong>${money(tipPay)}</strong></div>`,
+          )
+        }
+        payRows.push(
+          `<div class="jornada-row is-pay-total"><span>Total día</span><strong>${money(totals.total || 0)}</strong></div>`,
+        )
+        if ($('jornadaByPay')) {
+          $('jornadaByPay').innerHTML =
+            (totals.tickets || 0) > 0
+              ? payRows.join('')
+              : '<div class="jornada-row">Sin ventas</div>'
+        }
+
         const typeHtml = ['comida', 'bebida']
           .map((k) => {
             const row = totals.byType?.[k] || { qty: 0, total: 0 }
@@ -3796,9 +3860,23 @@
                     </div>`
                   })
                   .join('')
+                const payLabel =
+                  s.paymentMethod === 'tarjeta'
+                    ? 'tarjeta'
+                    : s.paymentMethod === 'mixto'
+                      ? 'mixto'
+                      : Array.isArray(s.payments) &&
+                          s.payments.some((p) => p.method === 'tarjeta') &&
+                          s.payments.some((p) => p.method === 'efectivo')
+                        ? 'mixto'
+                        : Array.isArray(s.payments) &&
+                            s.payments.length &&
+                            s.payments.every((p) => p.method === 'tarjeta')
+                          ? 'tarjeta'
+                          : 'efectivo'
                 return `<div class="jornada-ticket${open}" data-sale-id="${s.id}">
                   <button type="button" class="jornada-ticket-h" data-jact="toggle">
-                    <span>${mesa} <em>· ${who} · ${fmtHm(s.at)}</em></span>
+                    <span>${mesa} <em>· ${who} · ${fmtHm(s.at)} · ${payLabel}</em></span>
                     <strong>${money(s.total)}</strong>
                   </button>
                   <div class="jornada-ticket-b">

@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-22-menus-hist1'
-const message = 'Importante: actualiza — histórico de menús en Editar carta'
+const required = '2026-10-24-pay-split1'
+const message = 'Importante: actualiza — Total día con efectivo y tarjeta'
 
 function forceInfo() {
   return { required, message }
