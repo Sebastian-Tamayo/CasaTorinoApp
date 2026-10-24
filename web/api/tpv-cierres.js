@@ -1,9 +1,20 @@
 /**
  * Casa Torino — Historial de cierres de jornada (TPV → ERP)
  * Persistencia: Supabase ops_kv (opsStore), clave `cierres`.
+ *
+ * También enruta /api/tpv-facturas (rewrite) para no pasar el límite
+ * Hobby de 12 Serverless Functions.
  */
 const { getJson, setJson } = require('./_opsStore')
 const { hasTpvSession } = require('./_tpvSession')
+const handleFacturas = require('./_tpvFacturas')
+
+function wantsFacturas(req) {
+  const q = req.query || {}
+  if (String(q.__mod || '') === 'facturas') return true
+  const url = String(req.url || '')
+  return /tpv-facturas/i.test(url) || /[?&]__mod=facturas\b/i.test(url)
+}
 
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'cierres'
@@ -164,6 +175,8 @@ function normalizeCierre(raw) {
 }
 
 module.exports = async function handler(req, res) {
+  if (wantsFacturas(req)) return handleFacturas(req, res)
+
   cors(req, res)
   if (req.method === 'OPTIONS') {
     res.statusCode = 204

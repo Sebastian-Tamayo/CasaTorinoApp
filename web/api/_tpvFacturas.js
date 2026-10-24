@@ -8,6 +8,9 @@
  *   { action: 'setFiscal', fiscal: { nif, legalName, address, city, phone } }
  *   { action: 'issue', invoice: { ...cliente, lines, totals, mesa, payments } }
  *     → reserva número correlativo y guarda copia; responde { invoice, number }
+ *
+ * Nota Hobby: no es ruta Serverless propia. Se monta vía rewrite
+ * /api/tpv-facturas → /api/tpv-cierres?__mod=facturas (límite 12 funciones).
  */
 const { getJson, setJson, updateJson } = require('./_opsStore')
 const { hasTpvSession } = require('./_tpvSession')
