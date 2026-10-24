@@ -40,7 +40,10 @@
   function fillMenuDia(data) {
     const wrap = document.querySelector('.hero-menus')
     const ul = document.querySelector('.menu-precios')
-    if (!ul || !data?.menuDay) return
+    if (!ul || !data?.menuDay) {
+      void setupMenusAnteriores(data)
+      return
+    }
 
     const kindInfo =
       window.CasaTorinoCarta?.menuDayKind?.(data) ||
@@ -89,7 +92,10 @@
       gallery.setAttribute('aria-label', 'Ver menú del día')
       wrap.appendChild(gallery)
     }
-    if (!gallery) return
+    if (!gallery) {
+      void setupMenusAnteriores(data)
+      return
+    }
 
     const menus = (data.categories || []).find((c) => c && c.id === 'menus-dia')
     const order = [
@@ -121,33 +127,33 @@
       gallery.hidden = true
       gallery.innerHTML = ''
       wrap?.classList.remove('has-menu-photos')
-      return
-    }
-
-    wrap?.classList.add('has-menu-photos')
-    gallery.hidden = false
-    gallery.style.setProperty('--menu-foto-cols', String(Math.min(3, items.length)))
-    gallery.innerHTML = items
-      .map((it, i) => {
-        const labels = labelFor()
-        return `<button type="button" class="menu-dia-foto is-today" style="--i:${i}" data-dish-id="${escapeHtml(it.id)}" aria-label="Ver ${escapeHtml(labels.title)}">
+    } else {
+      wrap?.classList.add('has-menu-photos')
+      gallery.hidden = false
+      gallery.style.setProperty('--menu-foto-cols', String(Math.min(3, items.length)))
+      gallery.innerHTML = items
+        .map((it, i) => {
+          const labels = labelFor()
+          return `<button type="button" class="menu-dia-foto is-today" style="--i:${i}" data-dish-id="${escapeHtml(it.id)}" aria-label="Ver ${escapeHtml(labels.title)}">
           <img src="${escapeHtml(it.image_url)}" alt="${escapeHtml(labels.title)}" loading="lazy" decoding="async" />
           <em>${escapeHtml(labels.eyebrow)}</em>
           <strong>${escapeHtml(labels.title)}</strong>
           <b>${money(it.price)}</b>
           <span class="menu-dia-foto-cta">Ver menú <em>(pincha aquí)</em></span>
         </button>`
-      })
-      .join('')
+        })
+        .join('')
 
-    gallery.querySelectorAll('button[data-dish-id]').forEach((el) => {
-      el.addEventListener('click', () => {
-        const id = el.getAttribute('data-dish-id')
-        const it = id ? dishById.get(id) : null
-        if (it?.image_url) openDishModal(it, { menuSheet: true })
+      gallery.querySelectorAll('button[data-dish-id]').forEach((el) => {
+        el.addEventListener('click', () => {
+          const id = el.getAttribute('data-dish-id')
+          const it = id ? dishById.get(id) : null
+          if (it?.image_url) openDishModal(it, { menuSheet: true })
+        })
       })
-    })
+    }
 
+    // Siempre: la galería histórica no depende de que hoy haya foto de menú
     void setupMenusAnteriores(data)
   }
 
