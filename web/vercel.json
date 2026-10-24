@@ -3,6 +3,12 @@
   "installCommand": "npm install",
   "buildCommand": "echo static-web",
   "outputDirectory": ".",
+  "rewrites": [
+    {
+      "source": "/api/tpv-facturas",
+      "destination": "/api/tpv-cierres?__mod=facturas"
+    }
+  ],
   "crons": [
     {
       "path": "/api/ops-daily-purge",
