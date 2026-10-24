@@ -372,10 +372,10 @@ module.exports = async function handler(req, res) {
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.setHeader('X-Carta-Source', source)
-      // CDN edge: menos invocaciones Fluid en web pública / menu-tv
+      // CDN corto: la galería «Menús anteriores» debe verse pronto tras subir en TPV
       res.setHeader(
         'Cache-Control',
-        'public, s-maxage=60, stale-while-revalidate=300',
+        'public, s-maxage=15, stale-while-revalidate=60',
       )
       return res.end(JSON.stringify(withMeta(data, source)))
     } catch (err) {
