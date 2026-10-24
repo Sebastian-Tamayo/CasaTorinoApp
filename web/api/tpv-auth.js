@@ -5,6 +5,8 @@
  * GET  /api/tpv-auth  → { ok }  (además renueva cookie si hay sesión = sliding)
  * DELETE /api/tpv-auth → cierra sesión
  * POST /api/tpv-auth  { "refresh": true } → renueva si cookie válida
+ *
+ * También enruta /api/qz-sign (rewrite) para no gastar una función Hobby.
  */
 
 const PIN = process.env.TPV_PIN || ''
@@ -15,6 +17,14 @@ const {
   MAX_AGE_SEC,
   sessionSecret,
 } = require('./_tpvSession')
+const handleQzSign = require('./_qzSign')
+
+function wantsQzSign(req) {
+  const q = req.query || {}
+  if (String(q.__mod || '') === 'qz-sign') return true
+  const url = String(req.url || '')
+  return /qz-sign/i.test(url) || /[?&]__mod=qz-sign\b/i.test(url)
+}
 
 function cors(res) {
   applySecurityHeaders(res)
@@ -38,6 +48,8 @@ function parseBody(req) {
 }
 
 module.exports = async function handler(req, res) {
+  if (wantsQzSign(req)) return handleQzSign(req, res)
+
   res.req = req
   cors(res)
   if (req.method === 'OPTIONS') {

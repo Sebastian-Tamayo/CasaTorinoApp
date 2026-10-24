@@ -1,6 +1,9 @@
 /**
  * Health check operativo — Supabase ops_kv
  * GET /api/ops-health
+ *
+ * Nota Hobby: helper montado en ops-daily-purge vía rewrite
+ * /api/ops-health → /api/ops-daily-purge?__mod=health
  */
 const { getJson, getBackend, hasSupabase } = require('./_opsStore')
 const { applySecurityHeaders } = require('./_securityHeaders')

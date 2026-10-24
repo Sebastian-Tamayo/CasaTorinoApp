@@ -2,6 +2,9 @@
  * Firma mensajes de QZ Tray (impresión silenciosa).
  * POST /api/qz-sign  body: texto a firmar (text/plain)
  * Env: QZ_PRIVATE_KEY = contenido PEM de la clave privada
+ *
+ * Nota Hobby: helper montado en tpv-auth vía rewrite
+ * /api/qz-sign → /api/tpv-auth?__mod=qz-sign
  */
 const crypto = require('crypto')
 

@@ -11,6 +11,8 @@
  * Manual informes (sin ruta API extra — límite Hobby):
  *   ?informe=semanal|mensual&dryRun=1&force=1  → solo informe, sin purge
  *
+ * También enruta /api/ops-health (rewrite) para no gastar una función Hobby.
+ *
  * Auth: header x-vercel-cron, Bearer CRON_SECRET / TPV_SYNC_KEY, o cookie TPV.
  */
 const { updateJson } = require('./_opsStore')
@@ -26,6 +28,14 @@ const {
   madridWeekday,
   madridParts,
 } = require('./_informeReports')
+const handleOpsHealth = require('./_opsHealth')
+
+function wantsOpsHealth(req) {
+  const q = req.query || {}
+  if (String(q.__mod || '') === 'health') return true
+  const url = String(req.url || '')
+  return /ops-health/i.test(url) || /[?&]__mod=health\b/i.test(url)
+}
 
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const CRON_SECRET = process.env.CRON_SECRET || SYNC_KEY || ''
@@ -152,6 +162,9 @@ async function purgeTpv() {
 }
 
 module.exports = async function handler(req, res) {
+  // Health es público (sin auth de cron/sesión)
+  if (wantsOpsHealth(req)) return handleOpsHealth(req, res)
+
   cors(res)
   if (req.method === 'OPTIONS') {
     res.statusCode = 204

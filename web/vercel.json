@@ -7,6 +7,14 @@
     {
       "source": "/api/tpv-facturas",
       "destination": "/api/tpv-cierres?__mod=facturas"
+    },
+    {
+      "source": "/api/ops-health",
+      "destination": "/api/ops-daily-purge?__mod=health"
+    },
+    {
+      "source": "/api/qz-sign",
+      "destination": "/api/tpv-auth?__mod=qz-sign"
     }
   ],
   "crons": [
