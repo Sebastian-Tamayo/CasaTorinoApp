@@ -3192,7 +3192,7 @@
   <script src="printService.js?v=factura2"></script>
   <script src="tpvFacturas.js?v=factura2"></script>
   <script src="tpvSync.js?v=cpu-opt1"></script>
-  <script src="tpvJornada.js?v=cpu-opt1"></script>
+  <script src="tpvJornada.js?v=jornada-fin1"></script>
   <script src="kitchenSync.js?v=cpu-opt1"></script>
   <script src="reservaAlertSync.js?v=cdn-res1"></script>
   <script src="planoMesas.js?v=cpu-opt1"></script>
@@ -3749,7 +3749,7 @@
               : 'Sin jornada iniciada'
         if ($('jornadaModalSub')) {
           $('jornadaModalSub').textContent =
-            `${statusLabel} · ${totals.tickets || 0} ticket${(totals.tickets || 0) === 1 ? '' : 's'}`
+            `${statusLabel} · ${totals.tickets || 0} ticket${(totals.tickets || 0) === 1 ? '' : 's'} · corrige líneas/mesas si hay error`
         }
         if ($('jornadaGrand')) $('jornadaGrand').textContent = money(totals.total || 0)
 
