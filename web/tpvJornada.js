@@ -4,20 +4,19 @@
 (() => {
   const API_URL = '/api/tpv-jornada'
   const AUTH_URL = '/api/tpv-auth'
-  // Europe/Madrid:
-  // - De día: solo picos 18:00 y 20:00 (ahorro CDN).
-  // - Desde 22:00 (hasta ~06:00): poll suave para cierre / Total día.
-  // - A demanda: botón + PIN. Fin de jornada abre el resumen.
-  const SLOT_HOURS = [18, 20]
+  // Europe/Madrid — ahorro CDN Hobby:
+  // - De día (<22:00): sin auto-poll; Total día máx. 2 consultas (PIN).
+  // - Desde 22:00 (~hasta 06:00): poll suave + consultas ilimitadas.
+  // - Fin de jornada: el TPV abre el resumen (no cuenta en el cupo de día).
   const EVENING_FROM_HOUR = 22
   const EVENING_UNTIL_HOUR = 6
+  const DAYTIME_TOTAL_LOOKS_MAX = 2
   const EVENING_POLL_MS = 3 * 60 * 1000
   const EVENING_HIDDEN_MS = 10 * 60 * 1000
   const SCHEDULE_CHECK_MS = 30000
   const RETRIES = 3
   let heartbeat = null
   let scheduleTimer = null
-  let lastSlotFired = ''
   let lastEveningPullAt = 0
   let onUpdate = null
   let onAuthLost = null
@@ -52,16 +51,6 @@
     return p.hour >= EVENING_FROM_HOUR || p.hour < EVENING_UNTIL_HOUR
   }
 
-  function maybeSlotRefresh(p) {
-    if (typeof document !== 'undefined' && document.hidden) return
-    if (!SLOT_HOURS.includes(p.hour)) return
-    if (p.minute > 2) return
-    const key = `${p.dayKey}-h${p.hour}`
-    if (key === lastSlotFired) return
-    lastSlotFired = key
-    refresh().catch((err) => console.warn('[tpvJornada] slot', err))
-  }
-
   function maybeEveningRefresh() {
     const delay =
       typeof document !== 'undefined' && document.hidden
@@ -76,8 +65,8 @@
   function tickSchedule() {
     try {
       const p = madridClockParts()
+      // De día: nada automático (miráis Total día a la hora que queráis).
       if (isEveningWindow(p)) maybeEveningRefresh()
-      else maybeSlotRefresh(p)
     } catch (err) {
       console.warn('[tpvJornada] schedule', err)
     }
@@ -270,6 +259,9 @@
     startPolling,
     stopPolling,
     refreshSession,
+    madridClockParts,
+    isEveningWindow: (p) => isEveningWindow(p || madridClockParts()),
+    DAYTIME_TOTAL_LOOKS_MAX,
     get last() {
       return last
     },

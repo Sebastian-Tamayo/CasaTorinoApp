@@ -2664,7 +2664,7 @@
       <div class="jornada-actions">
         <button class="btn-j total" id="btnMesasOpenBar" type="button" title="Mesas pendientes de cobro"><i class="fa-solid fa-list-ul"></i> Mesas</button>
         <button class="btn-j start" id="btnJornadaStart" type="button" title="Inicio de jornada"><i class="fa-solid fa-play"></i> Inicio</button>
-        <button class="btn-j total" id="btnJornadaTotal" type="button" title="Total del día · cuando quieras (PIN) · auto 18:00/20:00 · desde 22:00 cada ~3 min"><i class="fa-solid fa-chart-column"></i> Total día</button>
+        <button class="btn-j total" id="btnJornadaTotal" type="button" title="Total día · máx. 2 veces antes de 22:00 · luego libre hasta cierre"><i class="fa-solid fa-chart-column"></i> Total día</button>
         <button class="btn-j end" id="btnJornadaEnd" type="button" disabled title="Fin de sesión"><i class="fa-solid fa-flag-checkered"></i> Fin</button>
         <button class="btn-j fiscal" id="btnFiscal" type="button" title="NIF y datos del local para facturas"><i class="fa-solid fa-building-columns"></i> Datos fiscales</button>
         <button class="btn-j edit-carta" id="btnEditarCarta" type="button" title="Editar carta"><i class="fa-solid fa-pen-to-square"></i> Carta</button>
@@ -3192,7 +3192,7 @@
   <script src="printService.js?v=factura2"></script>
   <script src="tpvFacturas.js?v=factura2"></script>
   <script src="tpvSync.js?v=cpu-opt1"></script>
-  <script src="tpvJornada.js?v=jornada-after22"></script>
+  <script src="tpvJornada.js?v=jornada-limit2"></script>
   <script src="kitchenSync.js?v=cpu-opt1"></script>
   <script src="reservaAlertSync.js?v=cdn-res1"></script>
   <script src="planoMesas.js?v=cpu-opt1"></script>
@@ -3204,7 +3204,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-25-jornada-after22'
+      const TPV_CLIENT_VERSION = '2026-10-25-jornada-limit2'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3728,6 +3728,64 @@
           alert(err?.message || 'No se pudo verificar el PIN')
           return false
         }
+      }
+
+      /** Cupo Total día de día (antes 22:00 Madrid): máx. 2 aperturas / día. */
+      function totalDiaLooksKey() {
+        const parts =
+          typeof window.CasaTorinoTpvJornada?.madridClockParts === 'function'
+            ? window.CasaTorinoTpvJornada.madridClockParts()
+            : { dayKey: new Date().toISOString().slice(0, 10) }
+        return `ct_tpv_total_dia_looks:${parts.dayKey}`
+      }
+
+      function isTotalDiaEveningNow() {
+        try {
+          if (typeof window.CasaTorinoTpvJornada?.isEveningWindow === 'function') {
+            return Boolean(window.CasaTorinoTpvJornada.isEveningWindow())
+          }
+        } catch {}
+        return false
+      }
+
+      function getDaytimeTotalDiaLooks() {
+        try {
+          const n = Number(localStorage.getItem(totalDiaLooksKey()) || 0)
+          return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
+        } catch {
+          return 0
+        }
+      }
+
+      function bumpDaytimeTotalDiaLooks() {
+        try {
+          const next = getDaytimeTotalDiaLooks() + 1
+          localStorage.setItem(totalDiaLooksKey(), String(next))
+          return next
+        } catch {
+          return getDaytimeTotalDiaLooks()
+        }
+      }
+
+      function daytimeTotalDiaLooksMax() {
+        const n = Number(window.CasaTorinoTpvJornada?.DAYTIME_TOTAL_LOOKS_MAX)
+        return Number.isFinite(n) && n > 0 ? n : 2
+      }
+
+      /** true = se puede abrir. Si es de día y no queda cupo, avisa y false. */
+      function allowOpenTotalDia() {
+        if (isTotalDiaEveningNow()) return true
+        const used = getDaytimeTotalDiaLooks()
+        const max = daytimeTotalDiaLooksMax()
+        if (used >= max) {
+          alert(
+            `De día solo se puede abrir Total día ${max} veces.\n` +
+              `Ya se usaron las ${max}.\n\n` +
+              `Desde las 22:00 (hora Madrid) hasta el cierre, sin límite.`,
+          )
+          return false
+        }
+        return true
       }
 
       function openJornadaModal(opts) {
@@ -7695,7 +7753,13 @@
       $('btnJornadaStart').onclick = startJornada
       $('btnJornadaEnd').onclick = endJornada
       $('btnJornadaTotal').onclick = async () => {
-        const ok = await requireOwnerPin('PIN para ver Total día')
+        if (!allowOpenTotalDia()) return
+        const evening = isTotalDiaEveningNow()
+        const remaining = daytimeTotalDiaLooksMax() - getDaytimeTotalDiaLooks()
+        const pinMsg = evening
+          ? 'PIN para ver Total día'
+          : `PIN para ver Total día (${remaining} de ${daytimeTotalDiaLooksMax()} de día)`
+        const ok = await requireOwnerPin(pinMsg)
         if (!ok) return
         try {
           const j = await window.CasaTorinoTpvJornada.refresh()
@@ -7704,6 +7768,8 @@
           console.warn(err)
         }
         openJornadaModal()
+        // Cupo solo de día; fin de jornada / noche no cuentan aquí.
+        if (!evening) bumpDaytimeTotalDiaLooks()
       }
       $('btnJornadaClose').onclick = closeJornadaModal
       $('jornadaModal')?.addEventListener('click', (e) => {
