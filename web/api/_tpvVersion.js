@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-25-jornada-fin1'
-const message = 'Importante: actualiza — Total día solo al abrir (fin de turno)'
+const required = '2026-10-25-jornada-slots1'
+const message = 'Importante: actualiza — Total día a demanda + 18:00/20:00'
 
 function forceInfo() {
   return { required, message }

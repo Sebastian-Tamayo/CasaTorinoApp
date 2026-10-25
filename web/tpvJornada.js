@@ -4,14 +4,58 @@
 (() => {
   const API_URL = '/api/tpv-jornada'
   const AUTH_URL = '/api/tpv-auth'
-  // Sin poll periódico: el Total día solo importa a fin de turno (abre con PIN
-  // y hace refresh). Los cobros ya refrescan tras addSale. Ahorra CDN Hobby.
+  // Sin poll continuo. Refresh programado (Europe/Madrid): 18:00 y 20:00.
+  // Fin de jornada: el TPV ya abre Total día tras cerrar. A demanda: botón + PIN.
+  // Los cobros refrescan tras addSale. Ahorra CDN Hobby.
+  const SLOT_HOURS = [18, 20]
+  const SLOT_CHECK_MS = 30000
   const RETRIES = 3
   let heartbeat = null
+  let slotTimer = null
+  let lastSlotFired = ''
   let onUpdate = null
   let onAuthLost = null
   let last = null
   let visibilityBound = false
+
+  function madridClockParts(ts = Date.now()) {
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Madrid',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    })
+    const parts = Object.fromEntries(
+      fmt
+        .formatToParts(new Date(ts))
+        .filter((p) => p.type !== 'literal')
+        .map((p) => [p.type, p.value]),
+    )
+    return {
+      dayKey: `${parts.year}-${parts.month}-${parts.day}`,
+      hour: Number(parts.hour),
+      minute: Number(parts.minute),
+    }
+  }
+
+  function maybeSlotRefresh() {
+    try {
+      if (typeof document !== 'undefined' && document.hidden) return
+      const p = madridClockParts()
+      if (!SLOT_HOURS.includes(p.hour)) return
+      // Solo en los primeros minutos de la hora (evita duplicar)
+      if (p.minute > 2) return
+      const key = `${p.dayKey}-h${p.hour}`
+      if (key === lastSlotFired) return
+      lastSlotFired = key
+      refresh().catch((err) => console.warn('[tpvJornada] slot', err))
+    } catch (err) {
+      console.warn('[tpvJornada] slot check', err)
+    }
+  }
 
   function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms))
@@ -164,18 +208,17 @@
   function startPolling(handler, authLostHandler) {
     onUpdate = handler
     onAuthLost = authLostHandler || null
-    // Una sola lectura al arrancar (estado abierta/cerrada en la barra).
-    // No hay setInterval: Total día se carga al abrir el modal (PIN).
+    // Arranque: estado abierta/cerrada. Luego solo slots 18:00 / 20:00 Madrid.
     refresh().catch((err) => console.warn('[tpvJornada]', err))
     if (heartbeat) clearInterval(heartbeat)
     heartbeat = setInterval(refreshSession, 20 * 60 * 1000)
     refreshSession()
+    if (slotTimer) clearInterval(slotTimer)
+    maybeSlotRefresh()
+    slotTimer = setInterval(maybeSlotRefresh, SLOT_CHECK_MS)
     if (!visibilityBound && typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
-        // Solo estado de jornada (abierta/cerrada), no totales en bucle.
-        if (!document.hidden) {
-          refresh().catch((err) => console.warn('[tpvJornada]', err))
-        }
+        if (!document.hidden) maybeSlotRefresh()
       })
       visibilityBound = true
     }
@@ -184,6 +227,8 @@
   function stopPolling() {
     if (heartbeat) clearInterval(heartbeat)
     heartbeat = null
+    if (slotTimer) clearInterval(slotTimer)
+    slotTimer = null
   }
 
   window.CasaTorinoTpvJornada = {
