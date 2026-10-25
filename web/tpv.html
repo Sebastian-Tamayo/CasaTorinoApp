@@ -2664,7 +2664,7 @@
       <div class="jornada-actions">
         <button class="btn-j total" id="btnMesasOpenBar" type="button" title="Mesas pendientes de cobro"><i class="fa-solid fa-list-ul"></i> Mesas</button>
         <button class="btn-j start" id="btnJornadaStart" type="button" title="Inicio de jornada"><i class="fa-solid fa-play"></i> Inicio</button>
-        <button class="btn-j total" id="btnJornadaTotal" type="button" title="Total del día · cuando quieras (PIN) · auto 18:00 y 20:00"><i class="fa-solid fa-chart-column"></i> Total día</button>
+        <button class="btn-j total" id="btnJornadaTotal" type="button" title="Total del día · cuando quieras (PIN) · auto 18:00/20:00 · desde 22:00 cada ~3 min"><i class="fa-solid fa-chart-column"></i> Total día</button>
         <button class="btn-j end" id="btnJornadaEnd" type="button" disabled title="Fin de sesión"><i class="fa-solid fa-flag-checkered"></i> Fin</button>
         <button class="btn-j fiscal" id="btnFiscal" type="button" title="NIF y datos del local para facturas"><i class="fa-solid fa-building-columns"></i> Datos fiscales</button>
         <button class="btn-j edit-carta" id="btnEditarCarta" type="button" title="Editar carta"><i class="fa-solid fa-pen-to-square"></i> Carta</button>
@@ -3192,7 +3192,7 @@
   <script src="printService.js?v=factura2"></script>
   <script src="tpvFacturas.js?v=factura2"></script>
   <script src="tpvSync.js?v=cpu-opt1"></script>
-  <script src="tpvJornada.js?v=jornada-slots1"></script>
+  <script src="tpvJornada.js?v=jornada-after22"></script>
   <script src="kitchenSync.js?v=cpu-opt1"></script>
   <script src="reservaAlertSync.js?v=cdn-res1"></script>
   <script src="planoMesas.js?v=cpu-opt1"></script>
@@ -3204,7 +3204,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-25-jornada-slots1'
+      const TPV_CLIENT_VERSION = '2026-10-25-jornada-after22'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
