@@ -4,9 +4,10 @@
  */
 (() => {
   const API_URL = 'https://reservas-casatorino.vercel.app/api/reservas-alerts'
-  // Avisos de reserva: menos invocaciones Vercel (proyecto reservas).
-  const POLL_MS = 25000
-  const POLL_HIDDEN_MS = 120000
+  // Avisos de reserva: no son urgentes de sala. Poll lento para no quemar CDN Hobby
+  // (mismo cupo del team Vercel). Tope ~20 min con pestaña oculta.
+  const POLL_MS = 10 * 60 * 1000
+  const POLL_HIDDEN_MS = 20 * 60 * 1000
   const RETRIES = 3
 
   let timer = null
