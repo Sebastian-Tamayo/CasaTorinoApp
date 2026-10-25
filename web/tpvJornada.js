@@ -6,10 +6,10 @@
   const AUTH_URL = '/api/tpv-auth'
   // Europe/Madrid — ahorro CDN Hobby:
   // - De día (<22:00): sin auto-poll; Total día máx. 2 consultas (PIN).
-  // - Desde 22:00 (~hasta 06:00): poll suave + consultas ilimitadas.
+  // - Desde 22:00 hasta 02:00: poll suave + consultas ilimitadas.
   // - Fin de jornada: el TPV abre el resumen (no cuenta en el cupo de día).
   const EVENING_FROM_HOUR = 22
-  const EVENING_UNTIL_HOUR = 6
+  const EVENING_UNTIL_HOUR = 2
   const DAYTIME_TOTAL_LOOKS_MAX = 2
   const EVENING_POLL_MS = 3 * 60 * 1000
   const EVENING_HIDDEN_MS = 10 * 60 * 1000
@@ -47,7 +47,7 @@
   }
 
   function isEveningWindow(p) {
-    // 22:00–23:59 y madrugada hasta 05:59 (cierre de turno)
+    // 22:00–23:59 y madrugada hasta 01:59 (cierre de turno)
     return p.hour >= EVENING_FROM_HOUR || p.hour < EVENING_UNTIL_HOUR
   }
 
