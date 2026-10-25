@@ -1,5 +1,5 @@
 {
-  "required": "2026-10-25-jornada-pin1",
-  "message": "Importante: actualiza — Total día se calcula al poner el PIN",
-  "updatedAt": "2026-10-25T22:10:00.000Z"
+  "required": "2026-10-25-reserva-rt1",
+  "message": "Importante: actualiza — avisos reserva por Supabase (menos CDN)",
+  "updatedAt": "2026-10-25T22:15:00.000Z"
 }
