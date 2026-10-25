@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-25-cdn-res1'
-const message = 'Importante: actualiza — menos consumo CDN (avisos reserva)'
+const required = '2026-10-25-jornada-fin1'
+const message = 'Importante: actualiza — Total día solo al abrir (fin de turno)'
 
 function forceInfo() {
   return { required, message }

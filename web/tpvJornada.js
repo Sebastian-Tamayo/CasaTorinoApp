@@ -4,11 +4,9 @@
 (() => {
   const API_URL = '/api/tpv-jornada'
   const AUTH_URL = '/api/tpv-auth'
-  // Poll más lento: la UI refresca tras cobros; respaldo cada ~45s
-  const POLL_MS = 45000
-  const POLL_HIDDEN_MS = 180000
+  // Sin poll periódico: el Total día solo importa a fin de turno (abre con PIN
+  // y hace refresh). Los cobros ya refrescan tras addSale. Ahorra CDN Hobby.
   const RETRIES = 3
-  let timer = null
   let heartbeat = null
   let onUpdate = null
   let onAuthLost = null
@@ -163,30 +161,18 @@
     return data
   }
 
-  function pollDelay() {
-    return typeof document !== 'undefined' && document.hidden
-      ? POLL_HIDDEN_MS
-      : POLL_MS
-  }
-
-  function schedulePolling() {
-    if (timer) clearInterval(timer)
-    timer = setInterval(() => {
-      refresh().catch((err) => console.warn('[tpvJornada]', err))
-    }, pollDelay())
-  }
-
   function startPolling(handler, authLostHandler) {
     onUpdate = handler
     onAuthLost = authLostHandler || null
+    // Una sola lectura al arrancar (estado abierta/cerrada en la barra).
+    // No hay setInterval: Total día se carga al abrir el modal (PIN).
     refresh().catch((err) => console.warn('[tpvJornada]', err))
-    schedulePolling()
     if (heartbeat) clearInterval(heartbeat)
     heartbeat = setInterval(refreshSession, 20 * 60 * 1000)
     refreshSession()
     if (!visibilityBound && typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
-        schedulePolling()
+        // Solo estado de jornada (abierta/cerrada), no totales en bucle.
         if (!document.hidden) {
           refresh().catch((err) => console.warn('[tpvJornada]', err))
         }
@@ -196,8 +182,6 @@
   }
 
   function stopPolling() {
-    if (timer) clearInterval(timer)
-    timer = null
     if (heartbeat) clearInterval(heartbeat)
     heartbeat = null
   }

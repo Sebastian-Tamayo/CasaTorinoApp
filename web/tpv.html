@@ -2664,7 +2664,7 @@
       <div class="jornada-actions">
         <button class="btn-j total" id="btnMesasOpenBar" type="button" title="Mesas pendientes de cobro"><i class="fa-solid fa-list-ul"></i> Mesas</button>
         <button class="btn-j start" id="btnJornadaStart" type="button" title="Inicio de jornada"><i class="fa-solid fa-play"></i> Inicio</button>
-        <button class="btn-j total" id="btnJornadaTotal" type="button" title="Total del día"><i class="fa-solid fa-chart-column"></i> Total día</button>
+        <button class="btn-j total" id="btnJornadaTotal" type="button" title="Total del día (fin de turno) · corregir tickets"><i class="fa-solid fa-chart-column"></i> Total día</button>
         <button class="btn-j end" id="btnJornadaEnd" type="button" disabled title="Fin de sesión"><i class="fa-solid fa-flag-checkered"></i> Fin</button>
         <button class="btn-j fiscal" id="btnFiscal" type="button" title="NIF y datos del local para facturas"><i class="fa-solid fa-building-columns"></i> Datos fiscales</button>
         <button class="btn-j edit-carta" id="btnEditarCarta" type="button" title="Editar carta"><i class="fa-solid fa-pen-to-square"></i> Carta</button>
@@ -2994,7 +2994,7 @@
         </button>
         <h3 id="jornadaModalTitle">Total día</h3>
       </div>
-      <p class="sub" id="jornadaModalSub">—</p>
+      <p class="sub" id="jornadaModalSub">Fin de turno · puedes corregir tickets / mesas si hay error</p>
       <div class="jornada-grand">
         <span>Total vendido</span>
         <strong id="jornadaGrand">0,00 €</strong>
@@ -3204,7 +3204,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-25-cdn-res1'
+      const TPV_CLIENT_VERSION = '2026-10-25-jornada-fin1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
