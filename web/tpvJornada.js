@@ -4,73 +4,14 @@
 (() => {
   const API_URL = '/api/tpv-jornada'
   const AUTH_URL = '/api/tpv-auth'
-  // Europe/Madrid — ahorro CDN Hobby:
-  // - De día (<22:00): sin auto-poll; Total día máx. 2 consultas (PIN).
-  // - Desde 22:00 hasta 02:00: poll suave + consultas ilimitadas.
-  // - Fin de jornada: el TPV abre el resumen (no cuenta en el cupo de día).
-  const EVENING_FROM_HOUR = 22
-  const EVENING_UNTIL_HOUR = 2
-  const DAYTIME_TOTAL_LOOKS_MAX = 2
-  const EVENING_POLL_MS = 3 * 60 * 1000
-  const EVENING_HIDDEN_MS = 10 * 60 * 1000
-  const SCHEDULE_CHECK_MS = 30000
+  // Ahorro CDN Hobby: sin poll de totales.
+  // Total día se calcula al abrir con PIN (refresh bajo demanda).
+  // Cobros (addSale) y fin de jornada siguen actualizando al momento.
   const RETRIES = 3
   let heartbeat = null
-  let scheduleTimer = null
-  let lastEveningPullAt = 0
   let onUpdate = null
   let onAuthLost = null
   let last = null
-  let visibilityBound = false
-
-  function madridClockParts(ts = Date.now()) {
-    const fmt = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Europe/Madrid',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    })
-    const parts = Object.fromEntries(
-      fmt
-        .formatToParts(new Date(ts))
-        .filter((p) => p.type !== 'literal')
-        .map((p) => [p.type, p.value]),
-    )
-    return {
-      dayKey: `${parts.year}-${parts.month}-${parts.day}`,
-      hour: Number(parts.hour),
-      minute: Number(parts.minute),
-    }
-  }
-
-  function isEveningWindow(p) {
-    // 22:00–23:59 y madrugada hasta 01:59 (cierre de turno)
-    return p.hour >= EVENING_FROM_HOUR || p.hour < EVENING_UNTIL_HOUR
-  }
-
-  function maybeEveningRefresh() {
-    const delay =
-      typeof document !== 'undefined' && document.hidden
-        ? EVENING_HIDDEN_MS
-        : EVENING_POLL_MS
-    const now = Date.now()
-    if (now - lastEveningPullAt < delay) return
-    lastEveningPullAt = now
-    refresh().catch((err) => console.warn('[tpvJornada] evening', err))
-  }
-
-  function tickSchedule() {
-    try {
-      const p = madridClockParts()
-      // De día: nada automático (miráis Total día a la hora que queráis).
-      if (isEveningWindow(p)) maybeEveningRefresh()
-    } catch (err) {
-      console.warn('[tpvJornada] schedule', err)
-    }
-  }
 
   function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms))
@@ -223,27 +164,16 @@
   function startPolling(handler, authLostHandler) {
     onUpdate = handler
     onAuthLost = authLostHandler || null
-    // Arranque: estado abierta/cerrada. Luego horario Madrid (slots / evening).
+    // Solo estado abierta/cerrada al arrancar. Totales: al abrir con PIN.
     refresh().catch((err) => console.warn('[tpvJornada]', err))
     if (heartbeat) clearInterval(heartbeat)
     heartbeat = setInterval(refreshSession, 20 * 60 * 1000)
     refreshSession()
-    if (scheduleTimer) clearInterval(scheduleTimer)
-    tickSchedule()
-    scheduleTimer = setInterval(tickSchedule, SCHEDULE_CHECK_MS)
-    if (!visibilityBound && typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) tickSchedule()
-      })
-      visibilityBound = true
-    }
   }
 
   function stopPolling() {
     if (heartbeat) clearInterval(heartbeat)
     heartbeat = null
-    if (scheduleTimer) clearInterval(scheduleTimer)
-    scheduleTimer = null
   }
 
   window.CasaTorinoTpvJornada = {
@@ -259,9 +189,6 @@
     startPolling,
     stopPolling,
     refreshSession,
-    madridClockParts,
-    isEveningWindow: (p) => isEveningWindow(p || madridClockParts()),
-    DAYTIME_TOTAL_LOOKS_MAX,
     get last() {
       return last
     },
