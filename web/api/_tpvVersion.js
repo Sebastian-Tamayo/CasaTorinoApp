@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-25-jornada-after22'
-const message = 'Importante: actualiza — Total día frecuente desde 22:00'
+const required = '2026-10-25-jornada-ondemand22'
+const message = 'Importante: actualiza — Total día a demanda; auto solo desde 22:00'
 
 function forceInfo() {
   return { required, message }
