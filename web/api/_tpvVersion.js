@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-25-jornada-pin1'
-const message = 'Importante: actualiza — Total día se calcula al poner el PIN'
+const required = '2026-10-25-reserva-rt1'
+const message = 'Importante: actualiza — avisos reserva por Supabase (menos CDN)'
 
 function forceInfo() {
   return { required, message }
