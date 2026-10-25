@@ -5,11 +5,12 @@
   const API_URL = '/api/tpv-jornada'
   const AUTH_URL = '/api/tpv-auth'
   // Europe/Madrid — ahorro CDN Hobby:
-  // - De día (<22:00): sin auto-poll. Total día cuando queráis (botón + PIN).
-  // - Desde 22:00 (~hasta 06:00): poll suave para cierre de turno.
-  // - Fin de jornada: el TPV abre el resumen.
+  // - De día (<22:00): sin auto-poll; Total día máx. 2 consultas (PIN).
+  // - Desde 22:00 (~hasta 06:00): poll suave + consultas ilimitadas.
+  // - Fin de jornada: el TPV abre el resumen (no cuenta en el cupo de día).
   const EVENING_FROM_HOUR = 22
   const EVENING_UNTIL_HOUR = 6
+  const DAYTIME_TOTAL_LOOKS_MAX = 2
   const EVENING_POLL_MS = 3 * 60 * 1000
   const EVENING_HIDDEN_MS = 10 * 60 * 1000
   const SCHEDULE_CHECK_MS = 30000
@@ -258,6 +259,9 @@
     startPolling,
     stopPolling,
     refreshSession,
+    madridClockParts,
+    isEveningWindow: (p) => isEveningWindow(p || madridClockParts()),
+    DAYTIME_TOTAL_LOOKS_MAX,
     get last() {
       return last
     },
