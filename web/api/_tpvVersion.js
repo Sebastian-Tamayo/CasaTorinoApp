@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-24-factura2'
-const message = 'Importante: actualiza — Factura simplificada en el TPV'
+const required = '2026-10-25-cdn-res1'
+const message = 'Importante: actualiza — menos consumo CDN (avisos reserva)'
 
 function forceInfo() {
   return { required, message }
