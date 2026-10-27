@@ -1,0 +1,13 @@
+{
+  "name": "casatorino-app",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Ecosistema Casa Torino: web p\u00fablica + ERP + reservas",
+  "scripts": {
+    "dev:erp": "npm --prefix erp run dev",
+    "dev:reservas": "npm --prefix reservas run dev",
+    "build:erp": "npm --prefix erp run build",
+    "build:reservas": "npm --prefix reservas run build",
+    "build": "npm install --prefix erp && npm run build --prefix erp"
+  }
+}
