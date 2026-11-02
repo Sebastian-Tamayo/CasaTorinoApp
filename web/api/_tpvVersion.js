@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-02-monitor1'
-const message = 'Importante: actualiza — Monitor TPV (accesos y movimientos)'
+const required = '2026-11-02-monitor2'
+const message = 'Importante: actualiza — Monitor: cocina listo y recogidas'
 
 function forceInfo() {
   return { required, message }

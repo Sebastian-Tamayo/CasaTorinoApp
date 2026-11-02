@@ -3273,7 +3273,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-02-monitor1'
+      const TPV_CLIENT_VERSION = '2026-11-02-monitor2'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -5286,6 +5286,15 @@
             line.sentQty = Number(line.qty || 0)
             line.categoryType = 'comida'
           }
+          const sendSummary = foodPending
+            .map((x) => `${x.qty}× ${x.name}`)
+            .join(', ')
+            .slice(0, 120)
+          auditLog('kitchen_send', {
+            mesa: m || '',
+            item: sendSummary,
+            note: `${foodPending.length} línea(s)`,
+          })
           persist()
           render()
           try { navigator.vibrate?.([20, 30, 20]) } catch {}
@@ -5914,7 +5923,10 @@
           auditLog('cobro', {
             mesa: m || '',
             amount: total,
-            note: isPartial || payDraft.mode === 'selection' ? 'parcial' : 'completo',
+            note:
+              (isPartial || payDraft.mode === 'selection' ? 'parcial' : 'completo') +
+              ' · ' +
+              paymentMethod,
           })
         } catch (err) {
           console.warn('jornada sale', err)
@@ -8299,8 +8311,16 @@
 
       async function dismissPickup(id) {
         if (!id) return
+        const pickup = activePickups.get(id)
         activePickups.delete(id)
         renderPickupAlert()
+        try {
+          auditLog('kitchen_pickup', {
+            mesa: String(pickup?.mesa || '').trim(),
+            item: String(pickup?.message || `Recoger ${id}`).slice(0, 80),
+            note: 'confirmó recogida',
+          })
+        } catch {}
         try {
           await window.CasaTorinoKitchenSync?.ackPickup?.(id)
         } catch (err) {

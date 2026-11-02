@@ -293,8 +293,13 @@ try {
   assert.ok(audit.includes("AUDIT_KEY = 'tpv_audit'"))
   assert.ok(client.includes('CasaTorinoTpvAudit'))
   assert.ok(monitor.includes('getAudit') && monitor.includes('2908'))
+  assert.ok(monitor.includes('kitchen_send') && monitor.includes('kitchen_pickup'))
   assert.ok(interno.includes('monitor.html'))
   assert.ok(!JSON.stringify(vercel).includes('tpv-audit'))
+  const kitchen = fs.readFileSync(path.join(root, 'api/kitchen.js'), 'utf8')
+  assert.ok(kitchen.includes('auditKitchenReady') || kitchen.includes('kitchen_ready'))
+  const tpv = fs.readFileSync(path.join(root, 'tpv.html'), 'utf8')
+  assert.ok(tpv.includes("'kitchen_send'") && tpv.includes("'kitchen_pickup'"))
   ok('tpv-monitor-audit')
 } catch (err) {
   fail('tpv-monitor-audit', err)
