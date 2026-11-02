@@ -1,5 +1,5 @@
 {
-  "required": "2026-11-02-login-user1",
-  "message": "Importante: actualiza — elige tu nombre y luego el PIN",
-  "updatedAt": "2026-11-02T10:15:00.000Z"
+  "required": "2026-11-02-solo-fisico1",
+  "message": "Importante: actualiza — solo TPV físico; vuelve a entrar",
+  "updatedAt": "2026-11-02T12:15:00.000Z"
 }

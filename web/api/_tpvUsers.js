@@ -14,28 +14,20 @@ const FLOOR_KEY = 'floor_plan'
 const JORNADA_KEY = 'jornada'
 /**
  * Subir esto fuerza reseedar usuarios + nuevo sessionEpoch
- * (invalida cookies de todos los dispositivos).
+ * (invalida cookies; NO toca mesas/jornada/cocina).
  */
-const USERS_STORE_VERSION = 4
-/** @deprecated tests legacy — el admin real es el PIN de Lore/Sebas tras primer acceso. */
+const USERS_STORE_VERSION = 5
+/** PIN del TPV físico / admin de alta. No exponer en UI. */
 const CREATE_USER_PIN = '2908'
-/** Antes de abrir jornada / tras fin: solo estos en el TPV. */
-const BOOTSTRAP_USER_IDS = new Set(['u-lore', 'u-sebas'])
+/** Acceso a cualquier hora (sin jornada abierta): caja física. */
+const BOOTSTRAP_USER_IDS = new Set(['u-tpv-fisico'])
 
 /**
- * Todos sin PIN de fábrica → aparecen en «Primer acceso» (Lore/Sebas también).
- * TPV FÍSICO hereda TPV_PIN de entorno si existe (caja / cocina).
+ * Solo TPV FÍSICO con PIN 2908. El resto se crea luego (Nuevo usuario).
+ * No borra mesas ni jornada en ops_kv — solo tpv_users + epoch.
  */
 const SEED_USERS = [
-  { id: 'u-tpv-fisico', name: 'TPV FÍSICO', role: 'central' },
-  { id: 'u-lore', name: 'Lore', role: 'admin' },
-  { id: 'u-sebas', name: 'Sebas', role: 'admin' },
-  { id: 'u-ali', name: 'Ali', role: 'staff' },
-  { id: 'u-shari', name: 'Shari', role: 'staff' },
-  { id: 'u-aleja', name: 'Aleja', role: 'staff' },
-  { id: 'u-yuli', name: 'Yuli', role: 'staff' },
-  { id: 'u-carol', name: 'Carol', role: 'staff' },
-  { id: 'u-clara', name: 'Clara', role: 'staff' },
+  { id: 'u-tpv-fisico', name: 'TPV FÍSICO', role: 'central', pin: '2908' },
 ]
 
 function hashPin(pin) {
@@ -85,10 +77,8 @@ function normalizeStore(raw) {
 }
 
 function seedFromDefaults() {
-  const envPin = String(process.env.TPV_PIN || '').trim()
   const users = SEED_USERS.map((s) => {
-    let pin = s.pin ? String(s.pin) : ''
-    if (!pin && s.id === 'u-tpv-fisico' && envPin) pin = envPin
+    const pin = s.pin ? String(s.pin) : ''
     const pinHash = pin ? hashPin(pin) : ''
     return {
       id: s.id,
@@ -204,7 +194,7 @@ function pendingUsers(store) {
 /** Lista pública para el gate (sin hashes): elegir usuario y luego PIN. */
 function gateUsers(store) {
   return (store.users || [])
-    .filter((u) => u && u.id && u.name && u.role !== 'central')
+    .filter((u) => u && u.id && u.name)
     .map((u) => ({
       id: String(u.id),
       name: String(u.name),
@@ -214,10 +204,11 @@ function gateUsers(store) {
     .sort((a, b) => a.name.localeCompare(b.name, 'es'))
 }
 
-/** Admin = PIN actual de Lore o Sebas (tras primer acceso). */
+/** Admin = PIN de usuarios bootstrap (ahora TPV FÍSICO = 2908). */
 async function adminPinOk(pin) {
   const p = String(pin || '').trim()
   if (!p) return false
+  if (p === CREATE_USER_PIN) return true
   const store = await loadUsersStore()
   const h = hashPin(p)
   if (!h) return false
@@ -344,7 +335,7 @@ async function isJornadaOpen() {
 }
 
 /**
- * Antes de abrir jornada / tras fin: solo Lore y Sebas.
+ * Antes de abrir jornada / tras fin: solo TPV FÍSICO.
  * Con jornada abierta: cualquier usuario con PIN válido.
  */
 async function allowTpvLogin(user) {
@@ -355,7 +346,7 @@ async function allowTpvLogin(user) {
 }
 
 function bootstrapLoginDeniedMessage() {
-  return 'Sin jornada abierta solo pueden entrar Lore o Sebas'
+  return 'Sin jornada abierta solo puede entrar el TPV físico'
 }
 
 function isBootstrapUser(user) {

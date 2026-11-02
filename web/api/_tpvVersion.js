@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-02-login-user1'
-const message = 'Importante: actualiza — elige tu nombre y luego el PIN'
+const required = '2026-11-02-solo-fisico1'
+const message = 'Importante: actualiza — solo TPV físico; vuelve a entrar'
 
 function forceInfo() {
   return { required, message }
