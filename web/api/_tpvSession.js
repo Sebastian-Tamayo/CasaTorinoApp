@@ -1,7 +1,6 @@
 /**
  * Sesión TPV firmada (HMAC) — cookie ct_tpv_session.
- * Sustituye el valor forjable "=1".
- *
+ * v2: incluye usuario (id + nombre) para camarera en plano / byName.
  * Secret: TPV_SESSION_SECRET || TPV_SYNC_KEY || TPV_PIN
  */
 const crypto = require('crypto')
@@ -18,7 +17,33 @@ function sessionSecret() {
   ).trim()
 }
 
-function signToken(expMs) {
+function b64url(s) {
+  return Buffer.from(String(s || ''), 'utf8').toString('base64url')
+}
+
+function fromB64url(s) {
+  try {
+    return Buffer.from(String(s || ''), 'base64url').toString('utf8')
+  } catch {
+    return ''
+  }
+}
+
+/** Payload firmado v2: v2.{exp}.{userId}.{nameB64} */
+function signToken(expMs, user) {
+  const secret = sessionSecret()
+  if (!secret) return ''
+  const uid = String(user?.id || 'anon')
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .slice(0, 40) || 'anon'
+  const nameB64 = b64url(String(user?.name || '').slice(0, 40))
+  const payload = `v2.${expMs}.${uid}.${nameB64}`
+  const sig = crypto.createHmac('sha256', secret).update(payload).digest('base64url')
+  return `${payload}.${sig}`
+}
+
+/** Compat lectura v1 (sin usuario) — se acepta hasta que re-logueen. */
+function signTokenV1(expMs) {
   const secret = sessionSecret()
   if (!secret) return ''
   const payload = `v1.${expMs}`
@@ -44,30 +69,65 @@ function readCookieValue(req) {
   return ''
 }
 
-function hasTpvSession(req) {
+function parseSession(req) {
   const secret = sessionSecret()
-  if (!secret) return false
+  if (!secret) return null
   const val = readCookieValue(req)
-  if (!val) return false
+  if (!val) return null
   const parts = val.split('.')
-  if (parts.length !== 3 || parts[0] !== 'v1') return false
-  const exp = Number(parts[1])
-  if (!Number.isFinite(exp) || Date.now() > exp) return false
-  const expect = signToken(exp)
-  if (!expect || expect.length !== val.length) return false
-  try {
-    return crypto.timingSafeEqual(Buffer.from(val), Buffer.from(expect))
-  } catch {
-    return false
+  if (parts.length === 3 && parts[0] === 'v1') {
+    const exp = Number(parts[1])
+    if (!Number.isFinite(exp) || Date.now() > exp) return null
+    const expect = signTokenV1(exp)
+    if (!expect || expect.length !== val.length) return null
+    try {
+      if (!crypto.timingSafeEqual(Buffer.from(val), Buffer.from(expect))) return null
+    } catch {
+      return null
+    }
+    return { ok: true, version: 1, user: null, exp }
   }
+  if (parts.length === 5 && parts[0] === 'v2') {
+    const exp = Number(parts[1])
+    const userId = parts[2]
+    const nameB64 = parts[3]
+    if (!Number.isFinite(exp) || Date.now() > exp) return null
+    const name = fromB64url(nameB64)
+    const expect = signToken(exp, { id: userId, name })
+    if (!expect || expect.length !== val.length) return null
+    try {
+      if (!crypto.timingSafeEqual(Buffer.from(val), Buffer.from(expect))) return null
+    } catch {
+      return null
+    }
+    return {
+      ok: true,
+      version: 2,
+      user: {
+        id: userId,
+        name: name || userId,
+        role: userId === 'u-tpv-fisico' ? 'central' : 'staff',
+      },
+      exp,
+    }
+  }
+  return null
 }
 
-function setSessionCookie(res, on) {
+function hasTpvSession(req) {
+  return Boolean(parseSession(req))
+}
+
+function getSessionUser(req) {
+  const s = parseSession(req)
+  return s?.user || null
+}
+
+function setSessionCookie(res, on, user) {
   if (on) {
     const exp = Date.now() + MAX_AGE_SEC * 1000
-    const token = signToken(exp)
+    const token = signToken(exp, user || null)
     if (!token) {
-      // Sin secreto no se puede firmar — no poner cookie forjable
       return false
     }
     res.setHeader(
@@ -87,6 +147,9 @@ module.exports = {
   COOKIE,
   MAX_AGE_SEC,
   hasTpvSession,
+  getSessionUser,
+  parseSession,
   setSessionCookie,
   sessionSecret,
+  signToken,
 }

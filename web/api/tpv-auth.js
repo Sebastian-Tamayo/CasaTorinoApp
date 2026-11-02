@@ -1,22 +1,34 @@
 /**
- * Casa Torino TPV — login por PIN (sin exponer el PIN en el frontend).
+ * Casa Torino TPV — login por PIN de usuario (sin exponer PINs al frontend).
  *
- * POST /api/tpv-auth  { "pin": "...." }
- * GET  /api/tpv-auth  → { ok }  (además renueva cookie si hay sesión = sliding)
+ * POST /api/tpv-auth  { "pin": "...." } → login
+ * POST /api/tpv-auth  { "action": "pendingUsers" } → nombres sin PIN (primer acceso)
+ * POST /api/tpv-auth  { "action": "setPin", userId, pin } → primer acceso
+ * POST /api/tpv-auth  { "action": "createUser", adminPin, name } → alta (PIN 2908)
+ * POST /api/tpv-auth  { "action": "listUsers" } → nombres (sesión OK)
+ * GET  /api/tpv-auth  → { ok, user }  (sliding cookie)
  * DELETE /api/tpv-auth → cierra sesión
  * POST /api/tpv-auth  { "refresh": true } → renueva si cookie válida
  *
- * También enruta /api/qz-sign (rewrite) para no gastar una función Hobby.
+ * También enruta /api/qz-sign (rewrite) — 0 función Hobby extra.
  */
 
-const PIN = process.env.TPV_PIN || ''
 const { applySecurityHeaders } = require('./_securityHeaders')
 const {
   hasTpvSession,
+  getSessionUser,
   setSessionCookie,
   MAX_AGE_SEC,
   sessionSecret,
 } = require('./_tpvSession')
+const {
+  loadUsersStore,
+  pendingUsers,
+  setUserPin,
+  createUser,
+  authenticatePin,
+  publicUser,
+} = require('./_tpvUsers')
 const handleQzSign = require('./_qzSign')
 
 function wantsQzSign(req) {
@@ -47,6 +59,12 @@ function parseBody(req) {
   return req.body
 }
 
+function json(res, status, body) {
+  res.statusCode = status
+  res.setHeader('Content-Type', 'application/json')
+  return res.end(JSON.stringify(body))
+}
+
 module.exports = async function handler(req, res) {
   if (wantsQzSign(req)) return handleQzSign(req, res)
 
@@ -60,75 +78,107 @@ module.exports = async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const ok = hasTpvSession(req)
-      if (ok) setSessionCookie(res, true) // sliding renewal
-      res.statusCode = 200
-      res.setHeader('Content-Type', 'application/json')
-      return res.end(
-        JSON.stringify({ ok, maxAgeHours: Math.round(MAX_AGE_SEC / 3600) }),
-      )
+      const user = ok ? getSessionUser(req) : null
+      if (ok) setSessionCookie(res, true, user) // sliding renewal
+      return json(res, 200, {
+        ok,
+        user: user || null,
+        maxAgeHours: Math.round(MAX_AGE_SEC / 3600),
+      })
     }
 
     if (req.method === 'DELETE') {
       setSessionCookie(res, false)
-      res.statusCode = 200
-      res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify({ ok: true }))
+      return json(res, 200, { ok: true })
     }
 
     if (req.method === 'POST') {
       const body = parseBody(req)
+      const action = String(body.action || '').trim()
 
       if (body.refresh) {
         if (!hasTpvSession(req)) {
-          res.statusCode = 401
-          res.setHeader('Content-Type', 'application/json')
-          return res.end(JSON.stringify({ ok: false, error: 'Sesión caducada' }))
+          return json(res, 401, { ok: false, error: 'Sesión caducada' })
         }
-        setSessionCookie(res, true)
-        res.statusCode = 200
-        res.setHeader('Content-Type', 'application/json')
-        return res.end(JSON.stringify({ ok: true, refreshed: true }))
+        const user = getSessionUser(req)
+        setSessionCookie(res, true, user)
+        return json(res, 200, { ok: true, refreshed: true, user: user || null })
       }
 
-      if (!PIN) {
-        res.statusCode = 500
-        res.setHeader('Content-Type', 'application/json')
-        return res.end(
-          JSON.stringify({
-            ok: false,
-            error: 'TPV_PIN no configurado en el servidor',
-          }),
-        )
-      }
       if (!sessionSecret()) {
-        res.statusCode = 500
-        res.setHeader('Content-Type', 'application/json')
-        return res.end(
-          JSON.stringify({
+        return json(res, 500, {
+          ok: false,
+          error: 'Falta secreto de sesión (TPV_SYNC_KEY o TPV_PIN)',
+        })
+      }
+
+      if (action === 'pendingUsers') {
+        const store = await loadUsersStore()
+        return json(res, 200, {
+          ok: true,
+          action: 'pendingUsers',
+          users: pendingUsers(store),
+        })
+      }
+
+      if (action === 'setPin') {
+        const userId = String(body.userId || '').trim()
+        const pin = String(body.pin || '').trim()
+        const pin2 = String(body.pinConfirm || body.pin2 || pin).trim()
+        if (pin !== pin2) {
+          return json(res, 400, { ok: false, error: 'Los PIN no coinciden' })
+        }
+        try {
+          const user = await setUserPin(userId, pin)
+          setSessionCookie(res, true, user)
+          return json(res, 200, { ok: true, action: 'setPin', user })
+        } catch (err) {
+          return json(res, 400, {
             ok: false,
-            error: 'Falta secreto de sesión (TPV_SYNC_KEY o TPV_PIN)',
-          }),
-        )
+            error: String(err && err.message ? err.message : err),
+          })
+        }
       }
+
+      if (action === 'createUser') {
+        try {
+          const user = await createUser(body.name, body.adminPin || body.pin)
+          return json(res, 200, { ok: true, action: 'createUser', user })
+        } catch (err) {
+          const msg = String(err && err.message ? err.message : err)
+          const status = /permiso|incorrecto/i.test(msg) ? 401 : 400
+          return json(res, status, { ok: false, error: msg })
+        }
+      }
+
+      if (action === 'listUsers') {
+        if (!hasTpvSession(req)) {
+          return json(res, 401, { ok: false, error: 'unauthorized' })
+        }
+        const store = await loadUsersStore()
+        return json(res, 200, {
+          ok: true,
+          action: 'listUsers',
+          users: (store.users || []).map(publicUser),
+        })
+      }
+
+      // Login por PIN (usuario o TPV_PIN → TPV FÍSICO)
       const pin = String(body.pin || '').trim()
-      if (pin && pin === PIN) {
-        setSessionCookie(res, true)
-        res.statusCode = 200
-        res.setHeader('Content-Type', 'application/json')
-        return res.end(JSON.stringify({ ok: true }))
+      if (!pin) {
+        return json(res, 401, { ok: false, error: 'PIN incorrecto' })
       }
-      res.statusCode = 401
-      res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify({ ok: false, error: 'PIN incorrecto' }))
+      const user = await authenticatePin(pin)
+      if (!user) {
+        return json(res, 401, { ok: false, error: 'PIN incorrecto' })
+      }
+      setSessionCookie(res, true, user)
+      return json(res, 200, { ok: true, user })
     }
 
-    res.statusCode = 405
-    res.setHeader('Content-Type', 'application/json')
-    return res.end(JSON.stringify({ error: 'method not allowed' }))
+    return json(res, 405, { error: 'method not allowed' })
   } catch (err) {
     console.error('[tpv-auth]', err)
-    res.statusCode = 500
-    res.setHeader('Content-Type', 'application/json')
-    return res.end(JSON.stringify({ error: 'auth error' }))
+    return json(res, 500, { error: 'auth error' })
   }
 }

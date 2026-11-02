@@ -1282,6 +1282,50 @@
       color: var(--muted); text-decoration: none; font-size: .85rem; font-weight: 700;
     }
     .gate-back:hover { color: var(--gold); }
+    .gate-links {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: .55rem .85rem;
+      margin-top: .85rem;
+    }
+    .gate-links button {
+      border: 0; background: none; color: var(--gold);
+      font: inherit; font-size: .8rem; font-weight: 700;
+      cursor: pointer; text-decoration: underline; padding: 0;
+      touch-action: manipulation;
+    }
+    .gate-panel {
+      text-align: left; margin-top: .35rem;
+    }
+    .gate-panel label {
+      display: grid; gap: .3rem; margin: 0 0 .65rem;
+      font-size: .78rem; font-weight: 700; color: var(--muted);
+    }
+    .gate-panel select,
+    .gate-panel input {
+      width: 100%; height: 44px; border-radius: 12px;
+      border: 1px solid var(--line2); background: var(--card); color: var(--ink);
+      font: inherit; font-size: 1rem; font-weight: 700; padding: 0 .75rem;
+    }
+    .gate-panel .gate-panel-actions {
+      display: flex; gap: .5rem; margin-top: .35rem;
+    }
+    .gate-panel .gate-panel-actions button {
+      flex: 1; height: 44px; border-radius: 12px; border: 1px solid var(--line2);
+      font: inherit; font-weight: 800; cursor: pointer; touch-action: manipulation;
+    }
+    .gate-panel .gate-panel-actions .ok {
+      background: var(--gold); color: #1a1204; border-color: transparent;
+    }
+    .gate-panel .gate-panel-actions .cancel {
+      background: var(--card); color: var(--muted);
+    }
+    .tpv-user-chip {
+      display: inline-flex; align-items: center; gap: .35rem;
+      padding: .28rem .55rem; border-radius: 999px;
+      border: 1px solid var(--line2); background: var(--card);
+      font-size: .78rem; font-weight: 800; color: var(--ink);
+      max-width: 9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .tpv-user-chip[hidden] { display: none !important; }
     body.tpv-locked .app,
     body.tpv-locked .backdrop,
     body.tpv-locked .fab { visibility: hidden; pointer-events: none; }
@@ -2609,25 +2653,58 @@
     <div class="gate-card">
       <img src="assets/logo.jpg" alt="Casa Torino" />
       <h1 id="gateTitle">Acceso TPV</h1>
-      <p>Introduce el PIN del personal</p>
-      <div class="gate-dots" id="gateDots" aria-hidden="true">
-        <i></i><i></i><i></i><i></i>
+      <p id="gateSub">Introduce tu PIN de 4 dígitos</p>
+      <div id="gateLoginBlock">
+        <div class="gate-dots" id="gateDots" aria-hidden="true">
+          <i></i><i></i><i></i><i></i>
+        </div>
+        <div class="gate-pad" id="gatePad">
+          <button type="button" data-k="1">1</button>
+          <button type="button" data-k="2">2</button>
+          <button type="button" data-k="3">3</button>
+          <button type="button" data-k="4">4</button>
+          <button type="button" data-k="5">5</button>
+          <button type="button" data-k="6">6</button>
+          <button type="button" data-k="7">7</button>
+          <button type="button" data-k="8">8</button>
+          <button type="button" data-k="9">9</button>
+          <button type="button" class="ghost" data-k="clear">Borrar</button>
+          <button type="button" data-k="0">0</button>
+          <button type="button" class="ghost" data-k="ok">Entrar</button>
+        </div>
       </div>
-      <div class="gate-pad" id="gatePad">
-        <button type="button" data-k="1">1</button>
-        <button type="button" data-k="2">2</button>
-        <button type="button" data-k="3">3</button>
-        <button type="button" data-k="4">4</button>
-        <button type="button" data-k="5">5</button>
-        <button type="button" data-k="6">6</button>
-        <button type="button" data-k="7">7</button>
-        <button type="button" data-k="8">8</button>
-        <button type="button" data-k="9">9</button>
-        <button type="button" class="ghost" data-k="clear">Borrar</button>
-        <button type="button" data-k="0">0</button>
-        <button type="button" class="ghost" data-k="ok">Entrar</button>
+      <div class="gate-panel" id="gateFirstAccess" hidden>
+        <label>Quién eres
+          <select id="gatePendingUser" aria-label="Usuario sin PIN"></select>
+        </label>
+        <label>Elige tu PIN (4 dígitos)
+          <input id="gateNewPin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" />
+        </label>
+        <label>Repite el PIN
+          <input id="gateNewPin2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" />
+        </label>
+        <div class="gate-panel-actions">
+          <button type="button" class="cancel" id="gateFirstCancel">Cancelar</button>
+          <button type="button" class="ok" id="gateFirstSave">Guardar e entrar</button>
+        </div>
+      </div>
+      <div class="gate-panel" id="gateCreateUser" hidden>
+        <label>PIN de permiso (2908)
+          <input id="gateAdminPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" />
+        </label>
+        <label>Nombre del nuevo usuario
+          <input id="gateCreateName" type="text" maxlength="40" autocomplete="off" />
+        </label>
+        <div class="gate-panel-actions">
+          <button type="button" class="cancel" id="gateCreateCancel">Cancelar</button>
+          <button type="button" class="ok" id="gateCreateSave">Crear</button>
+        </div>
       </div>
       <div class="gate-err" id="gateErr" aria-live="polite"></div>
+      <div class="gate-links" id="gateLinks">
+        <button type="button" id="gateBtnFirst">Primer acceso</button>
+        <button type="button" id="gateBtnCreate">Nuevo usuario</button>
+      </div>
       <a class="gate-back" href="interno.html"><i class="fa-solid fa-arrow-left"></i> Volver</a>
     </div>
   </div>
@@ -2640,6 +2717,7 @@
           <strong>Casa Torino</strong>
           <em>TPV · pedidos por mesa</em>
         </div>
+        <span class="tpv-user-chip" id="tpvUserChip" hidden title="Usuario TPV"></span>
       </div>
       <div class="top-tools">
         <div class="clock" id="clock">--:--</div>
@@ -2835,18 +2913,8 @@
             <option value="central">TPV central (Windows)</option>
           </select>
         </label>
-        <label>
-          Quién accede
-          <select id="planoWaiterSelect" aria-label="Camarera que accede">
-            <option value="">— Elige camarera —</option>
-          </select>
-        </label>
-        <div class="plano-waiter-actions">
-          <button type="button" id="planoWaiterAdd">Añadir camarera</button>
-          <button type="button" id="planoWaiterEdit">Modificar</button>
-          <button type="button" id="planoWaiterDel">Eliminar</button>
-        </div>
-        <p class="plano-hint" id="planoHint">Verde = libre · Rojo = ocupada. Elige la camarera en el desplegable antes de tocar una mesa.</p>
+        <p class="plano-hint" id="planoUserLabel" style="margin:0;font-weight:800">Usuario: —</p>
+        <p class="plano-hint" id="planoHint">Verde = libre · Rojo = ocupada. Entras con tu PIN; si la mesa es de un compañero, te avisamos.</p>
       </div>
       <div class="plano-floor" id="planoFloor" aria-label="Plano Casa Torino"></div>
       <div class="course-actions">
@@ -3195,7 +3263,7 @@
   <script src="tpvJornada.js?v=jornada-pin1"></script>
   <script src="kitchenSync.js?v=cpu-opt1"></script>
   <script src="reservaAlertSync.js?v=reserva-rt1"></script>
-  <script src="planoMesas.js?v=cpu-opt1"></script>
+  <script src="planoMesas.js?v=usuarios-pin1"></script>
   <script>
     (() => {
       /**
@@ -3204,7 +3272,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-25-reserva-rt1'
+      const TPV_CLIENT_VERSION = '2026-11-02-usuarios-pin1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3448,11 +3516,68 @@
         } catch {}
       }
 
-      async function unlockTpv() {
+      let tpvSessionUser = null
+
+      function paintTpvUserChip(user) {
+        const chip = $('tpvUserChip')
+        if (!chip) return
+        const name = String(user?.name || '').trim()
+        if (!name) {
+          chip.hidden = true
+          chip.textContent = ''
+          return
+        }
+        chip.hidden = false
+        chip.textContent = name
+        chip.title = 'Sesión TPV: ' + name
+      }
+
+      function applySessionUser(user) {
+        tpvSessionUser = user && user.id ? user : null
+        paintTpvUserChip(tpvSessionUser)
+        try {
+          if (tpvSessionUser) {
+            window.CasaTorinoPlanoMesas?.setSessionWaiter?.(tpvSessionUser)
+          }
+        } catch (err) {
+          console.warn('setSessionWaiter', err)
+        }
+        const label = $('planoUserLabel')
+        if (label) {
+          label.textContent = tpvSessionUser
+            ? `Usuario: ${tpvSessionUser.name}`
+            : 'Usuario: —'
+        }
+      }
+
+      function showGateMode(mode) {
+        const login = $('gateLoginBlock')
+        const first = $('gateFirstAccess')
+        const create = $('gateCreateUser')
+        const links = $('gateLinks')
+        const sub = $('gateSub')
+        if (login) login.hidden = mode !== 'login'
+        if (first) first.hidden = mode !== 'first'
+        if (create) create.hidden = mode !== 'create'
+        if (links) links.hidden = mode !== 'login'
+        if (sub) {
+          sub.textContent =
+            mode === 'first'
+              ? 'Elige tu nombre y crea tu PIN (solo la primera vez)'
+              : mode === 'create'
+                ? 'Alta de usuario (requiere PIN 2908)'
+                : 'Introduce tu PIN de 4 dígitos'
+        }
+        if ($('gateErr')) $('gateErr').textContent = ''
+      }
+
+      async function unlockTpv(user) {
         try { sessionStorage.removeItem(AUTH_KEY) } catch {}
+        applySessionUser(user || tpvSessionUser)
         document.body.classList.remove('tpv-locked')
         const gate = $('gate')
         if (gate) gate.hidden = true
+        showGateMode('login')
         unlockTpvAudio()
         if (!tpvStarted) {
           tpvStarted = true
@@ -3486,13 +3611,128 @@
           const data = await r.json().catch(() => ({}))
           if (r.ok && data.ok) {
             if ($('gateErr')) $('gateErr').textContent = ''
-            unlockTpv()
+            await unlockTpv(data.user || null)
             return
           }
           failPin((data && data.error) || 'PIN incorrecto')
         } catch (err) {
           console.warn('[tpv-auth]', err)
           failPin('No se pudo validar el PIN')
+        }
+      }
+
+      async function loadPendingUsers() {
+        const sel = $('gatePendingUser')
+        if (!sel) return
+        sel.innerHTML = '<option value="">Cargando…</option>'
+        try {
+          const r = await fetch('/api/tpv-auth', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'pendingUsers' }),
+          })
+          const data = await r.json().catch(() => ({}))
+          const list = Array.isArray(data.users) ? data.users : []
+          if (!list.length) {
+            sel.innerHTML = '<option value="">No quedan usuarios sin PIN</option>'
+            return
+          }
+          sel.innerHTML =
+            '<option value="">— Elige tu nombre —</option>' +
+            list
+              .map(
+                (u) =>
+                  `<option value="${String(u.id).replace(/"/g, '')}">${String(u.name || '').replace(/</g, '&lt;')}</option>`,
+              )
+              .join('')
+        } catch (err) {
+          console.warn('pendingUsers', err)
+          sel.innerHTML = '<option value="">Error al cargar</option>'
+        }
+      }
+
+      async function saveFirstAccessPin() {
+        const userId = String($('gatePendingUser')?.value || '').trim()
+        const pin = String($('gateNewPin')?.value || '').trim()
+        const pin2 = String($('gateNewPin2')?.value || '').trim()
+        if (!userId) {
+          if ($('gateErr')) $('gateErr').textContent = 'Elige tu nombre'
+          return
+        }
+        if (!/^\d{4}$/.test(pin)) {
+          if ($('gateErr')) $('gateErr').textContent = 'El PIN debe ser 4 dígitos'
+          return
+        }
+        if (pin !== pin2) {
+          if ($('gateErr')) $('gateErr').textContent = 'Los PIN no coinciden'
+          return
+        }
+        try {
+          const r = await fetch('/api/tpv-auth', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'setPin',
+              userId,
+              pin,
+              pinConfirm: pin2,
+            }),
+          })
+          const data = await r.json().catch(() => ({}))
+          if (!r.ok || !data.ok) {
+            if ($('gateErr')) $('gateErr').textContent = data.error || 'No se pudo guardar'
+            return
+          }
+          if ($('gateNewPin')) $('gateNewPin').value = ''
+          if ($('gateNewPin2')) $('gateNewPin2').value = ''
+          await unlockTpv(data.user || null)
+        } catch (err) {
+          console.warn('setPin', err)
+          if ($('gateErr')) $('gateErr').textContent = 'No se pudo guardar el PIN'
+        }
+      }
+
+      async function createTpvUser() {
+        const adminPin = String($('gateAdminPin')?.value || '').trim()
+        const name = String($('gateCreateName')?.value || '').trim()
+        if (!/^\d{4}$/.test(adminPin)) {
+          if ($('gateErr')) $('gateErr').textContent = 'PIN de permiso incorrecto'
+          return
+        }
+        if (!name) {
+          if ($('gateErr')) $('gateErr').textContent = 'Escribe un nombre'
+          return
+        }
+        try {
+          const r = await fetch('/api/tpv-auth', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'createUser',
+              adminPin,
+              name,
+            }),
+          })
+          const data = await r.json().catch(() => ({}))
+          if (!r.ok || !data.ok) {
+            if ($('gateErr')) $('gateErr').textContent = data.error || 'No se pudo crear'
+            return
+          }
+          if ($('gateAdminPin')) $('gateAdminPin').value = ''
+          if ($('gateCreateName')) $('gateCreateName').value = ''
+          if ($('gateErr')) {
+            $('gateErr').textContent = ''
+          }
+          alert(
+            `Usuario «${data.user?.name || name}» creado. Que configure su PIN en Primer acceso.`,
+          )
+          showGateMode('login')
+        } catch (err) {
+          console.warn('createUser', err)
+          if ($('gateErr')) $('gateErr').textContent = 'No se pudo crear el usuario'
         }
       }
 
@@ -3537,8 +3777,10 @@
         document.body.classList.add('tpv-locked')
         const gate = $('gate')
         if (gate) gate.hidden = false
+        showGateMode('login')
         pinBuf = ''
         paintPinDots()
+        applySessionUser(null)
         if ($('gateErr')) $('gateErr').textContent = msg || 'Sesión caducada — introduce el PIN'
         try { window.CasaTorinoTpvSync?.stop?.() } catch {}
         try { window.CasaTorinoTpvJornada?.stopPolling?.() } catch {}
@@ -3547,26 +3789,29 @@
         // Mantener tpvStarted: al desbloquear se reanuda sync sin recrear el runtime
       }
 
-      // Si ya hay cookie de sesión (p.ej. entraste por Gestión interna), no pedir PIN otra vez.
-      // Cocina kiosko / sala: sliding 24h en /api/tpv-auth.
+      // Si ya hay cookie de sesión con usuario, no pedir PIN otra vez.
+      // Sin usuario en la cookie (sesión antigua / cocina): pedir PIN de persona.
       async function tryResumeSession() {
         try {
           const r = await fetch('/api/tpv-auth', { credentials: 'same-origin', cache: 'no-store' })
           const data = await r.json().catch(() => ({}))
-          if (data && data.ok) {
-            document.body.classList.remove('tpv-locked')
-            const gate = $('gate')
-            if (gate) gate.hidden = true
-            if (!tpvStarted) {
-              tpvStarted = true
-              await bootTpvCatalog()
-              startTpv()
-            }
+          if (data && data.ok && data.user && data.user.id) {
+            await unlockTpv(data.user)
             return true
           }
         } catch {}
         return false
       }
+
+      $('gateBtnFirst')?.addEventListener('click', () => {
+        showGateMode('first')
+        void loadPendingUsers()
+      })
+      $('gateBtnCreate')?.addEventListener('click', () => showGateMode('create'))
+      $('gateFirstCancel')?.addEventListener('click', () => showGateMode('login'))
+      $('gateCreateCancel')?.addEventListener('click', () => showGateMode('login'))
+      $('gateFirstSave')?.addEventListener('click', () => void saveFirstAccessPin())
+      $('gateCreateSave')?.addEventListener('click', () => void createTpvUser())
 
       async function bootTpvCatalog() {
         try {
@@ -6905,30 +7150,19 @@
         `
       }
 
-      function paintPlanoWaiters(snap) {
-        const sel = $('planoWaiterSelect')
-        if (!sel || !window.CasaTorinoPlanoMesas) return
-        const list =
-          (snap && snap.waiters) ||
-          window.CasaTorinoPlanoMesas.listWaiters?.() ||
-          []
-        const cur = window.CasaTorinoPlanoMesas.getWaiter?.()
-        const curId = cur?.id || ''
-        sel.innerHTML =
-          '<option value="">— Elige camarera —</option>' +
-          list
-            .map(
-              (w) =>
-                `<option value="${w.id}" ${w.id === curId ? 'selected' : ''}>${w.name}</option>`,
-            )
-            .join('')
-        if (curId && !list.some((w) => w.id === curId)) sel.value = ''
+      function paintPlanoUserLabel() {
+        const label = $('planoUserLabel')
+        if (!label) return
+        const w =
+          window.CasaTorinoPlanoMesas?.getWaiter?.() || tpvSessionUser || null
+        const name = String(w?.name || '').trim()
+        label.textContent = name ? `Usuario: ${name}` : 'Usuario: —'
       }
 
       function planoHintForRole(role) {
         return role === 'central'
-          ? 'TPV central: elige camarera en el desplegable, toca mesa → carta. En el plano se ve quién atiende + total.'
-          : 'Móvil: elige tu nombre, toca una mesa (queda asignada a ti) y entras a la carta.'
+          ? 'TPV central: toca mesa → carta. En el plano se ve quién atiende + total. Si es de un compañero, te avisamos.'
+          : 'Móvil: toca una mesa (queda a tu nombre) y entras a la carta. Si es de un compañero, te avisamos.'
       }
 
       async function openPlanoModal() {
@@ -6937,10 +7171,14 @@
           alert('Plano no disponible en este dispositivo.')
           return
         }
+        if (tpvSessionUser) {
+          window.CasaTorinoPlanoMesas.setSessionWaiter?.(tpvSessionUser)
+        }
         const roleSel = $('planoRole')
         const role = window.CasaTorinoPlanoMesas.getRole()
         if (roleSel) roleSel.value = role
         if ($('planoHint')) $('planoHint').textContent = planoHintForRole(role)
+        paintPlanoUserLabel()
         // Abrir ya: no esperar a Realtime (evita modal vacío / “no funciona”)
         modal.hidden = false
         const floor = $('planoFloor')
@@ -6951,10 +7189,10 @@
         try {
           const snap = await window.CasaTorinoPlanoMesas.start((s) => {
             paintPlanoFloor(s)
-            paintPlanoWaiters(s)
+            paintPlanoUserLabel()
           })
           paintPlanoFloor(snap)
-          paintPlanoWaiters(snap)
+          paintPlanoUserLabel()
           // Totales locales en segundo plano (no bloquear la primera pintura)
           void Promise.resolve(
             window.CasaTorinoPlanoMesas.syncTotalsFromLocal?.(state.tables),
@@ -6985,65 +7223,15 @@
         const role = window.CasaTorinoPlanoMesas?.setRole?.(e.target.value)
         if ($('planoHint')) $('planoHint').textContent = planoHintForRole(role)
       })
-      $('planoWaiterSelect')?.addEventListener('change', (e) => {
-        const id = e.target.value
-        if (id) window.CasaTorinoPlanoMesas?.setWaiterById?.(id)
-      })
-      $('planoWaiterAdd')?.addEventListener('click', async () => {
-        const name = prompt('Nombre de la nueva camarera:')
-        if (name == null) return
-        try {
-          await window.CasaTorinoPlanoMesas.addWaiter(name)
-          paintPlanoWaiters(window.CasaTorinoPlanoMesas.getSnapshot())
-        } catch (err) {
-          alert(err.message || String(err))
-        }
-      })
-      $('planoWaiterEdit')?.addEventListener('click', async () => {
-        const sel = $('planoWaiterSelect')
-        const id = sel?.value
-        if (!id) {
-          alert('Elige una camarera en el desplegable.')
-          return
-        }
-        const cur = window.CasaTorinoPlanoMesas
-          .listWaiters()
-          .find((w) => w.id === id)
-        const name = prompt('Nuevo nombre:', cur?.name || '')
-        if (name == null) return
-        try {
-          await window.CasaTorinoPlanoMesas.updateWaiter(id, name)
-          paintPlanoWaiters(window.CasaTorinoPlanoMesas.getSnapshot())
-        } catch (err) {
-          alert(err.message || String(err))
-        }
-      })
-      $('planoWaiterDel')?.addEventListener('click', async () => {
-        const sel = $('planoWaiterSelect')
-        const id = sel?.value
-        if (!id) {
-          alert('Elige una camarera en el desplegable.')
-          return
-        }
-        const cur = window.CasaTorinoPlanoMesas
-          .listWaiters()
-          .find((w) => w.id === id)
-        if (!confirm(`¿Eliminar a ${cur?.name || 'esta camarera'}?`)) return
-        try {
-          await window.CasaTorinoPlanoMesas.removeWaiter(id)
-          paintPlanoWaiters(window.CasaTorinoPlanoMesas.getSnapshot())
-        } catch (err) {
-          alert(err.message || String(err))
-        }
-      })
       $('planoFloor')?.addEventListener('click', async (e) => {
         const btn = e.target.closest?.('[data-plano-mesa]')
         if (!btn) return
         const id = String(btn.getAttribute('data-plano-mesa') || '')
         if (!id) return
         try {
-          const sel = $('planoWaiterSelect')
-          if (sel?.value) window.CasaTorinoPlanoMesas.setWaiterById(sel.value)
+          if (tpvSessionUser) {
+            window.CasaTorinoPlanoMesas.setSessionWaiter?.(tpvSessionUser)
+          }
           const res = await window.CasaTorinoPlanoMesas.claimTable(id)
           if (!res || res.action !== 'open') return
           // Guardar camarera en el carrito de la mesa (sync a todos los dispositivos)

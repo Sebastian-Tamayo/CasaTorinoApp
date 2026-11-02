@@ -266,6 +266,21 @@ try {
   fail('tpv-version-aligned', err)
 }
 
+// —— 11) Usuarios TPV por PIN (sin función Hobby extra) ——
+try {
+  const auth = fs.readFileSync(path.join(root, 'api/tpv-auth.js'), 'utf8')
+  const users = fs.readFileSync(path.join(root, 'api/_tpvUsers.js'), 'utf8')
+  const html = fs.readFileSync(path.join(root, 'tpv.html'), 'utf8')
+  assert.ok(auth.includes("action === 'setPin'"))
+  assert.ok(auth.includes("action === 'createUser'"))
+  assert.ok(users.includes("CREATE_USER_PIN = '2908'"))
+  assert.ok(html.includes('gateBtnFirst') && html.includes('gateBtnCreate'))
+  assert.ok(!html.includes('planoWaiterAdd'))
+  ok('tpv-usuarios-pin')
+} catch (err) {
+  fail('tpv-usuarios-pin', err)
+}
+
 if (failed) {
   console.error('\n' + failed + ' test(s) failed')
   process.exit(1)
