@@ -97,7 +97,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr auto;
       gap: .55rem;
-      margin-bottom: 1rem;
+      margin-bottom: .65rem;
     }
     @media (max-width: 560px) {
       .monitor-toolbar { grid-template-columns: 1fr 1fr; }
@@ -122,6 +122,20 @@
     }
     .btn-refresh:disabled { opacity: .6; cursor: wait; }
 
+    .type-chips {
+      display: flex; flex-wrap: wrap; gap: .4rem;
+      margin: 0 0 1rem;
+    }
+    .type-chips button {
+      height: 34px; border-radius: 999px; border: 1px solid var(--line);
+      background: var(--card); color: var(--ink);
+      font: inherit; font-size: .78rem; font-weight: 800;
+      padding: 0 .75rem; cursor: pointer; touch-action: manipulation;
+    }
+    .type-chips button[aria-pressed="true"] {
+      background: #1a2332; color: #fff8e8; border-color: #1a2332;
+    }
+
     .monitor-section {
       background: var(--card);
       border: 1px solid var(--line);
@@ -139,24 +153,63 @@
       margin: 0; color: var(--muted); font-size: .9rem; font-weight: 600;
       padding: .55rem 0;
     }
-    .monitor-list { display: grid; gap: .45rem; max-height: 42vh; overflow: auto; }
+    .monitor-list { display: grid; gap: .55rem; max-height: 48vh; overflow: auto; }
     .monitor-row {
       display: grid;
-      grid-template-columns: 4.2rem 1fr;
-      gap: .35rem .65rem;
-      padding: .55rem .65rem;
-      border-radius: 12px;
+      grid-template-columns: auto 1fr;
+      gap: .55rem .75rem;
+      padding: .7rem .75rem;
+      border-radius: 14px;
       background: var(--bg-2);
       border: 1px solid var(--line);
+      border-left: 4px solid var(--tone, var(--line));
       font-size: .88rem;
     }
+    .monitor-row .when {
+      display: grid; gap: .15rem; align-content: start;
+      min-width: 3.6rem; text-align: center;
+    }
     .monitor-row time {
-      font-weight: 800; color: var(--muted); font-size: .78rem;
+      font-weight: 800; color: var(--ink); font-size: .82rem;
       font-variant-numeric: tabular-nums;
     }
-    .monitor-row strong { display: block; font-size: .92rem; }
-    .monitor-row span.meta {
-      display: block; color: var(--muted); font-size: .78rem; margin-top: .12rem;
+    .monitor-row .day {
+      font-size: .68rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase;
+    }
+    .monitor-row .body { min-width: 0; }
+    .monitor-row .topline {
+      display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .45rem;
+      margin-bottom: .28rem;
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: .3rem;
+      font-size: .72rem; font-weight: 800; letter-spacing: .02em;
+      padding: .18rem .5rem; border-radius: 999px;
+      background: color-mix(in srgb, var(--tone, #888) 16%, #fff);
+      color: #1a1204;
+    }
+    .mesa-chip {
+      display: inline-flex; align-items: center; gap: .25rem;
+      font-size: .72rem; font-weight: 800;
+      padding: .16rem .48rem; border-radius: 8px;
+      background: #1a2332; color: #fff8e8;
+    }
+    .monitor-row .who {
+      font-weight: 800; font-size: .95rem; color: var(--ink);
+    }
+    .monitor-row .action {
+      display: block; font-size: .9rem; font-weight: 700;
+      line-height: 1.35; margin-top: .1rem;
+    }
+    .monitor-row .detail {
+      display: block; color: var(--muted); font-size: .8rem;
+      font-weight: 600; margin-top: .22rem; line-height: 1.35;
+    }
+    .monitor-row .money {
+      display: inline-block; margin-top: .28rem;
+      font-weight: 800; font-size: .95rem; color: #0f7a3c;
+      font-variant-numeric: tabular-nums;
     }
     .monitor-tools {
       display: flex; justify-content: space-between; align-items: center;
@@ -205,7 +258,7 @@
         <div>
           <p class="eyebrow gold">Control</p>
           <h1>Monitor TPV</h1>
-          <p>Accesos y movimientos de mesa · sin sondeo automático</p>
+          <p>Quién hizo qué, en qué mesa y a qué hora · sin sondeo automático</p>
         </div>
       </div>
 
@@ -222,6 +275,13 @@
           <i class="fa-solid fa-arrows-rotate"></i> Actualizar
         </button>
       </div>
+      <div class="type-chips" id="typeChips" role="group" aria-label="Tipo de movimiento">
+        <button type="button" data-kind="" aria-pressed="true">Todos</button>
+        <button type="button" data-kind="carta" aria-pressed="false">Carta</button>
+        <button type="button" data-kind="cocina" aria-pressed="false">Cocina</button>
+        <button type="button" data-kind="cobro" aria-pressed="false">Cobros</button>
+        <button type="button" data-kind="mesa" aria-pressed="false">Mesas</button>
+      </div>
       <p class="monitor-status" id="monitorStatus"></p>
 
       <section class="monitor-section" aria-labelledby="loginsTitle">
@@ -231,7 +291,7 @@
       </section>
 
       <section class="monitor-section" aria-labelledby="eventsTitle">
-        <h2 id="eventsTitle"><i class="fa-solid fa-utensils"></i> Movimientos</h2>
+        <h2 id="eventsTitle"><i class="fa-solid fa-list-ul"></i> Movimientos</h2>
         <div class="monitor-list" id="eventsList"></div>
         <p class="monitor-empty" id="eventsEmpty" hidden>Aún no hay movimientos.</p>
       </section>
@@ -251,21 +311,144 @@
       let pinBuf = ''
       let cache = { logins: [], events: [] }
       let adminPin = ''
+      let filterKind = ''
 
-      const TYPE_LABEL = {
-        login: 'Entrada',
-        logout: 'Salida',
-        set_pin: 'Primer PIN',
-        cart_add: 'Añade producto',
-        cart_qty: 'Cambia cantidad',
-        cart_remove: 'Quita producto',
-        mesa_open: 'Abre mesa',
-        mesa_ajena: 'Mesa compañero',
-        cobro: 'Cobro mesa',
-        vaciar: 'Vaciar mesa',
-        kitchen_send: 'Envía a cocina',
-        kitchen_ready: 'Cocina listo',
-        kitchen_pickup: 'Recogida confirmada',
+      const TYPE_META = {
+        login: { label: 'Entrada', icon: 'fa-right-to-bracket', tone: '#3b82f6', kind: 'acceso' },
+        logout: { label: 'Salida', icon: 'fa-right-from-bracket', tone: '#64748b', kind: 'acceso' },
+        set_pin: { label: 'Primer PIN', icon: 'fa-key', tone: '#8b5cf6', kind: 'acceso' },
+        switch: { label: 'Cambio usuario', icon: 'fa-people-arrows', tone: '#6366f1', kind: 'acceso' },
+        cart_add: { label: 'Añade', icon: 'fa-plus', tone: '#0ea5e9', kind: 'carta' },
+        cart_qty: { label: 'Cantidad', icon: 'fa-arrows-up-down', tone: '#0284c7', kind: 'carta' },
+        cart_remove: { label: 'Quita', icon: 'fa-trash', tone: '#ef4444', kind: 'carta' },
+        mesa_open: { label: 'Abre mesa', icon: 'fa-door-open', tone: '#14b8a6', kind: 'mesa' },
+        mesa_ajena: { label: 'Mesa ajena', icon: 'fa-user-group', tone: '#f59e0b', kind: 'mesa' },
+        cobro: { label: 'Cobro', icon: 'fa-coins', tone: '#16a34a', kind: 'cobro' },
+        vaciar: { label: 'Vaciar', icon: 'fa-broom', tone: '#a855f7', kind: 'mesa' },
+        kitchen_send: { label: 'A cocina', icon: 'fa-fire-burner', tone: '#ea580c', kind: 'cocina' },
+        kitchen_ready: { label: 'Listo', icon: 'fa-bell', tone: '#f97316', kind: 'cocina' },
+        kitchen_pickup: { label: 'Recogido', icon: 'fa-hand', tone: '#c2410c', kind: 'cocina' },
+      }
+
+      function metaOf(type) {
+        return (
+          TYPE_META[type] || {
+            label: String(type || 'Movimiento'),
+            icon: 'fa-circle',
+            tone: '#94a3b8',
+            kind: '',
+          }
+        )
+      }
+
+      function esc(s) {
+        return String(s || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/"/g, '&quot;')
+      }
+
+      function moneyEs(n) {
+        const v = Number(n)
+        if (!Number.isFinite(v)) return ''
+        return (
+          v.toLocaleString('es-ES', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }) + ' €'
+        )
+      }
+
+      function qtyPhrase(r) {
+        const a = r.qtyBefore
+        const b = r.qtyAfter
+        if (a == null && b == null) return ''
+        if (r.type === 'cart_add') return `cantidad ${b ?? 1}`
+        if (r.type === 'cart_remove') return `quitó ${a ?? '?'} ud.`
+        return `de ${a ?? '—'} a ${b ?? '—'}`
+      }
+
+      function eventActionText(r) {
+        const item = String(r.item || '').trim()
+        const note = String(r.note || '').trim()
+        switch (r.type) {
+          case 'cart_add':
+            return item ? `Añadió «${item}»` : 'Añadió un producto'
+          case 'cart_qty':
+            return item
+              ? `Cambió cantidad de «${item}» (${qtyPhrase(r)})`
+              : `Cambió cantidad (${qtyPhrase(r)})`
+          case 'cart_remove':
+            return item ? `Quitó «${item}»` : 'Quitó un producto'
+          case 'mesa_open':
+            return 'Abrió la mesa'
+          case 'mesa_ajena':
+            return note
+              ? `Entró en mesa de otra persona (${note.replace(/^mesa de /i, '')})`
+              : 'Entró en mesa de otra persona'
+          case 'cobro': {
+            const how = note || ''
+            if (/parcial/i.test(how)) return 'Cobró (parcial)'
+            if (/completo/i.test(how)) return 'Cobró la mesa'
+            return 'Cobró'
+          }
+          case 'vaciar':
+            return 'Vació la cuenta de la mesa'
+          case 'kitchen_send':
+            return item ? `Envió a cocina: ${item}` : 'Envió pedido a cocina'
+          case 'kitchen_ready':
+            return item ? `Cocina marcó listo: ${item}` : 'Cocina marcó listo'
+          case 'kitchen_pickup':
+            return item ? `Confirmó recogida: ${item}` : 'Confirmó recogida de cocina'
+          default:
+            return metaOf(r.type).label + (item ? `: ${item}` : '')
+        }
+      }
+
+      function eventDetailText(r) {
+        const bits = []
+        if (r.type === 'cobro') {
+          const note = String(r.note || '')
+          const pay = note.includes('·')
+            ? note.split('·').slice(1).join('·').trim()
+            : note.replace(/parcial|completo/gi, '').replace(/^[·\s]+|[·\s]+$/g, '')
+          if (pay) bits.push('Pago: ' + pay)
+          if (/parcial/i.test(note)) bits.push('Solo una parte de la cuenta')
+        }
+        if (r.type === 'cart_add' || r.type === 'cart_qty' || r.type === 'cart_remove') {
+          const q = qtyPhrase(r)
+          if (q && r.type === 'cart_add') bits.push(q)
+        }
+        if (r.type === 'kitchen_send' && r.note) bits.push(String(r.note))
+        if (r.type === 'kitchen_ready' && r.note && r.note !== r.item) {
+          bits.push(String(r.note))
+        }
+        if (r.type === 'mesa_ajena' && r.note) {
+          /* ya va en action */
+        } else if (
+          r.note &&
+          !['cobro', 'kitchen_send', 'kitchen_ready', 'mesa_ajena', 'vaciar'].includes(
+            r.type,
+          )
+        ) {
+          bits.push(String(r.note))
+        }
+        return bits.filter(Boolean).join(' · ')
+      }
+
+      function loginActionText(r) {
+        const note = String(r.note || '').trim()
+        if (r.type === 'set_pin') {
+          if (/sin entrar/i.test(note)) return 'Creó su PIN (aún no entró al TPV)'
+          return 'Creó su PIN (primer acceso)'
+        }
+        if (r.type === 'switch' || /^desde /i.test(note)) {
+          return note ? `Cambió de usuario (${note})` : 'Cambió de usuario'
+        }
+        if (r.type === 'logout') return 'Cerró sesión'
+        if (note === 'tpv') return 'Entró al TPV'
+        if (note) return `Entró · ${note}`
+        return 'Entró al sistema'
       }
 
       function paintPinDots() {
@@ -302,6 +485,21 @@
           }).format(new Date(ms))
         } catch {
           return '--:--'
+        }
+      }
+
+      function formatDayShort(ms) {
+        const key = madridDayKey(ms)
+        if (!key) return ''
+        if (key === todayKey()) return 'hoy'
+        try {
+          return new Intl.DateTimeFormat('es-ES', {
+            timeZone: 'Europe/Madrid',
+            day: '2-digit',
+            month: 'short',
+          }).format(new Date(ms))
+        } catch {
+          return key.slice(5)
         }
       }
 
@@ -393,7 +591,7 @@
         if (/^\d$/.test(e.key)) onPinKey(e.key)
       })
 
-      function passesFilters(row) {
+      function passesFilters(row, { ignoreKind = false } = {}) {
         const user = String($('filterUser')?.value || '')
         const mesa = String($('filterMesa')?.value || '').trim()
         const onlyToday = Boolean($('filterToday')?.checked)
@@ -402,6 +600,10 @@
         }
         if (mesa && String(row.mesa || '') !== mesa) return false
         if (onlyToday && madridDayKey(row.t) !== todayKey()) return false
+        if (!ignoreKind && filterKind) {
+          const kind = metaOf(row.type).kind
+          if (kind !== filterKind) return false
+        }
         return true
       }
 
@@ -418,19 +620,44 @@
           '<option value="">Todos</option>' +
           [...names]
             .sort((a, b) => a.localeCompare(b, 'es'))
-            .map((n) => `<option value="${n.replace(/"/g, '')}">${n.replace(/</g, '&lt;')}</option>`)
+            .map((n) => `<option value="${esc(n)}">${esc(n)}</option>`)
             .join('')
         if (cur && [...names].includes(cur)) sel.value = cur
       }
 
-      function rowHtml(r, detail) {
-        const t = formatTime(r.t)
-        const who = String(r.userName || '—')
-        return `<article class="monitor-row">
-          <time datetime="${new Date(r.t).toISOString()}">${t}</time>
-          <div>
-            <strong>${who}</strong>
-            <span class="meta">${detail}</span>
+      function rowCard(r, opts) {
+        const m = metaOf(r.type)
+        const who = esc(r.userName || '—')
+        const mesa = r.mesa
+          ? `<span class="mesa-chip"><i class="fa-solid fa-chair"></i> Mesa ${esc(r.mesa)}</span>`
+          : ''
+        const money =
+          r.amount != null && Number.isFinite(Number(r.amount))
+            ? `<span class="money">${esc(moneyEs(r.amount))}</span>`
+            : ''
+        const detail = opts.detail
+          ? `<span class="detail">${esc(opts.detail)}</span>`
+          : ''
+        let iso = ''
+        try {
+          iso = new Date(r.t).toISOString()
+        } catch {
+          iso = ''
+        }
+        return `<article class="monitor-row" style="--tone:${m.tone}">
+          <div class="when">
+            <time datetime="${iso}">${esc(formatTime(r.t))}</time>
+            <span class="day">${esc(formatDayShort(r.t))}</span>
+          </div>
+          <div class="body">
+            <div class="topline">
+              <span class="badge"><i class="fa-solid ${m.icon}"></i> ${esc(m.label)}</span>
+              ${mesa}
+            </div>
+            <div class="who">${who}</div>
+            <span class="action">${esc(opts.action)}</span>
+            ${detail}
+            ${money}
           </div>
         </article>`
       }
@@ -439,7 +666,10 @@
         const list = $('loginsList')
         const empty = $('loginsEmpty')
         if (!list) return
-        const rows = cache.logins.filter(passesFilters)
+        // Accesos: no aplicar chip de tipo carta/cocina/cobro
+        const rows = cache.logins.filter((r) =>
+          passesFilters(r, { ignoreKind: true }),
+        )
         if (!rows.length) {
           list.innerHTML = ''
           if (empty) empty.hidden = false
@@ -447,11 +677,12 @@
         }
         if (empty) empty.hidden = true
         list.innerHTML = rows
-          .map((r) => {
-            const label = TYPE_LABEL[r.type] || r.type
-            const note = r.note ? ` · ${r.note}` : ''
-            return rowHtml(r, `${label}${note}`)
-          })
+          .map((r) =>
+            rowCard(r, {
+              action: loginActionText(r),
+              detail: '',
+            }),
+          )
           .join('')
       }
 
@@ -459,7 +690,7 @@
         const list = $('eventsList')
         const empty = $('eventsEmpty')
         if (!list) return
-        const rows = cache.events.filter(passesFilters)
+        const rows = cache.events.filter((r) => passesFilters(r))
         if (!rows.length) {
           list.innerHTML = ''
           if (empty) empty.hidden = false
@@ -467,22 +698,12 @@
         }
         if (empty) empty.hidden = true
         list.innerHTML = rows
-          .map((r) => {
-            const label = TYPE_LABEL[r.type] || r.type
-            const parts = [label]
-            if (r.mesa) parts.push(`Mesa ${r.mesa}`)
-            if (r.item) parts.push(r.item)
-            if (r.qtyBefore != null || r.qtyAfter != null) {
-              parts.push(`${r.qtyBefore ?? '—'}→${r.qtyAfter ?? '—'}`)
-            }
-            if (r.amount != null) {
-              parts.push(
-                Number(r.amount).toFixed(2).replace('.', ',') + ' €',
-              )
-            }
-            if (r.note) parts.push(r.note)
-            return rowHtml(r, parts.join(' · '))
-          })
+          .map((r) =>
+            rowCard(r, {
+              action: eventActionText(r),
+              detail: eventDetailText(r),
+            }),
+          )
           .join('')
       }
 
@@ -490,6 +711,20 @@
         fillUserFilter()
         paintLogins()
         paintEvents()
+      }
+
+      function setKindFilter(kind) {
+        filterKind = String(kind || '')
+        const chips = $('typeChips')
+        chips?.querySelectorAll('button[data-kind]')?.forEach((btn) => {
+          btn.setAttribute(
+            'aria-pressed',
+            String(btn.getAttribute('data-kind') || '') === filterKind
+              ? 'true'
+              : 'false',
+          )
+        })
+        paintAll()
       }
 
       async function loadAudit() {
@@ -533,6 +768,11 @@
       $('filterUser')?.addEventListener('change', paintAll)
       $('filterMesa')?.addEventListener('input', paintAll)
       $('filterToday')?.addEventListener('change', paintAll)
+      $('typeChips')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-kind]')
+        if (!btn) return
+        setKindFilter(btn.getAttribute('data-kind') || '')
+      })
 
       paintPinDots()
     })()
