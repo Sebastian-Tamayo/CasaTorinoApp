@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-10-25-reserva-rt1'
-const message = 'Importante: actualiza — avisos reserva por Supabase (menos CDN)'
+const required = '2026-11-02-monitor2'
+const message = 'Importante: actualiza — Monitor: cocina listo y recogidas'
 
 function forceInfo() {
   return { required, message }

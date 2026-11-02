@@ -17,6 +17,30 @@ const { getJson, updateJson } = require('./_opsStore')
 const { hasTpvSession } = require('./_tpvSession')
 const { applyKitchenDayRollover, opsDayId } = require('./_opsDay')
 const cocinaVersion = require('./_cocinaVersion')
+const { appendEvent } = require('./_tpvAudit')
+
+function auditKitchenReady(order, pickup) {
+  try {
+    const mesa = String(order?.mesa || pickup?.mesa || '').trim()
+    const items = Array.isArray(order?.items)
+      ? order.items
+          .map((it) => `${it.qty || 1}× ${it.name || '?'}`)
+          .join(', ')
+          .slice(0, 120)
+      : ''
+    void appendEvent({
+      type: 'kitchen_ready',
+      t: Date.now(),
+      userId: 'cocina',
+      userName: 'Cocina',
+      mesa,
+      item: items || String(pickup?.message || 'Listo').slice(0, 80),
+      note: pickup?.message || 'Listo',
+    }).catch((err) => console.warn('[kitchen] audit ready', err))
+  } catch (err) {
+    console.warn('[kitchen] audit ready', err)
+  }
+}
 
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'kitchen'
@@ -530,6 +554,9 @@ module.exports = async function handler(req, res) {
             )
             return { state, meta: { order: done, pickup } }
           })
+          if (meta.pickup || meta.order?.status === 'ready') {
+            auditKitchenReady(meta.order, meta.pickup)
+          }
           res.statusCode = 200
           res.setHeader('Content-Type', 'application/json')
           return res.end(

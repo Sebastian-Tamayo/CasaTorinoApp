@@ -22,13 +22,17 @@
   const CHANNEL = 'casa-torino-plano'
   const TPV_LIVE_CHANNEL = 'casa-torino-tpv-live'
 
+  /** Nombres alineados con usuarios TPV (PIN). Se sobrescriben desde ops_kv. */
   const DEFAULT_WAITERS = [
-    { id: 'w-ana', name: 'Ana' },
-    { id: 'w-lucia', name: 'Lucía' },
-    { id: 'w-maria', name: 'María' },
-    { id: 'w-carmen', name: 'Carmen' },
-    { id: 'w-paula', name: 'Paula' },
-    { id: 'w-elena', name: 'Elena' },
+    { id: 'u-tpv-fisico', name: 'TPV FÍSICO' },
+    { id: 'u-lore', name: 'Lore' },
+    { id: 'u-ali', name: 'Ali' },
+    { id: 'u-shari', name: 'Shari' },
+    { id: 'u-aleja', name: 'Aleja' },
+    { id: 'u-yuli', name: 'Yuli' },
+    { id: 'u-carol', name: 'Carol' },
+    { id: 'u-clara', name: 'Clara' },
+    { id: 'u-sebas', name: 'Sebas' },
   ]
 
   const DEFAULT_TABLES = [
@@ -149,6 +153,25 @@
   function setWaiterById(id) {
     const w = waiters.find((x) => x.id === String(id || ''))
     if (!w) return null
+    try {
+      localStorage.setItem(WAITER_KEY, JSON.stringify(w))
+    } catch {}
+    return w
+  }
+
+  /** Fija el usuario logueado por PIN como camarera activa del plano. */
+  function setSessionWaiter(user) {
+    if (!user || !user.id) return null
+    const id = String(user.id)
+    const name = String(user.name || id).trim().slice(0, 40) || id
+    let w = waiters.find((x) => x.id === id)
+    if (!w) {
+      w = { id, name }
+      waiters.push(w)
+    } else if (name && w.name !== name) {
+      w = { ...w, name }
+      waiters = waiters.map((x) => (x.id === id ? w : x))
+    }
     try {
       localStorage.setItem(WAITER_KEY, JSON.stringify(w))
     } catch {}
@@ -382,6 +405,15 @@
   function applyWaitersFromFloorValue(value) {
     const parsed = normalizeWaitersList(value?.waiters)
     if (parsed && parsed.length) {
+      // Migración: lista antigua Ana/Lucía… → plantilla usuarios PIN
+      const legacy = parsed.some((w) => String(w.id || '').startsWith('w-'))
+      if (legacy) {
+        waiters = DEFAULT_WAITERS.map((w) => ({ ...w }))
+        void persistWaiters().catch((err) =>
+          console.warn('[plano] migrate waiters', err),
+        )
+        return waiters
+      }
       waiters = parsed
       return waiters
     }
@@ -701,10 +733,10 @@
     const row = tables.find((t) => t.id === id)
     if (!row) throw new Error('Mesa no encontrada')
 
-    // Obligatorio en móvil Y en Windows: el plano debe mostrar quién gestiona la mesa
+    // Obligatorio: sesión TPV con usuario (PIN). Ya no hay desplegable de camareras.
     const waiter = getWaiter()
     if (!waiter) {
-      throw new Error('Elige qué camarera está accediendo en el desplegable')
+      throw new Error('Entra con tu PIN para identificar quién atiende la mesa')
     }
 
     const qty = cartQty(tpvCarts[id])
@@ -724,6 +756,8 @@
         action: 'open',
         tableId: id,
         role,
+        foreign: true,
+        ownerName: row.current_waiter_name || '',
         waiter: {
           id: row.current_waiter_id,
           name: row.current_waiter_name || '',
@@ -765,7 +799,7 @@
           : t,
       )
     }
-    return { action: 'open', tableId: id, role, waiter }
+    return { action: 'open', tableId: id, role, foreign: false, waiter }
   }
 
   async function freeTable(tableId) {
@@ -978,6 +1012,7 @@
     getWaiter,
     setWaiter,
     setWaiterById,
+    setSessionWaiter,
     listWaiters,
     addWaiter,
     updateWaiter,

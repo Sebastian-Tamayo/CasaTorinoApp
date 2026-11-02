@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Monitor TPV · Casa Torino</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#fff8e8" />
+  <link rel="icon" type="image/jpeg" href="assets/logo.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body.monitor-locked .monitor-page { display: none; }
+    body:not(.monitor-locked) .gate { display: none; }
+
+    .gate {
+      min-height: 100dvh; display: grid; place-items: center;
+      padding: 1.5rem 1rem 2rem;
+      background:
+        radial-gradient(900px 420px at 50% -10%, rgba(241,196,15,.18), transparent 55%),
+        var(--bg);
+    }
+    .gate-card {
+      width: min(380px, 100%);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.45rem 1.25rem 1.35rem;
+      text-align: center;
+    }
+    .gate-card img {
+      width: 84px; height: 84px; border-radius: 50%;
+      object-fit: cover; border: 2px solid var(--gold);
+      margin: 0 auto .85rem;
+    }
+    .gate-card h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.7rem; margin: 0 0 .3rem;
+    }
+    .gate-card p { margin: 0 0 1rem; color: var(--muted); font-size: .92rem; }
+    .gate-dots { display: flex; gap: .55rem; justify-content: center; margin-bottom: 1rem; }
+    .gate-dots i {
+      width: 12px; height: 12px; border-radius: 50%;
+      border: 2px solid rgba(26,35,50,.25); display: block;
+    }
+    .gate-dots i.on { background: var(--gold); border-color: var(--gold); }
+    .gate-pad {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: .55rem;
+    }
+    .gate-pad button {
+      height: 56px; border-radius: 14px; border: 1px solid var(--line);
+      background: var(--bg-2); color: var(--ink);
+      font-size: 1.25rem; font-weight: 800; cursor: pointer;
+      touch-action: manipulation;
+    }
+    .gate-pad button.ghost { font-size: .85rem; color: var(--muted); }
+    .gate-pad button:active { transform: scale(.97); }
+    .gate-err {
+      min-height: 1.2rem; margin-top: .7rem;
+      color: var(--red); font-weight: 700; font-size: .9rem;
+    }
+    .gate-back {
+      display: inline-block; margin-top: .9rem;
+      color: var(--muted); text-decoration: none; font-weight: 600; font-size: .88rem;
+    }
+
+    .monitor-page {
+      min-height: 100dvh;
+      padding: 1.25rem 1rem 2.5rem;
+      background:
+        radial-gradient(900px 420px at 50% -10%, rgba(241,196,15,.12), transparent 55%),
+        var(--bg);
+    }
+    .monitor-wrap {
+      width: min(720px, 100%);
+      margin: 0 auto;
+    }
+    .monitor-head {
+      display: flex; align-items: center; gap: .85rem;
+      margin-bottom: 1.1rem;
+    }
+    .monitor-head img {
+      width: 56px; height: 56px; border-radius: 50%;
+      object-fit: cover; border: 2px solid var(--gold);
+    }
+    .monitor-head h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.55rem; margin: 0 0 .15rem;
+    }
+    .monitor-head p { margin: 0; color: var(--muted); font-size: .88rem; }
+
+    .monitor-toolbar {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: .55rem;
+      margin-bottom: 1rem;
+    }
+    @media (max-width: 560px) {
+      .monitor-toolbar { grid-template-columns: 1fr 1fr; }
+      .monitor-toolbar .btn-refresh { grid-column: 1 / -1; }
+    }
+    .monitor-toolbar label {
+      display: grid; gap: .25rem;
+      font-size: .72rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .04em;
+    }
+    .monitor-toolbar select,
+    .monitor-toolbar input {
+      height: 42px; border-radius: 12px; border: 1px solid var(--line);
+      background: var(--card); color: var(--ink);
+      font: inherit; font-weight: 700; padding: 0 .7rem;
+    }
+    .btn-refresh {
+      align-self: end; height: 42px; border-radius: 12px;
+      border: 1px solid transparent; background: var(--gold); color: #1a1204;
+      font: inherit; font-weight: 800; cursor: pointer; padding: 0 1rem;
+      touch-action: manipulation;
+    }
+    .btn-refresh:disabled { opacity: .6; cursor: wait; }
+
+    .monitor-section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1rem 1rem 1.1rem;
+      margin-bottom: .9rem;
+    }
+    .monitor-section h2 {
+      margin: 0 0 .65rem; font-size: 1rem; font-weight: 800;
+      display: flex; align-items: center; gap: .45rem;
+    }
+    .monitor-section h2 i { color: var(--gold-2); }
+    .monitor-empty {
+      margin: 0; color: var(--muted); font-size: .9rem; font-weight: 600;
+      padding: .55rem 0;
+    }
+    .monitor-list { display: grid; gap: .45rem; max-height: 42vh; overflow: auto; }
+    .monitor-row {
+      display: grid;
+      grid-template-columns: 4.2rem 1fr;
+      gap: .35rem .65rem;
+      padding: .55rem .65rem;
+      border-radius: 12px;
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      font-size: .88rem;
+    }
+    .monitor-row time {
+      font-weight: 800; color: var(--muted); font-size: .78rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .monitor-row strong { display: block; font-size: .92rem; }
+    .monitor-row span.meta {
+      display: block; color: var(--muted); font-size: .78rem; margin-top: .12rem;
+    }
+    .monitor-tools {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: .75rem; margin-top: .35rem;
+    }
+    .monitor-back {
+      color: var(--muted); text-decoration: none; font-size: .88rem; font-weight: 600;
+    }
+    .monitor-back:hover { color: var(--gold-2); }
+    .monitor-status {
+      min-height: 1.1rem; color: var(--muted); font-size: .8rem; font-weight: 600;
+      margin: 0 0 .75rem;
+    }
+  </style>
+</head>
+<body class="monitor-locked">
+  <div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+    <div class="gate-card">
+      <img src="assets/logo.jpg" alt="Casa Torino" />
+      <h1 id="gateTitle">Monitor TPV</h1>
+      <p>PIN de permiso (2908)</p>
+      <div class="gate-dots" id="gateDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div class="gate-pad" id="gatePad">
+        <button type="button" data-k="1">1</button>
+        <button type="button" data-k="2">2</button>
+        <button type="button" data-k="3">3</button>
+        <button type="button" data-k="4">4</button>
+        <button type="button" data-k="5">5</button>
+        <button type="button" data-k="6">6</button>
+        <button type="button" data-k="7">7</button>
+        <button type="button" data-k="8">8</button>
+        <button type="button" data-k="9">9</button>
+        <button type="button" class="ghost" data-k="clear">Borrar</button>
+        <button type="button" data-k="0">0</button>
+        <button type="button" class="ghost" data-k="ok">Entrar</button>
+      </div>
+      <div class="gate-err" id="gateErr" aria-live="polite"></div>
+      <a class="gate-back" href="interno.html"><i class="fa-solid fa-arrow-left"></i> Volver</a>
+    </div>
+  </div>
+
+  <main class="monitor-page" id="monitorPage" hidden>
+    <div class="monitor-wrap">
+      <div class="monitor-head">
+        <img src="assets/logo.jpg" alt="" />
+        <div>
+          <p class="eyebrow gold">Control</p>
+          <h1>Monitor TPV</h1>
+          <p>Accesos y movimientos de mesa · sin sondeo automático</p>
+        </div>
+      </div>
+
+      <div class="monitor-toolbar">
+        <label>Usuario
+          <select id="filterUser" aria-label="Filtrar por usuario">
+            <option value="">Todos</option>
+          </select>
+        </label>
+        <label>Mesa
+          <input id="filterMesa" type="text" inputmode="numeric" maxlength="4" placeholder="nº" autocomplete="off" />
+        </label>
+        <button type="button" class="btn-refresh" id="btnRefresh">
+          <i class="fa-solid fa-arrows-rotate"></i> Actualizar
+        </button>
+      </div>
+      <p class="monitor-status" id="monitorStatus"></p>
+
+      <section class="monitor-section" aria-labelledby="loginsTitle">
+        <h2 id="loginsTitle"><i class="fa-solid fa-right-to-bracket"></i> Accesos</h2>
+        <div class="monitor-list" id="loginsList"></div>
+        <p class="monitor-empty" id="loginsEmpty" hidden>Aún no hay accesos registrados.</p>
+      </section>
+
+      <section class="monitor-section" aria-labelledby="eventsTitle">
+        <h2 id="eventsTitle"><i class="fa-solid fa-utensils"></i> Movimientos</h2>
+        <div class="monitor-list" id="eventsList"></div>
+        <p class="monitor-empty" id="eventsEmpty" hidden>Aún no hay movimientos.</p>
+      </section>
+
+      <div class="monitor-tools">
+        <a class="monitor-back" href="interno.html"><i class="fa-solid fa-arrow-left"></i> Gestión interna</a>
+        <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;font-weight:700;color:var(--muted)">
+          <input type="checkbox" id="filterToday" checked /> Solo hoy
+        </label>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      const $ = (id) => document.getElementById(id)
+      let pinBuf = ''
+      let cache = { logins: [], events: [] }
+      let adminPin = ''
+
+      const TYPE_LABEL = {
+        login: 'Entrada',
+        logout: 'Salida',
+        set_pin: 'Primer PIN',
+        cart_add: 'Añade producto',
+        cart_qty: 'Cambia cantidad',
+        cart_remove: 'Quita producto',
+        mesa_open: 'Abre mesa',
+        mesa_ajena: 'Mesa compañero',
+        cobro: 'Cobro mesa',
+        vaciar: 'Vaciar mesa',
+        kitchen_send: 'Envía a cocina',
+        kitchen_ready: 'Cocina listo',
+        kitchen_pickup: 'Recogida confirmada',
+      }
+
+      function paintPinDots() {
+        const dots = $('gateDots')?.querySelectorAll('i')
+        if (!dots) return
+        dots.forEach((el, i) => el.classList.toggle('on', i < pinBuf.length))
+      }
+
+      function madridDayKey(ms) {
+        try {
+          return new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Europe/Madrid',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          }).format(new Date(ms))
+        } catch {
+          return ''
+        }
+      }
+
+      function todayKey() {
+        return madridDayKey(Date.now())
+      }
+
+      function formatTime(ms) {
+        try {
+          return new Intl.DateTimeFormat('es-ES', {
+            timeZone: 'Europe/Madrid',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hourCycle: 'h23',
+          }).format(new Date(ms))
+        } catch {
+          return '--:--'
+        }
+      }
+
+      function unlock() {
+        document.body.classList.remove('monitor-locked')
+        const page = $('monitorPage')
+        if (page) page.hidden = false
+        const gate = $('gate')
+        if (gate) gate.hidden = true
+        void loadAudit()
+      }
+
+      function failPin(msg) {
+        pinBuf = ''
+        paintPinDots()
+        if ($('gateErr')) $('gateErr').textContent = msg || 'PIN incorrecto'
+      }
+
+      async function tryPin() {
+        if (pinBuf.length < 4) return
+        // Validar abriendo getAudit (una sola llamada)
+        try {
+          const r = await fetch('/api/tpv-auth', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'getAudit', adminPin: pinBuf }),
+          })
+          const data = await r.json().catch(() => ({}))
+          if (!r.ok || !data.ok) {
+            failPin(data.error || 'PIN incorrecto')
+            return
+          }
+          adminPin = pinBuf
+          pinBuf = ''
+          paintPinDots()
+          if ($('gateErr')) $('gateErr').textContent = ''
+          cache = {
+            logins: Array.isArray(data.logins) ? data.logins : [],
+            events: Array.isArray(data.events) ? data.events : [],
+          }
+          unlock()
+          paintAll()
+          if ($('monitorStatus')) {
+            $('monitorStatus').textContent = data.updatedAt
+              ? 'Última escritura: ' + formatTime(data.updatedAt)
+              : ''
+          }
+        } catch (err) {
+          console.warn('getAudit', err)
+          failPin('No se pudo cargar el monitor')
+        }
+      }
+
+      function onPinKey(k) {
+        if ($('gateErr')) $('gateErr').textContent = ''
+        if (k === 'clear') {
+          pinBuf = pinBuf.slice(0, -1)
+          paintPinDots()
+          return
+        }
+        if (k === 'ok') {
+          void tryPin()
+          return
+        }
+        if (!/^\d$/.test(k) || pinBuf.length >= 4) return
+        pinBuf += k
+        paintPinDots()
+        if (pinBuf.length === 4) setTimeout(() => void tryPin(), 80)
+      }
+
+      $('gatePad')?.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-k]')
+        if (!b) return
+        onPinKey(b.dataset.k)
+      })
+      window.addEventListener('keydown', (e) => {
+        if (!$('gate') || $('gate').hidden) return
+        if (e.key === 'Backspace') {
+          e.preventDefault()
+          onPinKey('clear')
+          return
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          onPinKey('ok')
+          return
+        }
+        if (/^\d$/.test(e.key)) onPinKey(e.key)
+      })
+
+      function passesFilters(row) {
+        const user = String($('filterUser')?.value || '')
+        const mesa = String($('filterMesa')?.value || '').trim()
+        const onlyToday = Boolean($('filterToday')?.checked)
+        if (user && String(row.userName || '') !== user && String(row.userId || '') !== user) {
+          return false
+        }
+        if (mesa && String(row.mesa || '') !== mesa) return false
+        if (onlyToday && madridDayKey(row.t) !== todayKey()) return false
+        return true
+      }
+
+      function fillUserFilter() {
+        const sel = $('filterUser')
+        if (!sel) return
+        const cur = sel.value
+        const names = new Set()
+        for (const r of [...cache.logins, ...cache.events]) {
+          const n = String(r.userName || '').trim()
+          if (n) names.add(n)
+        }
+        sel.innerHTML =
+          '<option value="">Todos</option>' +
+          [...names]
+            .sort((a, b) => a.localeCompare(b, 'es'))
+            .map((n) => `<option value="${n.replace(/"/g, '')}">${n.replace(/</g, '&lt;')}</option>`)
+            .join('')
+        if (cur && [...names].includes(cur)) sel.value = cur
+      }
+
+      function rowHtml(r, detail) {
+        const t = formatTime(r.t)
+        const who = String(r.userName || '—')
+        return `<article class="monitor-row">
+          <time datetime="${new Date(r.t).toISOString()}">${t}</time>
+          <div>
+            <strong>${who}</strong>
+            <span class="meta">${detail}</span>
+          </div>
+        </article>`
+      }
+
+      function paintLogins() {
+        const list = $('loginsList')
+        const empty = $('loginsEmpty')
+        if (!list) return
+        const rows = cache.logins.filter(passesFilters)
+        if (!rows.length) {
+          list.innerHTML = ''
+          if (empty) empty.hidden = false
+          return
+        }
+        if (empty) empty.hidden = true
+        list.innerHTML = rows
+          .map((r) => {
+            const label = TYPE_LABEL[r.type] || r.type
+            const note = r.note ? ` · ${r.note}` : ''
+            return rowHtml(r, `${label}${note}`)
+          })
+          .join('')
+      }
+
+      function paintEvents() {
+        const list = $('eventsList')
+        const empty = $('eventsEmpty')
+        if (!list) return
+        const rows = cache.events.filter(passesFilters)
+        if (!rows.length) {
+          list.innerHTML = ''
+          if (empty) empty.hidden = false
+          return
+        }
+        if (empty) empty.hidden = true
+        list.innerHTML = rows
+          .map((r) => {
+            const label = TYPE_LABEL[r.type] || r.type
+            const parts = [label]
+            if (r.mesa) parts.push(`Mesa ${r.mesa}`)
+            if (r.item) parts.push(r.item)
+            if (r.qtyBefore != null || r.qtyAfter != null) {
+              parts.push(`${r.qtyBefore ?? '—'}→${r.qtyAfter ?? '—'}`)
+            }
+            if (r.amount != null) {
+              parts.push(
+                Number(r.amount).toFixed(2).replace('.', ',') + ' €',
+              )
+            }
+            if (r.note) parts.push(r.note)
+            return rowHtml(r, parts.join(' · '))
+          })
+          .join('')
+      }
+
+      function paintAll() {
+        fillUserFilter()
+        paintLogins()
+        paintEvents()
+      }
+
+      async function loadAudit() {
+        if (!adminPin) return
+        const btn = $('btnRefresh')
+        if (btn) btn.disabled = true
+        if ($('monitorStatus')) $('monitorStatus').textContent = 'Cargando…'
+        try {
+          const r = await fetch('/api/tpv-auth', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'getAudit', adminPin }),
+          })
+          const data = await r.json().catch(() => ({}))
+          if (!r.ok || !data.ok) {
+            if ($('monitorStatus')) {
+              $('monitorStatus').textContent = data.error || 'Error al cargar'
+            }
+            return
+          }
+          cache = {
+            logins: Array.isArray(data.logins) ? data.logins : [],
+            events: Array.isArray(data.events) ? data.events : [],
+          }
+          paintAll()
+          if ($('monitorStatus')) {
+            $('monitorStatus').textContent = data.updatedAt
+              ? 'Actualizado · ' + formatTime(data.updatedAt)
+              : 'Actualizado'
+          }
+        } catch (err) {
+          console.warn('loadAudit', err)
+          if ($('monitorStatus')) $('monitorStatus').textContent = 'No se pudo actualizar'
+        } finally {
+          if (btn) btn.disabled = false
+        }
+      }
+
+      $('btnRefresh')?.addEventListener('click', () => void loadAudit())
+      $('filterUser')?.addEventListener('change', paintAll)
+      $('filterMesa')?.addEventListener('input', paintAll)
+      $('filterToday')?.addEventListener('change', paintAll)
+
+      paintPinDots()
+    })()
+  </script>
+</body>
+</html>

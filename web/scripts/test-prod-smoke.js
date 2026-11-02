@@ -266,6 +266,45 @@ try {
   fail('tpv-version-aligned', err)
 }
 
+// —— 11) Usuarios TPV por PIN (sin función Hobby extra) ——
+try {
+  const auth = fs.readFileSync(path.join(root, 'api/tpv-auth.js'), 'utf8')
+  const users = fs.readFileSync(path.join(root, 'api/_tpvUsers.js'), 'utf8')
+  const html = fs.readFileSync(path.join(root, 'tpv.html'), 'utf8')
+  assert.ok(auth.includes("action === 'setPin'"))
+  assert.ok(auth.includes("action === 'createUser'"))
+  assert.ok(users.includes("CREATE_USER_PIN = '2908'"))
+  assert.ok(html.includes('gateBtnFirst') && html.includes('gateBtnCreate'))
+  assert.ok(!html.includes('planoWaiterAdd'))
+  ok('tpv-usuarios-pin')
+} catch (err) {
+  fail('tpv-usuarios-pin', err)
+}
+
+// —— 12) Monitor TPV / audit (0 función nueva) ——
+try {
+  const auth = fs.readFileSync(path.join(root, 'api/tpv-auth.js'), 'utf8')
+  const audit = fs.readFileSync(path.join(root, 'api/_tpvAudit.js'), 'utf8')
+  const client = fs.readFileSync(path.join(root, 'tpvAudit.js'), 'utf8')
+  const monitor = fs.readFileSync(path.join(root, 'monitor.html'), 'utf8')
+  const interno = fs.readFileSync(path.join(root, 'interno.html'), 'utf8')
+  const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'))
+  assert.ok(auth.includes("action === 'getAudit'"))
+  assert.ok(audit.includes("AUDIT_KEY = 'tpv_audit'"))
+  assert.ok(client.includes('CasaTorinoTpvAudit'))
+  assert.ok(monitor.includes('getAudit') && monitor.includes('2908'))
+  assert.ok(monitor.includes('kitchen_send') && monitor.includes('kitchen_pickup'))
+  assert.ok(interno.includes('monitor.html'))
+  assert.ok(!JSON.stringify(vercel).includes('tpv-audit'))
+  const kitchen = fs.readFileSync(path.join(root, 'api/kitchen.js'), 'utf8')
+  assert.ok(kitchen.includes('auditKitchenReady') || kitchen.includes('kitchen_ready'))
+  const tpv = fs.readFileSync(path.join(root, 'tpv.html'), 'utf8')
+  assert.ok(tpv.includes("'kitchen_send'") && tpv.includes("'kitchen_pickup'"))
+  ok('tpv-monitor-audit')
+} catch (err) {
+  fail('tpv-monitor-audit', err)
+}
+
 if (failed) {
   console.error('\n' + failed + ' test(s) failed')
   process.exit(1)
