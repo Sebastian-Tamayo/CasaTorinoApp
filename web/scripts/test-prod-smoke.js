@@ -273,8 +273,11 @@ try {
   const html = fs.readFileSync(path.join(root, 'tpv.html'), 'utf8')
   assert.ok(auth.includes("action === 'setPin'"))
   assert.ok(auth.includes("action === 'createUser'"))
+  assert.ok(auth.includes("action === 'switchUser'"))
   assert.ok(users.includes("CREATE_USER_PIN = '2908'"))
+  assert.ok(users.includes('authenticateUserPin'))
   assert.ok(html.includes('gateBtnFirst') && html.includes('gateBtnCreate'))
+  assert.ok(html.includes('tpvUserSelect') && html.includes('tpvSwitchGate'))
   assert.ok(!html.includes('planoWaiterAdd'))
   ok('tpv-usuarios-pin')
 } catch (err) {

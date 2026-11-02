@@ -6,6 +6,7 @@
  * POST /api/tpv-auth  { "action": "setPin", userId, pin } → primer acceso
  * POST /api/tpv-auth  { "action": "createUser", adminPin, name, userPin } → alta
  * POST /api/tpv-auth  { "action": "listUsers" } → nombres (sesión OK)
+ * POST /api/tpv-auth  { "action": "switchUser", userId, pin } → cambio de usuario
  * POST /api/tpv-auth  { "action": "getAudit", adminPin } → monitor TPV
  * GET  /api/tpv-auth  → { ok, user }  (sliding cookie)
  * DELETE /api/tpv-auth → cierra sesión
@@ -28,6 +29,7 @@ const {
   setUserPin,
   createUser,
   authenticatePin,
+  authenticateUserPin,
   publicUser,
 } = require('./_tpvUsers')
 const { appendLogin, getAudit, adminPinOk } = require('./_tpvAudit')
@@ -180,6 +182,29 @@ module.exports = async function handler(req, res) {
           action: 'listUsers',
           users: (store.users || []).map(publicUser),
         })
+      }
+
+      if (action === 'switchUser') {
+        if (!hasTpvSession(req)) {
+          return json(res, 401, { ok: false, error: 'unauthorized' })
+        }
+        const from = getSessionUser(req)
+        const userId = String(body.userId || '').trim()
+        const pin = String(body.pin || '').trim()
+        if (!userId || !pin) {
+          return json(res, 401, { ok: false, error: 'PIN incorrecto' })
+        }
+        const user = await authenticateUserPin(userId, pin)
+        if (!user) {
+          return json(res, 401, { ok: false, error: 'PIN incorrecto' })
+        }
+        setSessionCookie(res, true, user)
+        auditLoginSafe(
+          'switch',
+          user,
+          from?.name ? `desde ${from.name}` : 'cambio de usuario',
+        )
+        return json(res, 200, { ok: true, action: 'switchUser', user })
       }
 
       if (action === 'getAudit') {

@@ -6,6 +6,7 @@ const assert = require('assert')
 const {
   hashPin,
   authenticatePin,
+  authenticateUserPin,
   loadUsersStore,
   setUserPin,
   createUser,
@@ -45,6 +46,16 @@ async function main() {
   assert.ok(neu && neu.name === 'Nueva' && neu.pinSet, 'create user with pin')
   const neuLogin = await authenticatePin('5555')
   assert.ok(neuLogin && neuLogin.name === 'Nueva', 'new user login')
+
+  // Cambio de usuario: PIN debe ser del elegido (no el de otra persona)
+  const asLore = await authenticateUserPin('u-lore', '2908')
+  assert.ok(asLore && asLore.name === 'Lore', 'switch lore ok')
+  const wrong = await authenticateUserPin('u-lore', '3212')
+  assert.strictEqual(wrong, null, 'sebas pin no vale para lore')
+  const asSebas = await authenticateUserPin('u-sebas', '3212')
+  assert.ok(asSebas && asSebas.name === 'Sebas', 'switch sebas ok')
+  const asFisico = await authenticateUserPin('u-tpv-fisico', '9999')
+  assert.ok(asFisico && asFisico.id === 'u-tpv-fisico', 'switch fisico env pin')
 
   console.log('OK test-tpv-users')
 }

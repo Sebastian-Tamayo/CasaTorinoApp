@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-02-pin-admin2'
-const message = 'Importante: actualiza — nuevo usuario: solo nombre y su PIN'
+const required = '2026-11-02-switch-user1'
+const message = 'Importante: actualiza — desplegable para cambiar de usuario con PIN'
 
 function forceInfo() {
   return { required, message }

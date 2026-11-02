@@ -1318,14 +1318,56 @@
     .gate-panel .gate-panel-actions .cancel {
       background: var(--card); color: var(--muted);
     }
-    .tpv-user-chip {
-      display: inline-flex; align-items: center; gap: .35rem;
-      padding: .28rem .55rem; border-radius: 999px;
-      border: 1px solid var(--line2); background: var(--card);
-      font-size: .78rem; font-weight: 800; color: var(--ink);
-      max-width: 9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    .tpv-user-switch {
+      display: inline-flex; align-items: center; max-width: 11rem;
     }
-    .tpv-user-chip[hidden] { display: none !important; }
+    .tpv-user-switch[hidden] { display: none !important; }
+    .tpv-user-switch select {
+      appearance: none; -webkit-appearance: none;
+      max-width: 11rem; min-width: 6.5rem;
+      padding: .28rem 1.55rem .28rem .55rem;
+      border-radius: 999px; border: 1px solid var(--line2);
+      background: var(--card)
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23a3a3af' d='M1 1l5 5 5-5'/%3E%3C/svg%3E")
+        no-repeat right .55rem center / .65rem;
+      font: inherit; font-size: .78rem; font-weight: 800; color: var(--ink);
+      cursor: pointer; touch-action: manipulation;
+    }
+    .tpv-switch-gate {
+      position: fixed; inset: 0; z-index: 12000;
+      display: flex; align-items: center; justify-content: center;
+      padding: 1rem; background: rgba(6, 10, 16, .88);
+    }
+    .tpv-switch-gate[hidden] { display: none !important; }
+    .tpv-switch-card {
+      width: min(20rem, 100%);
+      background: var(--card); border: 1px solid var(--line2);
+      border-radius: 18px; padding: 1.1rem 1rem 1rem;
+      text-align: center;
+    }
+    .tpv-switch-card h2 {
+      margin: 0 0 .35rem; font-size: 1.05rem; font-weight: 900; color: var(--ink);
+    }
+    .tpv-switch-card p {
+      margin: 0 0 .75rem; font-size: .85rem; color: var(--muted);
+    }
+    .tpv-switch-card .gate-dots { justify-content: center; margin-bottom: .75rem; }
+    .tpv-switch-card .gate-pad {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: .45rem;
+      margin: 0 auto .65rem; max-width: 14rem;
+    }
+    .tpv-switch-card .gate-pad button {
+      height: 46px; border-radius: 12px; border: 1px solid var(--line2);
+      background: var(--bg); color: var(--ink); font: inherit; font-weight: 800;
+      cursor: pointer; touch-action: manipulation;
+    }
+    .tpv-switch-card .gate-pad button.ghost { color: var(--muted); font-size: .78rem; }
+    .tpv-switch-card .gate-err { min-height: 1.2em; color: #f87171; font-size: .85rem; font-weight: 700; }
+    .tpv-switch-card .tpv-switch-cancel {
+      margin-top: .35rem; width: 100%; height: 42px; border-radius: 12px;
+      border: 1px solid var(--line2); background: transparent; color: var(--muted);
+      font: inherit; font-weight: 800; cursor: pointer; touch-action: manipulation;
+    }
     body.tpv-locked .app,
     body.tpv-locked .backdrop,
     body.tpv-locked .fab { visibility: hidden; pointer-events: none; }
@@ -2709,6 +2751,30 @@
     </div>
   </div>
 
+  <div class="tpv-switch-gate" id="tpvSwitchGate" hidden role="dialog" aria-modal="true" aria-labelledby="tpvSwitchTitle">
+    <div class="tpv-switch-card">
+      <h2 id="tpvSwitchTitle">Cambiar usuario</h2>
+      <p id="tpvSwitchSub">Introduce el PIN de este usuario</p>
+      <div class="gate-dots" id="tpvSwitchDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div class="gate-pad" id="tpvSwitchPad">
+        <button type="button" data-k="1">1</button>
+        <button type="button" data-k="2">2</button>
+        <button type="button" data-k="3">3</button>
+        <button type="button" data-k="4">4</button>
+        <button type="button" data-k="5">5</button>
+        <button type="button" data-k="6">6</button>
+        <button type="button" data-k="7">7</button>
+        <button type="button" data-k="8">8</button>
+        <button type="button" data-k="9">9</button>
+        <button type="button" class="ghost" data-k="clear">Borrar</button>
+        <button type="button" data-k="0">0</button>
+        <button type="button" class="ghost" data-k="ok">Entrar</button>
+      </div>
+      <div class="gate-err" id="tpvSwitchErr" aria-live="polite"></div>
+      <button type="button" class="tpv-switch-cancel" id="tpvSwitchCancel">Cancelar</button>
+    </div>
+  </div>
+
   <div class="app">
     <header class="topbar">
       <div class="brand">
@@ -2717,7 +2783,9 @@
           <strong>Casa Torino</strong>
           <em>TPV · pedidos por mesa</em>
         </div>
-        <span class="tpv-user-chip" id="tpvUserChip" hidden title="Usuario TPV"></span>
+        <label class="tpv-user-switch" id="tpvUserSwitch" hidden title="Cambiar de usuario">
+          <select id="tpvUserSelect" aria-label="Usuario TPV"></select>
+        </label>
       </div>
       <div class="top-tools">
         <div class="clock" id="clock">--:--</div>
@@ -3273,7 +3341,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-02-pin-admin2'
+      const TPV_CLIENT_VERSION = '2026-11-02-switch-user1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3413,7 +3481,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=pin-admin2')
+            .register('/sw-tpv.js?v=switch-user1')
             .catch(() => {})
         })
         try {
@@ -3518,24 +3586,149 @@
       }
 
       let tpvSessionUser = null
+      let tpvUsersCache = []
+      let tpvSwitchTarget = null
+      let tpvSwitchPinBuf = ''
+      let tpvUserSelectLock = false
 
-      function paintTpvUserChip(user) {
-        const chip = $('tpvUserChip')
-        if (!chip) return
+      function paintTpvUserSelect(user) {
+        const wrap = $('tpvUserSwitch')
+        const sel = $('tpvUserSelect')
+        if (!wrap || !sel) return
         const name = String(user?.name || '').trim()
-        if (!name) {
-          chip.hidden = true
-          chip.textContent = ''
+        const id = String(user?.id || '')
+        if (!name || !id) {
+          wrap.hidden = true
           return
         }
-        chip.hidden = false
-        chip.textContent = name
-        chip.title = 'Sesión TPV: ' + name
+        wrap.hidden = false
+        const list = Array.isArray(tpvUsersCache) ? tpvUsersCache.slice() : []
+        if (!list.some((u) => u.id === id)) {
+          list.unshift({ id, name, pinSet: true })
+        }
+        list.sort((a, b) => String(a.name).localeCompare(String(b.name), 'es'))
+        tpvUserSelectLock = true
+        sel.innerHTML = list
+          .map(
+            (u) =>
+              `<option value="${String(u.id).replace(/"/g, '')}">${String(u.name || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')}</option>`,
+          )
+          .join('')
+        sel.value = id
+        tpvUserSelectLock = false
+        wrap.title = 'Cambiar de usuario · ahora: ' + name
+      }
+
+      async function refreshTpvUsersList() {
+        try {
+          const r = await fetch('/api/tpv-auth', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'listUsers' }),
+          })
+          const data = await r.json().catch(() => ({}))
+          if (!r.ok || !data.ok) return
+          tpvUsersCache = (Array.isArray(data.users) ? data.users : []).filter(
+            (u) => u && u.id && u.name && (u.pinSet || u.id === 'u-tpv-fisico'),
+          )
+          paintTpvUserSelect(tpvSessionUser)
+        } catch (err) {
+          console.warn('listUsers', err)
+        }
+      }
+
+      function paintSwitchDots() {
+        const dots = $('tpvSwitchDots')
+        if (!dots) return
+        const n = tpvSwitchPinBuf.length
+        ;[...dots.querySelectorAll('i')].forEach((el, i) => {
+          el.classList.toggle('on', i < n)
+        })
+      }
+
+      function closeSwitchGate(restore) {
+        const gate = $('tpvSwitchGate')
+        if (gate) gate.hidden = true
+        tpvSwitchTarget = null
+        tpvSwitchPinBuf = ''
+        paintSwitchDots()
+        if ($('tpvSwitchErr')) $('tpvSwitchErr').textContent = ''
+        if (restore) paintTpvUserSelect(tpvSessionUser)
+      }
+
+      function openSwitchGate(user) {
+        if (!user || !user.id) return
+        tpvSwitchTarget = user
+        tpvSwitchPinBuf = ''
+        paintSwitchDots()
+        if ($('tpvSwitchTitle')) $('tpvSwitchTitle').textContent = user.name || 'Usuario'
+        if ($('tpvSwitchSub')) {
+          $('tpvSwitchSub').textContent = `Introduce el PIN de ${user.name || 'este usuario'}`
+        }
+        if ($('tpvSwitchErr')) $('tpvSwitchErr').textContent = ''
+        const gate = $('tpvSwitchGate')
+        if (gate) gate.hidden = false
+      }
+
+      async function trySwitchUser() {
+        if (!tpvSwitchTarget || tpvSwitchPinBuf.length < 4) return
+        const pin = tpvSwitchPinBuf
+        try {
+          const r = await fetch('/api/tpv-auth', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'switchUser',
+              userId: tpvSwitchTarget.id,
+              pin,
+            }),
+          })
+          const data = await r.json().catch(() => ({}))
+          if (!r.ok || !data.ok || !data.user) {
+            tpvSwitchPinBuf = ''
+            paintSwitchDots()
+            if ($('tpvSwitchErr')) {
+              $('tpvSwitchErr').textContent = data.error || 'PIN incorrecto'
+            }
+            return
+          }
+          closeSwitchGate(false)
+          applySessionUser(data.user)
+          await refreshTpvUsersList()
+        } catch (err) {
+          console.warn('switchUser', err)
+          tpvSwitchPinBuf = ''
+          paintSwitchDots()
+          if ($('tpvSwitchErr')) $('tpvSwitchErr').textContent = 'No se pudo cambiar'
+        }
+      }
+
+      function onSwitchPadKey(k) {
+        if (k === 'clear') {
+          tpvSwitchPinBuf = ''
+          paintSwitchDots()
+          if ($('tpvSwitchErr')) $('tpvSwitchErr').textContent = ''
+          return
+        }
+        if (k === 'ok') {
+          void trySwitchUser()
+          return
+        }
+        if (!/^\d$/.test(k)) return
+        if (tpvSwitchPinBuf.length >= 4) return
+        tpvSwitchPinBuf += k
+        paintSwitchDots()
+        if ($('tpvSwitchErr')) $('tpvSwitchErr').textContent = ''
+        if (tpvSwitchPinBuf.length === 4) void trySwitchUser()
       }
 
       function applySessionUser(user) {
         tpvSessionUser = user && user.id ? user : null
-        paintTpvUserChip(tpvSessionUser)
+        paintTpvUserSelect(tpvSessionUser)
         try {
           if (tpvSessionUser) {
             window.CasaTorinoPlanoMesas?.setSessionWaiter?.(tpvSessionUser)
@@ -3580,6 +3773,7 @@
         if (gate) gate.hidden = true
         showGateMode('login')
         unlockTpvAudio()
+        void refreshTpvUsersList()
         if (!tpvStarted) {
           tpvStarted = true
           await bootTpvCatalog()
@@ -3822,6 +4016,36 @@
       $('gateCreateCancel')?.addEventListener('click', () => showGateMode('login'))
       $('gateFirstSave')?.addEventListener('click', () => void saveFirstAccessPin())
       $('gateCreateSave')?.addEventListener('click', () => void createTpvUser())
+
+      $('tpvUserSelect')?.addEventListener('change', () => {
+        if (tpvUserSelectLock) return
+        const sel = $('tpvUserSelect')
+        const nextId = String(sel?.value || '')
+        const curId = String(tpvSessionUser?.id || '')
+        if (!nextId || nextId === curId) {
+          paintTpvUserSelect(tpvSessionUser)
+          return
+        }
+        const target =
+          tpvUsersCache.find((u) => u.id === nextId) ||
+          [...sel.options]
+            .map((o) => ({ id: o.value, name: o.textContent }))
+            .find((u) => u.id === nextId)
+        if (!target) {
+          paintTpvUserSelect(tpvSessionUser)
+          return
+        }
+        openSwitchGate(target)
+      })
+      $('tpvUserSelect')?.addEventListener('focus', () => {
+        void refreshTpvUsersList()
+      })
+      $('tpvSwitchPad')?.addEventListener('click', (ev) => {
+        const btn = ev.target?.closest?.('button[data-k]')
+        if (!btn) return
+        onSwitchPadKey(btn.getAttribute('data-k') || '')
+      })
+      $('tpvSwitchCancel')?.addEventListener('click', () => closeSwitchGate(true))
 
       async function bootTpvCatalog() {
         try {

@@ -1,5 +1,5 @@
 {
-  "required": "2026-11-02-pin-admin2",
-  "message": "Importante: actualiza — nuevo usuario: solo nombre y su PIN",
-  "updatedAt": "2026-11-02T09:05:00.000Z"
+  "required": "2026-11-02-switch-user1",
+  "message": "Importante: actualiza — desplegable para cambiar de usuario con PIN",
+  "updatedAt": "2026-11-02T09:00:00.000Z"
 }

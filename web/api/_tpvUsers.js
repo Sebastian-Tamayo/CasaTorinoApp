@@ -242,6 +242,28 @@ async function authenticatePin(pin) {
   return null
 }
 
+/**
+ * Cambio de usuario: el PIN debe pertenecer exactamente a userId
+ * (no vale el PIN de otra persona). TPV FÍSICO también acepta TPV_PIN env.
+ */
+async function authenticateUserPin(userId, pin) {
+  const id = String(userId || '').trim()
+  const p = String(pin || '').trim()
+  if (!id || !p) return null
+  const store = await loadUsersStore()
+  const u = findById(store, id)
+  if (!u) return null
+  const h = hashPin(p)
+  if (u.pinSet && u.pinHash && h && u.pinHash === h) {
+    return publicUser(u)
+  }
+  if (u.id === 'u-tpv-fisico') {
+    const envPin = String(process.env.TPV_PIN || '').trim()
+    if (envPin && p === envPin) return publicUser(u)
+  }
+  return null
+}
+
 module.exports = {
   USERS_KEY,
   CREATE_USER_PIN,
@@ -253,6 +275,7 @@ module.exports = {
   setUserPin,
   createUser,
   authenticatePin,
+  authenticateUserPin,
   findById,
   syncFloorWaiters,
 }
