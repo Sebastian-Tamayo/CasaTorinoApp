@@ -3341,7 +3341,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-02-reset-sebas1'
+      const TPV_CLIENT_VERSION = '2026-11-02-primer-msg1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3481,7 +3481,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=reset-sebas1')
+            .register('/sw-tpv.js?v=primer-msg1')
             .catch(() => {})
         })
         try {
@@ -3895,7 +3895,15 @@
           const data = await r.json().catch(() => ({}))
           const list = Array.isArray(data.users) ? data.users : []
           if (!list.length) {
-            sel.innerHTML = '<option value="">No quedan usuarios sin PIN</option>'
+            sel.innerHTML = '<option value="">No hay nadie pendiente de PIN</option>'
+            if ($('gateErr')) {
+              $('gateErr').textContent =
+                'Si ya tienes PIN (p. ej. Sebas), pulsa Cancelar e introdúcelo en la pantalla principal'
+            }
+            if ($('gateSub')) {
+              $('gateSub').textContent =
+                'Primer acceso solo para quien aún no tiene PIN'
+            }
             return
           }
           sel.innerHTML =

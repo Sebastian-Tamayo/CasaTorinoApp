@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-02-reset-sebas1'
-const message = 'Importante: actualiza — usuarios reiniciados; entra con tu PIN'
+const required = '2026-11-02-primer-msg1'
+const message = 'Importante: actualiza — si ya tienes PIN, úsalo en la pantalla principal'
 
 function forceInfo() {
   return { required, message }
