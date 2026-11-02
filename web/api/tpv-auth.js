@@ -223,17 +223,27 @@ module.exports = async function handler(req, res) {
           return json(res, 400, { ok: false, error: 'Los PIN no coinciden' })
         }
         try {
+          // Siempre guarda el PIN (primer acceso). Entrar solo si allowTpvLogin.
           const user = await setUserPin(userId, pin)
           const allowed = await allowTpvLogin(user)
-          if (!allowed) {
-            return json(res, 403, {
-              ok: false,
-              error: bootstrapLoginDeniedMessage(),
+          if (allowed) {
+            await issueSession(res, user)
+            auditLoginSafe('set_pin', user, 'primer acceso')
+            return json(res, 200, {
+              ok: true,
+              action: 'setPin',
+              user,
+              entered: true,
             })
           }
-          await issueSession(res, user)
-          auditLoginSafe('set_pin', user, 'primer acceso')
-          return json(res, 200, { ok: true, action: 'setPin', user })
+          auditLoginSafe('set_pin', user, 'primer acceso (sin entrar)')
+          return json(res, 200, {
+            ok: true,
+            action: 'setPin',
+            user,
+            entered: false,
+            message: bootstrapLoginDeniedMessage(),
+          })
         } catch (err) {
           return json(res, 400, {
             ok: false,

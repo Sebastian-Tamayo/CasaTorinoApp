@@ -28,26 +28,41 @@ async function main() {
   assert.ok(store.storeVersion >= USERS_STORE_VERSION, 'store version')
   assert.ok(store.sessionEpoch > 0, 'session epoch')
   assert.ok(store.users.length >= 9, 'fisico + staff seed')
-  assert.ok(store.users.some((u) => u.id === 'u-tpv-fisico' && u.pinSet), 'fisico con PIN')
+  // v8: NADIE tiene PIN al seed (incluido TPV FÍSICO)
+  assert.ok(
+    store.users.every((u) => !u.pinSet),
+    'seed sin PINs',
+  )
+  assert.ok(store.users.some((u) => u.id === 'u-tpv-fisico' && !u.pinSet))
 
   const pending = pendingUsers(store)
+  assert.ok(pending.some((u) => u.id === 'u-tpv-fisico'), 'fisico primer acceso')
   assert.ok(pending.some((u) => u.name === 'Sebas'), 'sebas primer acceso')
   assert.ok(pending.some((u) => u.name === 'Lore'), 'lore primer acceso')
   assert.ok(pending.some((u) => u.name === 'Ali'), 'ali primer acceso')
 
   const gate = gateUsers(store)
-  assert.ok(gate.some((u) => u.id === 'u-tpv-fisico' && u.pinSet))
+  assert.ok(gate.some((u) => u.id === 'u-tpv-fisico' && !u.pinSet))
   assert.ok(gate.some((u) => u.name === 'Sebas' && !u.pinSet))
 
-  const fisico = await authenticatePin('2908')
-  assert.ok(fisico && fisico.id === 'u-tpv-fisico')
+  // Sin PIN aún: no autentica
+  assert.strictEqual(await authenticatePin('2908'), null)
+  assert.strictEqual(await authenticateUserPin('u-tpv-fisico', '2908'), null)
+
+  // CREATE_USER_PIN sigue valiendo para alta (no es login de caja)
+  assert.ok(await adminPinOk(CREATE_USER_PIN))
+
+  const fisicoP = pending.find((u) => u.id === 'u-tpv-fisico')
+  const fisico = await setUserPin(fisicoP.id, '2908')
+  assert.ok(fisico.pinSet)
+  assert.ok(await authenticatePin('2908'))
   assert.ok(await authenticateUserPin('u-tpv-fisico', '2908'))
   assert.ok(await allowTpvLogin(fisico))
   assert.ok(BOOTSTRAP_USER_IDS.has('u-tpv-fisico'))
   assert.ok(BOOTSTRAP_USER_IDS.has('u-lore') && BOOTSTRAP_USER_IDS.has('u-sebas'))
   assert.ok(await adminPinOk('2908'))
 
-  const sebasP = pending.find((u) => u.name === 'Sebas')
+  const sebasP = pendingUsers(await loadUsersStore()).find((u) => u.name === 'Sebas')
   const sebas = await setUserPin(sebasP.id, '3212')
   assert.ok(sebas.pinSet)
   assert.ok(await allowTpvLogin(sebas))

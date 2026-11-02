@@ -16,23 +16,21 @@ const JORNADA_KEY = 'jornada'
  * Subir esto fuerza reseedar usuarios + nuevo sessionEpoch
  * (invalida cookies; NO toca mesas/jornada/cocina).
  */
-const USERS_STORE_VERSION = 7
-/** PIN del TPV físico / admin de alta. No exponer en UI. */
+const USERS_STORE_VERSION = 8
+/** PIN admin para «Nuevo usuario» / monitor (confirmación). No es el PIN de login. */
 const CREATE_USER_PIN = '2908'
 /**
- * Acceso a cualquier hora (sin jornada / tras fin):
+ * Acceso a cualquier hora (sin jornada / tras fin), una vez tengan PIN:
  * caja física + Lore + Sebas.
  */
 const BOOTSTRAP_USER_IDS = new Set(['u-tpv-fisico', 'u-lore', 'u-sebas'])
 
 /**
- * TPV FÍSICO ya con PIN 2908. Lore/Sebas/camareras → Primer acceso (eligen PIN).
- * Reseed solo toca tpv_users + epoch (mesas/jornada intactas).
- * Todos deben logarse (elegir nombre + PIN); dentro del TPV el desplegable
- * cambia de usuario pidiendo el PIN de ese usuario.
+ * TODOS sin PIN (incluido TPV FÍSICO) → Primer acceso al mismo nivel.
+ * Reseed + epoch: echa sesiones; NO toca mesas/jornada/cocina.
  */
 const SEED_USERS = [
-  { id: 'u-tpv-fisico', name: 'TPV FÍSICO', role: 'central', pin: '2908' },
+  { id: 'u-tpv-fisico', name: 'TPV FÍSICO', role: 'central' },
   { id: 'u-lore', name: 'Lore', role: 'admin' },
   { id: 'u-sebas', name: 'Sebas', role: 'admin' },
   { id: 'u-ali', name: 'Ali', role: 'staff' },
@@ -114,50 +112,12 @@ function seedFromDefaults() {
 /** Memoria local si no hay Supabase (tests / boot sin env). */
 let memoryStore = null
 
-/** Garantiza caja física con PIN admin (por si un seed viejo la dejó sin PIN). */
-async function ensureFisicoBootstrap(store) {
-  let list = Array.isArray(store?.users) ? store.users.slice() : []
-  let f = list.find((u) => u && u.id === 'u-tpv-fisico')
-  let changed = false
-  if (!f) {
-    f = {
-      id: 'u-tpv-fisico',
-      name: 'TPV FÍSICO',
-      role: 'central',
-      pinHash: '',
-      pinSet: false,
-    }
-    list.unshift(f)
-    changed = true
-  }
-  if (!f.pinSet || !f.pinHash) {
-    const pinHash = hashPin(CREATE_USER_PIN)
-    if (pinHash) {
-      f.pinHash = pinHash
-      f.pinSet = true
-      f.role = 'central'
-      f.name = f.name || 'TPV FÍSICO'
-      changed = true
-    }
-  }
-  if (!changed) return store
-  const next = {
-    ...store,
-    users: list.map((u) =>
-      u.id === 'u-tpv-fisico' ? f : u,
-    ),
-    storeVersion: Math.max(Number(store.storeVersion) || 0, USERS_STORE_VERSION),
-    sessionEpoch: Number(store.sessionEpoch) || Date.now(),
-  }
-  return saveUsersStore(next)
-}
-
 async function loadUsersStore() {
   if (!hasSupabase()) {
     if (!memoryStore || memoryStore.storeVersion < USERS_STORE_VERSION) {
       memoryStore = seedFromDefaults()
     }
-    return ensureFisicoBootstrap(memoryStore)
+    return memoryStore
   }
   const raw = await getJson(USERS_KEY, null)
   const normalized = raw && Array.isArray(raw.users) ? normalizeStore(raw) : null
@@ -179,9 +139,9 @@ async function loadUsersStore() {
     } catch (err) {
       console.warn('[tpv-users] seed', err)
     }
-    return ensureFisicoBootstrap(seeded)
+    return seeded
   }
-  return ensureFisicoBootstrap(normalized)
+  return normalized
 }
 
 async function saveUsersStore(store) {
@@ -237,8 +197,9 @@ function findById(store, id) {
 }
 
 function pendingUsers(store) {
+  // Incluye TPV FÍSICO: todos al mismo nivel en Primer acceso
   return (store.users || [])
-    .filter((u) => !u.pinSet && u.role !== 'central')
+    .filter((u) => u && u.id && u.name && !u.pinSet)
     .map((u) => ({ id: u.id, name: u.name }))
 }
 
@@ -255,7 +216,7 @@ function gateUsers(store) {
     .sort((a, b) => a.name.localeCompare(b.name, 'es'))
 }
 
-/** Admin = PIN de usuarios bootstrap (ahora TPV FÍSICO = 2908). */
+/** Admin = CREATE_USER_PIN o PIN real de un bootstrap (tras primer acceso). */
 async function adminPinOk(pin) {
   const p = String(pin || '').trim()
   if (!p) return false
@@ -335,7 +296,8 @@ async function createUser(name, adminPin, userPin) {
 }
 
 /**
- * Login: PIN de usuario, o TPV_PIN de entorno → TPV FÍSICO (compat cocina/interno).
+ * Login solo por PIN de usuario (debe haber hecho Primer acceso).
+ * TPV_PIN de entorno → TPV FÍSICO solo si la caja ya tiene PIN propio.
  */
 async function authenticatePin(pin) {
   const p = String(pin || '').trim()
@@ -347,31 +309,21 @@ async function authenticatePin(pin) {
   const envPin = String(process.env.TPV_PIN || '').trim()
   if (envPin && p === envPin) {
     const fisico = findById(store, 'u-tpv-fisico')
-    if (fisico) return publicUser(fisico)
-    return { id: 'u-tpv-fisico', name: 'TPV FÍSICO', role: 'central', pinSet: true }
+    if (fisico && fisico.pinSet) return publicUser(fisico)
   }
   return null
 }
 
-/**
- * Cambio de usuario: el PIN debe pertenecer exactamente a userId.
- * TPV FÍSICO también acepta TPV_PIN env.
- */
+/** PIN debe ser exactamente el del userId (sin atajos). */
 async function authenticateUserPin(userId, pin) {
   const id = String(userId || '').trim()
   const p = String(pin || '').trim()
   if (!id || !p) return null
   const store = await loadUsersStore()
   const u = findById(store, id)
-  if (!u) return null
+  if (!u || !u.pinSet || !u.pinHash) return null
   const h = hashPin(p)
-  if (u.pinSet && u.pinHash && h && u.pinHash === h) {
-    return publicUser(u)
-  }
-  if (u.id === 'u-tpv-fisico') {
-    const envPin = String(process.env.TPV_PIN || '').trim()
-    if (envPin && p === envPin) return publicUser(u)
-  }
+  if (h && u.pinHash === h) return publicUser(u)
   return null
 }
 

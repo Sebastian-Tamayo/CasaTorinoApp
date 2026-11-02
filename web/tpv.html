@@ -3349,7 +3349,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-02-usuarios-ok1'
+      const TPV_CLIENT_VERSION = '2026-11-02-todos-pin1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3960,7 +3960,11 @@
             body: JSON.stringify({ action: 'pendingUsers' }),
           })
           const data = await r.json().catch(() => ({}))
-          const list = Array.isArray(data.users) ? data.users : []
+          const list = (Array.isArray(data.users) ? data.users : []).slice().sort((a, b) => {
+            if (a.id === 'u-tpv-fisico') return -1
+            if (b.id === 'u-tpv-fisico') return 1
+            return String(a.name || '').localeCompare(String(b.name || ''), 'es')
+          })
           if (!list.length) {
             sel.innerHTML = '<option value="">No hay nadie pendiente de PIN</option>'
             if ($('gateErr')) {
@@ -3977,6 +3981,12 @@
                   `<option value="${String(u.id).replace(/"/g, '')}">${String(u.name || '').replace(/</g, '&lt;')}</option>`,
               )
               .join('')
+          // Si solo queda TPV FÍSICO (u otros), preseleccionar el primero útil
+          if (list.some((u) => u.id === 'u-tpv-fisico')) {
+            sel.value = 'u-tpv-fisico'
+          } else if (list.length === 1) {
+            sel.value = list[0].id
+          }
         } catch (err) {
           console.warn('pendingUsers', err)
           sel.innerHTML = '<option value="">Error al cargar</option>'
@@ -4018,7 +4028,19 @@
           }
           if ($('gateNewPin')) $('gateNewPin').value = ''
           if ($('gateNewPin2')) $('gateNewPin2').value = ''
-          await unlockTpv(data.user || null)
+          // Bootstrap (TPV/Lore/Sebas) o staff con jornada → entra ya
+          if (data.entered !== false && data.user) {
+            await unlockTpv(data.user)
+            return
+          }
+          // Staff sin jornada: PIN guardado, debe esperar / entrar luego
+          showGateMode('login')
+          await loadGateUsers()
+          if ($('gateErr')) {
+            $('gateErr').textContent =
+              data.message ||
+              'PIN guardado. Sin jornada solo pueden entrar TPV físico, Lore o Sebas'
+          }
         } catch (err) {
           console.warn('setPin', err)
           if ($('gateErr')) $('gateErr').textContent = 'No se pudo guardar el PIN'
@@ -4130,20 +4152,10 @@
         // Mantener tpvStarted: al desbloquear se reanuda sync sin recrear el runtime
       }
 
-      // Resume por cookie si el servidor lo permite:
-      // - Lore/Sebas siempre
-      // - resto solo con jornada abierta (PIN una vez al día; móvil bloqueado OK)
-      // Tras fin de jornada / reset de epoch el servidor echa y pide PIN.
+      // Nadie entra directo por cookie: todos eligen nombre + PIN en cada carga.
+      // La cookie sigue valiendo para APIs tras el login; el gate siempre pide PIN.
       async function tryResumeSession() {
-        try {
-          const r = await fetch('/api/tpv-auth', { credentials: 'same-origin', cache: 'no-store' })
-          const data = await r.json().catch(() => ({}))
-          if (data && data.ok && data.user && data.user.id) {
-            await unlockTpv(data.user)
-            return true
-          }
-          if (data && data.kicked) markTpvUiUnlocked(false)
-        } catch {}
+        markTpvUiUnlocked(false)
         return false
       }
 
