@@ -16,18 +16,31 @@ const JORNADA_KEY = 'jornada'
  * Subir esto fuerza reseedar usuarios + nuevo sessionEpoch
  * (invalida cookies; NO toca mesas/jornada/cocina).
  */
-const USERS_STORE_VERSION = 6
+const USERS_STORE_VERSION = 7
 /** PIN del TPV físico / admin de alta. No exponer en UI. */
 const CREATE_USER_PIN = '2908'
-/** Acceso a cualquier hora (sin jornada abierta): caja física. */
-const BOOTSTRAP_USER_IDS = new Set(['u-tpv-fisico'])
+/**
+ * Acceso a cualquier hora (sin jornada / tras fin):
+ * caja física + Lore + Sebas.
+ */
+const BOOTSTRAP_USER_IDS = new Set(['u-tpv-fisico', 'u-lore', 'u-sebas'])
 
 /**
- * Solo TPV FÍSICO con PIN 2908. El resto se crea luego (Nuevo usuario).
- * No borra mesas ni jornada en ops_kv — solo tpv_users + epoch.
+ * TPV FÍSICO ya con PIN 2908. Lore/Sebas/camareras → Primer acceso (eligen PIN).
+ * Reseed solo toca tpv_users + epoch (mesas/jornada intactas).
+ * Todos deben logarse (elegir nombre + PIN); dentro del TPV el desplegable
+ * cambia de usuario pidiendo el PIN de ese usuario.
  */
 const SEED_USERS = [
   { id: 'u-tpv-fisico', name: 'TPV FÍSICO', role: 'central', pin: '2908' },
+  { id: 'u-lore', name: 'Lore', role: 'admin' },
+  { id: 'u-sebas', name: 'Sebas', role: 'admin' },
+  { id: 'u-ali', name: 'Ali', role: 'staff' },
+  { id: 'u-shari', name: 'Shari', role: 'staff' },
+  { id: 'u-aleja', name: 'Aleja', role: 'staff' },
+  { id: 'u-yuli', name: 'Yuli', role: 'staff' },
+  { id: 'u-carol', name: 'Carol', role: 'staff' },
+  { id: 'u-clara', name: 'Clara', role: 'staff' },
 ]
 
 function hashPin(pin) {
@@ -373,7 +386,7 @@ async function isJornadaOpen() {
 }
 
 /**
- * Antes de abrir jornada / tras fin: solo TPV FÍSICO.
+ * Antes de abrir jornada / tras fin: TPV FÍSICO, Lore o Sebas.
  * Con jornada abierta: cualquier usuario con PIN válido.
  */
 async function allowTpvLogin(user) {
@@ -384,7 +397,7 @@ async function allowTpvLogin(user) {
 }
 
 function bootstrapLoginDeniedMessage() {
-  return 'Sin jornada abierta solo puede entrar el TPV físico'
+  return 'Sin jornada abierta solo pueden entrar TPV físico, Lore o Sebas'
 }
 
 function isBootstrapUser(user) {

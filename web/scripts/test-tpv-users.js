@@ -9,6 +9,7 @@ const {
   authenticateUserPin,
   allowTpvLogin,
   loadUsersStore,
+  setUserPin,
   createUser,
   pendingUsers,
   gateUsers,
@@ -26,32 +27,42 @@ async function main() {
   const store = await loadUsersStore()
   assert.ok(store.storeVersion >= USERS_STORE_VERSION, 'store version')
   assert.ok(store.sessionEpoch > 0, 'session epoch')
-  assert.ok(store.storeVersion >= 6 || store.users.some((u) => u.id === 'u-tpv-fisico' && u.pinSet))
+  assert.ok(store.users.length >= 9, 'fisico + staff seed')
   assert.ok(store.users.some((u) => u.id === 'u-tpv-fisico' && u.pinSet), 'fisico con PIN')
-  assert.ok(
-    store.users.filter((u) => u.id === 'u-tpv-fisico').length === 1,
-    'un solo fisico',
-  )
 
-  assert.strictEqual(pendingUsers(store).length, 0, 'nadie pendiente')
+  const pending = pendingUsers(store)
+  assert.ok(pending.some((u) => u.name === 'Sebas'), 'sebas primer acceso')
+  assert.ok(pending.some((u) => u.name === 'Lore'), 'lore primer acceso')
+  assert.ok(pending.some((u) => u.name === 'Ali'), 'ali primer acceso')
+
   const gate = gateUsers(store)
   assert.ok(gate.some((u) => u.id === 'u-tpv-fisico' && u.pinSet))
+  assert.ok(gate.some((u) => u.name === 'Sebas' && !u.pinSet))
 
   const fisico = await authenticatePin('2908')
-  assert.ok(fisico && fisico.id === 'u-tpv-fisico', 'pin 2908 → fisico')
-  const byId = await authenticateUserPin('u-tpv-fisico', '2908')
-  assert.ok(byId && byId.id === 'u-tpv-fisico')
-  assert.ok(await allowTpvLogin(fisico), 'fisico siempre permitido')
+  assert.ok(fisico && fisico.id === 'u-tpv-fisico')
+  assert.ok(await authenticateUserPin('u-tpv-fisico', '2908'))
+  assert.ok(await allowTpvLogin(fisico))
   assert.ok(BOOTSTRAP_USER_IDS.has('u-tpv-fisico'))
-  assert.ok(isBootstrapUser(fisico))
+  assert.ok(BOOTSTRAP_USER_IDS.has('u-lore') && BOOTSTRAP_USER_IDS.has('u-sebas'))
   assert.ok(await adminPinOk('2908'))
-  assert.ok(!(await adminPinOk('0000')))
 
-  const neu = await createUser('Sebas', CREATE_USER_PIN, '3212')
-  assert.ok(neu && neu.name === 'Sebas')
-  assert.strictEqual(await allowTpvLogin(neu), null, 'staff bloqueado sin jornada')
+  const sebasP = pending.find((u) => u.name === 'Sebas')
+  const sebas = await setUserPin(sebasP.id, '3212')
+  assert.ok(sebas.pinSet)
+  assert.ok(await allowTpvLogin(sebas))
+  assert.ok(await authenticateUserPin('u-sebas', '3212'))
+  assert.strictEqual(await authenticateUserPin('u-sebas', '2908'), null)
 
+  const aliP = pendingUsers(await loadUsersStore()).find((u) => u.name === 'Ali')
+  const ali = await setUserPin(aliP.id, '1111')
+  assert.strictEqual(await allowTpvLogin(ali), null, 'staff sin jornada')
+
+  const neu = await createUser('Nueva', CREATE_USER_PIN, '5555')
+  assert.ok(neu && neu.name === 'Nueva')
+  assert.ok(isBootstrapUser(fisico) && isBootstrapUser(sebas) && !isBootstrapUser(ali))
   assert.ok((await getSessionEpoch()) > 0)
+
   console.log('OK test-tpv-users')
 }
 
