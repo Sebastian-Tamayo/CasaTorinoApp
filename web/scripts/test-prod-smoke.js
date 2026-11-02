@@ -281,6 +281,25 @@ try {
   fail('tpv-usuarios-pin', err)
 }
 
+// —— 12) Monitor TPV / audit (0 función nueva) ——
+try {
+  const auth = fs.readFileSync(path.join(root, 'api/tpv-auth.js'), 'utf8')
+  const audit = fs.readFileSync(path.join(root, 'api/_tpvAudit.js'), 'utf8')
+  const client = fs.readFileSync(path.join(root, 'tpvAudit.js'), 'utf8')
+  const monitor = fs.readFileSync(path.join(root, 'monitor.html'), 'utf8')
+  const interno = fs.readFileSync(path.join(root, 'interno.html'), 'utf8')
+  const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'))
+  assert.ok(auth.includes("action === 'getAudit'"))
+  assert.ok(audit.includes("AUDIT_KEY = 'tpv_audit'"))
+  assert.ok(client.includes('CasaTorinoTpvAudit'))
+  assert.ok(monitor.includes('getAudit') && monitor.includes('2908'))
+  assert.ok(interno.includes('monitor.html'))
+  assert.ok(!JSON.stringify(vercel).includes('tpv-audit'))
+  ok('tpv-monitor-audit')
+} catch (err) {
+  fail('tpv-monitor-audit', err)
+}
+
 if (failed) {
   console.error('\n' + failed + ' test(s) failed')
   process.exit(1)

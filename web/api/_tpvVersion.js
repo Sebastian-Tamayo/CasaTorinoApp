@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-02-usuarios-pin1'
-const message = 'Importante: actualiza — cada persona entra al TPV con su PIN'
+const required = '2026-11-02-monitor1'
+const message = 'Importante: actualiza — Monitor TPV (accesos y movimientos)'
 
 function forceInfo() {
   return { required, message }

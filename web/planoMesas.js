@@ -756,6 +756,8 @@
         action: 'open',
         tableId: id,
         role,
+        foreign: true,
+        ownerName: row.current_waiter_name || '',
         waiter: {
           id: row.current_waiter_id,
           name: row.current_waiter_name || '',
@@ -797,7 +799,7 @@
           : t,
       )
     }
-    return { action: 'open', tableId: id, role, waiter }
+    return { action: 'open', tableId: id, role, foreign: false, waiter }
   }
 
   async function freeTable(tableId) {

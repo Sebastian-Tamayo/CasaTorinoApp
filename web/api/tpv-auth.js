@@ -6,6 +6,7 @@
  * POST /api/tpv-auth  { "action": "setPin", userId, pin } → primer acceso
  * POST /api/tpv-auth  { "action": "createUser", adminPin, name } → alta (PIN 2908)
  * POST /api/tpv-auth  { "action": "listUsers" } → nombres (sesión OK)
+ * POST /api/tpv-auth  { "action": "getAudit", adminPin } → monitor TPV (PIN 2908)
  * GET  /api/tpv-auth  → { ok, user }  (sliding cookie)
  * DELETE /api/tpv-auth → cierra sesión
  * POST /api/tpv-auth  { "refresh": true } → renueva si cookie válida
@@ -29,6 +30,7 @@ const {
   authenticatePin,
   publicUser,
 } = require('./_tpvUsers')
+const { appendLogin, getAudit, adminPinOk } = require('./_tpvAudit')
 const handleQzSign = require('./_qzSign')
 
 function wantsQzSign(req) {
@@ -65,6 +67,16 @@ function json(res, status, body) {
   return res.end(JSON.stringify(body))
 }
 
+function auditLoginSafe(type, user, note) {
+  void appendLogin({
+    type,
+    t: Date.now(),
+    userId: user?.id || '',
+    userName: user?.name || '',
+    note: note || '',
+  }).catch((err) => console.warn('[tpv-auth] audit', err))
+}
+
 module.exports = async function handler(req, res) {
   if (wantsQzSign(req)) return handleQzSign(req, res)
 
@@ -88,6 +100,8 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === 'DELETE') {
+      const user = getSessionUser(req)
+      if (user) auditLoginSafe('logout', user)
       setSessionCookie(res, false)
       return json(res, 200, { ok: true })
     }
@@ -131,6 +145,7 @@ module.exports = async function handler(req, res) {
         try {
           const user = await setUserPin(userId, pin)
           setSessionCookie(res, true, user)
+          auditLoginSafe('set_pin', user, 'primer acceso')
           return json(res, 200, { ok: true, action: 'setPin', user })
         } catch (err) {
           return json(res, 400, {
@@ -163,6 +178,20 @@ module.exports = async function handler(req, res) {
         })
       }
 
+      if (action === 'getAudit') {
+        if (!adminPinOk(body.adminPin || body.pin)) {
+          return json(res, 401, { ok: false, error: 'PIN de permiso incorrecto' })
+        }
+        const data = await getAudit()
+        return json(res, 200, {
+          ok: true,
+          action: 'getAudit',
+          logins: data.logins,
+          events: data.events,
+          updatedAt: data.updatedAt,
+        })
+      }
+
       // Login por PIN (usuario o TPV_PIN → TPV FÍSICO)
       const pin = String(body.pin || '').trim()
       if (!pin) {
@@ -173,6 +202,7 @@ module.exports = async function handler(req, res) {
         return json(res, 401, { ok: false, error: 'PIN incorrecto' })
       }
       setSessionCookie(res, true, user)
+      auditLoginSafe('login', user)
       return json(res, 200, { ok: true, user })
     }
 

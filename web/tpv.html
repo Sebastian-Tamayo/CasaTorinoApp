@@ -3263,7 +3263,8 @@
   <script src="tpvJornada.js?v=jornada-pin1"></script>
   <script src="kitchenSync.js?v=cpu-opt1"></script>
   <script src="reservaAlertSync.js?v=reserva-rt1"></script>
-  <script src="planoMesas.js?v=usuarios-pin1"></script>
+  <script src="tpvAudit.js?v=monitor1"></script>
+  <script src="planoMesas.js?v=monitor1"></script>
   <script>
     (() => {
       /**
@@ -3272,7 +3273,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-02-usuarios-pin1'
+      const TPV_CLIENT_VERSION = '2026-11-02-monitor1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -4414,6 +4415,23 @@
         }
       }
 
+      /** Audit barato → ops_kv (sin Vercel por tap). */
+      function auditLog(type, extra = {}) {
+        try {
+          const actor = tpvSessionUser || actorWaiter() || null
+          window.CasaTorinoTpvAudit?.log?.({
+            type,
+            t: Date.now(),
+            userId: actor?.id || '',
+            userName: actor?.name || '',
+            mesa: normalizeMesa(state.mesa) || '',
+            ...extra,
+          })
+        } catch (err) {
+          console.warn('auditLog', err)
+        }
+      }
+
       function stampMesa(m, data, opts = {}) {
         const prev = (m && state.tables && state.tables[m]) || {}
         const now = Date.now()
@@ -4939,6 +4957,7 @@
         const now = Date.now()
         if (!state.removed || typeof state.removed !== 'object') state.removed = {}
         if (state.removed[key]) delete state.removed[key]
+        const prevQty = state.cart[key] ? Number(state.cart[key].qty) || 0 : 0
         if (state.cart[key]) {
           state.cart[key].qty += 1
           if (!state.cart[key].addedAt) state.cart[key].addedAt = now
@@ -4969,6 +4988,12 @@
         if (!state.cart[key].categoryType) state.cart[key].categoryType = ctype
         if (isPriceEditable(item) || isPriceEditable(state.cart[key])) state.cart[key].priceEditable = true
         state.hist.push(key)
+        const nextQty = Number(state.cart[key].qty) || 0
+        auditLog(prevQty > 0 ? 'cart_qty' : 'cart_add', {
+          item: item.name || key,
+          qtyBefore: prevQty,
+          qtyAfter: nextQty,
+        })
         persist(); render(); flash(item.id)
         try { navigator.vibrate?.(12) } catch {}
       }
@@ -5073,11 +5098,18 @@
         if (!state.cart[id]) return
         const now = Date.now()
         if (!state.removed || typeof state.removed !== 'object') state.removed = {}
+        const prevQty = Number(state.cart[id].qty) || 0
+        const itemName = String(state.cart[id].name || id)
         if (qty <= 0) {
           // Tombstone: el borrado gana al merge aunque otro dispositivo aún tenga la línea
           state.removed[id] = now
           delete state.cart[id]
           if (state.paySelect) delete state.paySelect[id]
+          auditLog('cart_remove', {
+            item: itemName,
+            qtyBefore: prevQty,
+            qtyAfter: 0,
+          })
         } else {
           if (state.removed[id]) delete state.removed[id]
           state.cart[id].qty = qty
@@ -5085,6 +5117,13 @@
           state.cart[id].updatedAt = now
           stampLineActor(state.cart[id])
           if ((state.cart[id].sentQty || 0) > qty) state.cart[id].sentQty = qty
+          if (qty !== prevQty) {
+            auditLog('cart_qty', {
+              item: itemName,
+              qtyBefore: prevQty,
+              qtyAfter: qty,
+            })
+          }
         }
         clampPaySelect()
         persist(); render()
@@ -5170,6 +5209,7 @@
           ...(state.removed && typeof state.removed === 'object' ? state.removed : {}),
         }
         for (const key of Object.keys(state.cart || {})) removed[key] = now
+        auditLog('vaciar', { mesa: m || '', note: 'vaciar cuenta' })
         state.cart = {}
         state.hist = []
         state.notes = ''
@@ -5871,6 +5911,11 @@
           const j = await window.CasaTorinoTpvJornada.addSale(sale)
           paintJornadaStatus(j)
           writeLastCharge({ ...undoSnapshot, saleId })
+          auditLog('cobro', {
+            mesa: m || '',
+            amount: total,
+            note: isPartial || payDraft.mode === 'selection' ? 'parcial' : 'completo',
+          })
         } catch (err) {
           console.warn('jornada sale', err)
           writeLastCharge(null)
@@ -7234,6 +7279,12 @@
           }
           const res = await window.CasaTorinoPlanoMesas.claimTable(id)
           if (!res || res.action !== 'open') return
+          auditLog(res.foreign ? 'mesa_ajena' : 'mesa_open', {
+            mesa: id,
+            note: res.foreign
+              ? `mesa de ${res.ownerName || res.waiter?.name || 'otro'}`
+              : '',
+          })
           // Guardar camarera en el carrito de la mesa (sync a todos los dispositivos)
           if (res.waiter?.id || res.waiter?.name) {
             const prev = state.tables[id] || {
