@@ -4,9 +4,9 @@
  * POST /api/tpv-auth  { "pin": "...." } → login
  * POST /api/tpv-auth  { "action": "pendingUsers" } → nombres sin PIN (primer acceso)
  * POST /api/tpv-auth  { "action": "setPin", userId, pin } → primer acceso
- * POST /api/tpv-auth  { "action": "createUser", adminPin, name } → alta (PIN 2908)
+ * POST /api/tpv-auth  { "action": "createUser", adminPin, name, userPin } → alta
  * POST /api/tpv-auth  { "action": "listUsers" } → nombres (sesión OK)
- * POST /api/tpv-auth  { "action": "getAudit", adminPin } → monitor TPV (PIN 2908)
+ * POST /api/tpv-auth  { "action": "getAudit", adminPin } → monitor TPV
  * GET  /api/tpv-auth  → { ok, user }  (sliding cookie)
  * DELETE /api/tpv-auth → cierra sesión
  * POST /api/tpv-auth  { "refresh": true } → renueva si cookie válida
@@ -157,11 +157,15 @@ module.exports = async function handler(req, res) {
 
       if (action === 'createUser') {
         try {
-          const user = await createUser(body.name, body.adminPin || body.pin)
+          const user = await createUser(
+            body.name,
+            body.adminPin,
+            body.userPin || body.newUserPin,
+          )
           return json(res, 200, { ok: true, action: 'createUser', user })
         } catch (err) {
           const msg = String(err && err.message ? err.message : err)
-          const status = /permiso|incorrecto/i.test(msg) ? 401 : 400
+          const status = /administrador incorrecto/i.test(msg) ? 401 : 400
           return json(res, status, { ok: false, error: msg })
         }
       }
@@ -180,7 +184,7 @@ module.exports = async function handler(req, res) {
 
       if (action === 'getAudit') {
         if (!adminPinOk(body.adminPin || body.pin)) {
-          return json(res, 401, { ok: false, error: 'PIN de permiso incorrecto' })
+          return json(res, 401, { ok: false, error: 'PIN de administrador incorrecto' })
         }
         const data = await getAudit()
         return json(res, 200, {

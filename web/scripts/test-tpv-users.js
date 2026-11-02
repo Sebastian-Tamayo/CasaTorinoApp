@@ -36,13 +36,15 @@ async function main() {
   assert.ok(aliLogin && aliLogin.name === 'Ali', 'ali login')
 
   try {
-    await createUser('Hack', '0000')
+    await createUser('Hack', '0000', '5555')
     assert.fail('should reject bad admin pin')
   } catch (err) {
-    assert.ok(/permiso|incorrecto/i.test(err.message), 'admin pin guard')
+    assert.ok(/administrador incorrecto/i.test(err.message), 'admin pin guard')
   }
-  const neu = await createUser('Nueva', CREATE_USER_PIN)
-  assert.ok(neu && neu.name === 'Nueva' && !neu.pinSet, 'create user')
+  const neu = await createUser('Nueva', CREATE_USER_PIN, '5555')
+  assert.ok(neu && neu.name === 'Nueva' && neu.pinSet, 'create user with pin')
+  const neuLogin = await authenticatePin('5555')
+  assert.ok(neuLogin && neuLogin.name === 'Nueva', 'new user login')
 
   console.log('OK test-tpv-users')
 }
