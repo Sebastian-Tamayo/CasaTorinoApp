@@ -225,9 +225,15 @@ try {
 // —— 8) Cron informes en purge ——
 try {
   const purge = fs.readFileSync(path.join(root, 'api/ops-daily-purge.js'), 'utf8')
+  const informes = fs.readFileSync(path.join(root, 'api/_informeReports.js'), 'utf8')
+  const jornada = fs.readFileSync(path.join(root, 'api/tpv-jornada.js'), 'utf8')
   assert.ok(purge.includes('maybeTriggerWeeklyMondayBackup'))
   assert.ok(purge.includes("runInforme('mensual'") || purge.includes('runInforme("mensual"'))
   assert.ok(purge.includes("wd === 'Mon'") || purge.includes('wd === "Mon"'))
+  assert.ok(informes.includes('not_monday_08_madrid'))
+  assert.ok(informes.includes('weekly_only_monday_cron'))
+  assert.ok(jornada.includes('weekly_only_monday_cron'))
+  assert.ok(!jornada.includes('maybeTriggerWeeklyAfterSundayClose'))
   const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'))
   assert.ok(Array.isArray(vercel.crons) && vercel.crons.length >= 1)
   assert.ok(vercel.crons.some((c) => c.path === '/api/ops-daily-purge'))

@@ -17,10 +17,7 @@ const SALES_MAX = 500
 const { getJson, setJson, updateJson } = require('./_opsStore')
 const { hasTpvSession } = require('./_tpvSession')
 const { opsDayId } = require('./_opsDay')
-const {
-  buildActivityByHour,
-  maybeTriggerWeeklyAfterSundayClose,
-} = require('./_informeReports')
+const { buildActivityByHour } = require('./_informeReports')
 const tpvVersion = require('./_tpvVersion')
 
 function cors(req, res) {
@@ -730,17 +727,13 @@ module.exports = async function handler(req, res) {
         } catch (err) {
           console.warn('[tpv-jornada] archive', err)
         }
-        // Solo semanal si el cierre quedó archivado (si no, el lunes reintenta).
-        if (action === 'end' && cierre) {
-          try {
-            informeSemanal = await maybeTriggerWeeklyAfterSundayClose()
-          } catch (err) {
-            console.warn('[tpv-jornada] informe semanal', err)
-          }
-        } else if (action === 'end' && !cierre) {
+        // Semanal: solo el cron del lunes ~08:00 Madrid (un correo).
+        // No enviar al cerrar caja (evita duplicar con el cron).
+        if (action === 'end') {
           informeSemanal = {
             triggered: false,
-            reason: 'archive_failed_skip_informe',
+            reason: 'weekly_only_monday_cron',
+            archived: Boolean(cierre),
           }
         }
       }
