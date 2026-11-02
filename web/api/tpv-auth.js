@@ -165,7 +165,7 @@ module.exports = async function handler(req, res) {
           return json(res, 200, { ok: true, action: 'createUser', user })
         } catch (err) {
           const msg = String(err && err.message ? err.message : err)
-          const status = /administrador incorrecto/i.test(msg) ? 401 : 400
+          const status = /^PIN incorrecto$/i.test(msg) ? 401 : 400
           return json(res, status, { ok: false, error: msg })
         }
       }
@@ -184,7 +184,7 @@ module.exports = async function handler(req, res) {
 
       if (action === 'getAudit') {
         if (!adminPinOk(body.adminPin || body.pin)) {
-          return json(res, 401, { ok: false, error: 'PIN de administrador incorrecto' })
+          return json(res, 401, { ok: false, error: 'PIN incorrecto' })
         }
         const data = await getAudit()
         return json(res, 200, {

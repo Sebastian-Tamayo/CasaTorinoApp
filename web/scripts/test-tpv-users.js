@@ -39,7 +39,7 @@ async function main() {
     await createUser('Hack', '0000', '5555')
     assert.fail('should reject bad admin pin')
   } catch (err) {
-    assert.ok(/administrador incorrecto/i.test(err.message), 'admin pin guard')
+    assert.ok(/^PIN incorrecto$/i.test(err.message), 'admin pin guard')
   }
   const neu = await createUser('Nueva', CREATE_USER_PIN, '5555')
   assert.ok(neu && neu.name === 'Nueva' && neu.pinSet, 'create user with pin')

@@ -185,7 +185,7 @@ function slugUserId(name) {
 
 async function createUser(name, adminPin, userPin) {
   if (String(adminPin || '').trim() !== CREATE_USER_PIN) {
-    throw new Error('PIN de administrador incorrecto')
+    throw new Error('PIN incorrecto')
   }
   const n = String(name || '').trim().slice(0, 40)
   if (!n) throw new Error('Escribe un nombre')

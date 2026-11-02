@@ -304,7 +304,10 @@ try {
   assert.ok(!tpv.includes('2908'), 'tpv.html no revela admin PIN')
   assert.ok(!monitor.includes('2908'), 'monitor.html no revela admin PIN')
   assert.ok(!interno.includes('2908'), 'interno.html no revela admin PIN')
-  assert.ok(tpv.includes('PIN del nuevo usuario') && tpv.includes('PIN de administrador'))
+  assert.ok(tpv.includes('PIN del nuevo usuario'))
+  assert.ok(tpv.includes("prompt('Introduce el PIN para confirmar')"))
+  assert.ok(!tpv.includes('PIN de administrador'))
+  assert.ok(!monitor.includes('administrador'))
   ok('tpv-monitor-audit')
 } catch (err) {
   fail('tpv-monitor-audit', err)
