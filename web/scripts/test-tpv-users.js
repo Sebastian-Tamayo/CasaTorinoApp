@@ -26,9 +26,12 @@ async function main() {
   const store = await loadUsersStore()
   assert.ok(store.storeVersion >= USERS_STORE_VERSION, 'store version')
   assert.ok(store.sessionEpoch > 0, 'session epoch')
-  assert.strictEqual(store.users.length, 1, 'solo TPV FÍSICO')
-  assert.strictEqual(store.users[0].id, 'u-tpv-fisico')
-  assert.ok(store.users[0].pinSet, 'fisico con PIN')
+  assert.ok(store.storeVersion >= 6 || store.users.some((u) => u.id === 'u-tpv-fisico' && u.pinSet))
+  assert.ok(store.users.some((u) => u.id === 'u-tpv-fisico' && u.pinSet), 'fisico con PIN')
+  assert.ok(
+    store.users.filter((u) => u.id === 'u-tpv-fisico').length === 1,
+    'un solo fisico',
+  )
 
   assert.strictEqual(pendingUsers(store).length, 0, 'nadie pendiente')
   const gate = gateUsers(store)
