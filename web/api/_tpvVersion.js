@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-02-switch-user1'
-const message = 'Importante: actualiza — desplegable para cambiar de usuario con PIN'
+const required = '2026-11-02-gate-seguro1'
+const message = 'Importante: actualiza — PIN obligatorio al entrar; alta con confirmación'
 
 function forceInfo() {
   return { required, message }

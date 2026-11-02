@@ -7,11 +7,13 @@ const {
   hashPin,
   authenticatePin,
   authenticateUserPin,
+  allowTpvLogin,
   loadUsersStore,
   setUserPin,
   createUser,
   pendingUsers,
   CREATE_USER_PIN,
+  BOOTSTRAP_USER_IDS,
 } = require('../api/_tpvUsers')
 
 assert.ok(hashPin('2908').length === 64, 'hash length')
@@ -56,6 +58,15 @@ async function main() {
   assert.ok(asSebas && asSebas.name === 'Sebas', 'switch sebas ok')
   const asFisico = await authenticateUserPin('u-tpv-fisico', '9999')
   assert.ok(asFisico && asFisico.id === 'u-tpv-fisico', 'switch fisico env pin')
+
+  assert.ok(BOOTSTRAP_USER_IDS.has('u-lore') && BOOTSTRAP_USER_IDS.has('u-sebas'))
+  // Sin jornada abierta (memoria local): solo bootstrap
+  const loreOk = await allowTpvLogin(lore)
+  assert.ok(loreOk && loreOk.name === 'Lore', 'lore always allowed')
+  const sebasOk = await allowTpvLogin(sebas)
+  assert.ok(sebasOk && sebasOk.name === 'Sebas', 'sebas always allowed')
+  const aliBlocked = await allowTpvLogin(aliLogin)
+  assert.strictEqual(aliBlocked, null, 'ali blocked before jornada')
 
   console.log('OK test-tpv-users')
 }

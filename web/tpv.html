@@ -3341,7 +3341,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-02-switch-user1'
+      const TPV_CLIENT_VERSION = '2026-11-02-gate-seguro1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3481,7 +3481,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=switch-user1')
+            .register('/sw-tpv.js?v=gate-seguro1')
             .catch(() => {})
         })
         try {
@@ -3497,6 +3497,8 @@
       }
 
       const AUTH_KEY = 'casa-torino-tpv-auth-v1'
+      /** Solo UI del TPV: cookie sola no basta (evita entrar desde interno sin PIN). */
+      const TPV_UI_UNLOCK_KEY = 'casa-torino-tpv-ui-unlocked'
 
       let pinBuf = ''
       let tpvStarted = false
@@ -3590,6 +3592,24 @@
       let tpvSwitchTarget = null
       let tpvSwitchPinBuf = ''
       let tpvUserSelectLock = false
+      /** null | 'switch' | 'createConfirm' */
+      let tpvPinPromptMode = null
+      let tpvPinPromptResolve = null
+
+      function markTpvUiUnlocked(on) {
+        try {
+          if (on) sessionStorage.setItem(TPV_UI_UNLOCK_KEY, '1')
+          else sessionStorage.removeItem(TPV_UI_UNLOCK_KEY)
+        } catch {}
+      }
+
+      function hasTpvUiUnlock() {
+        try {
+          return sessionStorage.getItem(TPV_UI_UNLOCK_KEY) === '1'
+        } catch {
+          return false
+        }
+      }
 
       function paintTpvUserSelect(user) {
         const wrap = $('tpvUserSwitch')
@@ -3652,28 +3672,57 @@
       function closeSwitchGate(restore) {
         const gate = $('tpvSwitchGate')
         if (gate) gate.hidden = true
+        const mode = tpvPinPromptMode
+        const resolve = tpvPinPromptResolve
+        const pinSnap = tpvSwitchPinBuf
         tpvSwitchTarget = null
         tpvSwitchPinBuf = ''
+        tpvPinPromptMode = null
+        tpvPinPromptResolve = null
         paintSwitchDots()
         if ($('tpvSwitchErr')) $('tpvSwitchErr').textContent = ''
         if (restore) paintTpvUserSelect(tpvSessionUser)
+        if (mode === 'createConfirm' && typeof resolve === 'function') {
+          resolve(restore ? null : String(pinSnap || '').trim())
+        }
       }
 
-      function openSwitchGate(user) {
-        if (!user || !user.id) return
-        tpvSwitchTarget = user
+      function openSwitchGate(user, opts) {
+        const mode = opts?.mode || 'switch'
+        tpvPinPromptMode = mode
+        if (mode !== 'createConfirm') tpvPinPromptResolve = null
+        tpvSwitchTarget = user || null
         tpvSwitchPinBuf = ''
         paintSwitchDots()
-        if ($('tpvSwitchTitle')) $('tpvSwitchTitle').textContent = user.name || 'Usuario'
+        if ($('tpvSwitchTitle')) {
+          $('tpvSwitchTitle').textContent =
+            mode === 'createConfirm' ? 'Confirmar' : user?.name || 'Usuario'
+        }
         if ($('tpvSwitchSub')) {
-          $('tpvSwitchSub').textContent = `Introduce el PIN de ${user.name || 'este usuario'}`
+          $('tpvSwitchSub').textContent =
+            mode === 'createConfirm'
+              ? 'Introduce el PIN para confirmar'
+              : `Introduce el PIN de ${user?.name || 'este usuario'}`
         }
         if ($('tpvSwitchErr')) $('tpvSwitchErr').textContent = ''
         const gate = $('tpvSwitchGate')
         if (gate) gate.hidden = false
       }
 
+      function requestCreateConfirmPin() {
+        return new Promise((resolve) => {
+          tpvPinPromptResolve = resolve
+          openSwitchGate({ id: '__confirm__', name: 'Confirmar' }, { mode: 'createConfirm' })
+        })
+      }
+
       async function trySwitchUser() {
+        if (tpvPinPromptMode === 'createConfirm') {
+          if (tpvSwitchPinBuf.length < 4) return
+          // Entrega el PIN al flujo de alta; no cambia de sesión
+          closeSwitchGate(false)
+          return
+        }
         if (!tpvSwitchTarget || tpvSwitchPinBuf.length < 4) return
         const pin = tpvSwitchPinBuf
         try {
@@ -3767,6 +3816,7 @@
 
       async function unlockTpv(user) {
         try { sessionStorage.removeItem(AUTH_KEY) } catch {}
+        markTpvUiUnlocked(true)
         applySessionUser(user || tpvSessionUser)
         document.body.classList.remove('tpv-locked')
         const gate = $('gate')
@@ -3801,7 +3851,7 @@
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pin: pinBuf }),
+            body: JSON.stringify({ pin: pinBuf, gate: 'tpv' }),
           })
           const data = await r.json().catch(() => ({}))
           if (r.ok && data.ok) {
@@ -3900,11 +3950,10 @@
           if ($('gateErr')) $('gateErr').textContent = 'El PIN del nuevo usuario debe ser 4 dígitos'
           return
         }
-        // Confirmación obligatoria sin revelar qué PIN es ni para qué sirve
-        const confirmPin = window.prompt('Introduce el PIN para confirmar')
-        if (confirmPin == null) return
-        const adminPin = String(confirmPin).trim()
-        if (!/^\d{4}$/.test(adminPin)) {
+        // Pad táctil obligatorio (window.prompt falla / se salta en móvil)
+        const adminPin = await requestCreateConfirmPin()
+        if (adminPin == null) return
+        if (!/^\d{4}$/.test(String(adminPin).trim())) {
           if ($('gateErr')) $('gateErr').textContent = 'PIN incorrecto'
           return
         }
@@ -3915,7 +3964,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               action: 'createUser',
-              adminPin,
+              adminPin: String(adminPin).trim(),
               name,
               userPin: newUserPin,
             }),
@@ -3932,7 +3981,8 @@
           if ($('gateNewUserPin')) $('gateNewUserPin').value = ''
           if ($('gateCreateName')) $('gateCreateName').value = ''
           if ($('gateErr')) $('gateErr').textContent = ''
-          alert(`Usuario «${data.user?.name || name}» creado. Ya puede entrar con su PIN.`)
+          // Nunca desbloquear tras crear: debe entrar con su PIN en el login
+          alert(`Usuario «${data.user?.name || name}» creado. Ahora entra con su PIN.`)
           showGateMode('login')
         } catch (err) {
           console.warn('createUser', err)
@@ -3978,6 +4028,7 @@
 
       paintPinDots()
       function lockTpvForPin(msg) {
+        markTpvUiUnlocked(false)
         document.body.classList.add('tpv-locked')
         const gate = $('gate')
         if (gate) gate.hidden = false
@@ -3993,9 +4044,10 @@
         // Mantener tpvStarted: al desbloquear se reanuda sync sin recrear el runtime
       }
 
-      // Si ya hay cookie de sesión con usuario, no pedir PIN otra vez.
-      // Sin usuario en la cookie (sesión antigua / cocina): pedir PIN de persona.
+      // Resume solo si ESTE TPV ya pidió PIN en esta pestaña (sessionStorage).
+      // Cookie sola (p. ej. tras Gestión interna) NO abre el TPV.
       async function tryResumeSession() {
+        if (!hasTpvUiUnlock()) return false
         try {
           const r = await fetch('/api/tpv-auth', { credentials: 'same-origin', cache: 'no-store' })
           const data = await r.json().catch(() => ({}))
@@ -4004,6 +4056,7 @@
             return true
           }
         } catch {}
+        markTpvUiUnlocked(false)
         return false
       }
 
@@ -7673,6 +7726,7 @@
         if (e.target === $('payModal')) closePayModal()
       })
       $('btnLeaveTpv')?.addEventListener('click', () => {
+        markTpvUiUnlocked(false)
         window.location.href = 'interno.html'
       })
 

@@ -11,8 +11,11 @@ const { sessionSecret } = require('./_tpvSession')
 
 const USERS_KEY = 'tpv_users'
 const FLOOR_KEY = 'floor_plan'
+const JORNADA_KEY = 'jornada'
 /** PIN admin para crear usuarios. No exponer en UI. */
 const CREATE_USER_PIN = '2908'
+/** Antes de abrir jornada solo estos pueden entrar al TPV. */
+const BOOTSTRAP_USER_IDS = new Set(['u-lore', 'u-sebas'])
 
 const SEED_USERS = [
   { id: 'u-tpv-fisico', name: 'TPV FÍSICO', role: 'central' },
@@ -264,9 +267,36 @@ async function authenticateUserPin(userId, pin) {
   return null
 }
 
+async function isJornadaOpen() {
+  try {
+    if (!hasSupabase()) return false
+    const j = await getJson(JORNADA_KEY, null)
+    return Boolean(j && j.status === 'open')
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Antes de abrir jornada: solo Lore y Sebas.
+ * Con jornada abierta: cualquier usuario con PIN válido.
+ * Devuelve null si no puede entrar (el caller responde 403).
+ */
+async function allowTpvLogin(user) {
+  if (!user || !user.id) return null
+  if (BOOTSTRAP_USER_IDS.has(String(user.id))) return user
+  if (await isJornadaOpen()) return user
+  return null
+}
+
+function bootstrapLoginDeniedMessage() {
+  return 'Antes de abrir la jornada solo pueden entrar Lore o Sebas'
+}
+
 module.exports = {
   USERS_KEY,
   CREATE_USER_PIN,
+  BOOTSTRAP_USER_IDS,
   hashPin,
   publicUser,
   loadUsersStore,
@@ -276,6 +306,9 @@ module.exports = {
   createUser,
   authenticatePin,
   authenticateUserPin,
+  allowTpvLogin,
+  bootstrapLoginDeniedMessage,
+  isJornadaOpen,
   findById,
   syncFloorWaiters,
 }

@@ -30,6 +30,8 @@ const {
   createUser,
   authenticatePin,
   authenticateUserPin,
+  allowTpvLogin,
+  bootstrapLoginDeniedMessage,
   publicUser,
 } = require('./_tpvUsers')
 const { appendLogin, getAudit, adminPinOk } = require('./_tpvAudit')
@@ -146,6 +148,13 @@ module.exports = async function handler(req, res) {
         }
         try {
           const user = await setUserPin(userId, pin)
+          const allowed = await allowTpvLogin(user)
+          if (!allowed) {
+            return json(res, 403, {
+              ok: false,
+              error: bootstrapLoginDeniedMessage(),
+            })
+          }
           setSessionCookie(res, true, user)
           auditLoginSafe('set_pin', user, 'primer acceso')
           return json(res, 200, { ok: true, action: 'setPin', user })
@@ -198,6 +207,13 @@ module.exports = async function handler(req, res) {
         if (!user) {
           return json(res, 401, { ok: false, error: 'PIN incorrecto' })
         }
+        const allowed = await allowTpvLogin(user)
+        if (!allowed) {
+          return json(res, 403, {
+            ok: false,
+            error: bootstrapLoginDeniedMessage(),
+          })
+        }
         setSessionCookie(res, true, user)
         auditLoginSafe(
           'switch',
@@ -222,6 +238,7 @@ module.exports = async function handler(req, res) {
       }
 
       // Login por PIN (usuario o TPV_PIN → TPV FÍSICO)
+      // gate:'tpv' → antes de jornada solo Lore/Sebas (no aplica a cocina/interno)
       const pin = String(body.pin || '').trim()
       if (!pin) {
         return json(res, 401, { ok: false, error: 'PIN incorrecto' })
@@ -230,8 +247,18 @@ module.exports = async function handler(req, res) {
       if (!user) {
         return json(res, 401, { ok: false, error: 'PIN incorrecto' })
       }
+      const gate = String(body.gate || '').trim().toLowerCase()
+      if (gate === 'tpv') {
+        const allowed = await allowTpvLogin(user)
+        if (!allowed) {
+          return json(res, 403, {
+            ok: false,
+            error: bootstrapLoginDeniedMessage(),
+          })
+        }
+      }
       setSessionCookie(res, true, user)
-      auditLoginSafe('login', user)
+      auditLoginSafe('login', user, gate === 'tpv' ? 'tpv' : '')
       return json(res, 200, { ok: true, user })
     }
 
