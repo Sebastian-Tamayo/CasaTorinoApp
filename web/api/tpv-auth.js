@@ -5,7 +5,7 @@
  * POST /api/tpv-auth  { "action": "pendingUsers" } → nombres sin PIN (primer acceso)
  * POST /api/tpv-auth  { "action": "gateUsers" } → id/name/pinSet (login: elegir usuario)
  * POST /api/tpv-auth  { "action": "setPin", userId, pin } → primer acceso
- * POST /api/tpv-auth  { "action": "createUser", adminPin, name, userPin } → alta
+ * POST /api/tpv-auth  { "action": "createUser", adminPin, name } → alta sin PIN (luego Primer acceso)
  * POST /api/tpv-auth  { "action": "listUsers" } → nombres (sesión OK)
  * POST /api/tpv-auth  { "action": "switchUser", userId, pin } → cambio de usuario
  * POST /api/tpv-auth  { "action": "getAudit", adminPin } → monitor TPV

@@ -79,8 +79,14 @@ async function main() {
   const ali = await setUserPin(aliP.id, '1111')
   assert.strictEqual(await allowTpvLogin(ali), null, 'staff sin jornada')
 
-  const neu = await createUser('Nueva', CREATE_USER_PIN, '5555')
+  const neu = await createUser('Nueva', CREATE_USER_PIN)
   assert.ok(neu && neu.name === 'Nueva')
+  assert.strictEqual(neu.pinSet, false, 'nuevo sin PIN')
+  assert.ok(
+    pendingUsers(await loadUsersStore()).some((u) => u.name === 'Nueva'),
+    'nuevo en primer acceso',
+  )
+  assert.strictEqual(await authenticateUserPin(neu.id, '5555'), null)
   assert.ok(isBootstrapUser(fisico) && isBootstrapUser(sebas) && !isBootstrapUser(ali))
   assert.ok((await getSessionEpoch()) > 0)
 
