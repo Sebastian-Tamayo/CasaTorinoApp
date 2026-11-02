@@ -20,6 +20,11 @@ const USERS_STORE_VERSION = 8
 /** PIN admin para «Nuevo usuario» / monitor (confirmación). No es el PIN de login. */
 const CREATE_USER_PIN = '2908'
 /**
+ * PIN compartido del hub (Gestión interna / cocina) — independiente del primer acceso TPV.
+ * Override opcional: INTERNO_PIN o TPV_PIN en Vercel.
+ */
+const HUB_ACCESS_PIN = '0912'
+/**
  * Acceso a cualquier hora (sin jornada / tras fin), una vez tengan PIN:
  * caja física + Lore + Sebas.
  */
@@ -295,9 +300,22 @@ async function createUser(name, adminPin, userPin) {
   return publicUser(u)
 }
 
+function hubAccessPins() {
+  return [
+    ...new Set(
+      [
+        String(process.env.INTERNO_PIN || '').trim(),
+        String(process.env.TPV_PIN || '').trim(),
+        HUB_ACCESS_PIN,
+      ].filter(Boolean),
+    ),
+  ]
+}
+
 /**
- * Login solo por PIN de usuario (debe haber hecho Primer acceso).
- * TPV_PIN de entorno → TPV FÍSICO solo si la caja ya tiene PIN propio.
+ * Login por PIN:
+ * 1) PIN personal de usuario (tras Primer acceso)
+ * 2) PIN hub 0912 (Gestión interna / cocina) — no depende del primer acceso TPV
  */
 async function authenticatePin(pin) {
   const p = String(pin || '').trim()
@@ -306,10 +324,13 @@ async function authenticatePin(pin) {
   const byUser = findByPin(store, p)
   if (byUser) return publicUser(byUser)
 
-  const envPin = String(process.env.TPV_PIN || '').trim()
-  if (envPin && p === envPin) {
+  if (hubAccessPins().includes(p)) {
     const fisico = findById(store, 'u-tpv-fisico')
-    if (fisico && fisico.pinSet) return publicUser(fisico)
+    if (fisico) {
+      // Hub: no exige pinSet de la caja
+      return publicUser({ ...fisico, pinSet: true, pinHash: fisico.pinHash || 'hub' })
+    }
+    return { id: 'u-hub', name: 'Gestión', role: 'central', pinSet: true }
   }
   return null
 }
@@ -360,6 +381,7 @@ module.exports = {
   USERS_KEY,
   USERS_STORE_VERSION,
   CREATE_USER_PIN,
+  HUB_ACCESS_PIN,
   BOOTSTRAP_USER_IDS,
   hashPin,
   publicUser,
