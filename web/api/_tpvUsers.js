@@ -267,22 +267,19 @@ function slugUserId(name) {
   )
 }
 
-async function createUser(name, adminPin, userPin) {
+/**
+ * Alta de nombre sin PIN. El nuevo debe hacer «Primer acceso» y crear su PIN.
+ * (userPin ignorado si llega — no se asigna PIN en el alta.)
+ */
+async function createUser(name, adminPin, _userPin) {
   if (!(await adminPinOk(adminPin))) {
     throw new Error('PIN incorrecto')
   }
   const n = String(name || '').trim().slice(0, 40)
   if (!n) throw new Error('Escribe un nombre')
-  const p = String(userPin || '').trim()
-  if (!/^\d{4}$/.test(p)) {
-    throw new Error('El PIN del nuevo usuario debe ser 4 dígitos')
-  }
   const store = await loadUsersStore()
   if (store.users.some((u) => u.name.toLowerCase() === n.toLowerCase())) {
     throw new Error('Ya existe ese usuario')
-  }
-  if (findByPin(store, p)) {
-    throw new Error('Ese PIN ya está en uso')
   }
   let id = slugUserId(n)
   if (!id || store.users.some((u) => u.id === id)) {
@@ -292,8 +289,8 @@ async function createUser(name, adminPin, userPin) {
     id,
     name: n,
     role: 'staff',
-    pinHash: hashPin(p),
-    pinSet: true,
+    pinHash: '',
+    pinSet: false,
   }
   store.users.push(u)
   await saveUsersStore(store)

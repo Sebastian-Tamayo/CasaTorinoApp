@@ -2742,9 +2742,9 @@
         <label>Nombre del nuevo usuario
           <input id="gateCreateName" type="text" maxlength="40" autocomplete="off" />
         </label>
-        <label>PIN del nuevo usuario
-          <input id="gateNewUserPin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" />
-        </label>
+        <p style="margin:.35rem 0 0;font-size:.85rem;color:var(--muted);font-weight:600">
+          Sin PIN: la persona hará <b>Primer acceso</b> y creará el suyo.
+        </p>
         <div class="gate-panel-actions">
           <button type="button" class="cancel" id="gateCreateCancel">Cancelar</button>
           <button type="button" class="ok" id="gateCreateSave">Crear</button>
@@ -3349,7 +3349,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-02-todos-pin1'
+      const TPV_CLIENT_VERSION = '2026-11-02-nuevo-acceso1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3832,7 +3832,7 @@
             mode === 'first'
               ? 'Elige tu nombre y crea tu PIN (solo la primera vez)'
               : mode === 'create'
-                ? 'Nombre y PIN del nuevo usuario'
+                ? 'Solo el nombre: el nuevo hará Primer acceso'
                 : 'Elige tu nombre e introduce tu PIN'
         }
         if ($('gateErr')) $('gateErr').textContent = ''
@@ -4049,13 +4049,8 @@
 
       async function createTpvUser() {
         const name = String($('gateCreateName')?.value || '').trim()
-        const newUserPin = String($('gateNewUserPin')?.value || '').trim()
         if (!name) {
           if ($('gateErr')) $('gateErr').textContent = 'Escribe un nombre'
-          return
-        }
-        if (!/^\d{4}$/.test(newUserPin)) {
-          if ($('gateErr')) $('gateErr').textContent = 'El PIN del nuevo usuario debe ser 4 dígitos'
           return
         }
         // Pad táctil obligatorio (window.prompt falla / se salta en móvil)
@@ -4074,7 +4069,6 @@
               action: 'createUser',
               adminPin: String(adminPin).trim(),
               name,
-              userPin: newUserPin,
             }),
           })
           const data = await r.json().catch(() => ({}))
@@ -4086,12 +4080,15 @@
             }
             return
           }
-          if ($('gateNewUserPin')) $('gateNewUserPin').value = ''
           if ($('gateCreateName')) $('gateCreateName').value = ''
           if ($('gateErr')) $('gateErr').textContent = ''
-          // Nunca desbloquear tras crear: debe entrar con su PIN en el login
-          alert(`Usuario «${data.user?.name || name}» creado. Ahora entra con su PIN.`)
-          showGateMode('login')
+          // Sin PIN: no puede entrar hasta Primer acceso
+          alert(
+            `Usuario «${data.user?.name || name}» creado.\n` +
+              'Que pulse Primer acceso, elija su nombre y cree su PIN.',
+          )
+          showGateMode('first')
+          void loadPendingUsers()
         } catch (err) {
           console.warn('createUser', err)
           if ($('gateErr')) $('gateErr').textContent = 'No se pudo crear el usuario'
