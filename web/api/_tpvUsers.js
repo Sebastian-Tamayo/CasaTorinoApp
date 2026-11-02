@@ -16,19 +16,26 @@ const JORNADA_KEY = 'jornada'
  * Subir esto fuerza reseedar usuarios + nuevo sessionEpoch
  * (invalida cookies de todos los dispositivos).
  */
-const USERS_STORE_VERSION = 3
-/** @deprecated prefer adminPinOk — Lore. Mantener export para tests. */
+const USERS_STORE_VERSION = 4
+/** @deprecated tests legacy — el admin real es el PIN de Lore/Sebas tras primer acceso. */
 const CREATE_USER_PIN = '2908'
-/** PINs con privilegio de alta / monitor (Lore + Sebas). Solo servidor. */
-const ADMIN_PINS = new Set(['2908', '3212'])
 /** Antes de abrir jornada / tras fin: solo estos en el TPV. */
 const BOOTSTRAP_USER_IDS = new Set(['u-lore', 'u-sebas'])
 
-/** Arranque limpio: solo caja + Lore + Sebas (dev). */
+/**
+ * Todos sin PIN de fábrica → aparecen en «Primer acceso» (Lore/Sebas también).
+ * TPV FÍSICO hereda TPV_PIN de entorno si existe (caja / cocina).
+ */
 const SEED_USERS = [
   { id: 'u-tpv-fisico', name: 'TPV FÍSICO', role: 'central' },
-  { id: 'u-lore', name: 'Lore', role: 'admin', pin: '2908' },
-  { id: 'u-sebas', name: 'Sebas', role: 'admin', pin: '3212' },
+  { id: 'u-lore', name: 'Lore', role: 'admin' },
+  { id: 'u-sebas', name: 'Sebas', role: 'admin' },
+  { id: 'u-ali', name: 'Ali', role: 'staff' },
+  { id: 'u-shari', name: 'Shari', role: 'staff' },
+  { id: 'u-aleja', name: 'Aleja', role: 'staff' },
+  { id: 'u-yuli', name: 'Yuli', role: 'staff' },
+  { id: 'u-carol', name: 'Carol', role: 'staff' },
+  { id: 'u-clara', name: 'Clara', role: 'staff' },
 ]
 
 function hashPin(pin) {
@@ -190,12 +197,37 @@ function findById(store, id) {
 
 function pendingUsers(store) {
   return (store.users || [])
-    .filter((u) => !u.pinSet)
+    .filter((u) => !u.pinSet && u.role !== 'central')
     .map((u) => ({ id: u.id, name: u.name }))
 }
 
-function adminPinOk(pin) {
-  return ADMIN_PINS.has(String(pin || '').trim())
+/** Lista pública para el gate (sin hashes): elegir usuario y luego PIN. */
+function gateUsers(store) {
+  return (store.users || [])
+    .filter((u) => u && u.id && u.name && u.role !== 'central')
+    .map((u) => ({
+      id: String(u.id),
+      name: String(u.name),
+      pinSet: Boolean(u.pinSet && u.pinHash),
+      role: normalizeRole(u.role),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+}
+
+/** Admin = PIN actual de Lore o Sebas (tras primer acceso). */
+async function adminPinOk(pin) {
+  const p = String(pin || '').trim()
+  if (!p) return false
+  const store = await loadUsersStore()
+  const h = hashPin(p)
+  if (!h) return false
+  return (store.users || []).some(
+    (u) =>
+      BOOTSTRAP_USER_IDS.has(String(u.id)) &&
+      u.pinSet &&
+      u.pinHash &&
+      u.pinHash === h,
+  )
 }
 
 async function setUserPin(userId, pin) {
@@ -228,7 +260,7 @@ function slugUserId(name) {
 }
 
 async function createUser(name, adminPin, userPin) {
-  if (!adminPinOk(adminPin)) {
+  if (!(await adminPinOk(adminPin))) {
     throw new Error('PIN incorrecto')
   }
   const n = String(name || '').trim().slice(0, 40)
@@ -334,7 +366,6 @@ module.exports = {
   USERS_KEY,
   USERS_STORE_VERSION,
   CREATE_USER_PIN,
-  ADMIN_PINS,
   BOOTSTRAP_USER_IDS,
   hashPin,
   publicUser,
@@ -342,6 +373,7 @@ module.exports = {
   saveUsersStore,
   getSessionEpoch,
   pendingUsers,
+  gateUsers,
   setUserPin,
   createUser,
   authenticatePin,

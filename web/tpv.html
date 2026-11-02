@@ -1295,12 +1295,15 @@
     .gate-panel {
       text-align: left; margin-top: .35rem;
     }
-    .gate-panel label {
+    .gate-panel label,
+    .gate-user-pick {
       display: grid; gap: .3rem; margin: 0 0 .65rem;
       font-size: .78rem; font-weight: 700; color: var(--muted);
+      text-align: left;
     }
     .gate-panel select,
-    .gate-panel input {
+    .gate-panel input,
+    .gate-user-pick select {
       width: 100%; height: 44px; border-radius: 12px;
       border: 1px solid var(--line2); background: var(--card); color: var(--ink);
       font: inherit; font-size: 1rem; font-weight: 700; padding: 0 .75rem;
@@ -2695,8 +2698,13 @@
     <div class="gate-card">
       <img src="assets/logo.jpg" alt="Casa Torino" />
       <h1 id="gateTitle">Acceso TPV</h1>
-      <p id="gateSub">Introduce tu PIN de 4 dígitos</p>
+      <p id="gateSub">Elige tu nombre e introduce tu PIN</p>
       <div id="gateLoginBlock">
+        <label class="gate-user-pick">Quién eres
+          <select id="gateLoginUser" aria-label="Elegir usuario TPV">
+            <option value="">— Elige tu nombre —</option>
+          </select>
+        </label>
         <div class="gate-dots" id="gateDots" aria-hidden="true">
           <i></i><i></i><i></i><i></i>
         </div>
@@ -3341,7 +3349,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-02-primer-msg1'
+      const TPV_CLIENT_VERSION = '2026-11-02-login-user1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3481,7 +3489,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=primer-msg1')
+            .register('/sw-tpv.js?v=login-user1')
             .catch(() => {})
         })
         try {
@@ -3824,9 +3832,10 @@
               ? 'Elige tu nombre y crea tu PIN (solo la primera vez)'
               : mode === 'create'
                 ? 'Nombre y PIN del nuevo usuario'
-                : 'Introduce tu PIN de 4 dígitos'
+                : 'Elige tu nombre e introduce tu PIN'
         }
         if ($('gateErr')) $('gateErr').textContent = ''
+        if (mode === 'login') void loadGateUsers()
       }
 
       async function unlockTpv(user) {
@@ -3859,14 +3868,57 @@
         )
       }
 
-      async function tryPin() {
-        if (pinBuf.length < 4) return
+      let gateUsersCache = []
+
+      async function loadGateUsers() {
+        const sel = $('gateLoginUser')
+        if (!sel) return
+        const prev = String(sel.value || '')
         try {
           const r = await fetch('/api/tpv-auth', {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pin: pinBuf, gate: 'tpv' }),
+            body: JSON.stringify({ action: 'gateUsers' }),
+          })
+          const data = await r.json().catch(() => ({}))
+          gateUsersCache = Array.isArray(data.users) ? data.users : []
+          const withPin = gateUsersCache.filter((u) => u.pinSet)
+          if (!withPin.length) {
+            sel.innerHTML =
+              '<option value="">Nadie tiene PIN aún — usa Primer acceso</option>'
+            return
+          }
+          sel.innerHTML =
+            '<option value="">— Elige tu nombre —</option>' +
+            withPin
+              .map(
+                (u) =>
+                  `<option value="${String(u.id).replace(/"/g, '')}">${String(u.name || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')}</option>`,
+              )
+              .join('')
+          if (prev && withPin.some((u) => u.id === prev)) sel.value = prev
+        } catch (err) {
+          console.warn('gateUsers', err)
+          sel.innerHTML = '<option value="">Error al cargar usuarios</option>'
+        }
+      }
+
+      async function tryPin() {
+        if (pinBuf.length < 4) return
+        const userId = String($('gateLoginUser')?.value || '').trim()
+        if (!userId) {
+          failPin('Elige tu nombre arriba')
+          return
+        }
+        try {
+          const r = await fetch('/api/tpv-auth', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pin: pinBuf, userId, gate: 'tpv' }),
           })
           const data = await r.json().catch(() => ({}))
           if (r.ok && data.ok) {
@@ -3898,11 +3950,7 @@
             sel.innerHTML = '<option value="">No hay nadie pendiente de PIN</option>'
             if ($('gateErr')) {
               $('gateErr').textContent =
-                'Si ya tienes PIN (p. ej. Sebas), pulsa Cancelar e introdúcelo en la pantalla principal'
-            }
-            if ($('gateSub')) {
-              $('gateSub').textContent =
-                'Primer acceso solo para quien aún no tiene PIN'
+                'Todos tienen PIN. Cancela y elige tu nombre en la pantalla principal'
             }
             return
           }
@@ -4093,6 +4141,12 @@
       $('gateCreateCancel')?.addEventListener('click', () => showGateMode('login'))
       $('gateFirstSave')?.addEventListener('click', () => void saveFirstAccessPin())
       $('gateCreateSave')?.addEventListener('click', () => void createTpvUser())
+      $('gateLoginUser')?.addEventListener('change', () => {
+        pinBuf = ''
+        paintPinDots()
+        if ($('gateErr')) $('gateErr').textContent = ''
+      })
+      void loadGateUsers()
 
       $('tpvUserSelect')?.addEventListener('change', () => {
         if (tpvUserSelectLock) return

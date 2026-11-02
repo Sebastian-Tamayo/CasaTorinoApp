@@ -3,11 +3,13 @@
  *
  * POST /api/tpv-auth  { "pin": "...." } → login
  * POST /api/tpv-auth  { "action": "pendingUsers" } → nombres sin PIN (primer acceso)
+ * POST /api/tpv-auth  { "action": "gateUsers" } → id/name/pinSet (login: elegir usuario)
  * POST /api/tpv-auth  { "action": "setPin", userId, pin } → primer acceso
  * POST /api/tpv-auth  { "action": "createUser", adminPin, name, userPin } → alta
  * POST /api/tpv-auth  { "action": "listUsers" } → nombres (sesión OK)
  * POST /api/tpv-auth  { "action": "switchUser", userId, pin } → cambio de usuario
  * POST /api/tpv-auth  { "action": "getAudit", adminPin } → monitor TPV
+ * POST /api/tpv-auth  { "userId", "pin", "gate":"tpv" } → login de ese usuario
  * GET  /api/tpv-auth  → { ok, user }  (sliding cookie)
  * DELETE /api/tpv-auth → cierra sesión
  * POST /api/tpv-auth  { "refresh": true } → renueva si cookie válida
@@ -27,6 +29,7 @@ const {
 const {
   loadUsersStore,
   pendingUsers,
+  gateUsers,
   setUserPin,
   createUser,
   authenticatePin,
@@ -34,9 +37,10 @@ const {
   allowTpvLogin,
   bootstrapLoginDeniedMessage,
   getSessionEpoch,
+  adminPinOk,
   publicUser,
 } = require('./_tpvUsers')
-const { appendLogin, getAudit, adminPinOk } = require('./_tpvAudit')
+const { appendLogin, getAudit } = require('./_tpvAudit')
 const handleQzSign = require('./_qzSign')
 
 async function issueSession(res, user) {
@@ -202,6 +206,15 @@ module.exports = async function handler(req, res) {
         })
       }
 
+      if (action === 'gateUsers') {
+        const store = await loadUsersStore()
+        return json(res, 200, {
+          ok: true,
+          action: 'gateUsers',
+          users: gateUsers(store),
+        })
+      }
+
       if (action === 'setPin') {
         const userId = String(body.userId || '').trim()
         const pin = String(body.pin || '').trim()
@@ -287,7 +300,7 @@ module.exports = async function handler(req, res) {
       }
 
       if (action === 'getAudit') {
-        if (!adminPinOk(body.adminPin || body.pin)) {
+        if (!(await adminPinOk(body.adminPin || body.pin))) {
           return json(res, 401, { ok: false, error: 'PIN incorrecto' })
         }
         const data = await getAudit()
@@ -300,13 +313,16 @@ module.exports = async function handler(req, res) {
         })
       }
 
-      // Login por PIN (usuario o TPV_PIN → TPV FÍSICO)
-      // gate:'tpv' → antes de jornada solo Lore/Sebas (no aplica a cocina/interno)
+      // Login: con userId (TPV elige persona) o solo PIN (cocina/interno)
+      // gate:'tpv' → antes de jornada solo Lore/Sebas
       const pin = String(body.pin || '').trim()
       if (!pin) {
         return json(res, 401, { ok: false, error: 'PIN incorrecto' })
       }
-      const user = await authenticatePin(pin)
+      const wantUserId = String(body.userId || '').trim()
+      const user = wantUserId
+        ? await authenticateUserPin(wantUserId, pin)
+        : await authenticatePin(pin)
       if (!user) {
         return json(res, 401, { ok: false, error: 'PIN incorrecto' })
       }
