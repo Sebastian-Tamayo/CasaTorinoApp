@@ -292,6 +292,14 @@ try {
   assert.ok(html.includes("gate: 'tpv'"))
   assert.ok(html.includes('userId'))
   assert.ok(html.includes('kickIfNotBootstrap'))
+  assert.ok(html.includes('entered !== false'))
+  assert.ok(auth.includes('entered: true') && auth.includes('entered: false'))
+  assert.ok(users.includes('USERS_STORE_VERSION = 8') || /USERS_STORE_VERSION\s*=\s*8/.test(users))
+  // Nadie entra directo por cookie
+  assert.ok(
+    /tryResumeSession[\s\S]{0,220}return false/.test(html),
+    'tryResumeSession no desbloquea por cookie',
+  )
   assert.ok(!html.includes('planoWaiterAdd'))
   assert.ok(!html.includes('3212'), 'tpv.html no revela PIN Sebas')
   ok('tpv-usuarios-pin')

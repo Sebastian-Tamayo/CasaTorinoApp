@@ -1,5 +1,5 @@
 {
-  "required": "2026-11-02-usuarios-ok1",
-  "message": "Importante: actualiza — login por usuario+PIN; cambio con PIN",
-  "updatedAt": "2026-11-02T12:25:00.000Z"
+  "required": "2026-11-02-todos-pin1",
+  "message": "Importante: actualiza — todos crean PIN (incl. TPV) y entran con nombre+PIN",
+  "updatedAt": "2026-11-02T12:22:42.000Z"
 }
