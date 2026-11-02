@@ -7,7 +7,7 @@ const { getJson, setJson, updateJson, hasSupabase } = require('./_opsStore')
 const AUDIT_KEY = 'tpv_audit'
 const MAX_LOGINS = 200
 const MAX_EVENTS = 500
-/** Mismo PIN que createUser / monitor. */
+/** PIN admin (alta usuarios / monitor). No exponer en UI. */
 const ADMIN_PIN = '2908'
 
 function emptyStore() {

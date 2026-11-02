@@ -2689,11 +2689,14 @@
         </div>
       </div>
       <div class="gate-panel" id="gateCreateUser" hidden>
-        <label>PIN de permiso (2908)
-          <input id="gateAdminPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" />
-        </label>
         <label>Nombre del nuevo usuario
           <input id="gateCreateName" type="text" maxlength="40" autocomplete="off" />
+        </label>
+        <label>PIN del nuevo usuario
+          <input id="gateNewUserPin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" />
+        </label>
+        <label>PIN de administrador
+          <input id="gateAdminPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" />
         </label>
         <div class="gate-panel-actions">
           <button type="button" class="cancel" id="gateCreateCancel">Cancelar</button>
@@ -3273,7 +3276,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-02-monitor2'
+      const TPV_CLIENT_VERSION = '2026-11-02-pin-admin1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3566,7 +3569,7 @@
             mode === 'first'
               ? 'Elige tu nombre y crea tu PIN (solo la primera vez)'
               : mode === 'create'
-                ? 'Alta de usuario (requiere PIN 2908)'
+                ? 'Nombre, PIN del nuevo usuario y PIN de administrador'
                 : 'Introduce tu PIN de 4 dígitos'
         }
         if ($('gateErr')) $('gateErr').textContent = ''
@@ -3696,14 +3699,19 @@
       }
 
       async function createTpvUser() {
-        const adminPin = String($('gateAdminPin')?.value || '').trim()
         const name = String($('gateCreateName')?.value || '').trim()
-        if (!/^\d{4}$/.test(adminPin)) {
-          if ($('gateErr')) $('gateErr').textContent = 'PIN de permiso incorrecto'
-          return
-        }
+        const newUserPin = String($('gateNewUserPin')?.value || '').trim()
+        const adminPin = String($('gateAdminPin')?.value || '').trim()
         if (!name) {
           if ($('gateErr')) $('gateErr').textContent = 'Escribe un nombre'
+          return
+        }
+        if (!/^\d{4}$/.test(newUserPin)) {
+          if ($('gateErr')) $('gateErr').textContent = 'El PIN del nuevo usuario debe ser 4 dígitos'
+          return
+        }
+        if (!/^\d{4}$/.test(adminPin)) {
+          if ($('gateErr')) $('gateErr').textContent = 'PIN de administrador incorrecto'
           return
         }
         try {
@@ -3715,6 +3723,7 @@
               action: 'createUser',
               adminPin,
               name,
+              userPin: newUserPin,
             }),
           })
           const data = await r.json().catch(() => ({}))
@@ -3723,13 +3732,10 @@
             return
           }
           if ($('gateAdminPin')) $('gateAdminPin').value = ''
+          if ($('gateNewUserPin')) $('gateNewUserPin').value = ''
           if ($('gateCreateName')) $('gateCreateName').value = ''
-          if ($('gateErr')) {
-            $('gateErr').textContent = ''
-          }
-          alert(
-            `Usuario «${data.user?.name || name}» creado. Que configure su PIN en Primer acceso.`,
-          )
+          if ($('gateErr')) $('gateErr').textContent = ''
+          alert(`Usuario «${data.user?.name || name}» creado. Ya puede entrar con su PIN.`)
           showGateMode('login')
         } catch (err) {
           console.warn('createUser', err)

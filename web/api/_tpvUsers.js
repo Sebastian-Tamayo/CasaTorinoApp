@@ -11,7 +11,7 @@ const { sessionSecret } = require('./_tpvSession')
 
 const USERS_KEY = 'tpv_users'
 const FLOOR_KEY = 'floor_plan'
-/** PIN fijo para crear usuarios nuevos (pedido negocio). */
+/** PIN admin para crear usuarios. No exponer en UI. */
 const CREATE_USER_PIN = '2908'
 
 const SEED_USERS = [
@@ -183,17 +183,24 @@ function slugUserId(name) {
   )
 }
 
-async function createUser(name, adminPin) {
+async function createUser(name, adminPin, userPin) {
   if (String(adminPin || '').trim() !== CREATE_USER_PIN) {
-    throw new Error('PIN de permiso incorrecto')
+    throw new Error('PIN de administrador incorrecto')
   }
   const n = String(name || '').trim().slice(0, 40)
   if (!n) throw new Error('Escribe un nombre')
+  const p = String(userPin || '').trim()
+  if (!/^\d{4}$/.test(p)) {
+    throw new Error('El PIN del nuevo usuario debe ser 4 dígitos')
+  }
   const store = await loadUsersStore()
   if (
     store.users.some((u) => u.name.toLowerCase() === n.toLowerCase())
   ) {
     throw new Error('Ya existe ese usuario')
+  }
+  if (findByPin(store, p)) {
+    throw new Error('Ese PIN ya está en uso')
   }
   let id = slugUserId(n)
   if (!id || store.users.some((u) => u.id === id)) {
@@ -203,8 +210,8 @@ async function createUser(name, adminPin) {
     id,
     name: n,
     role: 'staff',
-    pinHash: '',
-    pinSet: false,
+    pinHash: hashPin(p),
+    pinSet: true,
   }
   store.users.push(u)
   await saveUsersStore(store)
