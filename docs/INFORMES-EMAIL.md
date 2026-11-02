@@ -23,11 +23,10 @@ Fuente: **cierres de jornada** TPV en Supabase `ops_kv` (`cierres`).
 
 ## Cuándo se envía
 
-1. **Semanal (principal):** al **cerrar caja del domingo** (calendario domingo, o lunes antes de las 08:00 Madrid si cierran de madrugada ~00:30).
-   - Cubre la semana lun–dom completa (incluye ese domingo).
-   - `force=true` en el último cierre para pisar un envío prematuro.
-2. **Semanal (backup):** lunes **~08:00 Madrid** (`/api/ops-daily-purge` vía Vercel Cron) si aún no se envió.
-3. **Mensual:** día **1** del mes ~08:00 Madrid (mes calendario anterior).
+1. **Semanal (único):** lunes **~08:00 Madrid** (`/api/ops-daily-purge` vía Vercel Cron).
+   - Cubre la semana lun–dom anterior completa.
+   - **No** se envía al cerrar caja (evita duplicados).
+2. **Mensual:** día **1** del mes ~08:00 Madrid (mes calendario anterior).
 
 Log: `informe-log` en ops_kv (guarda `totals`). Solo se marca enviado tras Resend OK (así el cron puede reintentar).
 
@@ -54,5 +53,5 @@ Forzar reenvío: `force=1`.
 
 1. No tocar el gate de versión de `/api/kitchen` create (TPV→cocina).
 2. Informe = suma de **cierres de jornada**; día = apertura (00:30 = día anterior ops).
-3. Semanal al cerrar domingo (o lun < 08:00) + backup lunes ~08:00.
+3. Semanal solo lunes ~08:00 Madrid (un correo).
 4. Cuidado con cuota CDN Hobby (polls de estáticos lentos).

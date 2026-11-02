@@ -5,7 +5,7 @@
  * INVARIANTES (no romper en próximos lanzamientos):
  * 1) Un cierre de jornada = un día: dayKey = opsDay del startedAt (08:00 Madrid).
  *    Si cierran sábado a las 00:30 → jornada del sábado (no del domingo).
- * 2) Semanal: al cerrar domingo (o lun < 08:00 Madrid) + backup cron lunes ~08:00.
+ * 2) Semanal: **un solo envío** — lunes ~08:00 Madrid (cron purge). No al cerrar caja.
  * 3) Mensual: día 1 ~08:00 Madrid.
  */
 const { getJson, setJson, updateJson } = require('./_opsStore')
@@ -53,6 +53,19 @@ function madridWeekday(ts = Date.now()) {
     timeZone: 'Europe/Madrid',
     weekday: 'short',
   }).format(ts instanceof Date ? ts : new Date(ts))
+}
+
+/** Hora 0–23 en Europe/Madrid. */
+function madridHour(ts = Date.now()) {
+  const raw = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Madrid',
+    hour: '2-digit',
+    hour12: false,
+  }).format(ts instanceof Date ? ts : new Date(ts))
+  // en-GB puede devolver "24" a medianoche en algunos motores
+  const h = Number(raw)
+  if (!Number.isFinite(h)) return 0
+  return h === 24 ? 0 : h
 }
 
 /** Lunes (lun–dom) Europe/Madrid → dayKey. */
@@ -809,42 +822,37 @@ async function runInforme(kind, opts = {}) {
 }
 
 /**
- * Tras cerrar caja del domingo (calendario Sun, o Mon < 08:00 Madrid
- * cuando cierran de madrugada ~00:30): envía el semanal lun–dom.
- * force=true: el último cierre pisa un envío prematuro.
- * Backup: cron lunes ~08:00 (ops-daily-purge).
+ * @deprecated El semanal ya no se envía al cerrar caja (provocaba duplicados
+ * con el cron del lunes). Se conserva por compatibilidad de imports.
  */
 async function maybeTriggerWeeklyAfterSundayClose() {
-  const now = new Date()
-  const wd = madridWeekday(now)
-  const hour = Number(
-    new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Europe/Madrid',
-      hour: '2-digit',
-      hour12: false,
-    }).format(now),
-  )
-  const isSunday = wd === 'Sun'
-  const isMondayEarlyClose = wd === 'Mon' && hour < 8
-  if (!isSunday && !isMondayEarlyClose) {
-    return { triggered: false, reason: 'not_sunday_close_window', wd, hour }
-  }
-  try {
-    const result = await runInforme('semanal', { force: true, now })
-    return { triggered: true, ...result }
-  } catch (err) {
-    return {
-      triggered: false,
-      error: String(err && err.message ? err.message : err),
-    }
+  return {
+    triggered: false,
+    reason: 'weekly_only_monday_cron',
   }
 }
 
 /**
- * Lunes (cron ~08:00 Madrid): envío principal del informe semanal (lun–dom).
- * Idempotente: si ya se envió esa semana, no reenvía.
+ * Lunes ~08:00 Europe/Madrid: **único** envío del informe semanal (lun–dom).
+ * Los dos crons UTC (06:00 y 07:00) cubren CET/CEST para el purge; el email
+ * solo salta cuando la hora Madrid es exactamente 8 (un solo correo).
+ * Idempotente vía informe-log.
  */
 async function maybeTriggerWeeklyMondayBackup(now = new Date()) {
+  const wd = madridWeekday(now)
+  const hour = madridHour(now)
+  if (wd !== 'Mon') {
+    return { ok: true, skipped: true, reason: 'not_monday', wd, hour }
+  }
+  if (hour !== 8) {
+    return {
+      ok: true,
+      skipped: true,
+      reason: 'not_monday_08_madrid',
+      wd,
+      hour,
+    }
+  }
   return runInforme('semanal', { force: false, now })
 }
 
@@ -859,6 +867,7 @@ module.exports = {
   maybeTriggerWeeklyAfterSundayClose,
   maybeTriggerWeeklyMondayBackup,
   madridWeekday,
+  madridHour,
   madridParts,
   REPORT_TO,
   RESEND_API_KEY,
