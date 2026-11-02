@@ -16,7 +16,7 @@ const JORNADA_KEY = 'jornada'
  * Subir esto fuerza reseedar usuarios + nuevo sessionEpoch
  * (invalida cookies; NO toca mesas/jornada/cocina).
  */
-const USERS_STORE_VERSION = 5
+const USERS_STORE_VERSION = 6
 /** PIN del TPV físico / admin de alta. No exponer en UI. */
 const CREATE_USER_PIN = '2908'
 /** Acceso a cualquier hora (sin jornada abierta): caja física. */
@@ -101,12 +101,50 @@ function seedFromDefaults() {
 /** Memoria local si no hay Supabase (tests / boot sin env). */
 let memoryStore = null
 
+/** Garantiza caja física con PIN admin (por si un seed viejo la dejó sin PIN). */
+async function ensureFisicoBootstrap(store) {
+  let list = Array.isArray(store?.users) ? store.users.slice() : []
+  let f = list.find((u) => u && u.id === 'u-tpv-fisico')
+  let changed = false
+  if (!f) {
+    f = {
+      id: 'u-tpv-fisico',
+      name: 'TPV FÍSICO',
+      role: 'central',
+      pinHash: '',
+      pinSet: false,
+    }
+    list.unshift(f)
+    changed = true
+  }
+  if (!f.pinSet || !f.pinHash) {
+    const pinHash = hashPin(CREATE_USER_PIN)
+    if (pinHash) {
+      f.pinHash = pinHash
+      f.pinSet = true
+      f.role = 'central'
+      f.name = f.name || 'TPV FÍSICO'
+      changed = true
+    }
+  }
+  if (!changed) return store
+  const next = {
+    ...store,
+    users: list.map((u) =>
+      u.id === 'u-tpv-fisico' ? f : u,
+    ),
+    storeVersion: Math.max(Number(store.storeVersion) || 0, USERS_STORE_VERSION),
+    sessionEpoch: Number(store.sessionEpoch) || Date.now(),
+  }
+  return saveUsersStore(next)
+}
+
 async function loadUsersStore() {
   if (!hasSupabase()) {
     if (!memoryStore || memoryStore.storeVersion < USERS_STORE_VERSION) {
       memoryStore = seedFromDefaults()
     }
-    return memoryStore
+    return ensureFisicoBootstrap(memoryStore)
   }
   const raw = await getJson(USERS_KEY, null)
   const normalized = raw && Array.isArray(raw.users) ? normalizeStore(raw) : null
@@ -128,9 +166,9 @@ async function loadUsersStore() {
     } catch (err) {
       console.warn('[tpv-users] seed', err)
     }
-    return seeded
+    return ensureFisicoBootstrap(seeded)
   }
-  return normalized
+  return ensureFisicoBootstrap(normalized)
 }
 
 async function saveUsersStore(store) {

@@ -3349,7 +3349,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-02-solo-fisico1'
+      const TPV_CLIENT_VERSION = '2026-11-02-fisico-visible1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3489,7 +3489,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=solo-fisico1')
+            .register('/sw-tpv.js?v=fisico-visible1')
             .catch(() => {})
         })
         try {
@@ -3882,7 +3882,14 @@
           })
           const data = await r.json().catch(() => ({}))
           gateUsersCache = Array.isArray(data.users) ? data.users : []
-          const withPin = gateUsersCache.filter((u) => u.pinSet)
+          const withPin = gateUsersCache
+            .filter((u) => u.pinSet)
+            .sort((a, b) => {
+              // Caja física primero
+              if (a.id === 'u-tpv-fisico') return -1
+              if (b.id === 'u-tpv-fisico') return 1
+              return String(a.name).localeCompare(String(b.name), 'es')
+            })
           if (!withPin.length) {
             sel.innerHTML =
               '<option value="">Nadie tiene PIN aún — usa Primer acceso</option>'
@@ -3898,7 +3905,14 @@
                     .replace(/</g, '&lt;')}</option>`,
               )
               .join('')
-          if (prev && withPin.some((u) => u.id === prev)) sel.value = prev
+          if (prev && withPin.some((u) => u.id === prev)) {
+            sel.value = prev
+          } else if (withPin.length === 1) {
+            // Un solo usuario (TPV FÍSICO): ya seleccionado para solo poner el PIN
+            sel.value = withPin[0].id
+          } else if (withPin.some((u) => u.id === 'u-tpv-fisico')) {
+            sel.value = 'u-tpv-fisico'
+          }
         } catch (err) {
           console.warn('gateUsers', err)
           sel.innerHTML = '<option value="">Error al cargar usuarios</option>'
