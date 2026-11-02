@@ -1777,6 +1777,68 @@
       text-transform: none;
       letter-spacing: 0;
     }
+    .carta-hist-gallery {
+      display: grid;
+      gap: .55rem;
+      margin-top: .35rem;
+    }
+    .carta-hist-gallery h4 {
+      margin: 0;
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .carta-hist-gallery .carta-hist-empty {
+      margin: 0;
+      font-size: .85rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .carta-hist-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .45rem;
+    }
+    .carta-hist-card {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--line2);
+      background: rgba(0,0,0,.22);
+      aspect-ratio: 1;
+    }
+    .carta-hist-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .carta-hist-card .carta-hist-del {
+      position: absolute;
+      top: .3rem;
+      right: .3rem;
+      width: 2rem;
+      height: 2rem;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(127,29,29,.92);
+      color: #fecaca;
+      font: inherit;
+      font-size: .95rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      touch-action: manipulation;
+    }
+    .carta-hist-card .carta-hist-del:active {
+      transform: scale(.96);
+    }
+    @media (max-width: 420px) {
+      .carta-hist-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
 
     /* Editar plato: scroll en móvil para llegar a Guardar (foto alarga el form) */
     #cartaEditModal.course-modal {
@@ -2899,6 +2961,11 @@
             </label>
           </div>
           <p class="carta-edit-photo-hint" id="cartaEditPhotoHint">JPG / PNG / WebP · se comprime al guardar. En el TPV de sala no se muestra la foto.</p>
+          <div class="carta-hist-gallery" id="cartaEditHistGallery" hidden>
+            <h4>Fotos en la web</h4>
+            <p class="carta-hist-empty" id="cartaEditHistEmpty" hidden>Aún no hay fotos en Menús anteriores.</p>
+            <div class="carta-hist-grid" id="cartaEditHistGrid" aria-label="Fotos de menús anteriores"></div>
+          </div>
         </div>
       </div>
       <div class="course-actions carta-edit-actions">
@@ -3187,8 +3254,8 @@
   <div class="tpv-toast" id="tpvToast" role="status" aria-live="polite"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.min.js"></script>
-  <script src="carta.js?v=plano-2"></script>
-  <script src="tpv-data.js?v=plano-2"></script>
+  <script src="carta.js?v=menus-hist-del1"></script>
+  <script src="tpv-data.js?v=menus-hist-del1"></script>
   <script src="printService.js?v=factura2"></script>
   <script src="tpvFacturas.js?v=factura2"></script>
   <script src="tpvSync.js?v=cpu-opt1"></script>
@@ -3204,7 +3271,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-10-25-reserva-rt1'
+      const TPV_CLIENT_VERSION = '2026-11-02-menus-hist-del1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -6467,6 +6534,70 @@
           $('cartaEditPhotoHint').textContent =
             'JPG / PNG / WebP · se comprime al guardar. En el TPV de sala no se muestra la foto.'
         }
+        paintMenusAnterioresEditor(false)
+      }
+
+      function escapeAttr(s) {
+        return String(s || '')
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+      }
+
+      /** Galería Menús anteriores: ver todas y borrar desde el modal histórico. */
+      function paintMenusAnterioresEditor(show) {
+        const gallery = $('cartaEditHistGallery')
+        const grid = $('cartaEditHistGrid')
+        const empty = $('cartaEditHistEmpty')
+        if (!gallery || !grid) return
+        if (!show) {
+          gallery.hidden = true
+          grid.innerHTML = ''
+          if (empty) empty.hidden = true
+          return
+        }
+        const urls = Array.isArray(window.TPV_CARTA_META?.menusAnteriores)
+          ? window.TPV_CARTA_META.menusAnteriores.filter((u) => String(u || '').trim())
+          : []
+        gallery.hidden = false
+        if (empty) empty.hidden = urls.length > 0
+        grid.innerHTML = urls
+          .map((src, i) => {
+            const safe = escapeAttr(src)
+            return `<div class="carta-hist-card" data-url="${safe}">
+              <img src="${safe}" alt="Menú anterior ${i + 1}" loading="lazy" decoding="async" />
+              <button type="button" class="carta-hist-del" data-remove-hist="${safe}" aria-label="Quitar foto ${i + 1}">×</button>
+            </div>`
+          })
+          .join('')
+        const histN = urls.length
+        if ($('cartaEditSub') && cartaEditDraft?.historico) {
+          $('cartaEditSub').textContent =
+            `Única utilidad: subir fotos a «Menús anteriores» de la web. No van a la carta ni se venden. Ahora hay ${histN} foto${histN === 1 ? '' : 's'}.`
+        }
+      }
+
+      async function removeMenusAnteriorPhoto(url) {
+        const src = String(url || '').trim()
+        if (!src) return
+        if (!window.confirm('¿Quitar esta foto de Menús anteriores en la web?')) return
+        try {
+          const data = await window.CasaTorinoCarta.postCarta('removeMenuAnterior', {
+            url: src,
+          })
+          if (data?.carta) window.TPV_CARTA_META = data.carta
+          else await reloadCatalogFromStore()
+          paintMenusAnterioresEditor(true)
+          render()
+        } catch (err) {
+          console.warn('removeMenusAnteriorPhoto', err)
+          if (err && err.status === 401) {
+            lockTpvForPin('Sesión caducada — introduce el PIN')
+            return
+          }
+          alert('No se pudo quitar la foto.\n' + (err.message || err))
+        }
       }
 
       function paintCartaEditPhoto(url) {
@@ -6550,14 +6681,15 @@
         }
         if ($('cartaEditPhotoHint')) {
           $('cartaEditPhotoHint').textContent = historico
-            ? 'Cada foto que guardes se suma a la galería «Menús anteriores» de la página. Sin nombres ni precios.'
+            ? 'Cada foto que guardes se suma a la galería de abajo (y a la web). Pulsa × para quitarla. Sin nombres ni precios.'
             : 'JPG / PNG / WebP · se comprime al guardar. En el TPV de sala no se muestra la foto.'
         }
         if ($('cartaEditImageRemoveWrap')) {
           $('cartaEditImageRemoveWrap').hidden = historico
         }
         if ($('cartaEditImage')) $('cartaEditImage').value = ''
-        paintCartaEditPhoto(item?.image_url || '')
+        paintCartaEditPhoto(historico ? '' : item?.image_url || '')
+        paintMenusAnterioresEditor(historico)
         if ($('cartaEditDelete')) $('cartaEditDelete').hidden = isNew || historico
         if ($('cartaEditModal')) $('cartaEditModal').hidden = false
         const scrollBox = document.querySelector('#cartaEditModal .carta-edit-scroll')
@@ -6707,13 +6839,18 @@
             categoryId,
             item,
           })
-          closeCartaEditModal()
           await reloadCatalogFromStore()
           if (historico) {
+            // Seguir en el modal: ver galería actualizada y poder quitar fotos
+            if ($('cartaEditImage')) $('cartaEditImage').value = ''
+            paintCartaEditPhoto('')
+            paintMenusAnterioresEditor(true)
             const n = Array.isArray(window.TPV_CARTA_META?.menusAnteriores)
               ? window.TPV_CARTA_META.menusAnteriores.length
               : 0
-            alert(`Foto añadida al histórico. La web muestra ${n} foto${n === 1 ? '' : 's'}.`)
+            alert(`Foto añadida. La web muestra ${n} foto${n === 1 ? '' : 's'}.`)
+          } else {
+            closeCartaEditModal()
           }
         } catch (err) {
           console.warn('saveCartaEdit', err)
@@ -6776,6 +6913,12 @@
           const actions = document.querySelector('#cartaEditModal .carta-edit-actions')
           actions?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
         }, 80)
+      })
+      $('cartaEditHistGrid')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-remove-hist]')
+        if (!btn) return
+        e.preventDefault()
+        void removeMenusAnteriorPhoto(btn.getAttribute('data-remove-hist'))
       })
       $('cartaEditModal')?.addEventListener('click', (e) => {
         if (e.target === $('cartaEditModal')) closeCartaEditModal()

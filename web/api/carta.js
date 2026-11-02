@@ -9,6 +9,7 @@
  *   { action: 'seed' }                      — fuerza copia JSON → Supabase
  *   { action: 'put', carta: { ... } }       — reemplaza carta completa
  *   { action: 'upsertItem', categoryId, item } — alta/edición de un producto
+ *   { action: 'removeMenuAnterior', url } — quita una foto de Menús anteriores (web)
  *
  * Así se pueden cambiar precios/productos sin redeploy de Vercel.
  */
@@ -249,6 +250,30 @@ function archiveMenuAnterior(carta, url) {
   if (carta.menusAnteriores.length > 30) {
     carta.menusAnteriores = carta.menusAnteriores.slice(0, 30)
   }
+}
+
+/** Quita una URL del histórico «Menús anteriores» (galería web). */
+function removeMenuAnterior(carta, url) {
+  const src = String(url || '').trim()
+  if (!src) throw new Error('Falta la URL de la foto')
+  const next = JSON.parse(JSON.stringify(carta))
+  if (!Array.isArray(next.menusAnteriores)) next.menusAnteriores = []
+  const before = next.menusAnteriores.length
+  next.menusAnteriores = next.menusAnteriores.filter((u) => String(u) !== src)
+  if (next.menusAnteriores.length === before) {
+    throw new Error('Foto no encontrada en Menús anteriores')
+  }
+  next.updatedAt = Date.now()
+  return next
+}
+
+/** Path de Storage a partir de URL pública menu_images (best-effort). */
+function storagePathFromPublicUrl(url) {
+  const src = String(url || '').trim()
+  const marker = '/storage/v1/object/public/menu_images/'
+  const i = src.indexOf(marker)
+  if (i < 0) return ''
+  return src.slice(i + marker.length).split('?')[0]
 }
 
 /** Mantén precios del bloque «Menú del día» de la web alineados con los platos. */
@@ -522,11 +547,74 @@ module.exports = async function handler(req, res) {
         )
       }
 
+      if (action === 'removeMenuAnterior') {
+        if (!hasSupabase()) {
+          res.statusCode = 503
+          return res.end(JSON.stringify({ error: 'supabase no configurado' }))
+        }
+        let current = await loadFromStore()
+        if (!current) {
+          const seeded = await seedFromFile()
+          current = seeded.carta
+        }
+        const url = String(body.url || '').trim()
+        const next = removeMenuAnterior(current, url)
+        await setJson(CARTA_KEY, next)
+        // Best-effort: borrar también del bucket si es URL de menu_images
+        const storagePath = storagePathFromPublicUrl(url)
+        if (storagePath) {
+          try {
+            const SUPABASE_URL = String(
+              process.env.SUPABASE_URL ||
+                process.env.NEXT_PUBLIC_SUPABASE_URL ||
+                '',
+            )
+              .trim()
+              .replace(/\/$/, '')
+            const SERVICE_ROLE_KEY = String(
+              process.env.SUPABASE_SERVICE_ROLE_KEY ||
+                process.env.SUPABASE_SECRET_KEY ||
+                '',
+            )
+              .trim()
+              .replace(/^["']|["']$/g, '')
+            if (SUPABASE_URL && SERVICE_ROLE_KEY) {
+              await fetch(`${SUPABASE_URL}/storage/v1/object/menu_images`, {
+                method: 'DELETE',
+                headers: {
+                  apikey: SERVICE_ROLE_KEY,
+                  Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ prefixes: [storagePath] }),
+              })
+            }
+          } catch (err) {
+            console.warn('[carta] storage remove menu anterior', err)
+          }
+        }
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json')
+        return res.end(
+          JSON.stringify({
+            ok: true,
+            action: 'removeMenuAnterior',
+            url,
+            count: Array.isArray(next.menusAnteriores)
+              ? next.menusAnteriores.length
+              : 0,
+            updatedAt: next.updatedAt,
+            carta: withMeta(next, 'supabase'),
+          }),
+        )
+      }
+
       res.statusCode = 400
       res.setHeader('Content-Type', 'application/json')
       return res.end(
         JSON.stringify({
-          error: 'action inválida (seed|put|upsertItem|deleteItem|verifyEditPin)',
+          error:
+            'action inválida (seed|put|upsertItem|deleteItem|removeMenuAnterior|verifyEditPin)',
         }),
       )
     } catch (err) {
