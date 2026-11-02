@@ -3341,7 +3341,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-02-kick-fin1'
+      const TPV_CLIENT_VERSION = '2026-11-02-reset-sebas1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3481,7 +3481,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=kick-fin1')
+            .register('/sw-tpv.js?v=reset-sebas1')
             .catch(() => {})
         })
         try {
@@ -4059,10 +4059,11 @@
         // Mantener tpvStarted: al desbloquear se reanuda sync sin recrear el runtime
       }
 
-      // Resume solo si ESTE TPV ya pidió PIN en esta pestaña (sessionStorage).
-      // Cookie sola (p. ej. tras Gestión interna) NO abre el TPV.
+      // Resume por cookie si el servidor lo permite:
+      // - Lore/Sebas siempre
+      // - resto solo con jornada abierta (PIN una vez al día; móvil bloqueado OK)
+      // Tras fin de jornada / reset de epoch el servidor echa y pide PIN.
       async function tryResumeSession() {
-        if (!hasTpvUiUnlock()) return false
         try {
           const r = await fetch('/api/tpv-auth', { credentials: 'same-origin', cache: 'no-store' })
           const data = await r.json().catch(() => ({}))
@@ -4070,8 +4071,8 @@
             await unlockTpv(data.user)
             return true
           }
+          if (data && data.kicked) markTpvUiUnlocked(false)
         } catch {}
-        markTpvUiUnlocked(false)
         return false
       }
 

@@ -1,6 +1,7 @@
 /**
  * Sesión TPV firmada (HMAC) — cookie ct_tpv_session.
- * v2: incluye usuario (id + nombre) para camarera en plano / byName.
+ * v3: usuario + sessionEpoch (invalidación global al resetear usuarios).
+ * v2/v1: se aceptan en parse pero el auth las echa si hay epoch nuevo.
  * Secret: TPV_SESSION_SECRET || TPV_SYNC_KEY || TPV_PIN
  */
 const crypto = require('crypto')
@@ -29,20 +30,35 @@ function fromB64url(s) {
   }
 }
 
-/** Payload firmado v2: v2.{exp}.{userId}.{nameB64} */
-function signToken(expMs, user) {
+/** Payload firmado v3: v3.{exp}.{userId}.{nameB64}.{epoch} */
+function signToken(expMs, user, epoch) {
   const secret = sessionSecret()
   if (!secret) return ''
-  const uid = String(user?.id || 'anon')
-    .replace(/[^a-zA-Z0-9_-]/g, '')
-    .slice(0, 40) || 'anon'
+  const uid =
+    String(user?.id || 'anon')
+      .replace(/[^a-zA-Z0-9_-]/g, '')
+      .slice(0, 40) || 'anon'
+  const nameB64 = b64url(String(user?.name || '').slice(0, 40))
+  const ep = String(Math.trunc(Number(epoch) || 0))
+  const payload = `v3.${expMs}.${uid}.${nameB64}.${ep}`
+  const sig = crypto.createHmac('sha256', secret).update(payload).digest('base64url')
+  return `${payload}.${sig}`
+}
+
+/** Compat lectura v2 (sin epoch). */
+function signTokenV2(expMs, user) {
+  const secret = sessionSecret()
+  if (!secret) return ''
+  const uid =
+    String(user?.id || 'anon')
+      .replace(/[^a-zA-Z0-9_-]/g, '')
+      .slice(0, 40) || 'anon'
   const nameB64 = b64url(String(user?.name || '').slice(0, 40))
   const payload = `v2.${expMs}.${uid}.${nameB64}`
   const sig = crypto.createHmac('sha256', secret).update(payload).digest('base64url')
   return `${payload}.${sig}`
 }
 
-/** Compat lectura v1 (sin usuario) — se acepta hasta que re-logueen. */
 function signTokenV1(expMs) {
   const secret = sessionSecret()
   if (!secret) return ''
@@ -85,7 +101,7 @@ function parseSession(req) {
     } catch {
       return null
     }
-    return { ok: true, version: 1, user: null, exp }
+    return { ok: true, version: 1, user: null, exp, epoch: 0 }
   }
   if (parts.length === 5 && parts[0] === 'v2') {
     const exp = Number(parts[1])
@@ -93,7 +109,7 @@ function parseSession(req) {
     const nameB64 = parts[3]
     if (!Number.isFinite(exp) || Date.now() > exp) return null
     const name = fromB64url(nameB64)
-    const expect = signToken(exp, { id: userId, name })
+    const expect = signTokenV2(exp, { id: userId, name })
     if (!expect || expect.length !== val.length) return null
     try {
       if (!crypto.timingSafeEqual(Buffer.from(val), Buffer.from(expect))) return null
@@ -109,6 +125,34 @@ function parseSession(req) {
         role: userId === 'u-tpv-fisico' ? 'central' : 'staff',
       },
       exp,
+      epoch: 0,
+    }
+  }
+  if (parts.length === 6 && parts[0] === 'v3') {
+    const exp = Number(parts[1])
+    const userId = parts[2]
+    const nameB64 = parts[3]
+    const epoch = Number(parts[4])
+    if (!Number.isFinite(exp) || Date.now() > exp) return null
+    if (!Number.isFinite(epoch)) return null
+    const name = fromB64url(nameB64)
+    const expect = signToken(exp, { id: userId, name }, epoch)
+    if (!expect || expect.length !== val.length) return null
+    try {
+      if (!crypto.timingSafeEqual(Buffer.from(val), Buffer.from(expect))) return null
+    } catch {
+      return null
+    }
+    return {
+      ok: true,
+      version: 3,
+      user: {
+        id: userId,
+        name: name || userId,
+        role: userId === 'u-tpv-fisico' ? 'central' : 'staff',
+      },
+      exp,
+      epoch,
     }
   }
   return null
@@ -123,10 +167,15 @@ function getSessionUser(req) {
   return s?.user || null
 }
 
-function setSessionCookie(res, on, user) {
+function getSessionEpochFromReq(req) {
+  const s = parseSession(req)
+  return Number(s?.epoch) || 0
+}
+
+function setSessionCookie(res, on, user, epoch) {
   if (on) {
     const exp = Date.now() + MAX_AGE_SEC * 1000
-    const token = signToken(exp, user || null)
+    const token = signToken(exp, user || null, epoch)
     if (!token) {
       return false
     }
@@ -148,6 +197,7 @@ module.exports = {
   MAX_AGE_SEC,
   hasTpvSession,
   getSessionUser,
+  getSessionEpochFromReq,
   parseSession,
   setSessionCookie,
   sessionSecret,

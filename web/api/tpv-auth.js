@@ -19,6 +19,7 @@ const { applySecurityHeaders } = require('./_securityHeaders')
 const {
   hasTpvSession,
   getSessionUser,
+  getSessionEpochFromReq,
   setSessionCookie,
   MAX_AGE_SEC,
   sessionSecret,
@@ -32,12 +33,35 @@ const {
   authenticateUserPin,
   allowTpvLogin,
   bootstrapLoginDeniedMessage,
+  getSessionEpoch,
   publicUser,
 } = require('./_tpvUsers')
+const { appendLogin, getAudit, adminPinOk } = require('./_tpvAudit')
+const handleQzSign = require('./_qzSign')
 
-/** Si la jornada ya no está abierta, echa a quien no sea Lore/Sebas. */
+async function issueSession(res, user) {
+  const epoch = await getSessionEpoch()
+  setSessionCookie(res, true, user, epoch)
+  return epoch
+}
+
+/**
+ * Epoch inválido → echa a todos (reset).
+ * Jornada cerrada → echa a quien no sea Lore/Sebas.
+ */
 async function enforceBootstrapSession(req, res, user) {
   if (!user) return { ok: false, user: null }
+  const needEpoch = await getSessionEpoch()
+  const gotEpoch = getSessionEpochFromReq(req)
+  if (needEpoch && gotEpoch !== needEpoch) {
+    setSessionCookie(res, false)
+    return {
+      ok: false,
+      user: null,
+      kicked: true,
+      error: 'Sesión reiniciada — introduce el PIN',
+    }
+  }
   const allowed = await allowTpvLogin(user)
   if (!allowed) {
     setSessionCookie(res, false)
@@ -50,8 +74,6 @@ async function enforceBootstrapSession(req, res, user) {
   }
   return { ok: true, user: allowed }
 }
-const { appendLogin, getAudit, adminPinOk } = require('./_tpvAudit')
-const handleQzSign = require('./_qzSign')
 
 function wantsQzSign(req) {
   const q = req.query || {}
@@ -128,7 +150,7 @@ module.exports = async function handler(req, res) {
           maxAgeHours: Math.round(MAX_AGE_SEC / 3600),
         })
       }
-      setSessionCookie(res, true, gate.user) // sliding renewal
+      await issueSession(res, gate.user) // sliding renewal
       return json(res, 200, {
         ok: true,
         user: gate.user,
@@ -160,7 +182,7 @@ module.exports = async function handler(req, res) {
             error: gate.error || 'Sesión caducada',
           })
         }
-        setSessionCookie(res, true, gate.user)
+        await issueSession(res, gate.user)
         return json(res, 200, { ok: true, refreshed: true, user: gate.user })
       }
 
@@ -196,7 +218,7 @@ module.exports = async function handler(req, res) {
               error: bootstrapLoginDeniedMessage(),
             })
           }
-          setSessionCookie(res, true, user)
+          await issueSession(res, user)
           auditLoginSafe('set_pin', user, 'primer acceso')
           return json(res, 200, { ok: true, action: 'setPin', user })
         } catch (err) {
@@ -255,7 +277,7 @@ module.exports = async function handler(req, res) {
             error: bootstrapLoginDeniedMessage(),
           })
         }
-        setSessionCookie(res, true, user)
+        await issueSession(res, user)
         auditLoginSafe(
           'switch',
           user,
@@ -298,7 +320,7 @@ module.exports = async function handler(req, res) {
           })
         }
       }
-      setSessionCookie(res, true, user)
+      await issueSession(res, user)
       auditLoginSafe('login', user, gate === 'tpv' ? 'tpv' : '')
       return json(res, 200, { ok: true, user })
     }

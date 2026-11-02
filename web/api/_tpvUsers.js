@@ -12,21 +12,23 @@ const { sessionSecret } = require('./_tpvSession')
 const USERS_KEY = 'tpv_users'
 const FLOOR_KEY = 'floor_plan'
 const JORNADA_KEY = 'jornada'
-/** PIN admin para crear usuarios. No exponer en UI. */
+/**
+ * Subir esto fuerza reseedar usuarios + nuevo sessionEpoch
+ * (invalida cookies de todos los dispositivos).
+ */
+const USERS_STORE_VERSION = 3
+/** @deprecated prefer adminPinOk — Lore. Mantener export para tests. */
 const CREATE_USER_PIN = '2908'
-/** Antes de abrir jornada solo estos pueden entrar al TPV. */
+/** PINs con privilegio de alta / monitor (Lore + Sebas). Solo servidor. */
+const ADMIN_PINS = new Set(['2908', '3212'])
+/** Antes de abrir jornada / tras fin: solo estos en el TPV. */
 const BOOTSTRAP_USER_IDS = new Set(['u-lore', 'u-sebas'])
 
+/** Arranque limpio: solo caja + Lore + Sebas (dev). */
 const SEED_USERS = [
   { id: 'u-tpv-fisico', name: 'TPV FÍSICO', role: 'central' },
-  { id: 'u-lore', name: 'Lore', role: 'staff', pin: '2908' },
-  { id: 'u-ali', name: 'Ali', role: 'staff' },
-  { id: 'u-shari', name: 'Shari', role: 'staff' },
-  { id: 'u-aleja', name: 'Aleja', role: 'staff' },
-  { id: 'u-yuli', name: 'Yuli', role: 'staff' },
-  { id: 'u-carol', name: 'Carol', role: 'staff' },
-  { id: 'u-clara', name: 'Clara', role: 'staff' },
-  { id: 'u-sebas', name: 'Sebas', role: 'staff', pin: '3212' },
+  { id: 'u-lore', name: 'Lore', role: 'admin', pin: '2908' },
+  { id: 'u-sebas', name: 'Sebas', role: 'admin', pin: '3212' },
 ]
 
 function hashPin(pin) {
@@ -40,24 +42,34 @@ function hashPin(pin) {
 
 function publicUser(u) {
   if (!u) return null
+  const role =
+    u.role === 'central' ? 'central' : u.role === 'admin' ? 'admin' : 'staff'
   return {
     id: String(u.id),
     name: String(u.name || ''),
-    role: u.role === 'central' ? 'central' : 'staff',
+    role,
     pinSet: Boolean(u.pinSet && u.pinHash),
   }
+}
+
+function normalizeRole(role) {
+  if (role === 'central') return 'central'
+  if (role === 'admin') return 'admin'
+  return 'staff'
 }
 
 function normalizeStore(raw) {
   const users = Array.isArray(raw?.users) ? raw.users : []
   return {
     version: 1,
+    storeVersion: Number(raw?.storeVersion) || 0,
+    sessionEpoch: Number(raw?.sessionEpoch) || 0,
     users: users
       .filter((u) => u && u.id && u.name)
       .map((u) => ({
         id: String(u.id),
         name: String(u.name).trim().slice(0, 40),
-        role: u.role === 'central' ? 'central' : 'staff',
+        role: normalizeRole(u.role),
         pinHash: u.pinHash ? String(u.pinHash) : '',
         pinSet: Boolean(u.pinSet && u.pinHash),
       })),
@@ -69,18 +81,24 @@ function seedFromDefaults() {
   const envPin = String(process.env.TPV_PIN || '').trim()
   const users = SEED_USERS.map((s) => {
     let pin = s.pin ? String(s.pin) : ''
-    // Caja física: si aún no tiene PIN propio, hereda TPV_PIN del entorno (sigue funcionando)
     if (!pin && s.id === 'u-tpv-fisico' && envPin) pin = envPin
     const pinHash = pin ? hashPin(pin) : ''
     return {
       id: s.id,
       name: s.name,
-      role: s.role === 'central' ? 'central' : 'staff',
+      role: normalizeRole(s.role),
       pinHash,
       pinSet: Boolean(pinHash),
     }
   })
-  return { version: 1, users, updatedAt: Date.now(), seeded: true }
+  return {
+    version: 1,
+    storeVersion: USERS_STORE_VERSION,
+    sessionEpoch: Date.now(),
+    users,
+    updatedAt: Date.now(),
+    seeded: true,
+  }
 }
 
 /** Memoria local si no hay Supabase (tests / boot sin env). */
@@ -88,25 +106,40 @@ let memoryStore = null
 
 async function loadUsersStore() {
   if (!hasSupabase()) {
-    if (!memoryStore) memoryStore = seedFromDefaults()
+    if (!memoryStore || memoryStore.storeVersion < USERS_STORE_VERSION) {
+      memoryStore = seedFromDefaults()
+    }
     return memoryStore
   }
   const raw = await getJson(USERS_KEY, null)
-  if (!raw || !Array.isArray(raw.users) || raw.users.length === 0) {
+  const normalized = raw && Array.isArray(raw.users) ? normalizeStore(raw) : null
+  if (
+    !normalized ||
+    normalized.users.length === 0 ||
+    normalized.storeVersion < USERS_STORE_VERSION
+  ) {
     const seeded = seedFromDefaults()
     try {
       await setJson(USERS_KEY, seeded)
       await syncFloorWaiters(seeded.users)
+      console.warn(
+        '[tpv-users] reseed storeVersion',
+        USERS_STORE_VERSION,
+        'epoch',
+        seeded.sessionEpoch,
+      )
     } catch (err) {
       console.warn('[tpv-users] seed', err)
     }
     return seeded
   }
-  return normalizeStore(raw)
+  return normalized
 }
 
 async function saveUsersStore(store) {
   const next = normalizeStore(store)
+  if (!next.storeVersion) next.storeVersion = USERS_STORE_VERSION
+  if (!next.sessionEpoch) next.sessionEpoch = Date.now()
   next.updatedAt = Date.now()
   if (!hasSupabase()) {
     memoryStore = next
@@ -115,6 +148,11 @@ async function saveUsersStore(store) {
   await setJson(USERS_KEY, next)
   await syncFloorWaiters(next.users)
   return next
+}
+
+async function getSessionEpoch() {
+  const store = await loadUsersStore()
+  return Number(store.sessionEpoch) || 0
 }
 
 /** Espejo id+name al plano (sin hashes). 0 funciones extra. */
@@ -156,6 +194,10 @@ function pendingUsers(store) {
     .map((u) => ({ id: u.id, name: u.name }))
 }
 
+function adminPinOk(pin) {
+  return ADMIN_PINS.has(String(pin || '').trim())
+}
+
 async function setUserPin(userId, pin) {
   const p = String(pin || '').trim()
   if (!/^\d{4}$/.test(p)) throw new Error('El PIN debe ser 4 dígitos')
@@ -163,7 +205,6 @@ async function setUserPin(userId, pin) {
   const u = findById(store, userId)
   if (!u) throw new Error('Usuario no encontrado')
   if (u.pinSet) throw new Error('Este usuario ya tiene PIN. Entra con tu PIN.')
-  // Unicidad
   if (findByPin(store, p) && findByPin(store, p).id !== u.id) {
     throw new Error('Ese PIN ya está en uso')
   }
@@ -187,7 +228,7 @@ function slugUserId(name) {
 }
 
 async function createUser(name, adminPin, userPin) {
-  if (String(adminPin || '').trim() !== CREATE_USER_PIN) {
+  if (!adminPinOk(adminPin)) {
     throw new Error('PIN incorrecto')
   }
   const n = String(name || '').trim().slice(0, 40)
@@ -197,9 +238,7 @@ async function createUser(name, adminPin, userPin) {
     throw new Error('El PIN del nuevo usuario debe ser 4 dígitos')
   }
   const store = await loadUsersStore()
-  if (
-    store.users.some((u) => u.name.toLowerCase() === n.toLowerCase())
-  ) {
+  if (store.users.some((u) => u.name.toLowerCase() === n.toLowerCase())) {
     throw new Error('Ya existe ese usuario')
   }
   if (findByPin(store, p)) {
@@ -234,20 +273,15 @@ async function authenticatePin(pin) {
   const envPin = String(process.env.TPV_PIN || '').trim()
   if (envPin && p === envPin) {
     const fisico = findById(store, 'u-tpv-fisico')
-    if (fisico) {
-      // Si la caja aún no eligió PIN propio, el env PIN la identifica
-      if (!fisico.pinSet) return publicUser(fisico)
-      // Si ya tiene PIN propio distinto, env PIN sigue valiendo como caja (ops)
-      return publicUser(fisico)
-    }
+    if (fisico) return publicUser(fisico)
     return { id: 'u-tpv-fisico', name: 'TPV FÍSICO', role: 'central', pinSet: true }
   }
   return null
 }
 
 /**
- * Cambio de usuario: el PIN debe pertenecer exactamente a userId
- * (no vale el PIN de otra persona). TPV FÍSICO también acepta TPV_PIN env.
+ * Cambio de usuario: el PIN debe pertenecer exactamente a userId.
+ * TPV FÍSICO también acepta TPV_PIN env.
  */
 async function authenticateUserPin(userId, pin) {
   const id = String(userId || '').trim()
@@ -278,9 +312,8 @@ async function isJornadaOpen() {
 }
 
 /**
- * Antes de abrir jornada: solo Lore y Sebas.
+ * Antes de abrir jornada / tras fin: solo Lore y Sebas.
  * Con jornada abierta: cualquier usuario con PIN válido.
- * Devuelve null si no puede entrar (el caller responde 403).
  */
 async function allowTpvLogin(user) {
   if (!user || !user.id) return null
@@ -299,12 +332,15 @@ function isBootstrapUser(user) {
 
 module.exports = {
   USERS_KEY,
+  USERS_STORE_VERSION,
   CREATE_USER_PIN,
+  ADMIN_PINS,
   BOOTSTRAP_USER_IDS,
   hashPin,
   publicUser,
   loadUsersStore,
   saveUsersStore,
+  getSessionEpoch,
   pendingUsers,
   setUserPin,
   createUser,
@@ -314,6 +350,7 @@ module.exports = {
   bootstrapLoginDeniedMessage,
   isBootstrapUser,
   isJornadaOpen,
+  adminPinOk,
   findById,
   syncFloorWaiters,
 }

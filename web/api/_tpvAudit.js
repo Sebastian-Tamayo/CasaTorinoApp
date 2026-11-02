@@ -7,8 +7,9 @@ const { getJson, setJson, updateJson, hasSupabase } = require('./_opsStore')
 const AUDIT_KEY = 'tpv_audit'
 const MAX_LOGINS = 200
 const MAX_EVENTS = 500
-/** PIN admin (alta usuarios / monitor). No exponer en UI. */
+/** PINs admin (alta / monitor): Lore + Sebas. No exponer en UI. */
 const ADMIN_PIN = '2908'
+const ADMIN_PINS = new Set(['2908', '3212'])
 
 function emptyStore() {
   return {
@@ -164,7 +165,7 @@ async function getAudit() {
 }
 
 function adminPinOk(pin) {
-  return String(pin || '').trim() === ADMIN_PIN
+  return ADMIN_PINS.has(String(pin || '').trim())
 }
 
 module.exports = {
