@@ -290,7 +290,11 @@ async function allowTpvLogin(user) {
 }
 
 function bootstrapLoginDeniedMessage() {
-  return 'Antes de abrir la jornada solo pueden entrar Lore o Sebas'
+  return 'Sin jornada abierta solo pueden entrar Lore o Sebas'
+}
+
+function isBootstrapUser(user) {
+  return Boolean(user && BOOTSTRAP_USER_IDS.has(String(user.id || '')))
 }
 
 module.exports = {
@@ -308,6 +312,7 @@ module.exports = {
   authenticateUserPin,
   allowTpvLogin,
   bootstrapLoginDeniedMessage,
+  isBootstrapUser,
   isJornadaOpen,
   findById,
   syncFloorWaiters,

@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-02-gate-seguro1'
-const message = 'Importante: actualiza — PIN obligatorio al entrar; alta con confirmación'
+const required = '2026-11-02-kick-fin1'
+const message = 'Importante: actualiza — al cerrar jornada solo quedan Lore y Sebas'
 
 function forceInfo() {
   return { required, message }

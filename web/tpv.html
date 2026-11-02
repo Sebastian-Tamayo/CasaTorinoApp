@@ -3341,7 +3341,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-02-gate-seguro1'
+      const TPV_CLIENT_VERSION = '2026-11-02-kick-fin1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3481,7 +3481,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('/sw-tpv.js?v=gate-seguro1')
+            .register('/sw-tpv.js?v=kick-fin1')
             .catch(() => {})
         })
         try {
@@ -3609,6 +3609,21 @@
         } catch {
           return false
         }
+      }
+
+      function isBootstrapTpvUser(user) {
+        const id = String(user?.id || '')
+        return id === 'u-lore' || id === 'u-sebas'
+      }
+
+      /** Tras fin de jornada (u offline): echa a quien no sea Lore/Sebas. */
+      function kickIfNotBootstrap(reason) {
+        if (!tpvSessionUser) return false
+        if (isBootstrapTpvUser(tpvSessionUser)) return false
+        lockTpvForPin(
+          reason || 'Jornada finalizada — solo Lore o Sebas',
+        )
+        return true
       }
 
       function paintTpvUserSelect(user) {
@@ -4230,10 +4245,12 @@
           el.innerHTML = `Jornada: <strong>cerrada</strong> · ${fmtHm(j.startedAt)}–${fmtHm(j.endedAt)}`
           if (btnStart) btnStart.disabled = false
           if (btnEnd) btnEnd.disabled = true
+          kickIfNotBootstrap('Jornada finalizada — solo Lore o Sebas')
         } else {
           el.innerHTML = 'Jornada: <strong>sin iniciar</strong>'
           if (btnStart) btnStart.disabled = false
           if (btnEnd) btnEnd.disabled = true
+          kickIfNotBootstrap('Sin jornada abierta — solo Lore o Sebas')
         }
       }
 
@@ -4568,9 +4585,17 @@
           } catch (err) {
             console.warn('sync cocina fin', err)
           }
-          openJornadaModal()
+          // Echa a todo el mundo excepto Lore/Sebas (otros dispositivos al poll)
+          const kicked = kickIfNotBootstrap(
+            'Jornada finalizada — solo Lore o Sebas',
+          )
+          if (!kicked) openJornadaModal()
           if (j?.cierre) {
-            alert('Sesión cerrada.\nTotal enviado al ERP → Caja TPV.')
+            alert(
+              kicked
+                ? 'Sesión cerrada.\nTotal enviado al ERP → Caja TPV.\nTu usuario ya no puede seguir: entra Lore o Sebas.'
+                : 'Sesión cerrada.\nTotal enviado al ERP → Caja TPV.',
+            )
           }
         } catch (err) {
           console.warn('endJornada', err)

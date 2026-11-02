@@ -34,6 +34,22 @@ const {
   bootstrapLoginDeniedMessage,
   publicUser,
 } = require('./_tpvUsers')
+
+/** Si la jornada ya no está abierta, echa a quien no sea Lore/Sebas. */
+async function enforceBootstrapSession(req, res, user) {
+  if (!user) return { ok: false, user: null }
+  const allowed = await allowTpvLogin(user)
+  if (!allowed) {
+    setSessionCookie(res, false)
+    return {
+      ok: false,
+      user: null,
+      kicked: true,
+      error: bootstrapLoginDeniedMessage(),
+    }
+  }
+  return { ok: true, user: allowed }
+}
 const { appendLogin, getAudit, adminPinOk } = require('./_tpvAudit')
 const handleQzSign = require('./_qzSign')
 
@@ -95,10 +111,27 @@ module.exports = async function handler(req, res) {
     if (req.method === 'GET') {
       const ok = hasTpvSession(req)
       const user = ok ? getSessionUser(req) : null
-      if (ok) setSessionCookie(res, true, user) // sliding renewal
+      if (!ok || !user) {
+        return json(res, 200, {
+          ok: false,
+          user: null,
+          maxAgeHours: Math.round(MAX_AGE_SEC / 3600),
+        })
+      }
+      const gate = await enforceBootstrapSession(req, res, user)
+      if (!gate.ok) {
+        return json(res, 200, {
+          ok: false,
+          user: null,
+          kicked: Boolean(gate.kicked),
+          error: gate.error || '',
+          maxAgeHours: Math.round(MAX_AGE_SEC / 3600),
+        })
+      }
+      setSessionCookie(res, true, gate.user) // sliding renewal
       return json(res, 200, {
-        ok,
-        user: user || null,
+        ok: true,
+        user: gate.user,
         maxAgeHours: Math.round(MAX_AGE_SEC / 3600),
       })
     }
@@ -119,8 +152,16 @@ module.exports = async function handler(req, res) {
           return json(res, 401, { ok: false, error: 'Sesión caducada' })
         }
         const user = getSessionUser(req)
-        setSessionCookie(res, true, user)
-        return json(res, 200, { ok: true, refreshed: true, user: user || null })
+        const gate = await enforceBootstrapSession(req, res, user)
+        if (!gate.ok) {
+          return json(res, 401, {
+            ok: false,
+            kicked: Boolean(gate.kicked),
+            error: gate.error || 'Sesión caducada',
+          })
+        }
+        setSessionCookie(res, true, gate.user)
+        return json(res, 200, { ok: true, refreshed: true, user: gate.user })
       }
 
       if (!sessionSecret()) {

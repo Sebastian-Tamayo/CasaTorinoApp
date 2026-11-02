@@ -14,6 +14,7 @@ const {
   pendingUsers,
   CREATE_USER_PIN,
   BOOTSTRAP_USER_IDS,
+  isBootstrapUser,
 } = require('../api/_tpvUsers')
 
 assert.ok(hashPin('2908').length === 64, 'hash length')
@@ -67,6 +68,8 @@ async function main() {
   assert.ok(sebasOk && sebasOk.name === 'Sebas', 'sebas always allowed')
   const aliBlocked = await allowTpvLogin(aliLogin)
   assert.strictEqual(aliBlocked, null, 'ali blocked before jornada')
+  assert.ok(isBootstrapUser(lore) && isBootstrapUser(sebas))
+  assert.ok(!isBootstrapUser(aliLogin) && !isBootstrapUser(asFisico))
 
   console.log('OK test-tpv-users')
 }
