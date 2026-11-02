@@ -18,10 +18,12 @@ const {
   adminPinOk,
   USERS_STORE_VERSION,
   CREATE_USER_PIN,
+  HUB_ACCESS_PIN,
   getSessionEpoch,
 } = require('../api/_tpvUsers')
 
 assert.ok(hashPin('2908').length === 64, 'hash length')
+assert.strictEqual(HUB_ACCESS_PIN, '0912', 'hub interno')
 
 async function main() {
   const store = await loadUsersStore()
@@ -45,7 +47,11 @@ async function main() {
   assert.ok(gate.some((u) => u.id === 'u-tpv-fisico' && !u.pinSet))
   assert.ok(gate.some((u) => u.name === 'Sebas' && !u.pinSet))
 
-  // Sin PIN aún: no autentica
+  // Hub Gestión interna (0912) funciona sin primer acceso TPV
+  const hub = await authenticatePin(HUB_ACCESS_PIN)
+  assert.ok(hub && hub.id === 'u-tpv-fisico', 'hub 0912 sin pin personal')
+
+  // PIN personal aún no: no autentica como usuario
   assert.strictEqual(await authenticatePin('2908'), null)
   assert.strictEqual(await authenticateUserPin('u-tpv-fisico', '2908'), null)
 
