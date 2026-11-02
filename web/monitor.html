@@ -124,11 +124,11 @@
 
     .type-chips {
       display: flex; flex-wrap: wrap; gap: .4rem;
-      margin: 0 0 1rem;
+      margin: 0 0 .75rem;
     }
     .type-chips button {
       height: 34px; border-radius: 999px; border: 1px solid var(--line);
-      background: var(--card); color: var(--ink);
+      background: var(--bg-2); color: var(--ink);
       font: inherit; font-size: .78rem; font-weight: 800;
       padding: 0 .75rem; cursor: pointer; touch-action: manipulation;
     }
@@ -144,6 +144,16 @@
       padding: 1rem 1rem 1.1rem;
       margin-bottom: .9rem;
     }
+    .monitor-section.monitor-accesos {
+      padding: .65rem .75rem .7rem;
+      margin-bottom: .65rem;
+    }
+    .monitor-section.monitor-accesos h2 {
+      margin: 0 0 .4rem; font-size: .88rem;
+    }
+    .monitor-section.monitor-movimientos {
+      padding: 1rem 1rem 1.15rem;
+    }
     .monitor-section h2 {
       margin: 0 0 .65rem; font-size: 1rem; font-weight: 800;
       display: flex; align-items: center; gap: .45rem;
@@ -153,7 +163,27 @@
       margin: 0; color: var(--muted); font-size: .9rem; font-weight: 600;
       padding: .55rem 0;
     }
-    .monitor-list { display: grid; gap: .55rem; max-height: 48vh; overflow: auto; }
+    .monitor-list { display: grid; gap: .55rem; overflow: auto; }
+    .monitor-list-accesos {
+      gap: .3rem;
+      max-height: 12vh;
+      min-height: 0;
+    }
+    .monitor-list-movimientos {
+      gap: .55rem;
+      max-height: 58vh;
+    }
+    .monitor-accesos .monitor-row {
+      padding: .4rem .5rem;
+      gap: .35rem .5rem;
+      border-radius: 10px;
+      border-left-width: 3px;
+      font-size: .8rem;
+    }
+    .monitor-accesos .monitor-row time { font-size: .72rem; }
+    .monitor-accesos .monitor-row .who { font-size: .84rem; }
+    .monitor-accesos .monitor-row .action { font-size: .78rem; }
+    .monitor-accesos .badge { font-size: .65rem; padding: .1rem .4rem; }
     .monitor-row {
       display: grid;
       grid-template-columns: auto 1fr;
@@ -275,24 +305,24 @@
           <i class="fa-solid fa-arrows-rotate"></i> Actualizar
         </button>
       </div>
-      <div class="type-chips" id="typeChips" role="group" aria-label="Tipo de movimiento">
-        <button type="button" data-kind="" aria-pressed="true">Todos</button>
-        <button type="button" data-kind="carta" aria-pressed="false">Carta</button>
-        <button type="button" data-kind="cocina" aria-pressed="false">Cocina</button>
-        <button type="button" data-kind="cobro" aria-pressed="false">Cobros</button>
-        <button type="button" data-kind="mesa" aria-pressed="false">Mesas</button>
-      </div>
       <p class="monitor-status" id="monitorStatus"></p>
 
-      <section class="monitor-section" aria-labelledby="loginsTitle">
+      <section class="monitor-section monitor-accesos" aria-labelledby="loginsTitle">
         <h2 id="loginsTitle"><i class="fa-solid fa-right-to-bracket"></i> Accesos</h2>
-        <div class="monitor-list" id="loginsList"></div>
+        <div class="monitor-list monitor-list-accesos" id="loginsList"></div>
         <p class="monitor-empty" id="loginsEmpty" hidden>Aún no hay accesos registrados.</p>
       </section>
 
-      <section class="monitor-section" aria-labelledby="eventsTitle">
+      <section class="monitor-section monitor-movimientos" aria-labelledby="eventsTitle">
         <h2 id="eventsTitle"><i class="fa-solid fa-list-ul"></i> Movimientos</h2>
-        <div class="monitor-list" id="eventsList"></div>
+        <div class="type-chips" id="typeChips" role="group" aria-label="Tipo de movimiento">
+          <button type="button" data-kind="" aria-pressed="true">Todos</button>
+          <button type="button" data-kind="carta" aria-pressed="false">Carta</button>
+          <button type="button" data-kind="cocina" aria-pressed="false">Cocina</button>
+          <button type="button" data-kind="cobro" aria-pressed="false">Cobros</button>
+          <button type="button" data-kind="mesa" aria-pressed="false">Mesas</button>
+        </div>
+        <div class="monitor-list monitor-list-movimientos" id="eventsList"></div>
         <p class="monitor-empty" id="eventsEmpty" hidden>Aún no hay movimientos.</p>
       </section>
 

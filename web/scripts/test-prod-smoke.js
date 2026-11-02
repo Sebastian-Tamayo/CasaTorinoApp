@@ -330,6 +330,7 @@ try {
   assert.ok(monitor.includes('kitchen_send') && monitor.includes('kitchen_pickup'))
   assert.ok(monitor.includes('eventActionText') && monitor.includes('TYPE_META'))
   assert.ok(monitor.includes('type-chips') && monitor.includes('mesa-chip'))
+  assert.ok(monitor.includes('monitor-list-accesos') && monitor.includes('monitor-list-movimientos'))
   assert.ok(monitor.includes('Envió a cocina') || monitor.includes('Envió pedido a cocina'))
   assert.ok(interno.includes('monitor.html'))
   assert.ok(!JSON.stringify(vercel).includes('tpv-audit'))
