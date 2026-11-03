@@ -3349,7 +3349,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-02-nuevo-acceso1'
+      const TPV_CLIENT_VERSION = '2026-11-03-monitor-det1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -4830,6 +4830,35 @@
         }
       }
 
+      function auditCategoryOf(lineOrItem) {
+        const ctype = categoryTypeOf(lineOrItem)
+        return ctype === 'comida' ? 'cocina' : 'barra'
+      }
+
+      function auditLineAmount(line, qty) {
+        const q = Number(qty != null ? qty : line?.qty) || 0
+        const p = Number(line?.price) || 0
+        return Math.round((q * p + Number.EPSILON) * 100) / 100
+      }
+
+      function auditCartSummary(cart, limit = 150) {
+        const parts = []
+        let total = 0
+        let lines = 0
+        for (const line of Object.values(cart || {})) {
+          const q = Number(line?.qty) || 0
+          if (q <= 0) continue
+          lines += 1
+          total += auditLineAmount(line, q)
+          parts.push(`${q}× ${line.name || '?'}`)
+        }
+        return {
+          item: parts.join(', ').slice(0, limit),
+          amount: Math.round((total + Number.EPSILON) * 100) / 100,
+          linesCount: lines,
+        }
+      }
+
       function stampMesa(m, data, opts = {}) {
         const prev = (m && state.tables && state.tables[m]) || {}
         const now = Date.now()
@@ -5387,10 +5416,20 @@
         if (isPriceEditable(item) || isPriceEditable(state.cart[key])) state.cart[key].priceEditable = true
         state.hist.push(key)
         const nextQty = Number(state.cart[key].qty) || 0
+        const line = state.cart[key]
+        const unit = Number(line?.price) || Number(item.price) || 0
+        const noteTxt = String(note || line?.note || '').trim()
+        const courseBits = [meta?.primero || line?.primero, meta?.segundo || line?.segundo]
+          .filter(Boolean)
+          .join(' / ')
         auditLog(prevQty > 0 ? 'cart_qty' : 'cart_add', {
           item: item.name || key,
           qtyBefore: prevQty,
           qtyAfter: nextQty,
+          price: unit,
+          amount: auditLineAmount(line, nextQty),
+          category: auditCategoryOf(line || item),
+          note: [noteTxt, courseBits].filter(Boolean).join(' · ').slice(0, 200),
         })
         persist(); render(); flash(item.id)
         try { navigator.vibrate?.(12) } catch {}
@@ -5498,6 +5537,9 @@
         if (!state.removed || typeof state.removed !== 'object') state.removed = {}
         const prevQty = Number(state.cart[id].qty) || 0
         const itemName = String(state.cart[id].name || id)
+        const unit = Number(state.cart[id].price) || 0
+        const cat = auditCategoryOf(state.cart[id])
+        const noteTxt = String(state.cart[id].note || '').trim()
         if (qty <= 0) {
           // Tombstone: el borrado gana al merge aunque otro dispositivo aún tenga la línea
           state.removed[id] = now
@@ -5507,6 +5549,10 @@
             item: itemName,
             qtyBefore: prevQty,
             qtyAfter: 0,
+            price: unit,
+            amount: auditLineAmount({ price: unit }, prevQty),
+            category: cat,
+            note: noteTxt,
           })
         } else {
           if (state.removed[id]) delete state.removed[id]
@@ -5520,6 +5566,10 @@
               item: itemName,
               qtyBefore: prevQty,
               qtyAfter: qty,
+              price: unit,
+              amount: auditLineAmount(state.cart[id], qty),
+              category: cat,
+              note: noteTxt,
             })
           }
         }
@@ -5607,7 +5657,14 @@
           ...(state.removed && typeof state.removed === 'object' ? state.removed : {}),
         }
         for (const key of Object.keys(state.cart || {})) removed[key] = now
-        auditLog('vaciar', { mesa: m || '', note: 'vaciar cuenta' })
+        const vaciarSnap = auditCartSummary(state.cart)
+        auditLog('vaciar', {
+          mesa: m || '',
+          note: 'vaciar cuenta',
+          item: vaciarSnap.item,
+          amount: vaciarSnap.amount,
+          linesCount: vaciarSnap.linesCount,
+        })
         state.cart = {}
         state.hist = []
         state.notes = ''
@@ -5687,11 +5744,18 @@
           const sendSummary = foodPending
             .map((x) => `${x.qty}× ${x.name}`)
             .join(', ')
-            .slice(0, 120)
+            .slice(0, 160)
+          const sendAmount = foodPending.reduce(
+            (a, x) => a + auditLineAmount(x, x.qty),
+            0,
+          )
           auditLog('kitchen_send', {
             mesa: m || '',
             item: sendSummary,
-            note: `${foodPending.length} línea(s)`,
+            note: notes ? `Nota: ${notes}`.slice(0, 200) : `${foodPending.length} línea(s)`,
+            linesCount: foodPending.length,
+            amount: Math.round((sendAmount + Number.EPSILON) * 100) / 100,
+            category: 'cocina',
           })
           persist()
           render()
@@ -6318,13 +6382,21 @@
           const j = await window.CasaTorinoTpvJornada.addSale(sale)
           paintJornadaStatus(j)
           writeLastCharge({ ...undoSnapshot, saleId })
+          const scopeLabel =
+            isPartial || payDraft.mode === 'selection' ? 'parcial' : 'completo'
+          const cobroItems = chargeLines
+            .map((l) => `${l.qty}× ${l.name}`)
+            .join(', ')
+            .slice(0, 160)
           auditLog('cobro', {
             mesa: m || '',
             amount: total,
-            note:
-              (isPartial || payDraft.mode === 'selection' ? 'parcial' : 'completo') +
-              ' · ' +
-              paymentMethod,
+            tip,
+            payMethod: paymentMethod,
+            scope: scopeLabel,
+            linesCount: chargeLines.length,
+            item: cobroItems,
+            note: scopeLabel + ' · ' + paymentMethod,
           })
         } catch (err) {
           console.warn('jornada sale', err)
@@ -7691,9 +7763,14 @@
           if (!res || res.action !== 'open') return
           auditLog(res.foreign ? 'mesa_ajena' : 'mesa_open', {
             mesa: id,
+            owner: res.foreign
+              ? String(res.ownerName || res.waiter?.name || 'otro')
+              : String(res.waiter?.name || tpvSessionUser?.name || ''),
             note: res.foreign
               ? `mesa de ${res.ownerName || res.waiter?.name || 'otro'}`
-              : '',
+              : res.waiter?.name
+                ? `asignada a ${res.waiter.name}`
+                : '',
           })
           // Guardar camarera en el carrito de la mesa (sync a todos los dispositivos)
           if (res.waiter?.id || res.waiter?.name) {

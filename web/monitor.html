@@ -241,6 +241,25 @@
       font-weight: 800; font-size: .95rem; color: #0f7a3c;
       font-variant-numeric: tabular-nums;
     }
+    .fact-row {
+      display: flex; flex-wrap: wrap; gap: .3rem;
+      margin-top: .35rem;
+    }
+    .fact {
+      display: inline-flex; align-items: center; gap: .25rem;
+      font-size: .7rem; font-weight: 800;
+      padding: .14rem .45rem; border-radius: 999px;
+      background: rgba(26, 35, 50, .07); color: #334155;
+    }
+    .fact.pay { background: rgba(22, 163, 74, .12); color: #166534; }
+    .fact.cat-cocina { background: rgba(234, 88, 12, .12); color: #9a3412; }
+    .fact.cat-barra { background: rgba(14, 165, 233, .12); color: #075985; }
+    .fact.warn { background: rgba(245, 158, 11, .16); color: #92400e; }
+    .monitor-row .items-block {
+      display: block; margin-top: .28rem;
+      font-size: .78rem; font-weight: 650; color: #475569;
+      line-height: 1.4; white-space: pre-wrap;
+    }
     .monitor-tools {
       display: flex; justify-content: space-between; align-items: center;
       gap: .75rem; margin-top: .35rem;
@@ -393,77 +412,167 @@
         const a = r.qtyBefore
         const b = r.qtyAfter
         if (a == null && b == null) return ''
-        if (r.type === 'cart_add') return `cantidad ${b ?? 1}`
+        if (r.type === 'cart_add') return `${b ?? 1} ud.`
         if (r.type === 'cart_remove') return `quitó ${a ?? '?'} ud.`
-        return `de ${a ?? '—'} a ${b ?? '—'}`
+        return `${a ?? '—'} → ${b ?? '—'}`
+      }
+
+      function payLabel(r) {
+        const raw = String(r.payMethod || '').trim().toLowerCase()
+        if (raw === 'efectivo') return 'Efectivo'
+        if (raw === 'tarjeta') return 'Tarjeta'
+        if (raw === 'mixto') return 'Mixto'
+        const note = String(r.note || '')
+        if (/tarjeta/i.test(note)) return 'Tarjeta'
+        if (/mixto/i.test(note)) return 'Mixto'
+        if (/efectivo/i.test(note)) return 'Efectivo'
+        return raw ? raw : ''
+      }
+
+      function scopeLabel(r) {
+        const s = String(r.scope || '').trim().toLowerCase()
+        if (s === 'parcial' || /parcial/i.test(String(r.note || ''))) return 'Parcial'
+        if (s === 'completo' || /completo/i.test(String(r.note || ''))) return 'Completo'
+        return ''
+      }
+
+      function formatItemsBlock(item) {
+        const raw = String(item || '').trim()
+        if (!raw) return ''
+        // "1× A, 2× B" → una línea por producto
+        if (raw.includes('×') && raw.includes(',')) {
+          return raw
+            .split(',')
+            .map((p) => p.trim())
+            .filter(Boolean)
+            .join('\n')
+        }
+        return raw
       }
 
       function eventActionText(r) {
         const item = String(r.item || '').trim()
         const note = String(r.note || '').trim()
+        const owner = String(r.owner || '').trim()
         switch (r.type) {
-          case 'cart_add':
-            return item ? `Añadió «${item}»` : 'Añadió un producto'
+          case 'cart_add': {
+            const q = r.qtyAfter != null ? r.qtyAfter : 1
+            return item ? `Añadió ${q}× «${item}»` : `Añadió ${q} producto(s)`
+          }
           case 'cart_qty':
             return item
-              ? `Cambió cantidad de «${item}» (${qtyPhrase(r)})`
-              : `Cambió cantidad (${qtyPhrase(r)})`
+              ? `Cambió «${item}»: ${qtyPhrase(r)}`
+              : `Cambió cantidad: ${qtyPhrase(r)}`
           case 'cart_remove':
-            return item ? `Quitó «${item}»` : 'Quitó un producto'
+            return item
+              ? `Quitó ${r.qtyBefore != null ? r.qtyBefore + '× ' : ''}«${item}»`
+              : 'Quitó un producto'
           case 'mesa_open':
-            return 'Abrió la mesa'
-          case 'mesa_ajena':
-            return note
-              ? `Entró en mesa de otra persona (${note.replace(/^mesa de /i, '')})`
-              : 'Entró en mesa de otra persona'
+            return owner ? `Abrió la mesa (asignada a ${owner})` : 'Abrió la mesa'
+          case 'mesa_ajena': {
+            const who = owner || note.replace(/^mesa de /i, '') || 'otra persona'
+            return `Entró en mesa de ${who}`
+          }
           case 'cobro': {
-            const how = note || ''
-            if (/parcial/i.test(how)) return 'Cobró (parcial)'
-            if (/completo/i.test(how)) return 'Cobró la mesa'
+            const sc = scopeLabel(r)
+            if (sc === 'Parcial') return 'Cobró una parte de la cuenta'
+            if (sc === 'Completo') return 'Cobró la mesa completa'
             return 'Cobró'
           }
           case 'vaciar':
-            return 'Vació la cuenta de la mesa'
+            return r.linesCount
+              ? `Vació la cuenta (${r.linesCount} línea(s))`
+              : 'Vació la cuenta de la mesa'
           case 'kitchen_send':
-            return item ? `Envió a cocina: ${item}` : 'Envió pedido a cocina'
+            return r.linesCount
+              ? `Envió ${r.linesCount} línea(s) a cocina`
+              : 'Envió pedido a cocina'
           case 'kitchen_ready':
-            return item ? `Cocina marcó listo: ${item}` : 'Cocina marcó listo'
+            return 'Cocina marcó el pedido listo'
           case 'kitchen_pickup':
-            return item ? `Confirmó recogida: ${item}` : 'Confirmó recogida de cocina'
+            return 'Confirmó la recogida en barra'
           default:
             return metaOf(r.type).label + (item ? `: ${item}` : '')
         }
       }
 
+      function eventFacts(r) {
+        const facts = []
+        const cat = String(r.category || '').toLowerCase()
+        if (cat === 'cocina') facts.push({ text: 'Cocina', cls: 'cat-cocina' })
+        if (cat === 'barra') facts.push({ text: 'Barra', cls: 'cat-barra' })
+
+        if (r.type === 'cart_add' || r.type === 'cart_qty' || r.type === 'cart_remove') {
+          if (r.qtyBefore != null || r.qtyAfter != null) {
+            facts.push({ text: qtyPhrase(r), cls: '' })
+          }
+          if (r.price != null) facts.push({ text: moneyEs(r.price) + '/ud', cls: '' })
+        }
+
+        if (r.type === 'cobro') {
+          const sc = scopeLabel(r)
+          if (sc) facts.push({ text: sc, cls: sc === 'Parcial' ? 'warn' : 'pay' })
+          const pay = payLabel(r)
+          if (pay) facts.push({ text: pay, cls: 'pay' })
+          if (r.tip != null && Number(r.tip) > 0) {
+            facts.push({ text: 'Propina ' + moneyEs(r.tip), cls: 'pay' })
+          }
+          if (r.linesCount != null) {
+            facts.push({ text: r.linesCount + ' línea(s)', cls: '' })
+          }
+        }
+
+        if (r.type === 'kitchen_send' || r.type === 'vaciar') {
+          if (r.linesCount != null) {
+            facts.push({ text: r.linesCount + ' línea(s)', cls: '' })
+          }
+        }
+
+        if (r.type === 'mesa_ajena' && r.owner) {
+          facts.push({ text: 'De ' + r.owner, cls: 'warn' })
+        }
+
+        return facts
+      }
+
       function eventDetailText(r) {
         const bits = []
-        if (r.type === 'cobro') {
-          const note = String(r.note || '')
-          const pay = note.includes('·')
-            ? note.split('·').slice(1).join('·').trim()
-            : note.replace(/parcial|completo/gi, '').replace(/^[·\s]+|[·\s]+$/g, '')
-          if (pay) bits.push('Pago: ' + pay)
-          if (/parcial/i.test(note)) bits.push('Solo una parte de la cuenta')
+        const note = String(r.note || '').trim()
+        // Notas de plato / menú (evitar repetir scope·pago del cobro)
+        if (
+          note &&
+          !['cobro', 'mesa_ajena', 'vaciar', 'kitchen_pickup'].includes(r.type)
+        ) {
+          if (r.type === 'kitchen_send' && /^Nota:/i.test(note)) {
+            bits.push(note)
+          } else if (r.type === 'kitchen_ready' && note !== String(r.item || '')) {
+            bits.push(note)
+          } else if (
+            r.type === 'cart_add' ||
+            r.type === 'cart_qty' ||
+            r.type === 'cart_remove'
+          ) {
+            bits.push(note)
+          } else if (r.type === 'mesa_open' && note) {
+            bits.push(note)
+          } else if (r.type === 'kitchen_send' && !r.linesCount) {
+            bits.push(note)
+          }
         }
-        if (r.type === 'cart_add' || r.type === 'cart_qty' || r.type === 'cart_remove') {
-          const q = qtyPhrase(r)
-          if (q && r.type === 'cart_add') bits.push(q)
-        }
-        if (r.type === 'kitchen_send' && r.note) bits.push(String(r.note))
-        if (r.type === 'kitchen_ready' && r.note && r.note !== r.item) {
-          bits.push(String(r.note))
-        }
-        if (r.type === 'mesa_ajena' && r.note) {
-          /* ya va en action */
-        } else if (
-          r.note &&
-          !['cobro', 'kitchen_send', 'kitchen_ready', 'mesa_ajena', 'vaciar'].includes(
+        return bits.filter(Boolean).join(' · ')
+      }
+
+      function eventItemsHtml(r) {
+        if (
+          !['cobro', 'kitchen_send', 'kitchen_ready', 'vaciar', 'kitchen_pickup'].includes(
             r.type,
           )
         ) {
-          bits.push(String(r.note))
+          return ''
         }
-        return bits.filter(Boolean).join(' · ')
+        const block = formatItemsBlock(r.item)
+        if (!block) return ''
+        return `<span class="items-block">${esc(block)}</span>`
       }
 
       function loginActionText(r) {
@@ -668,6 +777,16 @@
         const detail = opts.detail
           ? `<span class="detail">${esc(opts.detail)}</span>`
           : ''
+        const facts = Array.isArray(opts.facts) ? opts.facts : []
+        const factsHtml = facts.length
+          ? `<div class="fact-row">${facts
+              .map(
+                (f) =>
+                  `<span class="fact ${esc(f.cls || '')}">${esc(f.text)}</span>`,
+              )
+              .join('')}</div>`
+          : ''
+        const itemsHtml = opts.itemsHtml || ''
         let iso = ''
         try {
           iso = new Date(r.t).toISOString()
@@ -687,6 +806,8 @@
             <div class="who">${who}</div>
             <span class="action">${esc(opts.action)}</span>
             ${detail}
+            ${itemsHtml}
+            ${factsHtml}
             ${money}
           </div>
         </article>`
@@ -732,6 +853,8 @@
             rowCard(r, {
               action: eventActionText(r),
               detail: eventDetailText(r),
+              facts: eventFacts(r),
+              itemsHtml: eventItemsHtml(r),
             }),
           )
           .join('')
