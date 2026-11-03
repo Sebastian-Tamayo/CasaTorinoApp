@@ -49,7 +49,7 @@ function sanitizeEvent(ev, kind) {
     out.mesa = String(ev.mesa).trim().slice(0, 8)
   }
   if (ev.item != null && String(ev.item).trim()) {
-    out.item = String(ev.item).trim().slice(0, 80)
+    out.item = String(ev.item).trim().slice(0, 160)
   }
   if (ev.qtyBefore != null && Number.isFinite(Number(ev.qtyBefore))) {
     out.qtyBefore = Number(ev.qtyBefore)
@@ -58,10 +58,31 @@ function sanitizeEvent(ev, kind) {
     out.qtyAfter = Number(ev.qtyAfter)
   }
   if (ev.note != null && String(ev.note).trim()) {
-    out.note = String(ev.note).trim().slice(0, 120)
+    out.note = String(ev.note).trim().slice(0, 200)
   }
   if (ev.amount != null && Number.isFinite(Number(ev.amount))) {
     out.amount = Math.round(Number(ev.amount) * 100) / 100
+  }
+  if (ev.price != null && Number.isFinite(Number(ev.price))) {
+    out.price = Math.round(Number(ev.price) * 100) / 100
+  }
+  if (ev.tip != null && Number.isFinite(Number(ev.tip))) {
+    out.tip = Math.round(Number(ev.tip) * 100) / 100
+  }
+  if (ev.linesCount != null && Number.isFinite(Number(ev.linesCount))) {
+    out.linesCount = Math.max(0, Math.round(Number(ev.linesCount)))
+  }
+  if (ev.payMethod != null && String(ev.payMethod).trim()) {
+    out.payMethod = String(ev.payMethod).trim().slice(0, 24)
+  }
+  if (ev.scope != null && String(ev.scope).trim()) {
+    out.scope = String(ev.scope).trim().slice(0, 24)
+  }
+  if (ev.category != null && String(ev.category).trim()) {
+    out.category = String(ev.category).trim().slice(0, 24)
+  }
+  if (ev.owner != null && String(ev.owner).trim()) {
+    out.owner = String(ev.owner).trim().slice(0, 40)
   }
   return out
 }
