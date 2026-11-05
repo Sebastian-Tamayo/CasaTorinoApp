@@ -10,7 +10,10 @@ import {
   type CierreItem,
   type CierresResponse,
 } from "@/lib/cierres";
-import { descargarInformeCierresMes } from "@/lib/descargar-informe";
+import {
+  descargarInformeTotalesCierre,
+  descargarInformeTotalesMes,
+} from "@/lib/descargar-informe";
 import { round2 } from "@/lib/fiscal";
 import { labelMes, mesActualKey, type MesKey } from "@/lib/meses";
 
@@ -146,8 +149,8 @@ export function CajaTpvView() {
     };
   }, [mesKey, applyData]);
 
-  function onDescargarCierres() {
-    descargarInformeCierresMes({
+  function onDescargarTotalesMes() {
+    descargarInformeTotalesMes({
       mesLabel: labelMes(mesKey),
       mesKey,
       total,
@@ -158,6 +161,23 @@ export function CajaTpvView() {
       efectivo: monthPayment?.byPayment?.efectivo?.total,
       tarjeta: monthPayment?.byPayment?.tarjeta?.total,
       tip: monthPayment?.tipTotal,
+    });
+  }
+
+  function onDescargarTotalesCierre(c: CierreItem) {
+    descargarInformeTotalesCierre({
+      dayKey: c.dayKey,
+      mesLabel: labelMes(mesKey),
+      startedAt: c.startedAt,
+      endedAt: c.endedAt,
+      tickets: c.totals?.tickets || 0,
+      total: round2(c.totals?.total || 0),
+      comida: round2(c.totals?.byType?.comida?.total || 0),
+      bebida: round2(c.totals?.byType?.bebida?.total || 0),
+      efectivo: round2(c.totals?.byPayment?.efectivo?.total || 0),
+      tarjeta: round2(c.totals?.byPayment?.tarjeta?.total || 0),
+      tip: round2(c.totals?.tipTotal || 0),
+      byProduct: c.totals?.byProduct || [],
     });
   }
 
@@ -173,9 +193,9 @@ export function CajaTpvView() {
         </p>
         <h1 className="mt-1 font-display text-2xl text-ink">Caja TPV</h1>
         <p className="mt-1 text-sm text-ink/55">
-          Historial de cierres · {labelMes(mesKey)}. El mes se reinicia en el
-          selector; el historial no se borra. Puedes corregir tickets en
-          efectivo y los totales se actualizan al guardar.
+          Historial de cierres · {labelMes(mesKey)}. Puedes corregir efectivo y
+          descargar el informe de totales (Excel + PDF). La numeración de
+          tickets, cuando la pidas, será aparte.
         </p>
       </header>
 
@@ -193,15 +213,15 @@ export function CajaTpvView() {
         </p>
         <button
           type="button"
-          onClick={onDescargarCierres}
-          disabled={loading || Boolean(error)}
+          onClick={onDescargarTotalesMes}
+          disabled={loading || Boolean(error) || items.length === 0}
           className="mt-4 flex min-h-touch w-full items-center justify-center gap-2 rounded-tpv bg-ink text-sm font-bold text-cream transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
         >
           <Download className="size-4" aria-hidden />
-          Descargar informe · {labelMes(mesKey)}
+          Descargar informe de totales · {labelMes(mesKey)}
         </button>
         <p className="mt-1.5 text-center text-[11px] text-ink/45">
-          Excel (.xls) + vista para guardar PDF
+          Excel (.xls) + vista PDF · totales del mes (sin listado de tickets)
         </p>
       </article>
 
@@ -286,6 +306,14 @@ export function CajaTpvView() {
                           {p.qty} × {p.name}: {formatImporte(p.total)}
                         </p>
                       ))}
+                      <button
+                        type="button"
+                        onClick={() => onDescargarTotalesCierre(c)}
+                        className="mt-3 flex min-h-touch w-full items-center justify-center gap-2 rounded-tpv border-2 border-ink/15 bg-cream px-3 py-2 text-sm font-bold text-ink transition active:scale-[0.98]"
+                      >
+                        <Download className="size-4" aria-hidden />
+                        Descargar totales de este cierre
+                      </button>
                       <CierreEfectivoEditor
                         cierre={c}
                         monthKey={mesKey}
