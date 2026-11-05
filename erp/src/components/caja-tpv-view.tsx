@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Download } from "lucide-react";
+import { CierreEfectivoEditor } from "@/components/cierre-efectivo-editor";
 import { MonthSelector } from "@/components/month-selector";
 import { TopVentasView } from "@/components/top-ventas-view";
-import { fetchCierres, type CierreItem } from "@/lib/cierres";
+import {
+  fetchCierres,
+  type CierreItem,
+  type CierresResponse,
+} from "@/lib/cierres";
 import { descargarInformeCierresMes } from "@/lib/descargar-informe";
 import { round2 } from "@/lib/fiscal";
 import { labelMes, mesActualKey, type MesKey } from "@/lib/meses";
@@ -56,6 +61,41 @@ function paymentTipLine(totals?: PaymentTipTotals | null) {
   );
 }
 
+function applyCierresData(
+  data: Pick<CierresResponse, "items" | "monthTotals">,
+  setters: {
+    setItems: (v: CierreItem[]) => void;
+    setTotal: (v: number) => void;
+    setTickets: (v: number) => void;
+    setComida: (v: number) => void;
+    setBebida: (v: number) => void;
+    setMonthPayment: (v: PaymentTipTotals | null) => void;
+  },
+) {
+  setters.setItems(data.items || []);
+  setters.setTotal(round2(data.monthTotals?.total || 0));
+  setters.setTickets(data.monthTotals?.tickets || 0);
+  setters.setComida(round2(data.monthTotals?.byType?.comida?.total || 0));
+  setters.setBebida(round2(data.monthTotals?.byType?.bebida?.total || 0));
+  setters.setMonthPayment(
+    data.monthTotals?.byPayment
+      ? {
+          byPayment: {
+            efectivo: {
+              total: round2(data.monthTotals.byPayment.efectivo?.total ?? 0),
+              tickets: data.monthTotals.byPayment.efectivo?.tickets ?? 0,
+            },
+            tarjeta: {
+              total: round2(data.monthTotals.byPayment.tarjeta?.total ?? 0),
+              tickets: data.monthTotals.byPayment.tarjeta?.tickets ?? 0,
+            },
+          },
+          tipTotal: round2(data.monthTotals.tipTotal ?? 0),
+        }
+      : null,
+  );
+}
+
 /** Caja TPV original + Top ventas + descargas de informe. */
 export function CajaTpvView() {
   const [mesKey, setMesKey] = useState<MesKey>(() => mesActualKey());
@@ -71,6 +111,17 @@ export function CajaTpvView() {
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
 
+  const applyData = useCallback((data: Pick<CierresResponse, "items" | "monthTotals">) => {
+    applyCierresData(data, {
+      setItems,
+      setTotal,
+      setTickets,
+      setComida,
+      setBebida,
+      setMonthPayment,
+    });
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -79,32 +130,7 @@ export function CajaTpvView() {
       try {
         const data = await fetchCierres(mesKey);
         if (cancelled) return;
-        setItems(data.items || []);
-        setTotal(round2(data.monthTotals?.total || 0));
-        setTickets(data.monthTotals?.tickets || 0);
-        setComida(round2(data.monthTotals?.byType?.comida?.total || 0));
-        setBebida(round2(data.monthTotals?.byType?.bebida?.total || 0));
-        setMonthPayment(
-          data.monthTotals?.byPayment
-            ? {
-                byPayment: {
-                  efectivo: {
-                    total: round2(
-                      data.monthTotals.byPayment.efectivo?.total ?? 0,
-                    ),
-                    tickets: data.monthTotals.byPayment.efectivo?.tickets ?? 0,
-                  },
-                  tarjeta: {
-                    total: round2(
-                      data.monthTotals.byPayment.tarjeta?.total ?? 0,
-                    ),
-                    tickets: data.monthTotals.byPayment.tarjeta?.tickets ?? 0,
-                  },
-                },
-                tipTotal: round2(data.monthTotals.tipTotal ?? 0),
-              }
-            : null,
-        );
+        applyData(data);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Error al cargar");
@@ -118,7 +144,7 @@ export function CajaTpvView() {
     return () => {
       cancelled = true;
     };
-  }, [mesKey]);
+  }, [mesKey, applyData]);
 
   function onDescargarCierres() {
     descargarInformeCierresMes({
@@ -135,6 +161,10 @@ export function CajaTpvView() {
     });
   }
 
+  function onCierreSaved(data: CierresResponse & { cierre: CierreItem }) {
+    applyData(data);
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <header>
@@ -144,7 +174,8 @@ export function CajaTpvView() {
         <h1 className="mt-1 font-display text-2xl text-ink">Caja TPV</h1>
         <p className="mt-1 text-sm text-ink/55">
           Historial de cierres · {labelMes(mesKey)}. El mes se reinicia en el
-          selector; el historial no se borra.
+          selector; el historial no se borra. Puedes corregir tickets en
+          efectivo y los totales se actualizan al guardar.
         </p>
       </header>
 
@@ -255,6 +286,11 @@ export function CajaTpvView() {
                           {p.qty} × {p.name}: {formatImporte(p.total)}
                         </p>
                       ))}
+                      <CierreEfectivoEditor
+                        cierre={c}
+                        monthKey={mesKey}
+                        onSaved={onCierreSaved}
+                      />
                     </div>
                   ) : null}
                 </li>
