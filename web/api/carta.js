@@ -16,7 +16,7 @@ const fs = require('fs')
 const path = require('path')
 const { getJson, setJson, hasSupabase } = require('./_opsStore')
 const { hasTpvSession } = require('./_tpvSession')
-const { adminPinOk } = require('./_tpvUsers')
+const { adminPinOk, CREATE_USER_PIN } = require('./_tpvUsers')
 
 const CARTA_KEY = 'carta'
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
@@ -392,11 +392,6 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    if (!authorized(req)) {
-      res.statusCode = 401
-      res.setHeader('Content-Type', 'application/json')
-      return res.end(JSON.stringify({ error: 'unauthorized' }))
-    }
     let body = req.body
     if (typeof body === 'string') {
       try {
@@ -409,6 +404,33 @@ module.exports = async function handler(req, res) {
     const action = String(body.action || '').trim()
 
     try {
+      /** Total día / dueña: solo PIN, sin cookie (evita "PIN incorrecto" si sesión caducó). */
+      if (action === 'verifyEditPin') {
+        const pin = String(body.pin || '').trim()
+        const exp = expectedEditPin()
+        let ok = false
+        if (pin) {
+          if (exp && pin === exp) ok = true
+          else if (pin === CREATE_USER_PIN) ok = true
+          else ok = await adminPinOk(pin)
+        }
+        res.statusCode = ok ? 200 : 401
+        res.setHeader('Content-Type', 'application/json')
+        return res.end(
+          JSON.stringify(
+            ok
+              ? { ok: true, action: 'verifyEditPin' }
+              : { ok: false, error: 'PIN incorrecto' },
+          ),
+        )
+      }
+
+      if (!authorized(req)) {
+        res.statusCode = 401
+        res.setHeader('Content-Type', 'application/json')
+        return res.end(JSON.stringify({ error: 'unauthorized' }))
+      }
+
       if (action === 'seed') {
         const out = await seedFromFile()
         res.statusCode = 200
@@ -445,28 +467,6 @@ module.exports = async function handler(req, res) {
             categories: (payload.categories || []).length,
             updatedAt: payload.updatedAt,
           }),
-        )
-      }
-
-      if (action === 'verifyEditPin') {
-        const pin = String(body.pin || '').trim()
-        const exp = expectedEditPin()
-        let ok = Boolean(pin && exp && pin === exp)
-        if (!ok && pin) {
-          try {
-            ok = await adminPinOk(pin)
-          } catch {
-            ok = false
-          }
-        }
-        res.statusCode = ok ? 200 : 401
-        res.setHeader('Content-Type', 'application/json')
-        return res.end(
-          JSON.stringify(
-            ok
-              ? { ok: true, action: 'verifyEditPin' }
-              : { ok: false, error: 'PIN incorrecto' },
-          ),
         )
       }
 

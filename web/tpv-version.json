@@ -1,5 +1,5 @@
 {
-  "required": "2026-11-07-total-dia-pin-admin",
-  "message": "Importante: actualiza — Total día con PIN 2908",
-  "updatedAt": "2026-11-08T00:15:00.000Z"
+  "required": "2026-11-07-total-dia-no-session",
+  "message": "Importante: actualiza — Total día (2908) sin depender de sesión",
+  "updatedAt": "2026-11-08T00:35:00.000Z"
 }
