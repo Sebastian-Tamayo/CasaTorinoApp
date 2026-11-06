@@ -167,6 +167,13 @@ async function getSessionEpoch() {
   return Number(store.sessionEpoch) || 0
 }
 
+/** Tras cerrar jornada: invalida cookies en todos los dispositivos TPV. */
+async function bumpSessionEpoch() {
+  const store = await loadUsersStore()
+  store.sessionEpoch = Date.now()
+  return saveUsersStore(store)
+}
+
 /** Espejo id+name al plano (sin hashes). 0 funciones extra. */
 async function syncFloorWaiters(users) {
   if (!hasSupabase()) return
@@ -396,4 +403,5 @@ module.exports = {
   adminPinOk,
   findById,
   syncFloorWaiters,
+  bumpSessionEpoch,
 }

@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-07-jornada-all'
-const message = 'Importante: actualiza — jornada: cualquier usuario con PIN'
+const required = '2026-11-07-end-kick-all'
+const message = 'Importante: actualiza — fin de jornada cierra sesión en todos'
 
 function forceInfo() {
   return { required, message }

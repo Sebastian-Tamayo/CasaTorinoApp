@@ -51,7 +51,7 @@ async function issueSession(res, user) {
 
 /**
  * Epoch inválido → echa a todos (reset).
- * Jornada cerrada → echa a quien no sea Lore/Sebas.
+ * Tras fin de jornada: tpv-jornada sube sessionEpoch → mismo efecto en todos los dispositivos.
  */
 async function enforceBootstrapSession(req, res, user) {
   if (!user) return { ok: false, user: null }
