@@ -3351,7 +3351,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-07-total-dia-no-session'
+      const TPV_CLIENT_VERSION = '2026-11-07-audit-session-merge'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -4641,7 +4641,7 @@
           alert('Jornada iniciada.\nHistórico de cocina renovado.')
         } catch (err) {
           console.warn('startJornada', err)
-          if (err.data) paintJornadaStatus(err.data)
+          if (err.data && err.data.status) paintJornadaStatus(err.data)
           alert(err.message || 'No se pudo iniciar la jornada')
         }
       }
@@ -4668,7 +4668,7 @@
           }
         } catch (err) {
           console.warn('endJornada', err)
-          if (err.data) paintJornadaStatus(err.data)
+          if (err.data && err.data.status) paintJornadaStatus(err.data)
           alert(err.message || 'No se pudo cerrar la jornada')
         }
       }
@@ -6050,9 +6050,27 @@
           const hist = Array.isArray(last.hist) ? last.hist.slice() : []
           const notes = String(last.notes || '')
           const paid = String(last.paid || '')
+          // Tombstones del cobro no deben matar las líneas restauradas en merge
+          const nowUndo = Date.now()
+          if (!state.removed || typeof state.removed !== 'object') state.removed = {}
+          for (const key of Object.keys(cart)) {
+            if (state.removed[key]) delete state.removed[key]
+            const line = cart[key]
+            if (line && typeof line === 'object') {
+              line.updatedAt = Math.max(Number(line.updatedAt) || 0, nowUndo)
+            }
+          }
 
           if (mesa) {
-            state.tables[mesa] = { cart, hist, notes, paid }
+            state.tables[mesa] = {
+              cart,
+              hist,
+              notes,
+              paid,
+              removed: { ...state.removed },
+              updatedAt: nowUndo,
+              cleared: false,
+            }
             state.mesa = mesa
             syncMesaInputs(mesa)
           }
@@ -6303,10 +6321,9 @@
         const tip = Number.isFinite(tipRaw) && tipRaw > 0 ? round2(tipRaw) : 0
         const m = normalizeMesa(state.mesa)
         const isPartial = payDraft.mode === 'selection' && (Number(payDraft.remainCents) || 0) > 0
+        if (!(await ensureJornadaOpenForSale())) return
         const modal = $('payModal')
         if (modal) modal.hidden = true
-
-        if (!(await ensureJornadaOpenForSale())) return
 
         const saleLines = chargeLines.map((l) => ({
           id: l.id,
