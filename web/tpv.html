@@ -849,17 +849,17 @@
       backdrop-filter: blur(2px); z-index: 45;
     }
 
-    /* Aviso cocina → TPV: abajo, para NO tapar Mesa arriba */
+    /* Aviso cocina → TPV: abajo a la IZQUIERDA (la derecha es cobro) */
     .pickup-alert {
       position: fixed;
-      left: 50%;
+      left: max(.85rem, env(safe-area-inset-left, 0px));
       right: auto;
       top: auto;
       /* Encima del FAB / zona inferior; deja libre barra de mesa */
       bottom: calc(5.35rem + env(safe-area-inset-bottom, 0px));
-      transform: translateX(-50%);
+      transform: none;
       z-index: 96;
-      width: min(520px, calc(100% - 1.2rem));
+      width: min(420px, calc(100% - 1.7rem));
       display: none;
       flex-direction: column;
       gap: .4rem;
@@ -897,27 +897,28 @@
       bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     }
     @media (min-width: 1024px) {
-      /* En PC: esquina inferior derecha, sin tapar mesa del ticket */
+      /* Esquina inferior izquierda (no tapar columna del cobro) */
       .pickup-alert {
-        left: auto;
-        right: 1rem;
-        transform: none;
-        width: min(360px, calc(var(--check-w, 400px) - 1.5rem));
-        bottom: 1rem;
+        left: max(1rem, env(safe-area-inset-left, 0px));
+        right: auto;
+        width: min(380px, calc(100% - 2.2rem));
+        bottom: max(1rem, env(safe-area-inset-bottom, 0px));
       }
-      body.check-open .pickup-alert { bottom: 1rem; }
+      body.check-open .pickup-alert {
+        bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+      }
     }
 
     /* Aviso reserva web → TPV (amarillo, encima de recogidas cocina) */
     .reserva-alert {
       position: fixed;
-      left: 50%;
+      left: max(.85rem, env(safe-area-inset-left, 0px));
       right: auto;
       top: auto;
       bottom: calc(9.1rem + env(safe-area-inset-bottom, 0px));
-      transform: translateX(-50%);
+      transform: none;
       z-index: 97;
-      width: min(520px, calc(100% - 1.2rem));
+      width: min(420px, calc(100% - 1.7rem));
       display: none;
       flex-direction: column;
       gap: .4rem;
@@ -955,13 +956,14 @@
     }
     @media (min-width: 1024px) {
       .reserva-alert {
-        left: auto;
-        right: 1rem;
-        transform: none;
-        width: min(360px, calc(var(--check-w, 400px) - 1.5rem));
-        bottom: calc(1rem + 5.2rem);
+        left: max(1rem, env(safe-area-inset-left, 0px));
+        right: auto;
+        width: min(380px, calc(100% - 2.2rem));
+        bottom: calc(1rem + 8.2rem + env(safe-area-inset-bottom, 0px));
       }
-      body.check-open .reserva-alert { bottom: calc(1rem + 5.2rem); }
+      body.check-open .reserva-alert {
+        bottom: calc(1rem + 8.2rem + env(safe-area-inset-bottom, 0px));
+      }
     }
 
     /* Teléfonos grandes / landscape: 2 columnas ya legibles */
@@ -3349,7 +3351,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-03-monitor-det1'
+      const TPV_CLIENT_VERSION = '2026-11-07-alerts-left'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
