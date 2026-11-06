@@ -19,7 +19,6 @@ const { hasTpvSession } = require('./_tpvSession')
 const { opsDayId } = require('./_opsDay')
 const { buildActivityByHour } = require('./_informeReports')
 const tpvVersion = require('./_tpvVersion')
-const { bumpSessionEpoch } = require('./_tpvUsers')
 
 function cors(req, res) {
   const origin = req.headers.origin || '*'
@@ -727,13 +726,6 @@ module.exports = async function handler(req, res) {
           cierre = await archiveToCierres(full)
         } catch (err) {
           console.warn('[tpv-jornada] archive', err)
-        }
-        if (action === 'end') {
-          try {
-            await bumpSessionEpoch()
-          } catch (err) {
-            console.warn('[tpv-jornada] bumpSessionEpoch', err)
-          }
         }
         // Semanal: solo el cron del lunes ~08:00 Madrid (un correo).
         // No enviar al cerrar caja (evita duplicar con el cron).

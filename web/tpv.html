@@ -3351,7 +3351,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-07-end-kick-all'
+      const TPV_CLIENT_VERSION = '2026-11-07-jornada-all'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3621,10 +3621,21 @@
         }
       }
 
-      /** Tras cerrar jornada: echa a todos (nuevo sessionEpoch en servidor). */
-      function lockAfterJornadaEnd() {
-        if (document.body.classList.contains('tpv-locked')) return
-        lockTpvForPin('Jornada finalizada — introduce el PIN para seguir')
+      function isBootstrapTpvUser(user) {
+        const id = String(user?.id || '')
+        return id === 'u-tpv-fisico' || id === 'u-lore' || id === 'u-sebas'
+      }
+
+      /** Tras fin de jornada: echa camareras; quedan caja / Lore / Sebas. */
+      function kickIfNotBootstrap(reason) {
+        const j = state.jornada || window.CasaTorinoTpvJornada?.last
+        if (!j || j.status !== 'ended') return false
+        if (!tpvSessionUser) return false
+        if (isBootstrapTpvUser(tpvSessionUser)) return false
+        lockTpvForPin(
+          reason || 'Jornada finalizada — solo TPV físico, Lore o Sebas',
+        )
+        return true
       }
 
       function paintTpvUserSelect(user) {
@@ -3794,12 +3805,6 @@
 
       function applySessionUser(user) {
         tpvSessionUser = user && user.id ? user : null
-        const j = state.jornada || window.CasaTorinoTpvJornada?.last
-        if (tpvSessionUser && j && j.status === 'ended') {
-          void fetch('/api/tpv-auth', { method: 'DELETE', credentials: 'same-origin' }).catch(() => {})
-          lockAfterJornadaEnd()
-          return
-        }
         paintTpvUserSelect(tpvSessionUser)
         try {
           if (tpvSessionUser) {
@@ -4330,7 +4335,7 @@
           el.innerHTML = `Jornada: <strong>cerrada</strong> · ${fmtHm(j.startedAt)}–${fmtHm(j.endedAt)}`
           if (btnStart) btnStart.disabled = false
           if (btnEnd) btnEnd.disabled = true
-          lockAfterJornadaEnd()
+          kickIfNotBootstrap('Jornada finalizada — solo TPV físico, Lore o Sebas')
         } else {
           el.innerHTML = 'Jornada: <strong>sin iniciar</strong>'
           if (btnStart) btnStart.disabled = false
@@ -4669,15 +4674,15 @@
           } catch (err) {
             console.warn('sync cocina fin', err)
           }
-          if (document.body.classList.contains('tpv-locked')) {
-            // lockAfterJornadaEnd ya cerró la UI
-          } else {
-            openJornadaModal()
-          }
+          // Echa a todo el mundo excepto Lore/Sebas (otros dispositivos al poll)
+          const kicked = kickIfNotBootstrap(
+            'Jornada finalizada — solo TPV físico, Lore o Sebas',
+          )
+          if (!kicked) openJornadaModal()
           if (j?.cierre) {
             alert(
-              document.body.classList.contains('tpv-locked')
-                ? 'Sesión cerrada.\nTotal enviado al ERP → Caja TPV.\nVuelve a entrar con tu PIN.'
+              kicked
+                ? 'Sesión cerrada.\nTotal enviado al ERP → Caja TPV.\nEntra de nuevo con TPV físico, Lore o Sebas.'
                 : 'Sesión cerrada.\nTotal enviado al ERP → Caja TPV.',
             )
           }
