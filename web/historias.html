@@ -125,7 +125,7 @@
     <div class="gate-card">
       <img src="assets/logo.jpg" alt="Casa Torino" />
       <h1 id="gateTitle">Historias del menú</h1>
-      <p>PIN del personal. No abre el TPV.</p>
+      <p>PIN de gestión interna. No abre el TPV.</p>
       <div class="gate-dots" id="gateDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
       <div class="gate-pad" id="gatePad">
         <button type="button" data-k="1">1</button>
@@ -226,6 +226,26 @@
         }
         const typed = pinBuf
         try {
+          const check = await fetch(SB_URL + '/rest/v1/rpc/request_menu_story', {
+            method: 'POST',
+            headers: {
+              apikey: SB_KEY,
+              Authorization: 'Bearer ' + SB_KEY,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              p_pin: typed,
+              p_primero: '',
+              p_segundo: '',
+              p_extra: '',
+              p_precio: '',
+            }),
+          })
+          const checkData = await check.json().catch(() => null)
+          const checkMsg = String((checkData && (checkData.message || checkData.error)) || '')
+          if (!/Faltan platos/i.test(checkMsg)) {
+            throw new Error(/PIN incorrecto/i.test(checkMsg) ? 'PIN incorrecto' : (checkMsg || 'Sin conexión'))
+          }
           const r = await fetch('/api/tpv-auth', {
             method: 'POST',
             credentials: 'same-origin',
@@ -233,13 +253,14 @@
             body: JSON.stringify({ pin: typed }),
           })
           const data = await r.json().catch(() => ({}))
-          if (!r.ok || !data.ok) throw new Error('bad')
+          if (!r.ok || !data.ok) throw new Error('PIN incorrecto')
           gatePin = typed
           pinBuf = ''
           paintPinDots()
           unlock()
-        } catch {
-          if (err) err.textContent = 'PIN incorrecto'
+        } catch (e) {
+          const msg = storyErrorText(e)
+          if (err) err.textContent = /PIN incorrecto/i.test(msg) ? 'PIN incorrecto' : msg
           pinBuf = ''
           gatePin = ''
           paintPinDots()
