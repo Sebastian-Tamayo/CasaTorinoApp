@@ -9,9 +9,9 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-07-jornada-repin-alerts'
+const required = '2026-11-07-total-dia-pin-admin'
 const message =
-  'Importante: actualiza — PIN al día siguiente tras cierre; avisos a la izquierda'
+  'Importante: actualiza — Total día: 2908; re-PIN día siguiente si cerraste jornada'
 
 function forceInfo() {
   return { required, message }

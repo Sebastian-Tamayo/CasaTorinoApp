@@ -16,6 +16,7 @@ const fs = require('fs')
 const path = require('path')
 const { getJson, setJson, hasSupabase } = require('./_opsStore')
 const { hasTpvSession } = require('./_tpvSession')
+const { adminPinOk } = require('./_tpvUsers')
 
 const CARTA_KEY = 'carta'
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
@@ -318,7 +319,7 @@ function deleteItemInCarta(carta, categoryId, itemId) {
 }
 
 function expectedEditPin() {
-  // Solo CARTA_EDIT_PIN en Vercel (sin fallback hardcodeado en el repo)
+  // CARTA_EDIT_PIN en Vercel; Total día en TPV también acepta PIN admin TPV (2908 / Lore·Sebas) vía adminPinOk.
   return String(process.env.CARTA_EDIT_PIN || '')
     .trim()
     .replace(/^["']|["']$/g, '')
@@ -449,7 +450,15 @@ module.exports = async function handler(req, res) {
 
       if (action === 'verifyEditPin') {
         const pin = String(body.pin || '').trim()
-        const ok = Boolean(pin && pin === expectedEditPin())
+        const exp = expectedEditPin()
+        let ok = Boolean(pin && exp && pin === exp)
+        if (!ok && pin) {
+          try {
+            ok = await adminPinOk(pin)
+          } catch {
+            ok = false
+          }
+        }
         res.statusCode = ok ? 200 : 401
         res.setHeader('Content-Type', 'application/json')
         return res.end(
