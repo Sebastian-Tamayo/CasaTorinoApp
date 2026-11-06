@@ -22,6 +22,7 @@ const {
   hasTpvSession,
   getSessionUser,
   getSessionEpochFromReq,
+  getSessionIssuedAtFromReq,
   setSessionCookie,
   MAX_AGE_SEC,
   sessionSecret,
@@ -37,21 +38,24 @@ const {
   allowTpvLogin,
   bootstrapLoginDeniedMessage,
   getSessionEpoch,
+  getJornadaReloginDay,
   adminPinOk,
   publicUser,
 } = require('./_tpvUsers')
 const { appendLogin, getAudit } = require('./_tpvAudit')
 const handleQzSign = require('./_qzSign')
+const { opsDayId } = require('./_opsDay')
 
 async function issueSession(res, user) {
   const epoch = await getSessionEpoch()
-  setSessionCookie(res, true, user, epoch)
-  return epoch
+  const opts = { epoch, issuedAt: Date.now() }
+  setSessionCookie(res, true, user, opts)
+  return opts
 }
 
 /**
- * Epoch inválido → echa a todos (reset).
- * Jornada cerrada → echa a quien no sea Lore/Sebas.
+ * Epoch inválido → echa a todos (reset de usuarios).
+ * Tras cerrar jornada: al **día operativo siguiente** (08:00 Madrid) pide PIN de nuevo.
  */
 async function enforceBootstrapSession(req, res, user) {
   if (!user) return { ok: false, user: null }
@@ -64,6 +68,21 @@ async function enforceBootstrapSession(req, res, user) {
       user: null,
       kicked: true,
       error: 'Sesión reiniciada — introduce el PIN',
+    }
+  }
+  const needRelogin = String((await getJornadaReloginDay()) || '').trim()
+  const issuedAt = getSessionIssuedAtFromReq(req)
+  // v3/v2 cookies sin issuedAt: no forzar re-PIN por jornada (compat en servicio)
+  if (needRelogin && issuedAt > 0) {
+    const cookieDay = opsDayId(new Date(issuedAt))
+    if (cookieDay < needRelogin) {
+      setSessionCookie(res, false)
+      return {
+        ok: false,
+        user: null,
+        kicked: true,
+        error: 'Nuevo día — introduce el PIN',
+      }
     }
   }
   const allowed = await allowTpvLogin(user)
@@ -324,7 +343,7 @@ module.exports = async function handler(req, res) {
       }
 
       // Login: con userId (TPV elige persona) o solo PIN (cocina/interno)
-      // gate:'tpv' → antes de jornada solo Lore/Sebas
+      // gate:'tpv' → usuario con PIN (allowTpvLogin)
       const pin = String(body.pin || '').trim()
       if (!pin) {
         return json(res, 401, { ok: false, error: 'PIN incorrecto' })

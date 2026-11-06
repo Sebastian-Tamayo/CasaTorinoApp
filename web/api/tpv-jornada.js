@@ -19,6 +19,10 @@ const { hasTpvSession } = require('./_tpvSession')
 const { opsDayId } = require('./_opsDay')
 const { buildActivityByHour } = require('./_informeReports')
 const tpvVersion = require('./_tpvVersion')
+const {
+  bumpJornadaLoginEpoch,
+  clearJornadaReloginDay,
+} = require('./_tpvUsers')
 
 function cors(req, res) {
   const origin = req.headers.origin || '*'
@@ -569,6 +573,11 @@ module.exports = async function handler(req, res) {
           sales: [],
           updatedAt: now,
         }
+        try {
+          await clearJornadaReloginDay()
+        } catch (err) {
+          console.warn('[tpv-jornada] clear relogin day', err)
+        }
         await syncKitchenJornada('start', state)
       } else if (action === 'end') {
         if (state.status !== 'open') {
@@ -587,6 +596,11 @@ module.exports = async function handler(req, res) {
           endedAt: now,
           updatedAt: now,
           sales: Array.isArray(state.sales) ? state.sales : [],
+        }
+        try {
+          await bumpJornadaLoginEpoch()
+        } catch (err) {
+          console.warn('[tpv-jornada] bump relogin day', err)
         }
         await syncKitchenJornada('end', state)
       } else if (action === 'updatesale' || action === 'update_sale') {

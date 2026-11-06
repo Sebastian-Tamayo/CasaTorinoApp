@@ -9,8 +9,9 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-03-monitor-det1'
-const message = 'Importante: actualiza — Monitor con más detalle en movimientos'
+const required = '2026-11-07-jornada-repin-alerts'
+const message =
+  'Importante: actualiza — PIN al día siguiente tras cierre; avisos a la izquierda'
 
 function forceInfo() {
   return { required, message }

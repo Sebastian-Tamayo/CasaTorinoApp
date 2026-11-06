@@ -8,6 +8,7 @@
 const crypto = require('crypto')
 const { getJson, setJson, hasSupabase } = require('./_opsStore')
 const { sessionSecret } = require('./_tpvSession')
+const { opsDayId } = require('./_opsDay')
 
 const USERS_KEY = 'tpv_users'
 const FLOOR_KEY = 'floor_plan'
@@ -79,6 +80,8 @@ function normalizeStore(raw) {
     version: 1,
     storeVersion: Number(raw?.storeVersion) || 0,
     sessionEpoch: Number(raw?.sessionEpoch) || 0,
+    /** Tras cerrar jornada: día operativo (Europe/Madrid 08:00) en que pide PIN otra vez. */
+    jornadaLoginDay: raw?.jornadaLoginDay ? String(raw.jornadaLoginDay) : '',
     users: users
       .filter((u) => u && u.id && u.name)
       .map((u) => ({
@@ -108,6 +111,7 @@ function seedFromDefaults() {
     version: 1,
     storeVersion: USERS_STORE_VERSION,
     sessionEpoch: Date.now(),
+    jornadaLoginDay: '',
     users,
     updatedAt: Date.now(),
     seeded: true,
@@ -166,6 +170,44 @@ async function saveUsersStore(store) {
 async function getSessionEpoch() {
   const store = await loadUsersStore()
   return Number(store.sessionEpoch) || 0
+}
+
+/** Reseed de usuarios / reset manual: invalida todas las cookies. */
+async function bumpSessionEpoch() {
+  const store = await loadUsersStore()
+  store.sessionEpoch = Date.now()
+  return saveUsersStore(store)
+}
+
+function nextOpsDayString(dayStr) {
+  const s = String(dayStr || '').trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return ''
+  const [y, m, d] = s.split('-').map((x) => Number(x))
+  const n = new Date(Date.UTC(y, m - 1, d))
+  n.setUTCDate(n.getUTCDate() + 1)
+  return `${n.getUTCFullYear()}-${String(n.getUTCMonth() + 1).padStart(2, '0')}-${String(n.getUTCDate()).padStart(2, '0')}`
+}
+
+/**
+ * Tras cerrar jornada: primer **día operativo** en que hay que volver a poner PIN
+ * (= día siguiente 08:00 Madrid respecto al cierre).
+ */
+async function bumpJornadaLoginEpoch() {
+  const store = await loadUsersStore()
+  store.jornadaLoginDay = nextOpsDayString(opsDayId())
+  return saveUsersStore(store)
+}
+
+/** Vacía obligación de re-PIN al abrir jornada nueva. */
+async function clearJornadaReloginDay() {
+  const store = await loadUsersStore()
+  store.jornadaLoginDay = ''
+  return saveUsersStore(store)
+}
+
+async function getJornadaReloginDay() {
+  const store = await loadUsersStore()
+  return String(store.jornadaLoginDay || '').trim()
 }
 
 /** Espejo id+name al plano (sin hashes). 0 funciones extra. */
@@ -356,18 +398,16 @@ async function isJornadaOpen() {
 }
 
 /**
- * Antes de abrir jornada / tras fin: TPV FÍSICO, Lore o Sebas.
- * Con jornada abierta: cualquier usuario con PIN válido.
+ * Cualquier usuario con PIN puede entrar y abrir/cerrar jornada (no solo Lore/Sebas).
  */
 async function allowTpvLogin(user) {
   if (!user || !user.id) return null
-  if (BOOTSTRAP_USER_IDS.has(String(user.id))) return user
-  if (await isJornadaOpen()) return user
+  if (user.pinSet) return user
   return null
 }
 
 function bootstrapLoginDeniedMessage() {
-  return 'Sin jornada abierta solo pueden entrar TPV físico, Lore o Sebas'
+  return 'Completa «Primer acceso» con un PIN de 4 dígitos para entrar'
 }
 
 function isBootstrapUser(user) {
@@ -385,6 +425,7 @@ module.exports = {
   loadUsersStore,
   saveUsersStore,
   getSessionEpoch,
+  bumpSessionEpoch,
   pendingUsers,
   gateUsers,
   setUserPin,
@@ -398,4 +439,7 @@ module.exports = {
   adminPinOk,
   findById,
   syncFloorWaiters,
+  bumpJornadaLoginEpoch,
+  clearJornadaReloginDay,
+  getJornadaReloginDay,
 }
