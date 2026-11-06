@@ -1467,6 +1467,9 @@
     .jornada-actions .btn-j.edit-carta {
       border-color: rgba(167,139,250,.5); color: #c4b5fd;
     }
+    .jornada-actions .btn-j.stories {
+      border-color: rgba(245,197,24,.55); color: #f6d34d;
+    }
     .jornada-actions .btn-j.fichaje {
       border-color: rgba(56,189,248,.5); color: #7dd3fc;
       width: 2.4rem;
@@ -2822,6 +2825,7 @@
         <button class="btn-j end" id="btnJornadaEnd" type="button" disabled title="Fin de sesión"><i class="fa-solid fa-flag-checkered"></i> Fin</button>
         <button class="btn-j fiscal" id="btnFiscal" type="button" title="NIF y datos del local para facturas"><i class="fa-solid fa-building-columns"></i> Datos fiscales</button>
         <button class="btn-j edit-carta" id="btnEditarCarta" type="button" title="Editar carta"><i class="fa-solid fa-pen-to-square"></i> Carta</button>
+        <button class="btn-j stories" id="btnMenuStories" type="button" title="Publicar menú en historias"><i class="fa-solid fa-mobile-screen"></i> Historias</button>
         <button class="btn-j fichaje" id="btnFichaje" type="button" aria-label="Fichar" title="Fichar"><i class="fa-solid fa-fingerprint"></i></button>
         <button class="btn-j shift-notes" id="btnShiftNotes" type="button" title="Notas de turno">
           <i class="fa-solid fa-clipboard-list"></i> Notas
@@ -2995,6 +2999,42 @@
       <div class="plano-floor" id="planoFloor" aria-label="Plano Casa Torino"></div>
       <div class="course-actions">
         <button type="button" class="cancel" id="planoCancel">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="course-modal" id="storyModal" hidden role="dialog" aria-modal="true" aria-labelledby="storyModalTitle">
+    <div class="course-card">
+      <div class="course-card-h">
+        <button type="button" class="btn-modal-back" id="storyBack" aria-label="Volver">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </button>
+        <h3 id="storyModalTitle">Historias del menú</h3>
+      </div>
+      <div class="carta-edit-scroll">
+        <p class="sub">Genera la pizarra 9:16 (logo Casa Torino). WhatsApp sale en este PC. Instagram y TikTok los publica GitHub Actions, sin Vercel.</p>
+        <div class="carta-edit-fields">
+          <label>Primero
+            <input id="storyPrimero" type="text" maxlength="120" autocomplete="off" placeholder="Sopa de pasta" />
+          </label>
+          <label>Segundo
+            <input id="storySegundo" type="text" maxlength="160" autocomplete="off" placeholder="Tacos de cerdo a la jardinera con patatas" />
+          </label>
+          <label>Incluye
+            <input id="storyExtra" type="text" maxlength="80" autocomplete="off" value="Postre y bebida a elegir" />
+          </label>
+          <label>Precio (€)
+            <input id="storyPrecio" type="text" inputmode="decimal" maxlength="8" autocomplete="off" placeholder="13" />
+          </label>
+          <label>Token GitHub (solo este navegador)
+            <input id="storyGhToken" type="password" autocomplete="off" placeholder="Opcional si ya está en el PC" />
+          </label>
+        </div>
+        <p class="sub" id="storyStatus" style="min-height:2.4rem"></p>
+      </div>
+      <div class="course-actions carta-edit-actions">
+        <button type="button" class="cancel" id="storyCancel">Cerrar</button>
+        <button type="button" class="ok" id="storyPublish">Publicar</button>
       </div>
     </div>
   </div>
@@ -3349,7 +3389,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-03-monitor-det1'
+      const TPV_CLIENT_VERSION = '2026-11-06-menu-stories1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -7524,6 +7564,115 @@
           if (btn) btn.disabled = false
         }
       }
+
+      const STORY_GH_REPO = 'Sebastian-Tamayo/CasaTorinoApp'
+      const STORY_TOKEN_KEY = 'ct.stories.githubToken'
+
+      function openStoryModal() {
+        const token = localStorage.getItem(STORY_TOKEN_KEY) || ''
+        if ($('storyGhToken')) $('storyGhToken').value = token
+        if ($('storyStatus')) $('storyStatus').textContent = ''
+        try {
+          const menu = all().find((x) => x && (x.id === 'menu-dia' || x.catId === 'menus-dia'))
+          if (menu && $('storyPrecio') && !$('storyPrecio').value) {
+            $('storyPrecio').value = String(menu.price ?? '').replace('.', ',')
+          }
+        } catch (_) { /* catálogo aún no listo */ }
+        if ($('storyModal')) $('storyModal').hidden = false
+        setTimeout(() => $('storyPrimero')?.focus(), 40)
+      }
+
+      function closeStoryModal() {
+        if ($('storyModal')) $('storyModal').hidden = true
+      }
+
+      function storyPayloadFromForm() {
+        return {
+          primero: String($('storyPrimero')?.value || '').trim(),
+          segundo: String($('storySegundo')?.value || '').trim(),
+          extra: String($('storyExtra')?.value || '').trim() || 'Postre y bebida a elegir',
+          precio: String($('storyPrecio')?.value || '').trim().replace(',', '.'),
+          direccion: 'Ctra. Ceares 67',
+        }
+      }
+
+      async function dispatchMenuStoryGithub(payload, token) {
+        const r = await fetch('https://api.github.com/repos/' + STORY_GH_REPO + '/dispatches', {
+          method: 'POST',
+          headers: {
+            Accept: 'application/vnd.github+json',
+            Authorization: 'Bearer ' + token,
+            'X-GitHub-Api-Version': '2022-11-28',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            event_type: 'menu-story',
+            client_payload: payload,
+          }),
+        })
+        if (r.status !== 204 && !r.ok) {
+          const text = await r.text().catch(() => '')
+          throw new Error('GitHub ' + r.status + (text ? ' ' + text.slice(0, 160) : ''))
+        }
+      }
+
+      async function publishMenuStories() {
+        const payload = storyPayloadFromForm()
+        if (!payload.primero || !payload.segundo) {
+          alert('Escribe el primero y el segundo.')
+          return
+        }
+        const token = String($('storyGhToken')?.value || '').trim()
+        if (token) localStorage.setItem(STORY_TOKEN_KEY, token)
+        const status = $('storyStatus')
+        const btn = $('storyPublish')
+        if (btn) btn.disabled = true
+        if (status) status.textContent = 'Publicando…'
+        let ghOk = false
+        let ghErr = ''
+        if (token) {
+          try {
+            await dispatchMenuStoryGithub(payload, token)
+            ghOk = true
+          } catch (err) {
+            ghErr = err && err.message ? err.message : String(err)
+          }
+        }
+        let waMsg = ''
+        try {
+          const r = await fetch('http://127.0.0.1:3001/upload-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...payload, dispatchGithub: !ghOk }),
+          })
+          const data = await r.json().catch(() => ({}))
+          if (!r.ok) throw new Error(data.error || 'WhatsApp ' + r.status)
+          waMsg = 'WhatsApp publicado en estados.'
+          if (!ghOk && data.github && data.github.ok) {
+            ghOk = true
+            ghErr = ''
+          } else if (!ghOk && data.github && data.github.error) {
+            ghErr = String(data.github.error)
+          } else if (!ghOk && data.github && data.github.skipped) {
+            ghErr = data.github.error || 'sin token en el PC'
+          }
+        } catch (err) {
+          waMsg = 'WhatsApp no responde en este PC. Arranca en el ordenador: cd scripts && npm run whatsapp. (' + (err && err.message ? err.message : err) + ')'
+        }
+        const ghMsg = ghOk
+          ? ' Instagram y TikTok en cola (GitHub Actions).'
+          : ' Instagram/TikTok pendientes: ' + (ghErr || 'pega el token una vez, o pon GITHUB_DISPATCH_TOKEN en scripts/.env.')
+        if (status) status.textContent = waMsg + ghMsg
+        if (btn) btn.disabled = false
+      }
+
+      $('btnMenuStories')?.addEventListener('click', () => openStoryModal())
+      $('storyCancel')?.addEventListener('click', () => closeStoryModal())
+      $('storyBack')?.addEventListener('click', () => closeStoryModal())
+      $('storyPublish')?.addEventListener('click', () => void publishMenuStories())
+      $('storyModal')?.addEventListener('click', (e) => {
+        if (e.target === $('storyModal')) closeStoryModal()
+      })
 
       $('btnEditarCarta')?.addEventListener('click', () => {
         void tryEnterModoEdicion()
