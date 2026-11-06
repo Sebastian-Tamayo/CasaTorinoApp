@@ -299,7 +299,7 @@ try {
   assert.ok(html.includes('requestCreateConfirmPin') || html.includes("mode: 'createConfirm'"))
   assert.ok(html.includes("gate: 'tpv'"))
   assert.ok(html.includes('userId'))
-  assert.ok(html.includes('kickIfNotBootstrap'))
+  assert.ok(html.includes('abajo a la IZQUIERDA'))
   assert.ok(html.includes('entered !== false'))
   assert.ok(auth.includes('entered: true') && auth.includes('entered: false'))
   assert.ok(users.includes('USERS_STORE_VERSION = 8') || /USERS_STORE_VERSION\s*=\s*8/.test(users))

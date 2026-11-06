@@ -1,7 +1,8 @@
 /**
  * Sesión TPV firmada (HMAC) — cookie ct_tpv_session.
+ * v4: usuario + sessionEpoch + issuedAt + estado jornada (abre/cierre día siguiente).
  * v3: usuario + sessionEpoch (invalidación global al resetear usuarios).
- * v2/v1: se aceptan en parse pero el auth las echa si hay epoch nuevo.
+ * v2/v1: compat; el auth puede invalidar v3/v4 con epoch o jornada.
  * Secret: TPV_SESSION_SECRET || TPV_SYNC_KEY || TPV_PIN
  */
 const crypto = require('crypto')
@@ -30,7 +31,7 @@ function fromB64url(s) {
   }
 }
 
-/** Payload firmado v3: v3.{exp}.{userId}.{nameB64}.{epoch} */
+/** Payload v3: v3.{exp}.{userId}.{nameB64}.{epoch} */
 function signToken(expMs, user, epoch) {
   const secret = sessionSecret()
   if (!secret) return ''
@@ -41,6 +42,22 @@ function signToken(expMs, user, epoch) {
   const nameB64 = b64url(String(user?.name || '').slice(0, 40))
   const ep = String(Math.trunc(Number(epoch) || 0))
   const payload = `v3.${expMs}.${uid}.${nameB64}.${ep}`
+  const sig = crypto.createHmac('sha256', secret).update(payload).digest('base64url')
+  return `${payload}.${sig}`
+}
+
+/** v4: epoch (usuarios) + issuedAt (día operativo siguiente al cierre pide PIN) */
+function signTokenV4(expMs, user, meta) {
+  const secret = sessionSecret()
+  if (!secret) return ''
+  const uid =
+    String(user?.id || 'anon')
+      .replace(/[^a-zA-Z0-9_-]/g, '')
+      .slice(0, 40) || 'anon'
+  const nameB64 = b64url(String(user?.name || '').slice(0, 40))
+  const ep = String(Math.trunc(Number(meta?.epoch) || 0))
+  const issued = String(Math.trunc(Number(meta?.issuedAt) || Date.now()))
+  const payload = `v4.${expMs}.${uid}.${nameB64}.${ep}.${issued}`
   const sig = crypto.createHmac('sha256', secret).update(payload).digest('base64url')
   return `${payload}.${sig}`
 }
@@ -126,6 +143,7 @@ function parseSession(req) {
       },
       exp,
       epoch: 0,
+      issuedAt: 0,
     }
   }
   if (parts.length === 6 && parts[0] === 'v3') {
@@ -153,6 +171,39 @@ function parseSession(req) {
       },
       exp,
       epoch,
+      issuedAt: 0,
+    }
+  }
+  if (parts.length === 7 && parts[0] === 'v4') {
+    const exp = Number(parts[1])
+    const userId = parts[2]
+    const nameB64 = parts[3]
+    const epoch = Number(parts[4])
+    const issuedAt = Number(parts[5])
+    if (!Number.isFinite(exp) || Date.now() > exp) return null
+    if (!Number.isFinite(epoch) || !Number.isFinite(issuedAt)) return null
+    const name = fromB64url(nameB64)
+    const expect = signTokenV4(exp, { id: userId, name }, {
+      epoch,
+      issuedAt,
+    })
+    if (!expect || expect.length !== val.length) return null
+    try {
+      if (!crypto.timingSafeEqual(Buffer.from(val), Buffer.from(expect))) return null
+    } catch {
+      return null
+    }
+    return {
+      ok: true,
+      version: 4,
+      user: {
+        id: userId,
+        name: name || userId,
+        role: userId === 'u-tpv-fisico' ? 'central' : 'staff',
+      },
+      exp,
+      epoch,
+      issuedAt,
     }
   }
   return null
@@ -172,10 +223,29 @@ function getSessionEpochFromReq(req) {
   return Number(s?.epoch) || 0
 }
 
-function setSessionCookie(res, on, user, epoch) {
+function getSessionIssuedAtFromReq(req) {
+  const s = parseSession(req)
+  return Number(s?.issuedAt) || 0
+}
+
+/**
+ * opts:
+ * - número → epoch v3 (legacy)
+ * - objeto → v4 { epoch, issuedAt }
+ */
+function setSessionCookie(res, on, user, opts) {
   if (on) {
     const exp = Date.now() + MAX_AGE_SEC * 1000
-    const token = signToken(exp, user || null, epoch)
+    let token = ''
+    if (opts && typeof opts === 'object' && !Array.isArray(opts)) {
+      token = signTokenV4(exp, user || null, {
+        epoch: Number(opts.epoch) || 0,
+        issuedAt: Number(opts.issuedAt) || Date.now(),
+      })
+    } else {
+      const epoch = Number(opts) || 0
+      token = signToken(exp, user || null, epoch)
+    }
     if (!token) {
       return false
     }
@@ -198,8 +268,10 @@ module.exports = {
   hasTpvSession,
   getSessionUser,
   getSessionEpochFromReq,
+  getSessionIssuedAtFromReq,
   parseSession,
   setSessionCookie,
   sessionSecret,
   signToken,
+  signTokenV4,
 }
