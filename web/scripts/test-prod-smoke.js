@@ -272,6 +272,16 @@ try {
   fail('tpv-version-aligned', err)
 }
 
+// —— 10b) Total día: verifyEditPin acepta también admin TPV (2908) ——
+try {
+  const carta = fs.readFileSync(path.join(root, 'api/carta.js'), 'utf8')
+  assert.ok(carta.includes("action === 'verifyEditPin'"))
+  assert.ok(carta.includes('adminPinOk'))
+  ok('carta-total-dia-admin-pin')
+} catch (err) {
+  fail('carta-total-dia-admin-pin', err)
+}
+
 // —— 11) Usuarios TPV por PIN (sin función Hobby extra) ——
 try {
   const auth = fs.readFileSync(path.join(root, 'api/tpv-auth.js'), 'utf8')
