@@ -1,6 +1,6 @@
--- Historias del menú desde el móvil. No usa Vercel.
+-- Historias del menú desde el móvil (web/historias.html). No usa Vercel ni el TPV.
 -- El PIN y el token de GitHub viven en private.menu_story_secrets (no los lee el móvil).
--- Ejecutar una vez en Supabase → SQL Editor.
+-- Ejecutar una vez en Supabase → SQL Editor. El PIN debe ser el del personal.
 
 create schema if not exists private;
 

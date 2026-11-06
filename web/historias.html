@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Historias del menú · Casa Torino</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#fff8e8" />
+  <link rel="icon" type="image/jpeg" href="assets/logo.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body { color-scheme: light; background: var(--bg); }
+    body.hist-locked .hist-page { display: none; }
+    body:not(.hist-locked) .gate { display: none; }
+
+    .gate {
+      min-height: 100dvh; display: grid; place-items: center;
+      padding: 1.5rem 1rem 2rem;
+      background:
+        radial-gradient(900px 420px at 50% -10%, rgba(241,196,15,.18), transparent 55%),
+        var(--bg);
+    }
+    .gate-card, .hist-card {
+      width: min(440px, 100%);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.45rem 1.25rem 1.35rem;
+    }
+    .gate-card { text-align: center; }
+    .gate-card img, .hist-card img.logo {
+      width: 84px; height: 84px; border-radius: 50%;
+      object-fit: cover; border: 2px solid var(--gold);
+      margin: 0 auto .85rem; display: block;
+    }
+    .gate-card h1, .hist-card h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.7rem; margin: 0 0 .3rem;
+    }
+    .gate-card p, .lead { margin: 0 0 1rem; color: var(--muted); font-size: .92rem; }
+    .gate-dots { display: flex; gap: .55rem; justify-content: center; margin-bottom: 1rem; }
+    .gate-dots i {
+      width: 12px; height: 12px; border-radius: 50%;
+      border: 2px solid rgba(26,35,50,.25); display: block;
+    }
+    .gate-dots i.on { background: var(--gold); border-color: var(--gold); }
+    .gate-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: .55rem; }
+    .gate-pad button {
+      height: 56px; border-radius: 14px; border: 1px solid var(--line);
+      background: var(--bg-2); color: var(--ink);
+      font-size: 1.25rem; font-weight: 800; cursor: pointer;
+      touch-action: manipulation;
+    }
+    .gate-pad button.ghost { font-size: .85rem; color: var(--muted); }
+    .gate-pad button:active { transform: scale(.97); }
+    .gate-err {
+      min-height: 1.2rem; margin-top: .7rem;
+      color: var(--red); font-weight: 700; font-size: .9rem;
+    }
+    .gate-back, .hist-back {
+      display: inline-block; margin-top: .9rem;
+      color: var(--muted); text-decoration: none; font-weight: 600; font-size: .88rem;
+      touch-action: manipulation;
+    }
+    .gate-back:hover, .hist-back:hover { color: var(--gold-2); }
+
+    .hist-page {
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      padding: 1.25rem 1rem 2.5rem;
+    }
+    .hist-card h1 { text-align: center; }
+    .fields { display: grid; gap: .7rem; margin-top: .4rem; }
+    .fields label {
+      display: grid; gap: .3rem;
+      font-size: .78rem; font-weight: 800; letter-spacing: .02em;
+      color: var(--muted); text-transform: uppercase;
+    }
+    .fields input {
+      width: 100%; box-sizing: border-box;
+      border: 1px solid var(--line); border-radius: 12px;
+      background: var(--bg); color: var(--ink);
+      font: inherit; font-size: 1rem; font-weight: 600;
+      padding: .75rem .85rem;
+      touch-action: manipulation;
+    }
+    .fields input:focus { outline: 2px solid var(--gold); border-color: transparent; }
+    .status {
+      min-height: 2.6rem; margin: .85rem 0 0;
+      color: var(--ink); font-weight: 650; font-size: .92rem;
+    }
+    .preview { margin-top: .7rem; }
+    .preview img {
+      width: 100%; max-height: 420px; object-fit: contain;
+      border-radius: 14px; background: #fff8e8; border: 1px solid var(--line);
+    }
+    .actions { display: grid; gap: .55rem; margin-top: .9rem; }
+    .actions button, .actions a.share {
+      min-height: 52px; border-radius: 14px; border: 0;
+      font: inherit; font-weight: 800; font-size: 1rem;
+      cursor: pointer; touch-action: manipulation;
+      display: grid; place-items: center; text-decoration: none;
+    }
+    .actions .go { background: var(--gold); color: #1a1200; }
+    .actions .go:disabled { opacity: .55; cursor: wait; }
+    .actions .share { background: var(--bg-2); color: var(--ink); border: 1px solid var(--line); }
+    .actions button[hidden], .preview[hidden] { display: none; }
+    .tools { display: flex; justify-content: space-between; align-items: center; margin-top: .4rem; }
+    .btn-lock {
+      border: 1px solid var(--line); background: var(--card);
+      color: var(--muted); border-radius: 999px;
+      padding: .45rem .8rem; font-weight: 700; font-size: .82rem; cursor: pointer;
+      touch-action: manipulation;
+    }
+  </style>
+</head>
+<body class="hist-locked">
+  <div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+    <div class="gate-card">
+      <img src="assets/logo.jpg" alt="Casa Torino" />
+      <h1 id="gateTitle">Historias del menú</h1>
+      <p>PIN del personal. No abre el TPV.</p>
+      <div class="gate-dots" id="gateDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div class="gate-pad" id="gatePad">
+        <button type="button" data-k="1">1</button>
+        <button type="button" data-k="2">2</button>
+        <button type="button" data-k="3">3</button>
+        <button type="button" data-k="4">4</button>
+        <button type="button" data-k="5">5</button>
+        <button type="button" data-k="6">6</button>
+        <button type="button" data-k="7">7</button>
+        <button type="button" data-k="8">8</button>
+        <button type="button" data-k="9">9</button>
+        <button type="button" class="ghost" data-k="clear">Borrar</button>
+        <button type="button" data-k="0">0</button>
+        <button type="button" class="ghost" data-k="ok">Entrar</button>
+      </div>
+      <div class="gate-err" id="gateErr" aria-live="polite"></div>
+      <a class="gate-back" href="interno.html"><i class="fa-solid fa-arrow-left"></i> Volver</a>
+    </div>
+  </div>
+
+  <main class="hist-page" id="histPage" hidden>
+    <div class="hist-card">
+      <img class="logo" src="assets/logo.jpg" alt="Casa Torino" />
+      <p class="eyebrow gold" style="text-align:center">Casa Torino</p>
+      <h1>Historias del menú</h1>
+      <p class="lead">Pizarra del día para Instagram, TikTok y el estado de WhatsApp. El cobro y la cocina no pasan por aquí.</p>
+      <div class="fields">
+        <label>Primero
+          <input id="storyPrimero" type="text" maxlength="120" autocomplete="off" placeholder="Sopa de pasta" />
+        </label>
+        <label>Segundo
+          <input id="storySegundo" type="text" maxlength="160" autocomplete="off" placeholder="Tacos de cerdo a la jardinera" />
+        </label>
+        <label>Incluye
+          <input id="storyExtra" type="text" maxlength="80" autocomplete="off" value="Postre y bebida a elegir" />
+        </label>
+        <label>Precio (€)
+          <input id="storyPrecio" type="text" inputmode="decimal" maxlength="8" autocomplete="off" placeholder="13" />
+        </label>
+      </div>
+      <p class="status" id="storyStatus" aria-live="polite"></p>
+      <p class="preview" id="storyImageWrap" hidden>
+        <a id="storyImageLink" href="#" target="_blank" rel="noopener">
+          <img id="storyImage" alt="Historia del menú" />
+        </a>
+      </p>
+      <div class="actions">
+        <button type="button" class="go" id="storyPublish">Publicar</button>
+        <button type="button" class="share" id="storyShare" hidden>Compartir imagen</button>
+      </div>
+      <div class="tools">
+        <a class="hist-back" href="interno.html"><i class="fa-solid fa-arrow-left"></i> Volver</a>
+        <button class="btn-lock" id="btnLock" type="button">Cerrar</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      const SB_URL = 'https://fpnjtgoxljqmwuukyrrm.supabase.co'
+      const SB_KEY = 'sb_publishable_A_zxEJjB3NN_hh8Qdu7ccQ_qhcWGoz0'
+      const $ = (id) => document.getElementById(id)
+      let pinBuf = ''
+      let gatePin = ''
+
+      function paintPinDots() {
+        ;($('gateDots')?.querySelectorAll('i') || []).forEach((d, i) => {
+          d.classList.toggle('on', i < pinBuf.length)
+        })
+      }
+
+      function unlock() {
+        document.body.classList.remove('hist-locked')
+        const gate = $('gate')
+        if (gate) gate.hidden = true
+        const page = $('histPage')
+        if (page) page.hidden = false
+        setTimeout(() => $('storyPrimero')?.focus(), 40)
+      }
+
+      function lock() {
+        document.body.classList.add('hist-locked')
+        const gate = $('gate')
+        if (gate) gate.hidden = false
+        const page = $('histPage')
+        if (page) page.hidden = true
+        pinBuf = ''
+        gatePin = ''
+        paintPinDots()
+        if ($('gateErr')) $('gateErr').textContent = ''
+      }
+
+      async function tryPin() {
+        const err = $('gateErr')
+        if (pinBuf.length < 4) {
+          if (err) err.textContent = 'PIN incompleto'
+          return
+        }
+        const typed = pinBuf
+        try {
+          const r = await fetch('/api/tpv-auth', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pin: typed }),
+          })
+          const data = await r.json().catch(() => ({}))
+          if (!r.ok || !data.ok) throw new Error('bad')
+          gatePin = typed
+          pinBuf = ''
+          paintPinDots()
+          unlock()
+        } catch {
+          if (err) err.textContent = 'PIN incorrecto'
+          pinBuf = ''
+          gatePin = ''
+          paintPinDots()
+        }
+      }
+
+      function storyErrorText(err) {
+        const msg = String((err && err.message) || err || '')
+        if (/PIN incorrecto/i.test(msg)) return 'PIN incorrecto'
+        if (/PGRST202|PGRST205|Could not find|schema cache|menu_story/i.test(msg)) {
+          return 'El acceso ya está listo. Falta activar la tabla en Supabase para poder publicar.'
+        }
+        if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) return 'Sin conexión. Prueba otra vez.'
+        return msg || 'No se pudo publicar'
+      }
+
+      async function storySb(path, options) {
+        const r = await fetch(SB_URL + path, {
+          method: options && options.method,
+          body: options && options.body,
+          headers: {
+            apikey: SB_KEY,
+            Authorization: 'Bearer ' + SB_KEY,
+            'Content-Type': 'application/json',
+          },
+        })
+        const data = await r.json().catch(() => null)
+        if (!r.ok) {
+          const msg = (data && (data.message || data.error || data.hint || data.code)) || ('Supabase ' + r.status)
+          const code = data && data.code ? String(data.code) + ' ' : ''
+          throw new Error(code + (typeof msg === 'string' ? msg : 'Supabase ' + r.status))
+        }
+        return data
+      }
+
+      async function waitStoryJob(jobId) {
+        const status = $('storyStatus')
+        for (let i = 0; i < 40; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 3000))
+          const rows = await storySb(
+            '/rest/v1/menu_story_jobs?id=eq.' + encodeURIComponent(jobId) + '&select=status,image_url,error',
+            { method: 'GET' },
+          )
+          const row = Array.isArray(rows) ? rows[0] : null
+          if (!row) continue
+          if (row.image_url && $('storyImage')) {
+            $('storyImage').src = row.image_url
+            if ($('storyImageLink')) $('storyImageLink').href = row.image_url
+            if ($('storyImageWrap')) $('storyImageWrap').hidden = false
+            if ($('storyShare')) $('storyShare').hidden = false
+          }
+          if (row.status === 'published') {
+            if (status) status.textContent = 'Publicado. Comparte la imagen al estado de WhatsApp.'
+            return
+          }
+          if (row.status === 'error') throw new Error(row.error || 'Error al publicar')
+          if (row.status === 'image_ready' && status) {
+            status.textContent = 'Imagen lista. Publicando Instagram y TikTok…'
+          } else if (status) {
+            status.textContent = 'Generando la historia…'
+          }
+        }
+        if (status) status.textContent = 'Sigue en cola. Si la imagen ya se ve, compártela a WhatsApp.'
+      }
+
+      async function publishMenuStories() {
+        const primero = String($('storyPrimero')?.value || '').trim()
+        const segundo = String($('storySegundo')?.value || '').trim()
+        const extra = String($('storyExtra')?.value || '').trim() || 'Postre y bebida a elegir'
+        const precio = String($('storyPrecio')?.value || '').trim().replace(',', '.')
+        const status = $('storyStatus')
+        if (!primero || !segundo) {
+          if (status) status.textContent = 'Escribe el primero y el segundo.'
+          return
+        }
+        if (!gatePin) {
+          lock()
+          return
+        }
+        const btn = $('storyPublish')
+        if (btn) btn.disabled = true
+        if (status) status.textContent = 'Enviando…'
+        if ($('storyImageWrap')) $('storyImageWrap').hidden = true
+        if ($('storyShare')) $('storyShare').hidden = true
+        try {
+          const jobId = await storySb('/rest/v1/rpc/request_menu_story', {
+            method: 'POST',
+            body: JSON.stringify({
+              p_pin: gatePin,
+              p_primero: primero,
+              p_segundo: segundo,
+              p_extra: extra,
+              p_precio: precio,
+            }),
+          })
+          const id = typeof jobId === 'string' ? jobId : (jobId && jobId.id)
+          if (!id) throw new Error('No se creó la historia')
+          await waitStoryJob(id)
+        } catch (err) {
+          if (status) status.textContent = storyErrorText(err)
+        } finally {
+          if (btn) btn.disabled = false
+        }
+      }
+
+      async function shareImage() {
+        const url = $('storyImageLink')?.href || ''
+        const status = $('storyStatus')
+        if (!url || url.endsWith('#')) return
+        try {
+          const fileRes = await fetch(url)
+          const blob = await fileRes.blob()
+          const file = new File([blob], 'menu-casa-torino.png', { type: blob.type || 'image/png' })
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: 'Menú del día · Casa Torino' })
+            return
+          }
+        } catch (err) {
+          if (err && err.name === 'AbortError') return
+        }
+        if (navigator.share) {
+          try {
+            await navigator.share({ title: 'Menú del día · Casa Torino', url })
+            return
+          } catch (err) {
+            if (err && err.name === 'AbortError') return
+          }
+        }
+        window.open(url, '_blank', 'noopener')
+        if (status) status.textContent = 'Abre la imagen y compártela al estado de WhatsApp.'
+      }
+
+      $('gatePad')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-k]')
+        if (!btn) return
+        const k = btn.dataset.k
+        if ($('gateErr')) $('gateErr').textContent = ''
+        if (k === 'clear') pinBuf = ''
+        else if (k === 'ok') return void tryPin()
+        else if (pinBuf.length < 4) pinBuf += k
+        paintPinDots()
+        if (pinBuf.length === 4) void tryPin()
+      })
+
+      window.addEventListener('keydown', (e) => {
+        if (!document.body.classList.contains('hist-locked')) return
+        if (e.key === 'Backspace') { e.preventDefault(); pinBuf = ''; paintPinDots(); return }
+        if (e.key === 'Enter') { e.preventDefault(); void tryPin(); return }
+        if (/^\d$/.test(e.key) && pinBuf.length < 4) {
+          pinBuf += e.key
+          paintPinDots()
+          if (pinBuf.length === 4) void tryPin()
+        }
+      })
+
+      $('storyPublish')?.addEventListener('click', () => void publishMenuStories())
+      $('storyShare')?.addEventListener('click', () => void shareImage())
+      $('btnLock')?.addEventListener('click', () => lock())
+      lock()
+    })()
+  </script>
+</body>
+</html>

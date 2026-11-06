@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-06-menu-stories2'
-const message = 'Importante: actualiza — historias del menú desde el móvil'
+const required = '2026-11-03-monitor-det1'
+const message = 'Importante: actualiza — Monitor con más detalle en movimientos'
 
 function forceInfo() {
   return { required, message }

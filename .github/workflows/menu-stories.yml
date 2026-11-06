@@ -1,7 +1,7 @@
 # Historias Instagram + TikTok del menú del día.
-# Lo dispara el PC del local (o el TPV) con repository_dispatch.
+# Lo dispara la página web/historias.html (móvil), vía Supabase, con repository_dispatch.
 # Tiene que estar en la rama por defecto (main) para que GitHub acepte el evento.
-# No despliega Vercel.
+# No despliega Vercel y no toca el TPV.
 
 name: Menu stories
 
