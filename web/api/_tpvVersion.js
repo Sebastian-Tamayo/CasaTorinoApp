@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-07-alerts-left'
-const message = 'Importante: actualiza — avisos reserva/recogida a la izquierda'
+const required = '2026-11-07-jornada-all'
+const message = 'Importante: actualiza — jornada: cualquier usuario con PIN'
 
 function forceInfo() {
   return { required, message }
