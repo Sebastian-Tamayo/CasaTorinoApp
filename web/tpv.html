@@ -3351,7 +3351,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-07-jornada-all'
+      const TPV_CLIENT_VERSION = '2026-11-07-alerts-left'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3628,8 +3628,6 @@
 
       /** Tras fin de jornada: echa camareras; quedan caja / Lore / Sebas. */
       function kickIfNotBootstrap(reason) {
-        const j = state.jornada || window.CasaTorinoTpvJornada?.last
-        if (!j || j.status !== 'ended') return false
         if (!tpvSessionUser) return false
         if (isBootstrapTpvUser(tpvSessionUser)) return false
         lockTpvForPin(
@@ -4042,7 +4040,8 @@
           await loadGateUsers()
           if ($('gateErr')) {
             $('gateErr').textContent =
-              data.message || 'PIN guardado. Entra con tu PIN y pulsa Inicio para abrir jornada'
+              data.message ||
+              'PIN guardado. Sin jornada solo pueden entrar TPV físico, Lore o Sebas'
           }
         } catch (err) {
           console.warn('setPin', err)
@@ -4340,6 +4339,7 @@
           el.innerHTML = 'Jornada: <strong>sin iniciar</strong>'
           if (btnStart) btnStart.disabled = false
           if (btnEnd) btnEnd.disabled = true
+          kickIfNotBootstrap('Sin jornada abierta — solo TPV físico, Lore o Sebas')
         }
       }
 

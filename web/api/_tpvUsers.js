@@ -25,7 +25,8 @@ const CREATE_USER_PIN = '2908'
  */
 const HUB_ACCESS_PIN = '0912'
 /**
- * Admin / alta: PIN 2908 o PIN de un usuario con uno de estos ids (tras primer acceso).
+ * Acceso a cualquier hora (sin jornada / tras fin), una vez tengan PIN:
+ * caja física + Lore + Sebas.
  */
 const BOOTSTRAP_USER_IDS = new Set(['u-tpv-fisico', 'u-lore', 'u-sebas'])
 
@@ -355,17 +356,18 @@ async function isJornadaOpen() {
 }
 
 /**
- * Cualquier usuario con PIN asignado (o hub 0912 como TPV físico) puede entrar al TPV.
- * Abrir jornada con Inicio: cualquiera con sesión; no hace falta jornada previa.
+ * Antes de abrir jornada / tras fin: TPV FÍSICO, Lore o Sebas.
+ * Con jornada abierta: cualquier usuario con PIN válido.
  */
 async function allowTpvLogin(user) {
   if (!user || !user.id) return null
-  if (user.pinSet) return user
+  if (BOOTSTRAP_USER_IDS.has(String(user.id))) return user
+  if (await isJornadaOpen()) return user
   return null
 }
 
 function bootstrapLoginDeniedMessage() {
-  return 'Completa «Primer acceso» con un PIN de 4 dígitos para entrar'
+  return 'Sin jornada abierta solo pueden entrar TPV físico, Lore o Sebas'
 }
 
 function isBootstrapUser(user) {
