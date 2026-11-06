@@ -3351,7 +3351,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-07-total-dia-pin-admin'
+      const TPV_CLIENT_VERSION = '2026-11-07-total-dia-no-session'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -4341,7 +4341,14 @@
           return true
         } catch (err) {
           if (err && err.status === 401) {
-            alert('PIN incorrecto')
+            const msg = err.data && err.data.error
+            if (msg === 'unauthorized') {
+              alert(
+                'Sesión del TPV caducada.\nVuelve a introducir tu PIN de usuario y prueba Total día otra vez.',
+              )
+            } else {
+              alert('PIN incorrecto')
+            }
             return false
           }
           alert(err?.message || 'No se pudo verificar el PIN')
