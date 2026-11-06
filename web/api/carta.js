@@ -38,6 +38,40 @@ function authorized(req) {
   return false
 }
 
+/** Body JSON en Vercel: a veces req.body viene vacío; leemos stream si hace falta. */
+function readPostBody(req) {
+  if (req.body != null) {
+    if (typeof req.body === 'string') return Promise.resolve(req.body)
+    if (Buffer.isBuffer(req.body))
+      return Promise.resolve(req.body.toString('utf8'))
+    if (typeof req.body === 'object') {
+      return Promise.resolve(JSON.stringify(req.body))
+    }
+  }
+  return new Promise((resolve, reject) => {
+    const chunks = []
+    req.on('data', (c) => chunks.push(c))
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+    req.on('error', reject)
+  })
+}
+
+async function parsePostBody(req) {
+  const raw = await readPostBody(req)
+  if (!raw || !String(raw).trim()) return {}
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return {}
+  }
+}
+
+function normalizeOwnerPin(p) {
+  let s = String(p ?? '')
+  if (typeof s.normalize === 'function') s = s.normalize('NFKC')
+  return s.replace(/\s+/g, '').replace(/[^\d]/g, '').trim()
+}
+
 function readFileCarta() {
   const candidates = [
     path.join(process.cwd(), 'data', 'carta.json'),
@@ -392,26 +426,18 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    let body = req.body
-    if (typeof body === 'string') {
-      try {
-        body = JSON.parse(body || '{}')
-      } catch {
-        body = {}
-      }
-    }
-    body = body || {}
-    const action = String(body.action || '').trim()
-
     try {
+      const body = await parsePostBody(req)
+      const action = String(body.action || '').trim()
+
       /** Total día / dueña: solo PIN, sin cookie (evita "PIN incorrecto" si sesión caducó). */
       if (action === 'verifyEditPin') {
-        const pin = String(body.pin || '').trim()
-        const exp = expectedEditPin()
+        const pin = normalizeOwnerPin(body.pin)
+        const exp = normalizeOwnerPin(expectedEditPin())
         let ok = false
         if (pin) {
           if (exp && pin === exp) ok = true
-          else if (pin === CREATE_USER_PIN) ok = true
+          else if (pin === normalizeOwnerPin(CREATE_USER_PIN)) ok = true
           else ok = await adminPinOk(pin)
         }
         res.statusCode = ok ? 200 : 401
