@@ -399,10 +399,18 @@ async function isJornadaOpen() {
 
 /**
  * Cualquier usuario con PIN puede entrar y abrir/cerrar jornada (no solo Lore/Sebas).
+ * Cookie de sesión NO lleva pinSet → resolver en store por id (si no, GET/refresh echa a todos).
  */
 async function allowTpvLogin(user) {
   if (!user || !user.id) return null
   if (user.pinSet) return user
+  try {
+    const store = await loadUsersStore()
+    const u = findById(store, user.id)
+    if (u && u.pinSet) return publicUser(u)
+  } catch (err) {
+    console.warn('[tpv-users] allowTpvLogin store', err)
+  }
   return null
 }
 

@@ -46,16 +46,25 @@ const { appendLogin, getAudit } = require('./_tpvAudit')
 const handleQzSign = require('./_qzSign')
 const { opsDayId } = require('./_opsDay')
 
-async function issueSession(res, user) {
+/**
+ * @param {{ renew?: boolean }} [opts]
+ * renew:true (GET/refresh) conserva issuedAt para que el re-PIN del día siguiente funcione.
+ */
+async function issueSession(res, user, opts = {}) {
   const epoch = await getSessionEpoch()
-  const opts = { epoch, issuedAt: Date.now() }
-  setSessionCookie(res, true, user, opts)
-  return opts
+  const prevIssued = opts && opts.renew ? Number(opts.issuedAt) || 0 : 0
+  const payload = {
+    epoch,
+    issuedAt: prevIssued > 0 ? prevIssued : Date.now(),
+  }
+  setSessionCookie(res, true, user, payload)
+  return payload
 }
 
 /**
  * Epoch inválido → echa a todos (reset de usuarios).
  * Tras cerrar jornada: al **día operativo siguiente** (08:00 Madrid) pide PIN de nuevo.
+ * (No el mismo día del cierre: needRelogin = D+1; solo cuando hoy >= D+1.)
  */
 async function enforceBootstrapSession(req, res, user) {
   if (!user) return { ok: false, user: null }
@@ -75,7 +84,8 @@ async function enforceBootstrapSession(req, res, user) {
   // v3/v2 cookies sin issuedAt: no forzar re-PIN por jornada (compat en servicio)
   if (needRelogin && issuedAt > 0) {
     const cookieDay = opsDayId(new Date(issuedAt))
-    if (cookieDay < needRelogin) {
+    const today = opsDayId()
+    if (today >= needRelogin && cookieDay < needRelogin) {
       setSessionCookie(res, false)
       return {
         ok: false,
@@ -173,7 +183,10 @@ module.exports = async function handler(req, res) {
           maxAgeHours: Math.round(MAX_AGE_SEC / 3600),
         })
       }
-      await issueSession(res, gate.user) // sliding renewal
+      await issueSession(res, gate.user, {
+        renew: true,
+        issuedAt: getSessionIssuedAtFromReq(req),
+      })
       return json(res, 200, {
         ok: true,
         user: gate.user,
@@ -205,7 +218,10 @@ module.exports = async function handler(req, res) {
             error: gate.error || 'Sesión caducada',
           })
         }
-        await issueSession(res, gate.user)
+        await issueSession(res, gate.user, {
+          renew: true,
+          issuedAt: getSessionIssuedAtFromReq(req),
+        })
         return json(res, 200, { ok: true, refreshed: true, user: gate.user })
       }
 

@@ -210,7 +210,8 @@ function mergeTables(serverTables, incomingTables, preferIncoming) {
         continue
       }
       if (iq === 0 && sq > 0) {
-        out[k] = iAt >= sAt || preferIncoming ? I : S
+        // Solo si el vacío es ≥ reciente (no borrar con preferIncoming + stamp viejo)
+        out[k] = iAt >= sAt ? I : S
         continue
       }
       if (iq > 0 && sq > 0) {

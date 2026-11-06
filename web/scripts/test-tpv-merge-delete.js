@@ -70,6 +70,26 @@ const t2 = now - 1000
   assert.strictEqual(cartQty(m.tables['12']), 0, 'mesa vaciada')
 }
 
+// 3b) Vacío viejo + preferIncoming NO debe borrar mesa más nueva en servidor
+{
+  const server = {
+    '7': {
+      cart: { x: { qty: 2, price: 5, updatedAt: t2 } },
+      removed: {},
+      updatedAt: t2,
+    },
+  }
+  const incoming = {
+    '7': { cart: {}, removed: {}, updatedAt: t0 },
+  }
+  const m = mergeTables(server, incoming, true)
+  assert.strictEqual(
+    cartQty(m.tables['7']),
+    2,
+    'vacío antiguo no pisa mesa viva aunque preferIncoming',
+  )
+}
+
 // 4) mergeCarts directo
 {
   const r = mergeCarts(

@@ -78,6 +78,9 @@ async function main() {
   const aliP = pendingUsers(await loadUsersStore()).find((u) => u.name === 'Ali')
   const ali = await setUserPin(aliP.id, '1111')
   assert.ok(await allowTpvLogin(ali), 'staff con PIN puede login TPV')
+  // Cookie de sesión no lleva pinSet — debe resolver por id en store
+  const fromCookie = await allowTpvLogin({ id: ali.id, name: ali.name, role: 'staff' })
+  assert.ok(fromCookie && fromCookie.pinSet, 'allowTpvLogin sin pinSet en cookie')
 
   const neu = await createUser('Nueva', CREATE_USER_PIN)
   assert.ok(neu && neu.name === 'Nueva')
