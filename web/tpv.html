@@ -849,17 +849,17 @@
       backdrop-filter: blur(2px); z-index: 45;
     }
 
-    /* Aviso cocina → TPV: abajo a la IZQUIERDA (la derecha es cobro) */
+    /* Aviso cocina → TPV: abajo, para NO tapar Mesa arriba */
     .pickup-alert {
       position: fixed;
-      left: max(.85rem, env(safe-area-inset-left, 0px));
+      left: 50%;
       right: auto;
       top: auto;
       /* Encima del FAB / zona inferior; deja libre barra de mesa */
       bottom: calc(5.35rem + env(safe-area-inset-bottom, 0px));
-      transform: none;
+      transform: translateX(-50%);
       z-index: 96;
-      width: min(420px, calc(100% - 1.7rem));
+      width: min(520px, calc(100% - 1.2rem));
       display: none;
       flex-direction: column;
       gap: .4rem;
@@ -897,28 +897,27 @@
       bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     }
     @media (min-width: 1024px) {
-      /* Esquina inferior izquierda (no tapar columna del cobro) */
+      /* En PC: esquina inferior derecha, sin tapar mesa del ticket */
       .pickup-alert {
-        left: max(1rem, env(safe-area-inset-left, 0px));
-        right: auto;
-        width: min(380px, calc(100% - 2.2rem));
-        bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+        left: auto;
+        right: 1rem;
+        transform: none;
+        width: min(360px, calc(var(--check-w, 400px) - 1.5rem));
+        bottom: 1rem;
       }
-      body.check-open .pickup-alert {
-        bottom: max(1rem, env(safe-area-inset-bottom, 0px));
-      }
+      body.check-open .pickup-alert { bottom: 1rem; }
     }
 
     /* Aviso reserva web → TPV (amarillo, encima de recogidas cocina) */
     .reserva-alert {
       position: fixed;
-      left: max(.85rem, env(safe-area-inset-left, 0px));
+      left: 50%;
       right: auto;
       top: auto;
       bottom: calc(9.1rem + env(safe-area-inset-bottom, 0px));
-      transform: none;
+      transform: translateX(-50%);
       z-index: 97;
-      width: min(420px, calc(100% - 1.7rem));
+      width: min(520px, calc(100% - 1.2rem));
       display: none;
       flex-direction: column;
       gap: .4rem;
@@ -956,14 +955,13 @@
     }
     @media (min-width: 1024px) {
       .reserva-alert {
-        left: max(1rem, env(safe-area-inset-left, 0px));
-        right: auto;
-        width: min(380px, calc(100% - 2.2rem));
-        bottom: calc(1rem + 8.2rem + env(safe-area-inset-bottom, 0px));
+        left: auto;
+        right: 1rem;
+        transform: none;
+        width: min(360px, calc(var(--check-w, 400px) - 1.5rem));
+        bottom: calc(1rem + 5.2rem);
       }
-      body.check-open .reserva-alert {
-        bottom: calc(1rem + 8.2rem + env(safe-area-inset-bottom, 0px));
-      }
+      body.check-open .reserva-alert { bottom: calc(1rem + 5.2rem); }
     }
 
     /* Teléfonos grandes / landscape: 2 columnas ya legibles */
@@ -3351,7 +3349,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-07-end-kick-all'
+      const TPV_CLIENT_VERSION = '2026-11-03-monitor-det1'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -3621,10 +3619,19 @@
         }
       }
 
-      /** Tras cerrar jornada: echa a todos (nuevo sessionEpoch en servidor). */
-      function lockAfterJornadaEnd() {
-        if (document.body.classList.contains('tpv-locked')) return
-        lockTpvForPin('Jornada finalizada — introduce el PIN para seguir')
+      function isBootstrapTpvUser(user) {
+        const id = String(user?.id || '')
+        return id === 'u-tpv-fisico' || id === 'u-lore' || id === 'u-sebas'
+      }
+
+      /** Tras fin de jornada: echa camareras; quedan caja / Lore / Sebas. */
+      function kickIfNotBootstrap(reason) {
+        if (!tpvSessionUser) return false
+        if (isBootstrapTpvUser(tpvSessionUser)) return false
+        lockTpvForPin(
+          reason || 'Jornada finalizada — solo TPV físico, Lore o Sebas',
+        )
+        return true
       }
 
       function paintTpvUserSelect(user) {
@@ -3794,12 +3801,6 @@
 
       function applySessionUser(user) {
         tpvSessionUser = user && user.id ? user : null
-        const j = state.jornada || window.CasaTorinoTpvJornada?.last
-        if (tpvSessionUser && j && j.status === 'ended') {
-          void fetch('/api/tpv-auth', { method: 'DELETE', credentials: 'same-origin' }).catch(() => {})
-          lockAfterJornadaEnd()
-          return
-        }
         paintTpvUserSelect(tpvSessionUser)
         try {
           if (tpvSessionUser) {
@@ -4037,7 +4038,8 @@
           await loadGateUsers()
           if ($('gateErr')) {
             $('gateErr').textContent =
-              data.message || 'PIN guardado. Entra con tu PIN y pulsa Inicio para abrir jornada'
+              data.message ||
+              'PIN guardado. Sin jornada solo pueden entrar TPV físico, Lore o Sebas'
           }
         } catch (err) {
           console.warn('setPin', err)
@@ -4330,11 +4332,12 @@
           el.innerHTML = `Jornada: <strong>cerrada</strong> · ${fmtHm(j.startedAt)}–${fmtHm(j.endedAt)}`
           if (btnStart) btnStart.disabled = false
           if (btnEnd) btnEnd.disabled = true
-          lockAfterJornadaEnd()
+          kickIfNotBootstrap('Jornada finalizada — solo TPV físico, Lore o Sebas')
         } else {
           el.innerHTML = 'Jornada: <strong>sin iniciar</strong>'
           if (btnStart) btnStart.disabled = false
           if (btnEnd) btnEnd.disabled = true
+          kickIfNotBootstrap('Sin jornada abierta — solo TPV físico, Lore o Sebas')
         }
       }
 
@@ -4669,15 +4672,15 @@
           } catch (err) {
             console.warn('sync cocina fin', err)
           }
-          if (document.body.classList.contains('tpv-locked')) {
-            // lockAfterJornadaEnd ya cerró la UI
-          } else {
-            openJornadaModal()
-          }
+          // Echa a todo el mundo excepto Lore/Sebas (otros dispositivos al poll)
+          const kicked = kickIfNotBootstrap(
+            'Jornada finalizada — solo TPV físico, Lore o Sebas',
+          )
+          if (!kicked) openJornadaModal()
           if (j?.cierre) {
             alert(
-              document.body.classList.contains('tpv-locked')
-                ? 'Sesión cerrada.\nTotal enviado al ERP → Caja TPV.\nVuelve a entrar con tu PIN.'
+              kicked
+                ? 'Sesión cerrada.\nTotal enviado al ERP → Caja TPV.\nEntra de nuevo con TPV físico, Lore o Sebas.'
                 : 'Sesión cerrada.\nTotal enviado al ERP → Caja TPV.',
             )
           }

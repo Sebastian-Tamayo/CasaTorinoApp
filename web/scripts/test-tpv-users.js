@@ -77,7 +77,7 @@ async function main() {
 
   const aliP = pendingUsers(await loadUsersStore()).find((u) => u.name === 'Ali')
   const ali = await setUserPin(aliP.id, '1111')
-  assert.ok(await allowTpvLogin(ali), 'staff con PIN entra sin jornada previa')
+  assert.strictEqual(await allowTpvLogin(ali), null, 'staff sin jornada')
 
   const neu = await createUser('Nueva', CREATE_USER_PIN)
   assert.ok(neu && neu.name === 'Nueva')
