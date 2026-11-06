@@ -2,7 +2,7 @@
  * SW TPV: pass-through. Sin sondeo de versión (el HTML ya hace poll lento).
  * Evita gastar cuota CDN Hobby.
  */
-const SW_VERSION = '2026-11-06-menu-stories1'
+const SW_VERSION = '2026-11-06-menu-stories2'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())

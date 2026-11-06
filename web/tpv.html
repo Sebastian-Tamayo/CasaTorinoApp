@@ -3012,7 +3012,7 @@
         <h3 id="storyModalTitle">Historias del menú</h3>
       </div>
       <div class="carta-edit-scroll">
-        <p class="sub">Genera la pizarra 9:16 (logo Casa Torino). WhatsApp sale en este PC. Instagram y TikTok los publica GitHub Actions, sin Vercel.</p>
+        <p class="sub">Desde el móvil. Genera la pizarra con el logo y publica Instagram y TikTok. La imagen queda aquí para compartirla al estado de WhatsApp.</p>
         <div class="carta-edit-fields">
           <label>Primero
             <input id="storyPrimero" type="text" maxlength="120" autocomplete="off" placeholder="Sopa de pasta" />
@@ -3026,11 +3026,16 @@
           <label>Precio (€)
             <input id="storyPrecio" type="text" inputmode="decimal" maxlength="8" autocomplete="off" placeholder="13" />
           </label>
-          <label>Token GitHub (solo este navegador)
-            <input id="storyGhToken" type="password" autocomplete="off" placeholder="Opcional si ya está en el PC" />
+          <label>PIN
+            <input id="storyPin" type="password" inputmode="numeric" maxlength="12" autocomplete="off" />
           </label>
         </div>
         <p class="sub" id="storyStatus" style="min-height:2.4rem"></p>
+        <p id="storyImageWrap" hidden style="margin-top:.6rem">
+          <a id="storyImageLink" href="#" target="_blank" rel="noopener">
+            <img id="storyImage" alt="Historia del menú" style="width:100%;max-height:280px;object-fit:contain;border-radius:12px;background:#111" />
+          </a>
+        </p>
       </div>
       <div class="course-actions carta-edit-actions">
         <button type="button" class="cancel" id="storyCancel">Cerrar</button>
@@ -3389,7 +3394,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-06-menu-stories1'
+      const TPV_CLIENT_VERSION = '2026-11-06-menu-stories2'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -7565,13 +7570,12 @@
         }
       }
 
-      const STORY_GH_REPO = 'Sebastian-Tamayo/CasaTorinoApp'
-      const STORY_TOKEN_KEY = 'ct.stories.githubToken'
+      const STORY_SB_URL = 'https://fpnjtgoxljqmwuukyrrm.supabase.co'
+      const STORY_SB_ANON = 'sb_publishable_A_zxEJjB3NN_hh8Qdu7ccQ_qhcWGoz0'
 
       function openStoryModal() {
-        const token = localStorage.getItem(STORY_TOKEN_KEY) || ''
-        if ($('storyGhToken')) $('storyGhToken').value = token
         if ($('storyStatus')) $('storyStatus').textContent = ''
+        if ($('storyImageWrap')) $('storyImageWrap').hidden = true
         try {
           const menu = all().find((x) => x && (x.id === 'menu-dia' || x.catId === 'menus-dia'))
           if (menu && $('storyPrecio') && !$('storyPrecio').value) {
@@ -7596,74 +7600,90 @@
         }
       }
 
-      async function dispatchMenuStoryGithub(payload, token) {
-        const r = await fetch('https://api.github.com/repos/' + STORY_GH_REPO + '/dispatches', {
-          method: 'POST',
+      async function storySb(path, options) {
+        const r = await fetch(STORY_SB_URL + path, {
+          ...options,
           headers: {
-            Accept: 'application/vnd.github+json',
-            Authorization: 'Bearer ' + token,
-            'X-GitHub-Api-Version': '2022-11-28',
+            apikey: STORY_SB_ANON,
+            Authorization: 'Bearer ' + STORY_SB_ANON,
             'Content-Type': 'application/json',
+            ...(options && options.headers),
           },
-          body: JSON.stringify({
-            event_type: 'menu-story',
-            client_payload: payload,
-          }),
         })
-        if (r.status !== 204 && !r.ok) {
-          const text = await r.text().catch(() => '')
-          throw new Error('GitHub ' + r.status + (text ? ' ' + text.slice(0, 160) : ''))
+        const data = await r.json().catch(() => null)
+        if (!r.ok) {
+          const msg = (data && (data.message || data.error || data.hint)) || ('Supabase ' + r.status)
+          throw new Error(typeof msg === 'string' ? msg : 'Supabase ' + r.status)
         }
+        return data
+      }
+
+      async function waitStoryJob(jobId) {
+        const status = $('storyStatus')
+        for (let i = 0; i < 40; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 3000))
+          const rows = await storySb(
+            '/rest/v1/menu_story_jobs?id=eq.' + encodeURIComponent(jobId) + '&select=status,image_url,error',
+            { method: 'GET' },
+          )
+          const row = Array.isArray(rows) ? rows[0] : null
+          if (!row) continue
+          if (row.image_url && $('storyImage')) {
+            $('storyImage').src = row.image_url
+            if ($('storyImageLink')) $('storyImageLink').href = row.image_url
+            if ($('storyImageWrap')) $('storyImageWrap').hidden = false
+          }
+          if (row.status === 'published') {
+            if (status) status.textContent = 'Publicado. Abre la imagen y compártela al estado de WhatsApp.'
+            return
+          }
+          if (row.status === 'error') {
+            throw new Error(row.error || 'Error al publicar')
+          }
+          if (row.status === 'image_ready' && status) {
+            status.textContent = 'Imagen lista. Publicando Instagram y TikTok…'
+          } else if (status) {
+            status.textContent = 'Generando la historia…'
+          }
+        }
+        if (status) status.textContent = 'Sigue en cola. Si la imagen ya se ve, ábrela y compártela a WhatsApp.'
       }
 
       async function publishMenuStories() {
         const payload = storyPayloadFromForm()
+        const pin = String($('storyPin')?.value || '').trim()
         if (!payload.primero || !payload.segundo) {
           alert('Escribe el primero y el segundo.')
           return
         }
-        const token = String($('storyGhToken')?.value || '').trim()
-        if (token) localStorage.setItem(STORY_TOKEN_KEY, token)
+        if (!pin) {
+          alert('Escribe el PIN.')
+          return
+        }
         const status = $('storyStatus')
         const btn = $('storyPublish')
         if (btn) btn.disabled = true
-        if (status) status.textContent = 'Publicando…'
-        let ghOk = false
-        let ghErr = ''
-        if (token) {
-          try {
-            await dispatchMenuStoryGithub(payload, token)
-            ghOk = true
-          } catch (err) {
-            ghErr = err && err.message ? err.message : String(err)
-          }
-        }
-        let waMsg = ''
+        if (status) status.textContent = 'Enviando desde el móvil…'
+        if ($('storyImageWrap')) $('storyImageWrap').hidden = true
         try {
-          const r = await fetch('http://127.0.0.1:3001/upload-status', {
+          const jobId = await storySb('/rest/v1/rpc/request_menu_story', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...payload, dispatchGithub: !ghOk }),
+            body: JSON.stringify({
+              p_pin: pin,
+              p_primero: payload.primero,
+              p_segundo: payload.segundo,
+              p_extra: payload.extra,
+              p_precio: payload.precio,
+            }),
           })
-          const data = await r.json().catch(() => ({}))
-          if (!r.ok) throw new Error(data.error || 'WhatsApp ' + r.status)
-          waMsg = 'WhatsApp publicado en estados.'
-          if (!ghOk && data.github && data.github.ok) {
-            ghOk = true
-            ghErr = ''
-          } else if (!ghOk && data.github && data.github.error) {
-            ghErr = String(data.github.error)
-          } else if (!ghOk && data.github && data.github.skipped) {
-            ghErr = data.github.error || 'sin token en el PC'
-          }
+          const id = typeof jobId === 'string' ? jobId : (jobId && jobId.id)
+          if (!id) throw new Error('No se creó la historia')
+          await waitStoryJob(id)
         } catch (err) {
-          waMsg = 'WhatsApp no responde en este PC. Arranca en el ordenador: cd scripts && npm run whatsapp. (' + (err && err.message ? err.message : err) + ')'
+          if (status) status.textContent = err && err.message ? err.message : String(err)
+        } finally {
+          if (btn) btn.disabled = false
         }
-        const ghMsg = ghOk
-          ? ' Instagram y TikTok en cola (GitHub Actions).'
-          : ' Instagram/TikTok pendientes: ' + (ghErr || 'pega el token una vez, o pon GITHUB_DISPATCH_TOKEN en scripts/.env.')
-        if (status) status.textContent = waMsg + ghMsg
-        if (btn) btn.disabled = false
       }
 
       $('btnMenuStories')?.addEventListener('click', () => openStoryModal())

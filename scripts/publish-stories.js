@@ -158,16 +158,55 @@ async function main() {
 
   const imageUrl = await uploadStoryPng(png)
   console.log('image', imageUrl)
+  if (payload.job_id) await patchJob(payload.job_id, { status: 'image_ready', image_url: imageUrl, error: null })
   const ig = await publishInstagramStory(imageUrl)
   console.log('instagram', JSON.stringify(ig))
 
-  pngToMp4(png, mp4)
-  const caption = `Menú del día · ${payload.primero || ''} / ${payload.segundo || ''}`.trim()
-  const tt = await publishTikTokVideo(mp4, caption || 'Menú del día Casa Torino')
-  console.log('tiktok', JSON.stringify(tt))
+  if (String(process.env.TIKTOK_ACCESS_TOKEN || '').trim()) {
+    pngToMp4(png, mp4)
+    const caption = `Menú del día · ${payload.primero || ''} / ${payload.segundo || ''}`.trim()
+    const tt = await publishTikTokVideo(mp4, caption || 'Menú del día Casa Torino')
+    console.log('tiktok', JSON.stringify(tt))
+  } else {
+    console.log('tiktok omitido: sin TIKTOK_ACCESS_TOKEN')
+  }
+  if (payload.job_id) await patchJob(payload.job_id, { status: 'published', image_url: imageUrl, error: null })
 }
 
-main().catch((err) => {
+async function patchJob(jobId, fields) {
+  const base = String(process.env.SUPABASE_URL || '').trim().replace(/\/$/, '')
+  const key = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
+  if (!base || !key || !jobId) return
+  const r = await fetch(
+    `${base}/rest/v1/menu_story_jobs?id=eq.${encodeURIComponent(jobId)}`,
+    {
+      method: 'PATCH',
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify(fields),
+    },
+  )
+  if (!r.ok) {
+    const text = await r.text().catch(() => '')
+    console.warn('patch job', r.status, text.slice(0, 200))
+  }
+}
+
+main().catch(async (err) => {
   console.error(err)
+  try {
+    const raw = process.env.MENU_STORY_JSON || '{}'
+    const payload = JSON.parse(raw)
+    if (payload.job_id) {
+      await patchJob(payload.job_id, {
+        status: 'error',
+        error: String(err && err.message ? err.message : err).slice(0, 300),
+      })
+    }
+  } catch (_) { /* sin job */ }
   process.exit(1)
 })

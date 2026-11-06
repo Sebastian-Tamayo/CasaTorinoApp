@@ -9,8 +9,8 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-06-menu-stories1'
-const message = 'Importante: actualiza — publicar el menú del día en historias'
+const required = '2026-11-06-menu-stories2'
+const message = 'Importante: actualiza — historias del menú desde el móvil'
 
 function forceInfo() {
   return { required, message }
