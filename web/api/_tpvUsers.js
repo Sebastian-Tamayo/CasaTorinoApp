@@ -296,6 +296,25 @@ async function setUserPin(userId, pin) {
   return publicUser(u)
 }
 
+/**
+ * Quita el PIN de un usuario (vuelve a «Primer acceso»).
+ * Requiere PIN admin (2908) o PIN de Lore/Sebas/caja.
+ */
+async function clearUserPin(userId, adminPin) {
+  if (!(await adminPinOk(adminPin))) {
+    throw new Error('PIN incorrecto')
+  }
+  const id = String(userId || '').trim()
+  if (!id) throw new Error('Usuario no encontrado')
+  const store = await loadUsersStore()
+  const u = findById(store, id)
+  if (!u) throw new Error('Usuario no encontrado')
+  u.pinHash = ''
+  u.pinSet = false
+  await saveUsersStore(store)
+  return publicUser(u)
+}
+
 function slugUserId(name) {
   return (
     'u-' +
@@ -437,6 +456,7 @@ module.exports = {
   pendingUsers,
   gateUsers,
   setUserPin,
+  clearUserPin,
   createUser,
   authenticatePin,
   authenticateUserPin,
