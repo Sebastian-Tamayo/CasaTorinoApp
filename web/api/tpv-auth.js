@@ -5,6 +5,7 @@
  * POST /api/tpv-auth  { "action": "pendingUsers" } → nombres sin PIN (primer acceso)
  * POST /api/tpv-auth  { "action": "gateUsers" } → id/name/pinSet (login: elegir usuario)
  * POST /api/tpv-auth  { "action": "setPin", userId, pin } → primer acceso
+ * POST /api/tpv-auth  { "action": "clearPin", adminPin, userId } → quita PIN (vuelve a Primer acceso)
  * POST /api/tpv-auth  { "action": "createUser", adminPin, name } → alta sin PIN (luego Primer acceso)
  * POST /api/tpv-auth  { "action": "listUsers" } → nombres (sesión OK)
  * POST /api/tpv-auth  { "action": "switchUser", userId, pin } → cambio de usuario
@@ -32,6 +33,7 @@ const {
   pendingUsers,
   gateUsers,
   setUserPin,
+  clearUserPin,
   createUser,
   authenticatePin,
   authenticateUserPin,
@@ -284,6 +286,18 @@ module.exports = async function handler(req, res) {
             ok: false,
             error: String(err && err.message ? err.message : err),
           })
+        }
+      }
+
+      if (action === 'clearPin') {
+        try {
+          const user = await clearUserPin(body.userId, body.adminPin)
+          auditLoginSafe('clear_pin', user, 'reset a primer acceso')
+          return json(res, 200, { ok: true, action: 'clearPin', user })
+        } catch (err) {
+          const msg = String(err && err.message ? err.message : err)
+          const status = /^PIN incorrecto$/i.test(msg) ? 401 : 400
+          return json(res, status, { ok: false, error: msg })
         }
       }
 

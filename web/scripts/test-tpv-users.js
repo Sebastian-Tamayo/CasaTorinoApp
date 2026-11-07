@@ -10,6 +10,7 @@ const {
   allowTpvLogin,
   loadUsersStore,
   setUserPin,
+  clearUserPin,
   createUser,
   pendingUsers,
   gateUsers,
@@ -92,6 +93,20 @@ async function main() {
   assert.strictEqual(await authenticateUserPin(neu.id, '5555'), null)
   assert.ok(isBootstrapUser(fisico) && isBootstrapUser(sebas) && !isBootstrapUser(ali))
   assert.ok((await getSessionEpoch()) > 0)
+
+  // clearPin → vuelve a primer acceso (como Shari tras PIN temporal)
+  const cleared = await clearUserPin(ali.id, CREATE_USER_PIN)
+  assert.strictEqual(cleared.pinSet, false, 'clearPin quita pinSet')
+  assert.strictEqual(await authenticateUserPin(ali.id, '1111'), null)
+  assert.ok(
+    pendingUsers(await loadUsersStore()).some((u) => u.id === ali.id),
+    'tras clearPin aparece en primer acceso',
+  )
+  await assert.rejects(
+    () => clearUserPin(ali.id, '0000'),
+    /PIN incorrecto/,
+    'clearPin exige admin',
+  )
 
   console.log('OK test-tpv-users')
 }
