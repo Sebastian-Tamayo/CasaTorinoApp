@@ -3,18 +3,8 @@
   "currency": "EUR",
   "timezone": "Europe/Madrid",
   "menuDay": {
-    "weekday": {
-      "label": "Entre semana",
-      "price": 13
-    },
-    "saturday": {
-      "label": "Sábado",
-      "price": 16
-    },
-    "sunday": {
-      "label": "Domingo / festivo",
-      "price": 18
-    }
+    "label": "Menú del día",
+    "price": 13
   },
   "festivosGijon": {
     "note": "Calendario laboral Gijón. En festivos se aplica el mismo menú/precio del domingo.",
@@ -149,35 +139,18 @@
   "categories": [
     {
       "id": "menus-dia",
-      "name": "Menús del día",
+      "name": "Menú del día",
       "icon": "fa-calendar-day",
       "items": [
         {
-          "id": "menu-dia-unificado-semana",
+          "id": "menu-dia",
           "name": "Menú del día",
           "price": 13.0,
           "desc": "",
           "base": "Menú del día",
           "categoryType": "comida",
-          "schedule": "weekday"
-        },
-        {
-          "id": "menu-dia-co-finde",
-          "name": "Menú del día",
-          "price": 16.0,
-          "desc": "",
-          "base": "Menú del día",
-          "categoryType": "comida",
-          "schedule": "saturday"
-        },
-        {
-          "id": "menu-dia-es-finde",
-          "name": "Menú del día",
-          "price": 18.0,
-          "desc": "",
-          "base": "Menú del día",
-          "categoryType": "comida",
-          "schedule": "sunday"
+          "coursePick": true,
+          "priceEditable": true
         }
       ]
     },

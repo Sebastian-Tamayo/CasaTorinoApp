@@ -1,5 +1,5 @@
 /**
- * Casa Torino — carga carta única + filtro menú semana/finde/festivo.
+ * Casa Torino — carga carta única + menú del día único (semana y finde).
  * Preferente: /api/carta (Supabase ops_kv). Fallback: data/carta.json.
  */
 (() => {
@@ -56,42 +56,24 @@
   }
 
   /**
-   * Menú del día por calendario Madrid:
-   * - L–V → weekday
-   * - Sábado → saturday
-   * - Domingo o festivo Gijón → sunday (mismo menú/precio domingo)
+   * Menú del día único (ya no depende del día de la semana).
+   * Se mantiene la API por compat con web/TV.
    */
   function menuDayKind(meta, ts = Date.now()) {
-    const { dayKey, weekday } = madridParts(ts)
-    if (weekday === 'Sat') {
-      return { kind: 'saturday', schedule: 'saturday', reason: 'saturday', dayKey, festivo: null }
-    }
-    if (weekday === 'Sun') {
-      return { kind: 'sunday', schedule: 'sunday', reason: 'sunday', dayKey, festivo: null }
-    }
-    const fest = festivoToday(meta, ts)
-    if (fest) {
-      return {
-        kind: 'sunday',
-        schedule: 'sunday',
-        reason: 'holiday',
-        dayKey,
-        festivo: typeof fest === 'string' ? { date: fest, name: fest } : fest,
-      }
-    }
-    return { kind: 'weekday', schedule: 'weekday', reason: 'weekday', dayKey, festivo: null }
+    const { dayKey } = madridParts(ts)
+    return { kind: 'daily', schedule: 'always', reason: 'unified', dayKey, festivo: null }
   }
 
-  /** Compat: true si no es entre semana. */
+  /** Compat: ya no hay menú distinto de finde. */
   function isWeekendMenuDay(meta, ts = Date.now()) {
     const info = menuDayKind(meta, ts)
     return {
-      weekend: info.kind !== 'weekday',
+      weekend: false,
       reason: info.reason,
       dayKey: info.dayKey,
-      festivo: info.festivo,
-      schedule: info.schedule,
-      kind: info.kind,
+      festivo: null,
+      schedule: 'always',
+      kind: 'daily',
     }
   }
 
@@ -99,62 +81,54 @@
     return isWeekendMenuDay(null, ts).weekend
   }
 
-  /** weekday | saturday | sunday (infiere por schedule, id o nombre). */
+  /** @deprecated schedule ya no filtra; todo el menú del día es único. */
   function menuItemSchedule(it) {
-    const sch = String(it?.schedule || '').trim()
-    if (sch === 'weekday' || sch === 'saturday' || sch === 'sunday') return sch
-    const id = String(it?.id || '').toLowerCase()
-    const name = String(it?.name || '').toLowerCase()
-    // Legado: un solo «weekend» → repartir por id histórico
-    if (sch === 'weekend') {
-      if (id.includes('co-finde') || id.includes('sabado') || /s[aá]bado/.test(name)) {
-        return 'saturday'
-      }
-      if (id.includes('es-finde') || id.includes('domingo') || /domingo/.test(name)) {
-        return 'sunday'
-      }
-      return 'sunday'
-    }
-    if (
-      id.includes('sabado') ||
-      id.includes('saturday') ||
-      id.includes('co-finde') ||
-      /s[aá]bado/.test(name)
-    ) {
-      return 'saturday'
-    }
-    if (
-      id.includes('domingo') ||
-      id.includes('sunday') ||
-      id.includes('es-finde') ||
-      /domingo/.test(name)
-    ) {
-      return 'sunday'
-    }
-    if (
-      id.includes('semana') ||
-      id.includes('weekday') ||
-      id.includes('unificado') ||
-      /entre\s*semana/.test(name)
-    ) {
-      return 'weekday'
-    }
-    return ''
+    if (!it || it.customProduct || it.historicoOnly) return ''
+    return 'always'
   }
 
-  function applyMenuSchedule(categories, { forceAll = false, meta = null } = {}) {
-    const info = menuDayKind(meta || window.TPV_CARTA_META, Date.now())
-    const want = info.schedule
+  /** Plato canónico del menú del día (uno solo). */
+  function pickMenuDiaItem(items) {
+    const list = (items || []).filter(
+      (it) =>
+        it &&
+        !it.customProduct &&
+        !it.historicoOnly &&
+        String(it.id) !== 'menu-historico',
+    )
+    if (!list.length) return null
+    const rank = (it) => {
+      const id = String(it.id || '')
+      if (id === 'menu-dia' || id === 'menu-dia-unificado-semana') return 0
+      if (it.image_url) return 1
+      return 2
+    }
+    return [...list].sort((a, b) => rank(a) - rank(b))[0] || null
+  }
+
+  /** Precio del menú único (menuDay.price o el plato). */
+  function menuDiaPrice(data) {
+    const md = data?.menuDay
+    if (md && Number.isFinite(Number(md.price))) return Number(md.price)
+    if (md?.weekday && Number.isFinite(Number(md.weekday.price ?? md.weekday.unified))) {
+      return Number(md.weekday.price ?? md.weekday.unified)
+    }
+    const menus = (data?.categories || []).find((c) => c && c.id === 'menus-dia')
+    const it = pickMenuDiaItem(menus?.items)
+    if (it && Number.isFinite(Number(it.price))) return Number(it.price)
+    return 13
+  }
+
+  function applyMenuSchedule(categories, { forceAll = false } = {}) {
     return (categories || []).map((cat) => {
-      if (cat.id !== 'menus-dia' || forceAll) {
+      if (cat.id !== 'menus-dia') {
         return { ...cat, items: (cat.items || []).slice() }
       }
-      const items = (cat.items || []).filter((it) => {
-        const sch = menuItemSchedule(it)
-        if (!sch) return false
-        return sch === want
-      })
-      return { ...cat, items }
+      if (forceAll) {
+        return { ...cat, items: (cat.items || []).slice() }
+      }
+      const primary = pickMenuDiaItem(cat.items)
+      return { ...cat, items: primary ? [primary] : [] }
     })
   }
 
@@ -326,6 +300,8 @@
     uploadCartaImage,
     applyMenuSchedule,
     menuItemSchedule,
+    pickMenuDiaItem,
+    menuDiaPrice,
     menuDayKind,
     madridIsWeekend,
     isWeekendMenuDay,

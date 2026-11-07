@@ -117,13 +117,6 @@
   <script>
     (() => {
       const FALLBACK = 'assets/menu-diario.jpg'
-      const ORDER = [
-        'menu-dia-unificado-semana',
-        'menu-dia-co-finde',
-        'menu-dia-es-finde',
-        'menu-dia-sabado',
-        'menu-dia-domingo',
-      ]
       const $ = (id) => document.getElementById(id)
       const money = (n) =>
         Number(n).toLocaleString('es-ES', {
@@ -213,42 +206,16 @@
       }
 
       function pickMenu(data) {
-        const kindInfo =
-          window.CasaTorinoCarta?.menuDayKind?.(data) || {
-            schedule: 'weekday',
-            kind: 'weekday',
-          }
-        const schedule = kindInfo.schedule || 'weekday'
-        const md = data?.menuDay || {}
-        const sat = md.saturday || {}
-        const sun = md.sunday || {}
-        const week = md.weekday || {}
-        const satP = Number.isFinite(Number(sat.price)) ? Number(sat.price) : 16
-        const sunP = Number.isFinite(Number(sun.price)) ? Number(sun.price) : 18
-        const weekP = Number.isFinite(Number(week.price ?? week.unified))
-          ? Number(week.price ?? week.unified)
-          : 13
-        const price =
-          schedule === 'saturday' ? satP : schedule === 'sunday' ? sunP : weekP
-
         const menus = (data?.categories || []).find((c) => c && c.id === 'menus-dia')
-        const itemSchedule = (it) =>
-          window.CasaTorinoCarta?.menuItemSchedule?.(it) || ''
-        let items = (menus?.items || []).filter(
-          (it) =>
-            it &&
-            it.image_url &&
-            !it.customProduct &&
-            itemSchedule(it) === schedule,
-        )
-        items = [...items].sort((a, b) => {
-          const ia = ORDER.indexOf(a.id)
-          const ib = ORDER.indexOf(b.id)
-          return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
-        })
-        const item = items[0] || null
+        const item =
+          window.CasaTorinoCarta?.pickMenuDiaItem?.(menus?.items) ||
+          (menus?.items || []).find((it) => it && !it.customProduct) ||
+          null
+        const price =
+          window.CasaTorinoCarta?.menuDiaPrice?.(data) ??
+          (item && Number.isFinite(Number(item.price)) ? Number(item.price) : 13)
         return {
-          schedule,
+          schedule: 'always',
           price,
           image: item?.image_url || FALLBACK,
           name: item?.name || 'Menú del día',
