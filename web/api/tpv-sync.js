@@ -58,7 +58,8 @@ function authorized(req) {
 }
 
 async function loadTpvState() {
-  const current = (await getJson(ITEM_KEY, emptyState, { fresh: true })) || emptyState()
+  // Sin fresh: MEM_TTL 2.5s (fallback API; el cliente usa SB directo)
+  const current = (await getJson(ITEM_KEY, emptyState)) || emptyState()
   const { state, changed } = applyTpvDayRollover(current)
   if (changed) {
     try {

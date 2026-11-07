@@ -60,14 +60,20 @@
     {
       "source": "/tpv-version.json",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, s-maxage=60, stale-while-revalidate=120"
+        },
         { "key": "Content-Type", "value": "application/json; charset=utf-8" }
       ]
     },
     {
       "source": "/cocina-version.json",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, s-maxage=60, stale-while-revalidate=120"
+        },
         { "key": "Content-Type", "value": "application/json; charset=utf-8" }
       ]
     },
