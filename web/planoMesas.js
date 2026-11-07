@@ -17,8 +17,9 @@
   const WAITER_KEY = 'ct-plano-waiter'
   const SQL_CACHE_KEY = 'ct-plano-use-sql'
   // Respaldo si Realtime falla (Supabase directo, 0 Vercel).
-  const POLL_MS = 12000
-  const POLL_HIDDEN_MS = 45000
+  // ≥ tpvSync (25s): evita doble lectura de ops_kv.tpv en el mismo móvil.
+  const POLL_MS = 45000
+  const POLL_HIDDEN_MS = 120000
   const CHANNEL = 'casa-torino-plano'
   const TPV_LIVE_CHANNEL = 'casa-torino-tpv-live'
 

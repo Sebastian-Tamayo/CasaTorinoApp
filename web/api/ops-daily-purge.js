@@ -122,7 +122,8 @@ async function purgeKitchen() {
       const out = applyKitchenDayRollover(raw)
       changed = out.changed
       day = out.day
-      return out.state
+      // Sin cambio → misma ref: updateJson no escribe (2º cron del día ahorra SB)
+      return out.changed ? out.state : raw
     },
   )
   return {
@@ -150,7 +151,7 @@ async function purgeTpv() {
       const out = applyTpvDayRollover(raw)
       changed = out.changed
       day = out.day
-      return out.state
+      return out.changed ? out.state : raw
     },
   )
   const tables = state.tables && typeof state.tables === 'object' ? state.tables : {}

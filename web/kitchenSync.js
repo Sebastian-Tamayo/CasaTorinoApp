@@ -12,7 +12,6 @@
   // Respaldo lento: el vivo va por Supabase Realtime (0 Vercel).
   const POLL_MS = 20000
   const POLL_HIDDEN_MS = 120000
-  const FORCE_POLL_MS = 5 * 60 * 1000
   const RETRIES = 3
   const SB_URL = 'https://fpnjtgoxljqmwuukyrrm.supabase.co'
   const SB_ANON = 'sb_publishable_A_zxEJjB3NN_hh8Qdu7ccQ_qhcWGoz0'
@@ -20,7 +19,6 @@
 
   let timer = null
   let heartbeat = null
-  let forceTimer = null
   let polling = false
   let visibilityBound = false
   let lastUpdatedAt = 0
@@ -173,27 +171,6 @@
       console.warn('[kitchenSync] pull SB → API', err)
       return pullFromApi()
     }
-  }
-
-  /** Fuerza de versión cocina: JSON estático (0 Fluid CPU). */
-  async function pollCocinaForce() {
-    try {
-      if (typeof window.__casaTorinoCocinaClientHeaders !== 'function') return
-      const r = await fetch('/cocina-version.json', {
-        cache: 'no-store',
-        credentials: 'same-origin',
-      })
-      if (!r.ok) return
-      const j = await r.json()
-      if (j && j.required) {
-        noteForce({
-          cocinaForce: {
-            required: String(j.required),
-            message: String(j.message || 'Actualiza para seguir'),
-          },
-        })
-      }
-    } catch {}
   }
 
   async function post(action, payload = {}) {
@@ -387,9 +364,7 @@
     if (heartbeat) clearInterval(heartbeat)
     heartbeat = setInterval(refreshSession, 20 * 60 * 1000)
     refreshSession()
-    if (forceTimer) clearInterval(forceTimer)
-    pollCocinaForce()
-    forceTimer = setInterval(pollCocinaForce, FORCE_POLL_MS)
+    // Versión cocina: solo cocina.html (evita doble poll CDN /cocina-version.json)
     if (!visibilityBound && typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', onVisibility)
       visibilityBound = true
@@ -401,8 +376,6 @@
     timer = null
     if (heartbeat) clearInterval(heartbeat)
     heartbeat = null
-    if (forceTimer) clearInterval(forceTimer)
-    forceTimer = null
   }
 
   window.CasaTorinoKitchenSync = {

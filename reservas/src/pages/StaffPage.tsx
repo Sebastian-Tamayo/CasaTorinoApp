@@ -69,8 +69,9 @@ export function StaffPage() {
     void refresh().catch((err: unknown) =>
       setError(err instanceof Error ? err.message : 'No se pudieron cargar las reservas'),
     )
+    // Antes 12s: quemaba GET /api/reservas → ops_kv en cada tick. Realtime no; 45s basta en sala.
     const pollMs = () =>
-      typeof document !== 'undefined' && document.hidden ? 60000 : 12000
+      typeof document !== 'undefined' && document.hidden ? 120000 : 45000
     let t = window.setInterval(() => {
       void refresh().catch(() => undefined)
     }, pollMs())

@@ -220,6 +220,12 @@ async function updateJson(key, fallback, mutator) {
     if (!next || typeof next !== 'object') {
       throw new Error('updateJson mutator must return object')
     }
+    // Misma referencia que base = sin cambios (purga diaria, scrub) → 0 escritura SB
+    if (next === base) {
+      const keep = current != null ? current : next
+      memory[key] = { value: keep, at: Date.now() }
+      return keep
+    }
     next.updatedAt = Date.now()
 
     try {

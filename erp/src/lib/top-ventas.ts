@@ -225,20 +225,20 @@ function moneyFromSales(sales: JornadaSale[] | undefined, dayKeySet: Set<string>
 }
 
 async function fetchCierresForMonths(monthKeys: string[]): Promise<CierreItem[]> {
-  const packs = await Promise.all(
-    monthKeys.map(async (month) => {
-      try {
-        return await fetchCierres(month);
-      } catch {
-        return null;
-      }
-    }),
-  );
-  const items: CierreItem[] = [];
-  for (const pack of packs) {
-    if (pack?.items?.length) items.push(...pack.items);
+  // Una sola lectura ops_kv `cierres` (antes N× /api/cierres?month=…)
+  try {
+    const pack = await fetchCierres();
+    const want = new Set(monthKeys.filter(Boolean));
+    if (!want.size) return Array.isArray(pack?.items) ? pack.items.slice() : [];
+    return (pack?.items || []).filter((it) => {
+      const mk =
+        String((it as { monthKey?: string }).monthKey || "").trim() ||
+        String(it.dayKey || "").slice(0, 7);
+      return want.has(mk);
+    });
+  } catch {
+    return [];
   }
-  return items;
 }
 
 function hasLiveJornada(j: JornadaResponse | null | undefined): boolean {

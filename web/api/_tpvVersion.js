@@ -9,9 +9,9 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-07-audit-session-merge'
+const required = '2026-11-07-cost-save'
 const message =
-  'Importante: actualiza — sesión, merge mesas y deshacer cobro'
+  'Importante: actualiza — ahorro sync (plano/poll); sesión OK'
 
 function forceInfo() {
   return { required, message }

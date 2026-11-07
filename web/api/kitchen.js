@@ -164,7 +164,8 @@ async function loadState() {
   if (changed) {
     try {
       const written = await updateJson(ITEM_KEY, emptyState, (raw) => {
-        return scrubKitchenState(raw).state
+        const out = scrubKitchenState(raw)
+        return out.changed ? out.state : raw
       })
       return normalizeState(written)
     } catch (err) {

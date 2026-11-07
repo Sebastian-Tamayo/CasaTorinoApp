@@ -37,6 +37,8 @@ const ALERT_TTL_MS = 24 * 60 * 60 * 1000
 
 /** @type {null | { items: any[], updatedAt: number }} */
 let memory = null
+/** TTL memoria instancia warm — menos lecturas ops_kv en poll staff. */
+const MEMORY_TTL_MS = 4000
 
 export function cors(res, methods = 'GET,POST,PUT,OPTIONS') {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -191,6 +193,13 @@ function normalizeAlerts(value) {
 }
 
 async function loadItems() {
+  if (
+    memory &&
+    Array.isArray(memory.items) &&
+    Date.now() - Number(memory.updatedAt || 0) < MEMORY_TTL_MS
+  ) {
+    return memory.items
+  }
   const items = await readItems()
   memory = { items, updatedAt: Date.now() }
   return items
