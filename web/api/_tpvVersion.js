@@ -9,9 +9,9 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-07-cost-rt3'
+const required = '2026-11-07-menu-unico2'
 const message =
-  'Importante: actualiza — 1 heartbeat PIN; poll lento con Realtime'
+  'Importante: actualiza — un menú del día editable (precio + foto) en Editar carta'
 
 function forceInfo() {
   return { required, message }

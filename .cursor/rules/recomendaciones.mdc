@@ -21,9 +21,9 @@ Referencia para implementar sin inventar reglas distintas a las del restaurante.
 
 ## Menús del día
 
-- **Menú español** (elección 1º/2º): **2 tiempos** — modal `coursePick` / nota «Primero N… Segundo N…»; cocina puede usar `kind: menu_dia` y cursos en `kitchen.js`.
-- **Menú colombiano / fin de semana un plato**: **1 tiempo** — no forzar modal 1º/2º salvo `coursePick` explícito en carta.
-- Precios menú: `data.menuDay` en carta (`weekday` / `saturday` / `sunday`); lógica horaria en `web/carta.js` (`menuDayKind`, `menuItemSchedule`).
+- **Un solo menú** (entre semana y finde): categoría `menus-dia`, plato `menu-dia`; precio y foto en **Editar carta** del TPV (`priceEditable`, `menuDay.price`).
+- **2 tiempos (cocina)**: el plato lleva `coursePick: true` — modal 1º/2º en TPV, nota «Primero N… Segundo N…»; cocina `kind: menu_dia` en `kitchen.js` (igual que antes).
+- **Menús anteriores**: solo galería web vía plato TPV `menu-historico` (`menusAnteriores` / modo `tpv-only`); no mezclar con el menú del día.
 
 ## Precios editables al vuelo
 

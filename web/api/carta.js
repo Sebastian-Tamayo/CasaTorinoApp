@@ -222,7 +222,12 @@ function upsertItemInCarta(carta, categoryId, item) {
     base: item.base != null ? String(item.base) : String(item.name),
     categoryType: item.categoryType || 'bebida',
   }
-  if (item.schedule) normalized.schedule = item.schedule
+  // Menú del día unificado: sin schedule semana/finde
+  if (catId === 'menus-dia' && !item.historicoOnly && String(item.id) !== 'menu-historico') {
+    // no copiar schedule
+  } else if (item.schedule) {
+    normalized.schedule = item.schedule
+  }
   if (item.customProduct) normalized.customProduct = true
   if (item.historicoOnly) normalized.historicoOnly = true
   if (item.priceEditable) normalized.priceEditable = true
@@ -261,8 +266,10 @@ function upsertItemInCarta(carta, categoryId, item) {
     }
     if (item.star === false) delete cat.items[idx].star
     if (clearImage) delete cat.items[idx].image_url
+    if (catId === 'menus-dia' && !isHistorico) delete cat.items[idx].schedule
   } else {
     if (clearImage) delete normalized.image_url
+    if (catId === 'menus-dia' && !isHistorico) delete normalized.schedule
     cat.items.push(normalized)
     const nextUrl = normalized.image_url != null ? String(normalized.image_url).trim() : ''
     if (isHistorico && nextUrl) {
@@ -270,7 +277,11 @@ function upsertItemInCarta(carta, categoryId, item) {
     }
   }
   next.updatedAt = Date.now()
-  syncMenuDayFromItems(next)
+  if (catId === 'menus-dia' && !isHistorico) {
+    ensureSingleMenuDia(next, String(item.id))
+  } else {
+    syncMenuDayFromItems(next)
+  }
   return next
 }
 
@@ -286,50 +297,102 @@ function archiveMenuAnterior(carta, url) {
   }
 }
 
-/** Mantén precios del bloque «Menú del día» de la web alineados con los platos. */
-function syncMenuDayFromItems(carta) {
+function isMenuDiaPlato(it) {
+  if (!it || typeof it !== 'object') return false
+  if (it.customProduct || it.historicoOnly) return false
+  if (String(it.id || '') === 'menu-historico') return false
+  return true
+}
+
+/**
+ * Un solo menú del día: precio + foto desde el TPV.
+ * Colapsa semana/sábado/domingo legado. Conserva coursePick (1º/2º → cocina).
+ */
+function ensureSingleMenuDia(carta, preferId) {
+  if (!carta || typeof carta !== 'object') return false
   const menus = (carta.categories || []).find((c) => c && c.id === 'menus-dia')
-  if (!menus || !Array.isArray(menus.items)) return
-  const find = (id) => menus.items.find((it) => it && it.id === id)
-  const bySchedule = (sch) =>
-    menus.items.find((it) => it && String(it.schedule || '').trim() === sch)
-  const week =
-    find('menu-dia-unificado-semana') ||
-    bySchedule('weekday') ||
-    find('menu-dia-es-semana') ||
-    find('menu-dia-co-semana')
-  const sat =
-    find('menu-dia-sabado') ||
-    find('menu-dia-co-finde') ||
-    bySchedule('saturday')
-  const sun =
-    find('menu-dia-domingo') ||
-    find('menu-dia-es-finde') ||
-    bySchedule('sunday')
-  if (!carta.menuDay || typeof carta.menuDay !== 'object') {
-    carta.menuDay = {
-      weekday: { label: 'Entre semana', price: 13 },
-      saturday: { label: 'Sábado', price: 16 },
-      sunday: { label: 'Domingo / festivo', price: 18 },
+  if (!menus) return false
+  if (!Array.isArray(menus.items)) menus.items = []
+
+  const platos = menus.items.filter(isMenuDiaPlato)
+  const prefer = String(preferId || '').trim()
+  const rank = (it) => {
+    const id = String(it.id || '')
+    if (prefer && id === prefer) return 0
+    if (id === 'menu-dia' || id === 'menu-dia-unificado-semana') return 1
+    if (it.image_url) return 2
+    return 3
+  }
+  platos.sort((a, b) => rank(a) - rank(b))
+
+  let primary = platos[0] || null
+  if (!primary) {
+    primary = {
+      id: 'menu-dia',
+      name: 'Menú del día',
+      price: 13,
+      desc: '',
+      base: 'Menú del día',
+      categoryType: 'comida',
+      coursePick: true,
+      priceEditable: true,
     }
+  } else {
+    primary = { ...primary }
   }
-  if (!carta.menuDay.weekday) carta.menuDay.weekday = { label: 'Entre semana' }
-  if (!carta.menuDay.saturday) carta.menuDay.saturday = { label: 'Sábado' }
-  if (!carta.menuDay.sunday) carta.menuDay.sunday = { label: 'Domingo / festivo' }
-  if (week && Number.isFinite(Number(week.price))) {
-    carta.menuDay.weekday.price = Number(week.price)
-    carta.menuDay.weekday.unified = Number(week.price)
-    delete carta.menuDay.weekday.es
-    delete carta.menuDay.weekday.co
+  primary.id = 'menu-dia'
+  primary.name = String(primary.name || 'Menú del día').trim() || 'Menú del día'
+  primary.base = primary.base || primary.name
+  primary.categoryType = 'comida'
+  delete primary.schedule
+  primary.coursePick = true
+  primary.priceEditable = true
+
+  menus.items = [primary]
+  menus.name = 'Menú del día'
+
+  const price = Number(primary.price)
+  carta.menuDay = {
+    label: 'Menú del día',
+    price: Number.isFinite(price) ? price : 13,
   }
-  if (sat && Number.isFinite(Number(sat.price))) {
-    carta.menuDay.saturday.price = Number(sat.price)
+  return true
+}
+
+/** Quitar una foto del histórico (solo las subidas a mano). */
+function removeMenuAnterior(carta, url) {
+  const src = String(url || '').trim()
+  if (!src) throw new Error('url requerida')
+  if (!Array.isArray(carta.menusAnteriores)) carta.menusAnteriores = []
+  const before = carta.menusAnteriores.length
+  carta.menusAnteriores = carta.menusAnteriores.filter((u) => String(u) !== src)
+  if (carta.menusAnteriores.length === before) {
+    throw new Error('foto no encontrada en el histórico')
   }
-  if (sun && Number.isFinite(Number(sun.price))) {
-    carta.menuDay.sunday.price = Number(sun.price)
-  }
-  // Limpia bloque legado ES/CO de finde
-  if (carta.menuDay.weekend) delete carta.menuDay.weekend
+  carta.menusAnterioresMode = 'tpv-only'
+  carta.updatedAt = Date.now()
+  return carta
+}
+
+function cartaNeedsMenuUnico(carta) {
+  if (!carta || typeof carta !== 'object') return false
+  const menus = (carta.categories || []).find((c) => c && c.id === 'menus-dia')
+  if (!menus || !Array.isArray(menus.items)) return true
+  const platos = menus.items.filter(isMenuDiaPlato)
+  if (platos.length !== 1) return true
+  if (platos[0].schedule) return true
+  if (platos[0].id !== 'menu-dia') return true
+  if (platos[0].coursePick !== true) return true
+  const md = carta.menuDay
+  if (!md || typeof md !== 'object') return true
+  if (md.weekday || md.saturday || md.sunday || md.weekend) return true
+  if (!Number.isFinite(Number(md.price))) return true
+  return false
+}
+
+/** Precio del menú único alineado con el plato. */
+function syncMenuDayFromItems(carta) {
+  ensureSingleMenuDia(carta)
 }
 
 function deleteItemInCarta(carta, categoryId, itemId) {
@@ -345,10 +408,17 @@ function deleteItemInCarta(carta, categoryId, itemId) {
   if (!cat || !Array.isArray(cat.items)) {
     throw new Error('categoría no encontrada')
   }
+  if (catId === 'menus-dia') {
+    const platos = (cat.items || []).filter(isMenuDiaPlato)
+    if (platos.length <= 1 && platos.some((it) => it && it.id === id)) {
+      throw new Error('No se puede borrar el único menú del día')
+    }
+  }
   const before = cat.items.length
   cat.items = cat.items.filter((it) => it && it.id !== id)
   if (cat.items.length === before) throw new Error('producto no encontrado')
   next.updatedAt = Date.now()
+  if (catId === 'menus-dia') ensureSingleMenuDia(next)
   return next
 }
 
@@ -389,20 +459,28 @@ module.exports = async function handler(req, res) {
           console.warn('[carta] seed/fallback', err && err.message)
         }
       }
-      // Persistimos el plato de histórico si aún no está en Supabase
-      if (data && cartaNeedsHistoricoPersist(data) && hasSupabase()) {
+      // Persistimos histórico TPV-only y menú único si hace falta
+      if (
+        data &&
+        hasSupabase() &&
+        (cartaNeedsHistoricoPersist(data) || cartaNeedsMenuUnico(data))
+      ) {
         try {
-          const patched = ensureMenusHistorico(JSON.parse(JSON.stringify(data)))
+          const patched = JSON.parse(JSON.stringify(data))
+          ensureMenusHistorico(patched)
+          ensureSingleMenuDia(patched)
           patched.updatedAt = Date.now()
           await setJson(CARTA_KEY, patched)
           data = patched
           source = source === 'file' ? 'supabase-seed' : source
         } catch (err) {
-          console.warn('[carta] ensure historico', err && err.message)
+          console.warn('[carta] ensure historico/menu', err && err.message)
           ensureMenusHistorico(data)
+          ensureSingleMenuDia(data)
         }
       } else if (data) {
         ensureMenusHistorico(data)
+        ensureSingleMenuDia(data)
       }
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -483,6 +561,8 @@ module.exports = async function handler(req, res) {
           return res.end(JSON.stringify({ error: 'supabase no configurado' }))
         }
         const payload = { ...body.carta, updatedAt: Date.now() }
+        ensureMenusHistorico(payload)
+        ensureSingleMenuDia(payload)
         await setJson(CARTA_KEY, payload)
         res.statusCode = 200
         res.setHeader('Content-Type', 'application/json')
@@ -557,11 +637,39 @@ module.exports = async function handler(req, res) {
         )
       }
 
+      if (action === 'removeMenusAnterior') {
+        if (!hasSupabase()) {
+          res.statusCode = 503
+          return res.end(JSON.stringify({ error: 'supabase no configurado' }))
+        }
+        let current = await loadFromStore()
+        if (!current) {
+          const seeded = await seedFromFile()
+          current = seeded.carta
+        }
+        const next = JSON.parse(JSON.stringify(current))
+        ensureMenusHistorico(next)
+        removeMenuAnterior(next, body.url || body.image_url || body.src)
+        await setJson(CARTA_KEY, next)
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json')
+        return res.end(
+          JSON.stringify({
+            ok: true,
+            action: 'removeMenusAnterior',
+            updatedAt: next.updatedAt,
+            menusAnteriores: next.menusAnteriores || [],
+            carta: withMeta(next, 'supabase'),
+          }),
+        )
+      }
+
       res.statusCode = 400
       res.setHeader('Content-Type', 'application/json')
       return res.end(
         JSON.stringify({
-          error: 'action inválida (seed|put|upsertItem|deleteItem|verifyEditPin)',
+          error:
+            'action inválida (seed|put|upsertItem|deleteItem|removeMenusAnterior|verifyEditPin)',
         }),
       )
     } catch (err) {

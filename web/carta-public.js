@@ -40,51 +40,30 @@
   function fillMenuDia(data) {
     const wrap = document.querySelector('.hero-menus')
     const ul = document.querySelector('.menu-precios')
-    if (!ul || !data?.menuDay) {
+    if (!ul) {
       void setupMenusAnteriores(data)
       return
     }
 
-    const kindInfo =
-      window.CasaTorinoCarta?.menuDayKind?.(data) ||
-      window.CasaTorinoCarta?.isWeekendMenuDay?.(data) || {
-        kind: 'weekday',
-        schedule: 'weekday',
-        reason: 'weekday',
-      }
-    const schedule =
-      kindInfo.schedule ||
-      (kindInfo.kind === 'saturday'
-        ? 'saturday'
-        : kindInfo.kind === 'sunday' || kindInfo.reason === 'holiday'
-          ? 'sunday'
-          : 'weekday')
-
-    const md = data.menuDay || {}
-    const sat = md.saturday || {}
-    const sun = md.sunday || {}
-    const week = md.weekday || {}
-    // Compat con carta antigua (weekend.es / weekend.co)
-    // Precios fijos de respaldo: semana 13 · sábado 16 · domingo 18 (nunca 19)
-    const satPrice = Number(sat.price)
-    const sunPrice = Number(sun.price)
-    const weekPrice = Number(week.price ?? week.unified)
-    const satP = Number.isFinite(satPrice) ? satPrice : 16
-    const sunP = Number.isFinite(sunPrice) ? sunPrice : 18
-    const weekP = Number.isFinite(weekPrice) ? weekPrice : 13
+    const menus = (data?.categories || []).find((c) => c && c.id === 'menus-dia')
+    const item =
+      window.CasaTorinoCarta?.pickMenuDiaItem?.(menus?.items) ||
+      (menus?.items || []).find((it) => it && !it.customProduct && !it.historicoOnly) ||
+      null
     const price =
-      schedule === 'saturday' ? satP : schedule === 'sunday' ? sunP : weekP
+      window.CasaTorinoCarta?.menuDiaPrice?.(data) ??
+      (item && Number.isFinite(Number(item.price)) ? Number(item.price) : 13)
 
     ul.innerHTML = `
       <li>
-        <span class="mp-label">Hoy · menú del día</span>
+        <span class="mp-label">Menú del día</span>
         <span class="mp-detail"><em>${escapeHtml(price)}\u00a0€</em></span>
       </li>`
 
     const copy = document.querySelector('.menu-dia-copy p')
     if (copy) copy.textContent = 'Menú del día.'
 
-    // Fotos del menú (mismas image_url que se adjuntan en Editar Carta del TPV)
+    // Foto del menú (la que se sube en Editar Carta del TPV)
     let gallery = document.querySelector('.menu-dia-gallery')
     if (!gallery && wrap) {
       gallery = document.createElement('div')
@@ -97,63 +76,33 @@
       return
     }
 
-    const menus = (data.categories || []).find((c) => c && c.id === 'menus-dia')
-    const order = [
-      'menu-dia-unificado-semana',
-      'menu-dia-co-finde',
-      'menu-dia-es-finde',
-      'menu-dia-sabado',
-      'menu-dia-domingo',
-    ]
-    const itemSchedule = (it) =>
-      window.CasaTorinoCarta?.menuItemSchedule?.(it) || ''
-
-    const labelFor = () => ({ eyebrow: 'Hoy', title: 'Menú del día' })
-
-    let items = (menus?.items || []).filter(
-      (it) =>
-        it &&
-        it.image_url &&
-        !it.customProduct &&
-        itemSchedule(it) === schedule,
-    )
-    items = [...items].sort((a, b) => {
-      const ia = order.indexOf(a.id)
-      const ib = order.indexOf(b.id)
-      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
-    })
-
-    if (!items.length) {
+    if (!item?.image_url) {
       gallery.hidden = true
       gallery.innerHTML = ''
       wrap?.classList.remove('has-menu-photos')
     } else {
       wrap?.classList.add('has-menu-photos')
       gallery.hidden = false
-      gallery.style.setProperty('--menu-foto-cols', String(Math.min(3, items.length)))
-      gallery.innerHTML = items
-        .map((it, i) => {
-          const labels = labelFor()
-          return `<button type="button" class="menu-dia-foto is-today" style="--i:${i}" data-dish-id="${escapeHtml(it.id)}" aria-label="Ver ${escapeHtml(labels.title)}">
-          <img src="${escapeHtml(it.image_url)}" alt="${escapeHtml(labels.title)}" loading="lazy" decoding="async" />
-          <em>${escapeHtml(labels.eyebrow)}</em>
-          <strong>${escapeHtml(labels.title)}</strong>
-          <b>${money(it.price)}</b>
+      gallery.style.setProperty('--menu-foto-cols', '1')
+      const title = item.name || 'Menú del día'
+      gallery.innerHTML = `<button type="button" class="menu-dia-foto is-today" style="--i:0" data-dish-id="${escapeHtml(item.id)}" aria-label="Ver ${escapeHtml(title)}">
+          <img src="${escapeHtml(item.image_url)}" alt="${escapeHtml(title)}" loading="lazy" decoding="async" />
+          <em>Hoy</em>
+          <strong>${escapeHtml(title)}</strong>
+          <b>${money(price)}</b>
           <span class="menu-dia-foto-cta">Ver menú <em>(pincha aquí)</em></span>
         </button>`
-        })
-        .join('')
 
       gallery.querySelectorAll('button[data-dish-id]').forEach((el) => {
         el.addEventListener('click', () => {
           const id = el.getAttribute('data-dish-id')
           const it = id ? dishById.get(id) : null
           if (it?.image_url) openDishModal(it, { menuSheet: true })
+          else if (item?.image_url) openDishModal(item, { menuSheet: true })
         })
       })
     }
 
-    // Siempre: la galería histórica no depende de que hoy haya foto de menú
     void setupMenusAnteriores(data)
   }
 
