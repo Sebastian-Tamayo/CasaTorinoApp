@@ -10,8 +10,8 @@
  * de /api/kitchen: el TPV envía comandas sin X-Cocina-Client-Version.
  * Si se bloquea, las comandas no llegan a cocina. El aviso va por poll/SW.
  */
-const required = '2026-10-13-cdn-save-1'
-const message = 'Actualiza para seguir'
+const required = '2026-11-07-cost-rt3'
+const message = 'Actualiza — poll lento con Realtime; 1 heartbeat PIN'
 
 function forceInfo() {
   return { required, message }

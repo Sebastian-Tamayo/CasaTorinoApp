@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useAuth } from '../auth'
 import { BUSINESS, HORAS_RAPIDAS, STATUS_LABELS } from '../config'
 import {
@@ -8,6 +8,7 @@ import {
   updateReservation,
   updateReservationStatus,
 } from '../lib/api'
+import { startReservasLive } from '../lib/reservasLive'
 import type { Reservation, ReservationStatus, StaffUser } from '../types'
 
 function todayISO() {
@@ -64,22 +65,36 @@ export function StaffPage() {
     setItems(await listReservations())
   }
 
+  const realtimeOkRef = useRef(false)
+
   useEffect(() => {
     if (!user) return
     void refresh().catch((err: unknown) =>
       setError(err instanceof Error ? err.message : 'No se pudieron cargar las reservas'),
     )
-    // Antes 12s: quemaba GET /api/reservas → ops_kv en cada tick. Realtime no; 45s basta en sala.
-    const pollMs = () =>
-      typeof document !== 'undefined' && document.hidden ? 120000 : 45000
-    let t = window.setInterval(() => {
-      void refresh().catch(() => undefined)
-    }, pollMs())
-    const onVis = () => {
+    // Vivo: Realtime ops_kv. Poll de respaldo lento si el canal está sano.
+    const pollMs = () => {
+      const hidden = typeof document !== 'undefined' && document.hidden
+      if (realtimeOkRef.current) return hidden ? 10 * 60 * 1000 : 3 * 60 * 1000
+      return hidden ? 120000 : 45000
+    }
+    let t = 0
+    const schedule = () => {
       window.clearInterval(t)
       t = window.setInterval(() => {
         void refresh().catch(() => undefined)
       }, pollMs())
+    }
+    schedule()
+    const stopLive = startReservasLive({
+      onItems: (next) => setItems(next),
+      onStatus: (ok) => {
+        realtimeOkRef.current = ok
+        schedule()
+      },
+    })
+    const onVis = () => {
+      schedule()
       if (!(typeof document !== 'undefined' && document.hidden)) {
         void refresh().catch(() => undefined)
       }
@@ -88,6 +103,8 @@ export function StaffPage() {
     return () => {
       window.clearInterval(t)
       document.removeEventListener('visibilitychange', onVis)
+      stopLive()
+      realtimeOkRef.current = false
     }
   }, [user])
 

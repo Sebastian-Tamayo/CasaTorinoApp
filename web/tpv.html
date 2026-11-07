@@ -3337,9 +3337,10 @@
   <script src="tpv-data.js?v=plano-2"></script>
   <script src="printService.js?v=factura2"></script>
   <script src="tpvFacturas.js?v=factura2"></script>
-  <script src="tpvSync.js?v=cpu-opt1"></script>
-  <script src="tpvJornada.js?v=jornada-pin1"></script>
-  <script src="kitchenSync.js?v=cost1"></script>
+  <script src="tpvSessionHeartbeat.js?v=rt3"></script>
+  <script src="tpvSync.js?v=rt3"></script>
+  <script src="tpvJornada.js?v=rt3"></script>
+  <script src="kitchenSync.js?v=rt3"></script>
   <script src="reservaAlertSync.js?v=reserva-rt1"></script>
   <script src="tpvAudit.js?v=monitor1"></script>
   <script src="planoMesas.js?v=cost1"></script>
@@ -3351,7 +3352,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-07-cost-save'
+      const TPV_CLIENT_VERSION = '2026-11-07-cost-rt3'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
