@@ -11,7 +11,10 @@
   // Respaldo lento: el tiempo real va por Supabase Broadcast (0 Vercel).
   // Respaldo lento (Realtime lleva el vivo). Menos carga si cae a /api/tpv-sync.
   const POLL_MS = 25000
+  /** Con Realtime SUBSCRIBED: poll de respaldo más lento (ahorro SB). */
+  const POLL_HEALTHY_MS = 75000
   const POLL_HIDDEN_MS = 90000
+  const POLL_HIDDEN_HEALTHY_MS = 180000
   const PUSH_DEBOUNCE_MS = 200
   const SB_URL = 'https://fpnjtgoxljqmwuukyrrm.supabase.co'
   const SB_ANON = 'sb_publishable_A_zxEJjB3NN_hh8Qdu7ccQ_qhcWGoz0'
@@ -29,7 +32,6 @@
   let pushTimer = null
   let pending = null
   let timer = null
-  let heartbeat = null
   let onRemote = null
   let onAuthLost = null
   let getLocalSnapshot = null
@@ -38,6 +40,7 @@
   let sbClient = null
   let sbChannel = null
   let realtimeStarted = false
+  let realtimeOk = false
 
   function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms))
@@ -147,16 +150,22 @@
       })
       await new Promise((resolve) => {
         sbChannel.subscribe((status) => {
-          if (
-            status === 'SUBSCRIBED' ||
-            status === 'CHANNEL_ERROR' ||
-            status === 'TIMED_OUT'
-          ) {
+          if (status === 'SUBSCRIBED') {
+            realtimeOk = true
+            schedule()
             resolve(status)
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            realtimeOk = false
+            schedule()
+            resolve(status)
+          } else if (status === 'CLOSED') {
+            realtimeOk = false
+            schedule()
           }
         })
       })
     } catch (err) {
+      realtimeOk = false
       console.warn('[tpvSync] realtime', err)
     }
   }
@@ -458,7 +467,9 @@
   }
 
   async function refreshSession() {
-    // Solo cookie PIN — poco frecuente; no es el sync de mesas
+    if (window.CasaTorinoTpvSessionHeartbeat?.refresh) {
+      return window.CasaTorinoTpvSessionHeartbeat.refresh()
+    }
     try {
       await fetch(AUTH_URL, {
         method: 'POST',
@@ -877,14 +888,16 @@
   }
 
   function pollDelay() {
-    return typeof document !== 'undefined' && document.hidden
-      ? POLL_HIDDEN_MS
-      : POLL_MS
+    const hidden = typeof document !== 'undefined' && document.hidden
+    if (realtimeOk) {
+      return hidden ? POLL_HIDDEN_HEALTHY_MS : POLL_HEALTHY_MS
+    }
+    return hidden ? POLL_HIDDEN_MS : POLL_MS
   }
 
   function schedule() {
     if (timer) clearInterval(timer)
-    timer = setInterval(tick, pollDelay())
+    timer = setInterval(() => tick(), pollDelay())
   }
 
   function start(handler, authLostHandler, options = {}) {
@@ -894,9 +907,7 @@
       typeof options.getLocalSnapshot === 'function' ? options.getLocalSnapshot : null
     schedule()
     startRealtime().catch(() => {})
-    if (heartbeat) clearInterval(heartbeat)
-    heartbeat = setInterval(refreshSession, 20 * 60 * 1000)
-    refreshSession()
+    window.CasaTorinoTpvSessionHeartbeat?.start?.()
     if (!options.skipInitialTick) tick()
     if (!visibilityBound && typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
@@ -917,8 +928,7 @@
     timer = null
     if (pushTimer) clearTimeout(pushTimer)
     pushTimer = null
-    if (heartbeat) clearInterval(heartbeat)
-    heartbeat = null
+    window.CasaTorinoTpvSessionHeartbeat?.stop?.()
   }
 
   window.addEventListener('pagehide', () => {

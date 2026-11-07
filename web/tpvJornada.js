@@ -8,7 +8,6 @@
   // Total día se calcula al abrir con PIN (refresh bajo demanda).
   // Cobros (addSale) y fin de jornada siguen actualizando al momento.
   const RETRIES = 3
-  let heartbeat = null
   let onUpdate = null
   let onAuthLost = null
   let last = null
@@ -34,6 +33,9 @@
   }
 
   async function refreshSession() {
+    if (window.CasaTorinoTpvSessionHeartbeat?.refresh) {
+      return window.CasaTorinoTpvSessionHeartbeat.refresh()
+    }
     try {
       await fetch(AUTH_URL, {
         method: 'POST',
@@ -166,14 +168,11 @@
     onAuthLost = authLostHandler || null
     // Solo estado abierta/cerrada al arrancar. Totales: al abrir con PIN.
     refresh().catch((err) => console.warn('[tpvJornada]', err))
-    if (heartbeat) clearInterval(heartbeat)
-    heartbeat = setInterval(refreshSession, 20 * 60 * 1000)
-    refreshSession()
+    window.CasaTorinoTpvSessionHeartbeat?.start?.()
   }
 
   function stopPolling() {
-    if (heartbeat) clearInterval(heartbeat)
-    heartbeat = null
+    window.CasaTorinoTpvSessionHeartbeat?.stop?.()
   }
 
   window.CasaTorinoTpvJornada = {

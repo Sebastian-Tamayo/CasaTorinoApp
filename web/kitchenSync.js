@@ -11,14 +11,16 @@
   const KITCHEN_KEY = 'kitchen'
   // Respaldo lento: el vivo va por Supabase Realtime (0 Vercel).
   const POLL_MS = 20000
+  /** Con Realtime SUBSCRIBED: poll de respaldo más lento (ahorro SB). */
+  const POLL_HEALTHY_MS = 75000
   const POLL_HIDDEN_MS = 120000
+  const POLL_HIDDEN_HEALTHY_MS = 180000
   const RETRIES = 3
   const SB_URL = 'https://fpnjtgoxljqmwuukyrrm.supabase.co'
   const SB_ANON = 'sb_publishable_A_zxEJjB3NN_hh8Qdu7ccQ_qhcWGoz0'
   const LIVE_CHANNEL = 'casa-torino-kitchen-live'
 
   let timer = null
-  let heartbeat = null
   let polling = false
   let visibilityBound = false
   let lastUpdatedAt = 0
@@ -31,6 +33,7 @@
   let sbClient = null
   let sbChannel = null
   let realtimeStarted = false
+  let realtimeOk = false
 
   function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms))
@@ -61,6 +64,9 @@
   }
 
   async function refreshSession() {
+    if (window.CasaTorinoTpvSessionHeartbeat?.refresh) {
+      return window.CasaTorinoTpvSessionHeartbeat.refresh()
+    }
     try {
       await fetch(AUTH_URL, {
         method: 'POST',
@@ -264,16 +270,22 @@
       )
       await new Promise((resolve) => {
         sbChannel.subscribe((status) => {
-          if (
-            status === 'SUBSCRIBED' ||
-            status === 'CHANNEL_ERROR' ||
-            status === 'TIMED_OUT'
-          ) {
+          if (status === 'SUBSCRIBED') {
+            realtimeOk = true
+            schedule()
             resolve(status)
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            realtimeOk = false
+            schedule()
+            resolve(status)
+          } else if (status === 'CLOSED') {
+            realtimeOk = false
+            schedule()
           }
         })
       })
     } catch (err) {
+      realtimeOk = false
       console.warn('[kitchenSync] realtime', err)
     }
   }
@@ -338,14 +350,16 @@
   }
 
   function pollDelay() {
-    return typeof document !== 'undefined' && document.hidden
-      ? POLL_HIDDEN_MS
-      : POLL_MS
+    const hidden = typeof document !== 'undefined' && document.hidden
+    if (realtimeOk) {
+      return hidden ? POLL_HIDDEN_HEALTHY_MS : POLL_HEALTHY_MS
+    }
+    return hidden ? POLL_HIDDEN_MS : POLL_MS
   }
 
   function schedule() {
     if (timer) clearInterval(timer)
-    timer = setInterval(tick, pollDelay())
+    timer = setInterval(() => tick(), pollDelay())
   }
 
   function onVisibility() {
@@ -361,9 +375,7 @@
     tick()
     schedule()
     startRealtime().catch(() => {})
-    if (heartbeat) clearInterval(heartbeat)
-    heartbeat = setInterval(refreshSession, 20 * 60 * 1000)
-    refreshSession()
+    window.CasaTorinoTpvSessionHeartbeat?.start?.()
     // Versión cocina: solo cocina.html (evita doble poll CDN /cocina-version.json)
     if (!visibilityBound && typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', onVisibility)
@@ -374,8 +386,7 @@
   function stop() {
     if (timer) clearInterval(timer)
     timer = null
-    if (heartbeat) clearInterval(heartbeat)
-    heartbeat = null
+    window.CasaTorinoTpvSessionHeartbeat?.stop?.()
   }
 
   window.CasaTorinoKitchenSync = {
