@@ -1,0 +1,40 @@
+# Deploy producción reservas-casatorino (Git desconectado en Vercel → solo CLI).
+# Secreto: VERCEL_TOKEN (mismo team sebas3212)
+name: Deploy reservas-casatorino
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'reservas/**'
+      - '.github/workflows/deploy-reservas-casatorino.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Vercel production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::Falta secrets.VERCEL_TOKEN"
+            exit 1
+          fi
+          # Root Directory del proyecto = reservas → CLI en raíz del monorepo
+          npx vercel@latest link --yes --project reservas-casatorino --scope sebas3212 --token "$VERCEL_TOKEN"
+          npx vercel@latest deploy --prod --yes --scope sebas3212 --token "$VERCEL_TOKEN" | tee /tmp/vercel-deploy.txt
+          URL=$(grep -Eo 'https://reservas-casatorino-[a-z0-9-]+-sebas3212\.vercel\.app|https://reservas-[a-z0-9-]+-sebas3212\.vercel\.app' /tmp/vercel-deploy.txt | tail -n1)
+          if [ -z "$URL" ]; then
+            URL=$(grep -Eo 'https://[a-z0-9.-]+\.vercel\.app' /tmp/vercel-deploy.txt | tail -n1)
+          fi
+          if [ -z "$URL" ]; then
+            echo "::error::No se pudo leer la URL del deploy"
+            cat /tmp/vercel-deploy.txt
+            exit 1
+          fi
+          echo "Deployed: $URL"
+          npx vercel@latest alias set "$URL" reservas-casatorino.vercel.app --scope sebas3212 --token "$VERCEL_TOKEN"
