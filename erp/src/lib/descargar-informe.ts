@@ -235,8 +235,39 @@ export type InformeCierresMesInput = {
   tip?: number;
 };
 
+export type InformeTotalesCierreInput = {
+  dayKey: string;
+  mesLabel?: string;
+  startedAt?: number | null;
+  endedAt?: number | null;
+  tickets: number;
+  total: number;
+  comida: number;
+  bebida: number;
+  efectivo: number;
+  tarjeta: number;
+  tip: number;
+  byProduct?: { id: string; name: string; qty: number; total: number }[];
+};
+
+function fmtHmInforme(ts?: number | null) {
+  if (!ts) return "—";
+  return new Date(ts).toLocaleTimeString("es-ES", {
+    timeZone: "Europe/Madrid",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function euroCell(n: number) {
+  return round2(n).toFixed(2).replace(".", ",");
+}
+
 function buildCierresMesHtml(data: InformeCierresMesInput) {
   const when = stampMadrid();
+  const tipMes = round2(data.tip ?? 0);
+  const efMes = round2(data.efectivo ?? 0);
+  const tjMes = round2(data.tarjeta ?? 0);
   const rows = data.items
     .map((c) => {
       const ef = c.totals?.byPayment?.efectivo?.total ?? 0;
@@ -255,11 +286,22 @@ function buildCierresMesHtml(data: InformeCierresMesInput) {
     })
     .join("");
 
+  const foot = `<tr style="background:#1a1a1a;color:#fff">
+      <td style="padding:8px 6px;font-weight:800">TOTAL MES</td>
+      <td style="text-align:right;padding:8px 6px;font-weight:800">${data.tickets}</td>
+      <td style="text-align:right;padding:8px 6px;font-weight:800">${escapeHtml(formatImporte(data.comida))}</td>
+      <td style="text-align:right;padding:8px 6px;font-weight:800">${escapeHtml(formatImporte(data.bebida))}</td>
+      <td style="text-align:right;padding:8px 6px;font-weight:800">${escapeHtml(formatImporte(efMes))}</td>
+      <td style="text-align:right;padding:8px 6px;font-weight:800">${escapeHtml(formatImporte(tjMes))}</td>
+      <td style="text-align:right;padding:8px 6px;font-weight:800">${escapeHtml(formatImporte(tipMes))}</td>
+      <td style="text-align:right;padding:8px 6px;font-weight:800;color:#f5c518">${escapeHtml(formatImporte(data.total))}</td>
+    </tr>`;
+
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="utf-8" />
-<title>Cierres TPV · ${escapeHtml(data.mesLabel)} · Casa Torino</title>
+<title>Informe de totales · ${escapeHtml(data.mesLabel)} · Casa Torino</title>
 <style>
   @page { size: A4 landscape; margin: 12mm; }
   body { font-family: Georgia, serif; color: #1a1a1a; margin: 0; padding: 20px; background: #fffaf0; }
@@ -274,23 +316,25 @@ function buildCierresMesHtml(data: InformeCierresMesInput) {
   th { background: #1a1a1a; color: #f5c518; padding: 8px 6px; text-align: left; font-size: 10px; text-transform: uppercase; }
   td { padding: 7px 6px; border-bottom: 1px solid #eee; }
   tr:nth-child(even) td { background: #fffdf6; }
+  .note { margin-top: 12px; font-size: 11px; color: #666; }
   .noprint { margin-top: 16px; }
   @media print { body { background:#fff; padding:0 } .noprint { display:none !important } }
 </style>
 </head>
 <body>
   <p class="eyebrow">Casa Torino · ERP · Caja TPV</p>
-  <h1>Informe de cierres · ${escapeHtml(data.mesLabel)}</h1>
-  <p class="meta">Generado: ${escapeHtml(when)} (Madrid) · Mes ${escapeHtml(data.mesKey)}</p>
+  <h1>Informe de totales · ${escapeHtml(data.mesLabel)}</h1>
+  <p class="meta">Generado: ${escapeHtml(when)} (Madrid) · Mes ${escapeHtml(data.mesKey)} · Solo totales de cierres (sin listado de tickets)</p>
   <div class="cards">
     <div class="card"><span>Total mes</span><b>${escapeHtml(formatImporte(data.total))}</b></div>
     <div class="card"><span>Tickets</span><b>${data.tickets}</b></div>
     <div class="card"><span>Comida</span><b>${escapeHtml(formatImporte(data.comida))}</b></div>
     <div class="card"><span>Bebida</span><b>${escapeHtml(formatImporte(data.bebida))}</b></div>
+    <div class="card"><span>Efectivo</span><b>${escapeHtml(formatImporte(efMes))}</b></div>
+    <div class="card"><span>Tarjeta</span><b>${escapeHtml(formatImporte(tjMes))}</b></div>
     ${
-      data.efectivo != null || data.tarjeta != null
-        ? `<div class="card"><span>Efectivo</span><b>${escapeHtml(formatImporte(data.efectivo || 0))}</b></div>
-           <div class="card"><span>Tarjeta</span><b>${escapeHtml(formatImporte(data.tarjeta || 0))}</b></div>`
+      tipMes > 0
+        ? `<div class="card"><span>Propina</span><b>${escapeHtml(formatImporte(tipMes))}</b></div>`
         : ""
     }
   </div>
@@ -305,8 +349,10 @@ function buildCierresMesHtml(data: InformeCierresMesInput) {
     </thead>
     <tbody>
       ${rows || `<tr><td colspan="8" style="text-align:center;padding:16px;color:#888">Sin cierres</td></tr>`}
+      ${data.items.length ? foot : ""}
     </tbody>
   </table>
+  <p class="note">Los importes reflejan los cierres guardados en el ERP (incluidas correcciones de efectivo).</p>
   <p class="noprint">
     <button onclick="window.print()" style="padding:10px 16px;border:0;border-radius:10px;background:#f5c518;font-weight:800;cursor:pointer">
       Guardar / imprimir PDF
@@ -318,21 +364,23 @@ function buildCierresMesHtml(data: InformeCierresMesInput) {
 
 function buildCierresMesExcel(data: InformeCierresMesInput) {
   const when = stampMadrid();
+  const tipMes = round2(data.tip ?? 0);
+  const efMes = round2(data.efectivo ?? 0);
+  const tjMes = round2(data.tarjeta ?? 0);
   const rows = data.items
     .map((c) => {
       const ef = c.totals?.byPayment?.efectivo?.total ?? 0;
       const tj = c.totals?.byPayment?.tarjeta?.total ?? 0;
       const tip = c.totals?.tipTotal ?? 0;
-      const euro = (n: number) => round2(n).toFixed(2).replace(".", ",");
       return `<tr>
         <td>${escapeHtml(c.dayKey)}</td>
         <td>${c.totals?.tickets || 0}</td>
-        <td>${euro(c.totals?.byType?.comida?.total || 0)}</td>
-        <td>${euro(c.totals?.byType?.bebida?.total || 0)}</td>
-        <td>${euro(ef)}</td>
-        <td>${euro(tj)}</td>
-        <td>${euro(tip)}</td>
-        <td>${euro(c.totals?.total || 0)}</td>
+        <td>${euroCell(c.totals?.byType?.comida?.total || 0)}</td>
+        <td>${euroCell(c.totals?.byType?.bebida?.total || 0)}</td>
+        <td>${euroCell(ef)}</td>
+        <td>${euroCell(tj)}</td>
+        <td>${euroCell(tip)}</td>
+        <td>${euroCell(c.totals?.total || 0)}</td>
       </tr>`;
     })
     .join("");
@@ -344,27 +392,163 @@ function buildCierresMesExcel(data: InformeCierresMesInput) {
 <style>th{background:#1a1a1a;color:#f5c518} td{border:1px solid #ccc;padding:4px}</style>
 </head>
 <body>
-<h2>Casa Torino — Cierres ${escapeHtml(data.mesLabel)}</h2>
-<p>Generado: ${escapeHtml(when)} · Total: ${escapeHtml(formatImporte(data.total))} · Tickets: ${data.tickets}</p>
+<h2>Casa Torino — Informe de totales ${escapeHtml(data.mesLabel)}</h2>
+<p>Generado: ${escapeHtml(when)} (Madrid) · Solo totales · Sin listado de tickets</p>
+<p>Total: ${escapeHtml(formatImporte(data.total))} · Tickets: ${data.tickets} · Comida: ${escapeHtml(formatImporte(data.comida))} · Bebida: ${escapeHtml(formatImporte(data.bebida))} · Efectivo: ${escapeHtml(formatImporte(efMes))} · Tarjeta: ${escapeHtml(formatImporte(tjMes))}${tipMes > 0 ? ` · Propina: ${escapeHtml(formatImporte(tipMes))}` : ""}</p>
 <table>
 <tr><th>Día</th><th>Tickets</th><th>Comida €</th><th>Bebida €</th><th>Efectivo €</th><th>Tarjeta €</th><th>Propina €</th><th>Total €</th></tr>
 ${rows}
+<tr>
+  <td><b>TOTAL MES</b></td>
+  <td><b>${data.tickets}</b></td>
+  <td><b>${euroCell(data.comida)}</b></td>
+  <td><b>${euroCell(data.bebida)}</b></td>
+  <td><b>${euroCell(efMes)}</b></td>
+  <td><b>${euroCell(tjMes)}</b></td>
+  <td><b>${euroCell(tipMes)}</b></td>
+  <td><b>${euroCell(data.total)}</b></td>
+</tr>
 </table>
 </body></html>`;
 }
 
+function openInformeWindow(html: string) {
+  const w = window.open("", "_blank", "noopener,noreferrer,width=1100,height=900");
+  if (w) {
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    return true;
+  }
+  return false;
+}
+
+/** Informe de totales del mes (Excel + vista PDF). Sin listado de tickets. */
 export function descargarInformeCierresMes(data: InformeCierresMesInput) {
-  const base = `cierres-${slug(data.mesKey)}-${new Date().toISOString().slice(0, 10)}`;
+  const base = `totales-${slug(data.mesKey)}-${new Date().toISOString().slice(0, 10)}`;
   downloadBlob(
     `${base}.xls`,
     new Blob([buildCierresMesExcel(data)], {
       type: "application/vnd.ms-excel;charset=utf-8",
     }),
   );
-  const w = window.open("", "_blank", "noopener,noreferrer,width=1100,height=900");
-  if (w) {
-    w.document.open();
-    w.document.write(buildCierresMesHtml(data));
-    w.document.close();
+  openInformeWindow(buildCierresMesHtml(data));
+}
+
+/** Alias explícito: informe de totales del mes. */
+export const descargarInformeTotalesMes = descargarInformeCierresMes;
+
+function buildCierreTotalesHtml(data: InformeTotalesCierreInput) {
+  const when = stampMadrid();
+  const products = (data.byProduct || [])
+    .slice(0, 40)
+    .map(
+      (p) => `<tr>
+      <td>${escapeHtml(p.name)}</td>
+      <td style="text-align:right">${escapeHtml(formatQty(p.qty))}</td>
+      <td style="text-align:right;font-weight:700">${escapeHtml(formatImporte(p.total))}</td>
+    </tr>`,
+    )
+    .join("");
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Totales · ${escapeHtml(data.dayKey)} · Casa Torino</title>
+<style>
+  @page { size: A4; margin: 14mm; }
+  body { font-family: Georgia, serif; color: #1a1a1a; margin: 0; padding: 24px; background: #fffaf0; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #b8860b; }
+  .meta { font-size: 12px; color: #555; margin: 8px 0 14px; }
+  .cards { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .card { background: #fff; border: 1px solid #e8d9a8; border-radius: 12px; padding: 10px 14px; min-width: 110px; }
+  .card b { display: block; font-size: 18px; margin-top: 2px; }
+  .card span { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #777; font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; background: #fff; font-size: 13px; }
+  th { background: #1a1a1a; color: #f5c518; padding: 8px; text-align: left; font-size: 10px; text-transform: uppercase; }
+  td { padding: 8px; border-bottom: 1px solid #eee; }
+  .noprint { margin-top: 16px; }
+  @media print { body { background:#fff; padding:0 } .noprint { display:none !important } }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Casa Torino · ERP · Totales de cierre</p>
+  <h1>${escapeHtml(data.dayKey)}</h1>
+  <p class="meta">Generado: ${escapeHtml(when)} (Madrid) · Turno ${escapeHtml(fmtHmInforme(data.startedAt))} – ${escapeHtml(fmtHmInforme(data.endedAt))} · Solo totales</p>
+  <div class="cards">
+    <div class="card"><span>Total</span><b>${escapeHtml(formatImporte(data.total))}</b></div>
+    <div class="card"><span>Tickets</span><b>${data.tickets}</b></div>
+    <div class="card"><span>Comida</span><b>${escapeHtml(formatImporte(data.comida))}</b></div>
+    <div class="card"><span>Bebida</span><b>${escapeHtml(formatImporte(data.bebida))}</b></div>
+    <div class="card"><span>Efectivo</span><b>${escapeHtml(formatImporte(data.efectivo))}</b></div>
+    <div class="card"><span>Tarjeta</span><b>${escapeHtml(formatImporte(data.tarjeta))}</b></div>
+    ${
+      data.tip > 0
+        ? `<div class="card"><span>Propina</span><b>${escapeHtml(formatImporte(data.tip))}</b></div>`
+        : ""
+    }
+  </div>
+  ${
+    products
+      ? `<h2 style="font-size:16px;margin:0 0 8px">Productos (resumen)</h2>
+  <table>
+    <thead><tr><th>Producto</th><th style="text-align:right">Uds</th><th style="text-align:right">Total</th></tr></thead>
+    <tbody>${products}</tbody>
+  </table>`
+      : ""
   }
+  <p class="noprint">
+    <button onclick="window.print()" style="padding:10px 16px;border:0;border-radius:10px;background:#f5c518;font-weight:800;cursor:pointer">
+      Guardar / imprimir PDF
+    </button>
+  </p>
+</body>
+</html>`;
+}
+
+function buildCierreTotalesExcel(data: InformeTotalesCierreInput) {
+  const when = stampMadrid();
+  const products = (data.byProduct || [])
+    .map(
+      (p) =>
+        `<tr><td>${escapeHtml(p.name)}</td><td>${formatQty(p.qty)}</td><td>${euroCell(p.total)}</td></tr>`,
+    )
+    .join("");
+  return `<html xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8" /></head>
+<body>
+<h2>Casa Torino — Totales ${escapeHtml(data.dayKey)}</h2>
+<p>Generado: ${escapeHtml(when)} · Turno ${escapeHtml(fmtHmInforme(data.startedAt))} – ${escapeHtml(fmtHmInforme(data.endedAt))}</p>
+<table>
+<tr><th>Concepto</th><th>Importe €</th></tr>
+<tr><td>Total</td><td>${euroCell(data.total)}</td></tr>
+<tr><td>Tickets</td><td>${data.tickets}</td></tr>
+<tr><td>Comida</td><td>${euroCell(data.comida)}</td></tr>
+<tr><td>Bebida</td><td>${euroCell(data.bebida)}</td></tr>
+<tr><td>Efectivo</td><td>${euroCell(data.efectivo)}</td></tr>
+<tr><td>Tarjeta</td><td>${euroCell(data.tarjeta)}</td></tr>
+<tr><td>Propina</td><td>${euroCell(data.tip)}</td></tr>
+</table>
+${
+  products
+    ? `<h3>Productos</h3><table><tr><th>Producto</th><th>Uds</th><th>Total €</th></tr>${products}</table>`
+    : ""
+}
+</body></html>`;
+}
+
+/** Totales de un cierre concreto (Excel + PDF). Sin listado de tickets. */
+export function descargarInformeTotalesCierre(data: InformeTotalesCierreInput) {
+  const base = `totales-${slug(data.dayKey)}-${new Date().toISOString().slice(0, 10)}`;
+  downloadBlob(
+    `${base}.xls`,
+    new Blob([buildCierreTotalesExcel(data)], {
+      type: "application/vnd.ms-excel;charset=utf-8",
+    }),
+  );
+  openInformeWindow(buildCierreTotalesHtml(data));
 }
