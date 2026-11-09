@@ -1,5 +1,5 @@
 {
-  "required": "2026-11-07-menu-unico2",
-  "message": "Importante: actualiza — un menú del día editable (precio + foto) en Editar carta",
-  "updatedAt": "2026-11-07T13:30:00.000Z"
+  "required": "2026-11-09-jornada-mesas",
+  "message": "Importante: actualiza — fin de jornada bloquea mesas abiertas y pide PIN a todos",
+  "updatedAt": "2026-11-09T05:30:00.000Z"
 }

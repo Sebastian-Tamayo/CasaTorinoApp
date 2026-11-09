@@ -234,12 +234,32 @@ try {
   assert.ok(informes.includes('weekly_only_monday_cron'))
   assert.ok(jornada.includes('weekly_only_monday_cron'))
   assert.ok(!jornada.includes('maybeTriggerWeeklyAfterSundayClose'))
+  // Fin de jornada: bloquear mesas abiertas + echar a todos (sessionEpoch)
+  assert.ok(jornada.includes('pendingMesas'))
+  assert.ok(jornada.includes('bumpSessionEpoch'))
+  assert.ok(jornada.includes('TPV_TABLES_KEY') || jornada.includes("'tpv'"))
   const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'))
   assert.ok(Array.isArray(vercel.crons) && vercel.crons.length >= 1)
   assert.ok(vercel.crons.some((c) => c.path === '/api/ops-daily-purge'))
   ok('cron-informes-wired')
 } catch (err) {
   fail('cron-informes-wired', err)
+}
+
+// —— 8b) Fin de jornada: aviso mesas + kick all ——
+try {
+  const html = fs.readFileSync(path.join(root, 'tpv.html'), 'utf8')
+  const jornada = fs.readFileSync(path.join(root, 'api/tpv-jornada.js'), 'utf8')
+  assert.ok(html.includes('formatPendingMesasMsg'))
+  assert.ok(html.includes('pendingMesas()'))
+  assert.ok(html.includes('mesas pendientes de cerrar'))
+  assert.ok(html.includes("method: 'DELETE'"))
+  assert.ok(html.includes('Jornada finalizada — introduce el PIN'))
+  assert.ok(jornada.includes('bumpSessionEpoch()'))
+  assert.ok(jornada.includes('cartQty'))
+  ok('jornada-end-mesas-kick')
+} catch (err) {
+  fail('jornada-end-mesas-kick', err)
 }
 
 // —— 9) Force update apunta a /tpv.html ——
