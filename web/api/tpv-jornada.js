@@ -21,8 +21,11 @@ const { buildActivityByHour } = require('./_informeReports')
 const tpvVersion = require('./_tpvVersion')
 const {
   bumpJornadaLoginEpoch,
+  bumpSessionEpoch,
   clearJornadaReloginDay,
 } = require('./_tpvUsers')
+const { cartQty } = require('./_tpvMerge')
+const TPV_TABLES_KEY = 'tpv'
 
 function cors(req, res) {
   const origin = req.headers.origin || '*'
@@ -590,6 +593,42 @@ module.exports = async function handler(req, res) {
             }),
           )
         }
+        // No cerrar caja si quedan mesas con cuenta (ops_kv tpv)
+        let pendingMesas = []
+        try {
+          const tpv = await getJson(TPV_TABLES_KEY, null)
+          const tables =
+            tpv && tpv.tables && typeof tpv.tables === 'object' ? tpv.tables : {}
+          pendingMesas = Object.keys(tables)
+            .map((id) => {
+              const mid = String(id || '').trim()
+              return { id: mid, qty: cartQty(tables[id]) }
+            })
+            .filter((x) => x.id && x.qty > 0)
+            .sort(
+              (a, b) =>
+                Number(a.id) - Number(b.id) ||
+                String(a.id).localeCompare(String(b.id), 'es'),
+            )
+            .map((x) => x.id)
+        } catch (err) {
+          console.warn('[tpv-jornada] pending mesas', err)
+        }
+        if (pendingMesas.length) {
+          const list = pendingMesas.join(', ')
+          res.statusCode = 409
+          res.setHeader('Content-Type', 'application/json')
+          return res.end(
+            JSON.stringify({
+              error:
+                pendingMesas.length === 1
+                  ? `Hay 1 mesa pendiente de cerrar: ${list}. Cobra o vacía esa mesa antes de cerrar la jornada.`
+                  : `Hay mesas pendientes de cerrar: ${list}. Revisa las mesas pendientes de cobro antes de cerrar la jornada.`,
+              pendingMesas,
+              ...withTotals(state),
+            }),
+          )
+        }
         state = {
           ...state,
           status: 'ended',
@@ -601,6 +640,12 @@ module.exports = async function handler(req, res) {
           await bumpJornadaLoginEpoch()
         } catch (err) {
           console.warn('[tpv-jornada] bump relogin day', err)
+        }
+        // Echa a todos los TPV (invalida cookies vía sessionEpoch)
+        try {
+          await bumpSessionEpoch()
+        } catch (err) {
+          console.warn('[tpv-jornada] bumpSessionEpoch', err)
         }
         await syncKitchenJornada('end', state)
       } else if (action === 'updatesale' || action === 'update_sale') {

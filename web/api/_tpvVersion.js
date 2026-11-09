@@ -9,9 +9,9 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-07-menu-unico2'
+const required = '2026-11-09-jornada-mesas'
 const message =
-  'Importante: actualiza — un menú del día editable (precio + foto) en Editar carta'
+  'Importante: actualiza — fin de jornada bloquea mesas abiertas y pide PIN a todos'
 
 function forceInfo() {
   return { required, message }

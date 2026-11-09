@@ -3410,7 +3410,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-07-menu-unico2'
+      const TPV_CLIENT_VERSION = '2026-11-09-jornada-mesas'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -4705,10 +4705,39 @@
         }
       }
 
+      function formatPendingMesasMsg(ids) {
+        const list = (Array.isArray(ids) ? ids : [])
+          .map((id) => String(id || '').trim())
+          .filter(Boolean)
+        if (!list.length) {
+          return 'Hay mesas pendientes de cerrar.\n\nRevisa las mesas pendientes de cobro antes de cerrar la jornada.'
+        }
+        const nums = list.join(', ')
+        if (list.length === 1) {
+          return `Hay 1 mesa pendiente de cerrar: ${nums}.\n\nCobra o vacía esa mesa antes de cerrar la jornada.`
+        }
+        return `Hay mesas pendientes de cerrar: ${nums}.\n\nRevisa las mesas pendientes de cobro antes de cerrar la jornada.`
+      }
+
       async function endJornada() {
+        // Bloqueo local: no cerrar caja con cuentas abiertas
+        const pending = pendingMesas()
+        if (pending.length) {
+          alert(formatPendingMesasMsg(pending.map((p) => p.id)))
+          try {
+            openMesasModal()
+          } catch {}
+          return
+        }
         const t = state.jornada?.totals?.total
         const extra = Number.isFinite(t) ? `\nTotal actual: ${money(t)}` : ''
-        if (!confirm(`¿Fin de sesión / cerrar jornada?${extra}\n\nEl total se enviará al ERP (Caja TPV) y podrás seguir consultándolo.`)) return
+        if (
+          !confirm(
+            `¿Fin de sesión / cerrar jornada?${extra}\n\nEl total se enviará al ERP (Caja TPV).\nTodos los TPV pedirán PIN de nuevo.`,
+          )
+        ) {
+          return
+        }
         try {
           const j = await window.CasaTorinoTpvJornada.end()
           paintJornadaStatus(j)
@@ -4721,13 +4750,32 @@
           } catch (err) {
             console.warn('sync cocina fin', err)
           }
-          openJornadaModal()
-          if (j?.cierre) {
-            alert('Sesión cerrada.\nTotal enviado al ERP → Caja TPV.')
-          }
+          // Kick local inmediato; otros dispositivos al refresh (sessionEpoch)
+          try {
+            await fetch('/api/tpv-auth', {
+              method: 'DELETE',
+              credentials: 'same-origin',
+            })
+          } catch {}
+          lockTpvForPin('Jornada finalizada — introduce el PIN para seguir')
+          alert(
+            j?.cierre
+              ? 'Sesión cerrada.\nTotal enviado al ERP → Caja TPV.\nTodos los TPV piden PIN de nuevo.'
+              : 'Sesión cerrada.\nTodos los TPV piden PIN de nuevo.',
+          )
         } catch (err) {
           console.warn('endJornada', err)
           if (err.data && err.data.status) paintJornadaStatus(err.data)
+          const pendingIds = Array.isArray(err?.data?.pendingMesas)
+            ? err.data.pendingMesas
+            : null
+          if (pendingIds && pendingIds.length) {
+            alert(formatPendingMesasMsg(pendingIds))
+            try {
+              openMesasModal()
+            } catch {}
+            return
+          }
           alert(err.message || 'No se pudo cerrar la jornada')
         }
       }
