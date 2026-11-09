@@ -112,6 +112,7 @@ try {
     weekRangeEndingSunday,
     previousMonthRange,
     madridWeekday,
+    weekdayOfDayKey,
     buildMobileEmailHtml,
   } = require('../api/_informeReports')
   // Domingo 12 oct 2026 → semana lun 6 – dom 12
@@ -122,6 +123,12 @@ try {
   assert.ok(mr.startKey && mr.label, 'month range')
   const wd = madridWeekday(new Date('2026-10-12T12:00:00.000Z'))
   assert.ok(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].includes(wd))
+  assert.strictEqual(weekdayOfDayKey('2026-11-08'), 'Sun')
+  assert.strictEqual(weekdayOfDayKey('2026-11-09'), 'Mon')
+  // Lun 00:30 → weekRange termina el domingo anterior (caja domingo madrugada)
+  const monEarly = new Date('2026-11-09T00:30:00+01:00')
+  const wrEarly = weekRangeEndingSunday(monEarly)
+  assert.strictEqual(wrEarly.endKey, '2026-11-08')
   const html = buildMobileEmailHtml({
     kind: 'semanal',
     label: '6–12 oct 2026',
@@ -231,9 +238,10 @@ try {
   assert.ok(purge.includes("runInforme('mensual'") || purge.includes('runInforme("mensual"'))
   assert.ok(purge.includes("wd === 'Mon'") || purge.includes('wd === "Mon"'))
   assert.ok(informes.includes('not_monday_08_madrid'))
-  assert.ok(informes.includes('weekly_only_monday_cron'))
-  assert.ok(jornada.includes('weekly_only_monday_cron'))
-  assert.ok(!jornada.includes('maybeTriggerWeeklyAfterSundayClose'))
+  assert.ok(informes.includes('maybeTriggerWeeklyAfterSundayClose'))
+  assert.ok(informes.includes('jornada_ops_sunday') || informes.includes('not_sunday_close'))
+  assert.ok(jornada.includes('maybeTriggerWeeklyAfterSundayClose'))
+  assert.ok(!jornada.includes('weekly_only_monday_cron'))
   // Fin de jornada: bloquear mesas abiertas + echar a todos (sessionEpoch)
   assert.ok(jornada.includes('pendingMesas'))
   assert.ok(jornada.includes('bumpSessionEpoch'))

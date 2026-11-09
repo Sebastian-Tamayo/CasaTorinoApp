@@ -17,7 +17,10 @@ const SALES_MAX = 500
 const { getJson, setJson, updateJson } = require('./_opsStore')
 const { hasTpvSession } = require('./_tpvSession')
 const { opsDayId } = require('./_opsDay')
-const { buildActivityByHour } = require('./_informeReports')
+const {
+  buildActivityByHour,
+  maybeTriggerWeeklyAfterSundayClose,
+} = require('./_informeReports')
 const tpvVersion = require('./_tpvVersion')
 const {
   bumpJornadaLoginEpoch,
@@ -786,13 +789,24 @@ module.exports = async function handler(req, res) {
         } catch (err) {
           console.warn('[tpv-jornada] archive', err)
         }
-        // Semanal: solo el cron del lunes ~08:00 Madrid (un correo).
-        // No enviar al cerrar caja (evita duplicar con el cron).
-        if (action === 'end') {
+        // Semanal: al cerrar caja del domingo (también lun ~00:30).
+        // Backup lunes ~08:00 en ops-daily-purge (idempotente).
+        if (action === 'end' && cierre) {
+          try {
+            informeSemanal = await maybeTriggerWeeklyAfterSundayClose({
+              startedAt: state.startedAt,
+            })
+          } catch (err) {
+            console.warn('[tpv-jornada] informe semanal', err)
+            informeSemanal = {
+              triggered: false,
+              error: String(err && err.message ? err.message : err),
+            }
+          }
+        } else if (action === 'end' && !cierre) {
           informeSemanal = {
             triggered: false,
-            reason: 'weekly_only_monday_cron',
-            archived: Boolean(cierre),
+            reason: 'archive_failed_skip_informe',
           }
         }
       }
