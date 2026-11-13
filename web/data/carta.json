@@ -149,7 +149,6 @@
           "desc": "",
           "base": "Menú del día",
           "categoryType": "comida",
-          "coursePick": true,
           "priceEditable": true
         }
       ]

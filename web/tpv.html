@@ -3410,7 +3410,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-09-jornada-mesas'
+      const TPV_CLIENT_VERSION = '2026-11-13-menu-comanda'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -5309,9 +5309,18 @@
 
       function categoryTypeOf(itemOrLine) {
         const catId = String(itemOrLine?.catId || '').toLowerCase()
+        const id = String(itemOrLine?.id || itemOrLine?.productId || '').toLowerCase()
+        const isExtras =
+          catId === 'extras' ||
+          Boolean(itemOrLine?.customProduct) ||
+          id.startsWith('extras-')
         // Varios: la camarera elige barra o cocina (categoryType en la línea)
-        if (catId === 'extras') {
-          return itemOrLine?.categoryType === 'comida' ? 'comida' : 'bebida'
+        if (isExtras) {
+          if (itemOrLine?.categoryType === 'comida') return 'comida'
+          if (itemOrLine?.categoryType === 'bebida') return 'bebida'
+          // Sufijo -k = cocina (ids distintos barra/cocina)
+          if (id.endsWith('-k')) return 'comida'
+          return 'bebida'
         }
         // Barra fija: bebidas, cafés y postres
         if (catId === 'bebidas' || catId === 'cafes' || catId === 'postres') return 'bebida'
@@ -5327,16 +5336,9 @@
           || String(itemOrLine?.id || itemOrLine?.productId || '').startsWith('extras-')
       }
 
-      function isSpanishMenu(itemOrLine) {
-        if (!itemOrLine) return false
-        // Menú del día único: coursePick → modal 1º/2º y cocina menu_dia
-        if (itemOrLine.coursePick === true) return true
-        const id = String(itemOrLine.id || itemOrLine.productId || '')
-        return (
-          id === 'menu-dia' ||
-          id === 'menu-dia-unificado-semana' ||
-          id === 'menu-dia-es-semana'
-        )
+      /** Comanda única: ya no hay modal 1º/2º ni kind menu_dia. */
+      function isSpanishMenu() {
+        return false
       }
 
       function isPriceEditable(itemOrLine) {
@@ -5494,11 +5496,11 @@
             categoryType: ctype,
             sentQty: 0,
             note: String(note || ''),
-            coursePick: Boolean(item.coursePick || isSpanishMenu(item)),
+            coursePick: false,
             priceEditable: Boolean(item.priceEditable || item.customProduct || isPriceEditable(item)),
             customProduct: Boolean(item.customProduct),
-            primero: meta?.primero || '',
-            segundo: meta?.segundo || '',
+            primero: '',
+            segundo: '',
             addedAt: now,
             updatedAt: now,
           }
@@ -5531,11 +5533,6 @@
         if (!requireMesa()) return
         if (item.customProduct || item.id === 'extras-libre' || item.catId === 'extras') {
           openExtraModal()
-          return
-        }
-        // Solo si el plato pide 1º/2º
-        if (isSpanishMenu(item) || item.coursePick) {
-          openCoursePick(item, null)
           return
         }
         addWithNote(item, '', null)
@@ -5612,11 +5609,12 @@
           line.categoryType = 'bebida'
         } else {
           line.categoryType = 'comida'
-          // Pendiente de enviar: no marcar como ya enviado
-          if ((Number(line.sentQty) || 0) > (Number(line.qty) || 0)) {
-            line.sentQty = Number(line.qty) || 0
-          }
+          // Pasar a cocina: siempre pendiente de enviar
+          line.sentQty = 0
         }
+        // Asegurar catId para que cocina acepte Varios cocina
+        if (!line.catId) line.catId = 'extras'
+        line.customProduct = true
         line.updatedAt = now
         stampLineActor(line)
         persist()
@@ -6617,8 +6615,8 @@
       function updateNextCourseBtn() {
         const btn = $('btnNextCourse')
         if (!btn) return
-        const menus = menuLinesInCart()
-        btn.hidden = menus.length === 0
+        // Comanda única: ya no se usa «Siguiente plato»
+        btn.hidden = true
       }
 
       async function sendNextCourse() {
@@ -6769,14 +6767,8 @@
                   ? `<span class="tag-sent">enviado ${Math.min(sent, l.qty)}/${l.qty}</span>`
                   : '',
               ].join('')
-              const isMenuPick = Boolean(l.coursePick || isSpanishMenu(l) || /Primero N/i.test(String(l.note || '')))
               const note = l.note
-                ? `<div class="line-note${isMenuPick ? ' menu-pick' : ''}">${String(l.note).replace(/</g, '&lt;')}</div>`
-                : (isMenuPick
-                  ? `<div class="line-note menu-pick">⚠ Falta elegir Primero / Segundo</div>`
-                  : '')
-              const pickBtn = isMenuPick
-                ? `<button type="button" class="btn-pick" data-pick="${key}">Cambiar N1/N2</button>`
+                ? `<div class="line-note">${String(l.note).replace(/</g, '&lt;')}</div>`
                 : ''
               const extrasDestBtn = isExtrasLine(l)
                 ? `<button type="button" class="btn-pick" data-extra-dest="${String(key).replace(/"/g, '&quot;')}">${
@@ -6816,7 +6808,6 @@
                 <div class="line-name">${l.name}${tags}${atLabel ? `<span class="line-at" title="${atTitle.replace(/"/g, '&quot;')}">${atLabel}</span>` : ''}</div>
                 ${priceBlock}
                 ${note}
-                ${pickBtn}
                 ${extrasDestBtn}
                 ${selQtyUi}
               </div>
@@ -7205,20 +7196,6 @@
         }
         if (el.hasAttribute('data-extra-dest')) {
           toggleExtrasDestination(el.getAttribute('data-extra-dest'))
-          return
-        }
-        if (el.hasAttribute('data-pick')) {
-          const key = el.dataset.pick
-          const line = state.cart[key]
-          if (!line) return
-          const item = all().find((x) => x.id === (line.productId || line.id)) || {
-            id: line.productId || line.id,
-            name: line.name,
-            price: line.price,
-            catId: line.catId,
-            coursePick: true,
-          }
-          openCoursePick(item, key)
           return
         }
         if (!el.matches('button[data-act]')) return
@@ -7620,7 +7597,6 @@
         if (existing?.schedule && categoryId !== 'menus-dia') item.schedule = existing.schedule
         if (existing?.group) item.group = existing.group
         if (categoryId === 'menus-dia' && !historico) {
-          item.coursePick = true
           item.priceEditable = true
         }
         if (star) item.star = true
