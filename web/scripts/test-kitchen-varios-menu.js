@@ -47,4 +47,17 @@ assert(plato, 'carta.json sin menu-dia')
 assert(plato.coursePick !== true, 'carta.json aún tiene coursePick')
 assert(/delete primary\.coursePick/.test(cartaSrc), 'ensureSingleMenuDia debe borrar coursePick')
 
+// Payload típico tras «Añadir a cuenta» con destino Cocina
+const auto = sanitizeItems([
+  {
+    id: 'extras-croqueta-k',
+    name: 'Croqueta',
+    qty: 1,
+    catId: 'extras',
+    categoryType: 'comida',
+    note: '',
+  },
+])
+assert(auto.length === 1 && auto[0].id === 'extras-croqueta-k', 'auto Varios cocina debe pasar sanitize')
+
 console.log('ok: kitchen varios + menu comanda unica')

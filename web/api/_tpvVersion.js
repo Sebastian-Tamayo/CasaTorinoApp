@@ -9,9 +9,9 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-13-menu-comanda'
+const required = '2026-11-14-varios-auto'
 const message =
-  'Importante: actualiza — menú del día en una sola comanda y Varios cocina llega al KDS'
+  'Importante: actualiza — Varios Cocina se envía al añadir; sin Siguiente plato'
 
 function forceInfo() {
   return { required, message }
