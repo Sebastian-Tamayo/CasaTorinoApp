@@ -15,6 +15,7 @@ export type JornadaState = {
     total?: number;
     tip?: number;
     paymentMethod?: string;
+    payments?: Array<{ id?: string; method?: string; amount?: number }>;
     lines?: Array<{
       id?: string;
       name?: string;
@@ -27,6 +28,31 @@ export type JornadaState = {
   }>;
   totals?: unknown;
   updatedAt?: number;
+};
+
+export type CierreSaleLine = {
+  id?: string;
+  name?: string;
+  qty?: number;
+  price?: number;
+  categoryType?: string;
+  catId?: string;
+  catName?: string;
+};
+
+export type CierreSale = {
+  id?: string;
+  at?: number;
+  mesa?: string;
+  total?: number;
+  tip?: number;
+  base?: number;
+  iva?: number;
+  paymentMethod?: string;
+  payments?: Array<{ id?: string; method?: string; amount?: number }>;
+  waiterId?: string | null;
+  waiterName?: string | null;
+  lines?: CierreSaleLine[];
 };
 
 export type CierreItem = {
@@ -51,6 +77,7 @@ export type CierreItem = {
     };
     tipTotal?: number;
   };
+  sales?: CierreSale[];
   salesCount?: number;
   salesPreview?: { id: string; at: number; mesa: string; total: number }[];
   activityByHour?: {
@@ -110,9 +137,22 @@ export function withJornadaTotals(state: JornadaState): JornadaState {
     const saleTotal = Number(sale.total) || 0;
     grand = round2(grand + saleTotal);
     tipTotal = round2(tipTotal + (Number(sale.tip) || 0));
-    const pm = sale.paymentMethod === "tarjeta" ? "tarjeta" : "efectivo";
-    byPayment[pm].total = round2(byPayment[pm].total + saleTotal);
-    byPayment[pm].tickets += 1;
+    // mixto: reparte por payments[]; si no hay detalle, cuenta como efectivo
+    const payments = Array.isArray(sale.payments) ? sale.payments : [];
+    if (sale.paymentMethod === "mixto" && payments.length) {
+      const seen = { efectivo: false, tarjeta: false };
+      for (const p of payments) {
+        const pm = p?.method === "tarjeta" ? "tarjeta" : "efectivo";
+        byPayment[pm].total = round2(byPayment[pm].total + (Number(p?.amount) || 0));
+        seen[pm] = true;
+      }
+      if (seen.efectivo) byPayment.efectivo.tickets += 1;
+      if (seen.tarjeta) byPayment.tarjeta.tickets += 1;
+    } else {
+      const pm = sale.paymentMethod === "tarjeta" ? "tarjeta" : "efectivo";
+      byPayment[pm].total = round2(byPayment[pm].total + saleTotal);
+      byPayment[pm].tickets += 1;
+    }
 
     for (const l of sale.lines || []) {
       const ctype = l.categoryType === "bebida" ? "bebida" : "comida";
@@ -150,6 +190,105 @@ export function withJornadaTotals(state: JornadaState): JornadaState {
       byPayment,
       byProduct: Object.values(byProduct).sort((a, b) => b.qty - a.qty),
     },
+  };
+}
+
+/** Recalcula totals + salesPreview de un cierre a partir de sus sales. */
+export function recomputeCierreFromSales(cierre: CierreItem): CierreItem {
+  const sales = Array.isArray(cierre.sales) ? cierre.sales : [];
+  const asJornada = withJornadaTotals({
+    kind: "casa-torino-jornada",
+    status: "ended",
+    startedAt: cierre.startedAt,
+    endedAt: cierre.endedAt,
+    sales: sales as JornadaState["sales"],
+  });
+  const totals = (asJornada.totals || {
+    tickets: 0,
+    total: 0,
+  }) as CierreItem["totals"];
+  return {
+    ...cierre,
+    sales,
+    salesCount: sales.length,
+    salesPreview: sales.slice(-30).map((s) => ({
+      id: String(s.id || ""),
+      at: Number(s.at) || 0,
+      mesa: String(s.mesa || ""),
+      total: Number(s.total) || 0,
+    })),
+    totals: {
+      tickets: Number(totals.tickets) || 0,
+      total: Number(totals.total) || 0,
+      tipTotal: Number(totals.tipTotal) || 0,
+      byType: totals.byType,
+      byCategory: totals.byCategory,
+      byProduct: totals.byProduct,
+      byPayment: totals.byPayment,
+    },
+    updatedAt: Date.now(),
+  };
+}
+
+/** Normaliza total/base/IVA/payments de un ticket tras editar líneas. */
+export function normalizeEditedSale(sale: CierreSale): CierreSale {
+  const lines = (Array.isArray(sale.lines) ? sale.lines : [])
+    .map((l) => ({
+      ...l,
+      id: String(l.id || l.name || "item").slice(0, 80),
+      name: String(l.name || l.id || "Producto").slice(0, 80),
+      qty: Math.max(0, Math.round(Number(l.qty) || 0)),
+      price: round2(Number(l.price) || 0),
+      categoryType: l.categoryType === "bebida" ? "bebida" : "comida",
+    }))
+    .filter((l) => l.qty > 0);
+  const total = round2(lines.reduce((a, l) => a + l.qty * l.price, 0));
+  const tip = round2(Math.max(0, Number(sale.tip) || 0));
+  const base = round2(total / 1.1);
+  const iva = round2(total - base);
+  let paymentMethod = String(sale.paymentMethod || "efectivo").toLowerCase();
+  if (paymentMethod !== "tarjeta" && paymentMethod !== "mixto") {
+    paymentMethod = "efectivo";
+  }
+  let payments = Array.isArray(sale.payments) ? sale.payments.slice() : [];
+  if (paymentMethod === "efectivo" || paymentMethod === "tarjeta") {
+    payments = [
+      {
+        id: payments[0]?.id || `p-${paymentMethod}`,
+        method: paymentMethod,
+        amount: total,
+      },
+    ];
+  } else if (paymentMethod === "mixto" && payments.length) {
+    // Reescala proporciones al nuevo total
+    const sum = payments.reduce((a, p) => a + (Number(p.amount) || 0), 0);
+    if (sum > 0 && total > 0) {
+      payments = payments.map((p) => ({
+        ...p,
+        amount: round2(((Number(p.amount) || 0) / sum) * total),
+      }));
+      const fixed = round2(payments.reduce((a, p) => a + (Number(p.amount) || 0), 0));
+      const drift = round2(total - fixed);
+      if (drift !== 0 && payments[0]) {
+        payments[0] = {
+          ...payments[0],
+          amount: round2((Number(payments[0].amount) || 0) + drift),
+        };
+      }
+    } else {
+      payments = [{ id: "p-efectivo", method: "efectivo", amount: total }];
+      paymentMethod = "efectivo";
+    }
+  }
+  return {
+    ...sale,
+    lines,
+    total,
+    tip,
+    base,
+    iva,
+    paymentMethod,
+    payments,
   };
 }
 
