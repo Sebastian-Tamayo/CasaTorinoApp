@@ -22,7 +22,7 @@ Referencia para implementar sin inventar reglas distintas a las del restaurante.
 ## Menús del día
 
 - **Un solo menú** (entre semana y finde): categoría `menus-dia`, plato `menu-dia`; precio y foto en **Editar carta** del TPV (`priceEditable`, `menuDay.price`).
-- **2 tiempos (cocina)**: el plato lleva `coursePick: true` — modal 1º/2º en TPV, nota «Primero N… Segundo N…»; cocina `kind: menu_dia` en `kitchen.js` (igual que antes).
+- **Comanda única a cocina**: sin modal 1º/2º ni `coursePick`; «Enviar a cocina» manda el menú como un pedido normal (`kind: order`).
 - **Menús anteriores**: solo galería web vía plato TPV `menu-historico` (`menusAnteriores` / modo `tpv-only`); no mezclar con el menú del día.
 
 ## Precios editables al vuelo

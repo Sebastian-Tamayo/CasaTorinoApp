@@ -183,7 +183,16 @@ function sanitizeItems(raw) {
       if (!name) return false
       const t = String(it?.categoryType || '').trim().toLowerCase()
       const catId = String(it?.catId || '').trim().toLowerCase()
-      if (t === 'bebida' || t === 'drink' || catId === 'bebidas' || catId === 'cafes' || catId === 'postres' || catId === 'extras') return false
+      const id = String(it?.id || '').trim().toLowerCase()
+      // Barra fija
+      if (t === 'bebida' || t === 'drink') return false
+      if (catId === 'bebidas' || catId === 'cafes' || catId === 'postres') return false
+      // Varios: solo cocina si categoryType=comida o id …-k
+      if (catId === 'extras' || id.startsWith('extras-')) {
+        if (t === 'comida' || t === 'food') return true
+        if (id.endsWith('-k')) return true
+        return false
+      }
       return true
     })
     .map((it) => ({
@@ -196,14 +205,13 @@ function sanitizeItems(raw) {
     }))
 }
 
-/** Menú a 2 tiempos (primero / segundo) — solo si viene marcado o con nota de cursos */
+/**
+ * Menú a 2 tiempos — desactivado: comanda única.
+ * Se conserva solo para tickets antiguos ya en cocina con nota Primero/Segundo.
+ */
 function isSpanishMenuItem(it) {
-  if (it?.coursePick === true) return true
-  const id = String(it?.id || '')
   const note = String(it?.note || '')
   const cat = String(it?.catId || '').toLowerCase()
-  // Legado entre semana; sábado/domingo ya no son 2 tiempos
-  if (id === 'menu-dia-es-semana') return true
   if (cat === 'menus-dia' && /Primero\s*N\s*\d/i.test(note)) return true
   return false
 }
@@ -302,7 +310,7 @@ function bizError(status, message) {
   return err
 }
 
-module.exports = async function handler(req, res) {
+async function handler(req, res) {
   cors(req, res)
   if (req.method === 'OPTIONS') {
     res.statusCode = 204
@@ -717,3 +725,8 @@ module.exports = async function handler(req, res) {
     )
   }
 }
+
+module.exports = handler
+module.exports.sanitizeItems = sanitizeItems
+module.exports.isSpanishMenuItem = isSpanishMenuItem
+module.exports.buildMenuDiaOrderFields = buildMenuDiaOrderFields

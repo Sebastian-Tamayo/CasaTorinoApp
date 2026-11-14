@@ -231,7 +231,8 @@ function upsertItemInCarta(carta, categoryId, item) {
   if (item.customProduct) normalized.customProduct = true
   if (item.historicoOnly) normalized.historicoOnly = true
   if (item.priceEditable) normalized.priceEditable = true
-  if (item.coursePick) normalized.coursePick = true
+  // coursePick desactivado (comanda única); no persistir aunque venga en payload legado
+
   if (item.star) normalized.star = true
   if (item.group) normalized.group = String(item.group)
   const isHistorico =
@@ -306,7 +307,7 @@ function isMenuDiaPlato(it) {
 
 /**
  * Un solo menú del día: precio + foto desde el TPV.
- * Colapsa semana/sábado/domingo legado. Conserva coursePick (1º/2º → cocina).
+ * Comanda única a cocina (sin 1º/2º / coursePick).
  */
 function ensureSingleMenuDia(carta, preferId) {
   if (!carta || typeof carta !== 'object') return false
@@ -334,7 +335,6 @@ function ensureSingleMenuDia(carta, preferId) {
       desc: '',
       base: 'Menú del día',
       categoryType: 'comida',
-      coursePick: true,
       priceEditable: true,
     }
   } else {
@@ -345,7 +345,7 @@ function ensureSingleMenuDia(carta, preferId) {
   primary.base = primary.base || primary.name
   primary.categoryType = 'comida'
   delete primary.schedule
-  primary.coursePick = true
+  delete primary.coursePick
   primary.priceEditable = true
 
   menus.items = [primary]
@@ -382,7 +382,8 @@ function cartaNeedsMenuUnico(carta) {
   if (platos.length !== 1) return true
   if (platos[0].schedule) return true
   if (platos[0].id !== 'menu-dia') return true
-  if (platos[0].coursePick !== true) return true
+  // Migrar fuera de 1º/2º
+  if (platos[0].coursePick === true) return true
   const md = carta.menuDay
   if (!md || typeof md !== 'object') return true
   if (md.weekday || md.saturday || md.sunday || md.weekend) return true

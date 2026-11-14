@@ -9,9 +9,9 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-09-jornada-mesas'
+const required = '2026-11-13-menu-comanda'
 const message =
-  'Importante: actualiza — fin de jornada bloquea mesas abiertas y pide PIN a todos'
+  'Importante: actualiza — menú del día en una sola comanda y Varios cocina llega al KDS'
 
 function forceInfo() {
   return { required, message }
