@@ -1,0 +1,17 @@
+{
+  "name": "casa-torino-stories",
+  "private": true,
+  "description": "Historias del menú: plantilla Puppeteer, WhatsApp local, Instagram/TikTok en GitHub Actions. Fuera de Vercel.",
+  "scripts": {
+    "render": "node render-menu-story.js",
+    "whatsapp": "node whatsapp-status-server.js",
+    "publish": "node publish-stories.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "puppeteer": "^23.11.1",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.26.0"
+  }
+}

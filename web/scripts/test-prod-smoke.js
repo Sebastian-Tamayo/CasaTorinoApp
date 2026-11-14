@@ -403,6 +403,31 @@ try {
   fail('tpv-monitor-audit', err)
 }
 
+// —— 13) Historias del menú: pantalla propia, fuera del TPV y sin función Vercel ——
+try {
+  const hist = fs.readFileSync(path.join(root, 'historias.html'), 'utf8')
+  const interno = fs.readFileSync(path.join(root, 'interno.html'), 'utf8')
+  const tpv = fs.readFileSync(path.join(root, 'tpv.html'), 'utf8')
+  const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'))
+  assert.ok(hist.includes('theme-color" content="#fff8e8"'))
+  assert.ok(hist.includes('href="styles.css"'))
+  assert.ok(!/touch-action:\s*none/i.test(hist), 'historias sin touch-action none')
+  assert.ok(hist.includes("fetch('/api/tpv-auth'"))
+  assert.ok(hist.includes('PIN de gestión interna'))
+  assert.ok(hist.includes('Faltan platos'))
+  assert.ok(hist.includes('request_menu_story'))
+  assert.ok(interno.includes('PIN de gestión interna'))
+  assert.ok(!hist.includes('gate: \'tpv\''), 'historias no abre sesión de cobro')
+  assert.ok(!hist.includes('0912') && !hist.includes('2908') && !hist.includes('3212'))
+  assert.ok(interno.includes('historias.html'))
+  assert.ok(!tpv.includes('btnMenuStories'), 'el TPV no lleva el botón de historias')
+  assert.ok(!tpv.includes('request_menu_story'))
+  assert.ok(!JSON.stringify(vercel).includes('historias'))
+  ok('historias-aparte')
+} catch (err) {
+  fail('historias-aparte', err)
+}
+
 if (failed) {
   console.error('\n' + failed + ' test(s) failed')
   process.exit(1)
