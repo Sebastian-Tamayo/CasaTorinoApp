@@ -613,9 +613,10 @@
     }
     .check-f .actions {
       padding-bottom: .15rem;
+      gap: .55rem;
     }
     .check-f .btn {
-      min-height: 52px;
+      min-height: 56px;
     }
 
     .notes-field {
@@ -2961,7 +2962,6 @@
               <i class="fa-solid fa-rotate-left"></i> Deshacer último cobro
             </button>
             <button class="btn k" id="btnKitchen" type="button"><i class="fa-solid fa-fire-burner"></i> Enviar a Cocina</button>
-            <button class="btn k" id="btnNextCourse" type="button" hidden style="background:linear-gradient(180deg,#f59e0b,#d97706);"><i class="fa-solid fa-bell"></i> Siguiente plato</button>
             <button class="btn g" id="btnClear2" type="button">Vaciar</button>
             <button class="btn t" id="btnTicket" type="button"><i class="fa-solid fa-receipt"></i> Ticket todo</button>
             <button class="btn p" id="btnDone" type="button">Cobrar todo</button>
@@ -3121,7 +3121,7 @@
         </button>
         <h3 id="extraModalTitle">Producto libre</h3>
       </div>
-      <p class="sub">Pon el nombre y el precio. Elige si va a barra o a cocina.</p>
+      <p class="sub">Pon el nombre y el precio. Si eliges Cocina, se envía al momento a cocina.</p>
       <div class="course-block">
         <h4>Nombre</h4>
         <input id="extraName" type="text" inputmode="text" enterkeyhint="next" maxlength="80" placeholder="Ej. Pan, tapa, encargo…" autocomplete="off" spellcheck="true" style="width:100%;border:1px solid var(--line2);border-radius:12px;background:var(--card);color:var(--ink);font:inherit;font-weight:700;padding:.7rem .8rem;outline:none" />
@@ -3410,7 +3410,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-13-menu-comanda'
+      const TPV_CLIENT_VERSION = '2026-11-14-varios-auto'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -5561,7 +5561,7 @@
         if ($('extraModal')) $('extraModal').hidden = true
       }
 
-      function commitExtraProduct() {
+      async function commitExtraProduct() {
         const name = String($('extraName')?.value || '').trim()
         const price = parsePriceInput($('extraPrice')?.value)
         if (!name) {
@@ -5574,6 +5574,7 @@
           $('extraPrice')?.focus()
           return
         }
+        if (!requireMesa()) return
         const toKitchen = extraDest === 'cocina'
         const slug = name
           .toLowerCase()
@@ -5584,6 +5585,7 @@
           .slice(0, 40) || 'libre'
         // Ids distintos barra/cocina para no fusionar el mismo nombre con destinos distintos
         const id = 'extras-' + slug + (toKitchen ? '-k' : '')
+        const key = cartKeyFor(id, '')
         closeExtraModal()
         addWithNote(
           {
@@ -5598,27 +5600,50 @@
           '',
           null,
         )
+        // Cocina: enviar al momento (no hace falta «Enviar a cocina» aparte)
+        if (toKitchen) {
+          const line = state.cart[key]
+          if (line) {
+            line.categoryType = 'comida'
+            line.catId = 'extras'
+            line.customProduct = true
+          }
+          await dispatchToKitchen(collectFoodPending([key]), {
+            confirm: false,
+            closeOnMobile: false,
+            quietOk: true,
+          })
+        }
       }
 
-      function toggleExtrasDestination(key) {
+      async function toggleExtrasDestination(key) {
         const line = state.cart[key]
         if (!line || !isExtrasLine(line)) return
         const now = Date.now()
         const cur = categoryTypeOf(line)
         if (cur === 'comida') {
           line.categoryType = 'bebida'
-        } else {
-          line.categoryType = 'comida'
-          // Pasar a cocina: siempre pendiente de enviar
-          line.sentQty = 0
+          if (!line.catId) line.catId = 'extras'
+          line.customProduct = true
+          line.updatedAt = now
+          stampLineActor(line)
+          persist()
+          render()
+          return
         }
-        // Asegurar catId para que cocina acepte Varios cocina
+        line.categoryType = 'comida'
+        line.sentQty = 0
         if (!line.catId) line.catId = 'extras'
         line.customProduct = true
         line.updatedAt = now
         stampLineActor(line)
         persist()
         render()
+        await dispatchToKitchen(collectFoodPending([key]), {
+          confirm: false,
+          closeOnMobile: false,
+          quietOk: true,
+        })
       }
 
       function setQty(id, qty) {
@@ -5769,67 +5794,78 @@
         render(); closeTicket()
       }
 
-      async function sendToKitchen() {
-        if (!requireMesa()) return
-        const m = normalizeMesa(state.mesa)
-        const notes = ($('notes')?.value || state.notes || '').trim()
+      function collectFoodPending(onlyKeys) {
+        const keySet = onlyKeys
+          ? new Set((Array.isArray(onlyKeys) ? onlyKeys : [onlyKeys]).map(String))
+          : null
         const foodPending = []
         for (const l of lines()) {
+          const key = String(l.key || cartKeyFor(l.productId || l.id, l.note))
+          if (keySet && !keySet.has(key)) continue
           const ctype = categoryTypeOf(l)
           if (ctype !== 'comida') continue
           const sent = Number(l.sentQty || 0)
           const pending = Math.max(0, Number(l.qty || 0) - sent)
           if (pending <= 0) continue
+          const id = String(l.productId || l.id || '')
+          const catId = String(l.catId || (isExtrasLine(l) ? 'extras' : '') || '')
           foodPending.push({
-            key: l.key || cartKeyFor(l.productId || l.id, l.note),
-            id: l.productId || l.id,
+            key,
+            id,
             name: l.name,
             qty: pending,
-            catId: l.catId || '',
+            catId,
             categoryType: 'comida',
             note: String(l.note || '').trim(),
           })
         }
-        if (!foodPending.length) {
-          const hasFood = lines().some((l) => categoryTypeOf(l) === 'comida')
-          const hasDrink = lines().some((l) => categoryTypeOf(l) === 'bebida')
-          const hasExtrasBarra = lines().some(
-            (l) => isExtrasLine(l) && categoryTypeOf(l) !== 'comida',
-          )
-          if (hasFood) alert('Toda la comida de esta mesa ya está enviada a cocina.\nAñade más platos o espera.')
-          else if (hasExtrasBarra) {
-            alert(
-              'Solo hay productos de barra (o Varios marcados como barra).\n' +
-                'En Varios elige «Cocina» al añadir, o toca «Pasar a cocina» en la línea.',
-            )
-          } else if (hasDrink) {
-            alert('Solo hay productos de barra en la cuenta.\nBebidas, cafés y postres se preparan en barra y no van a cocina.')
-          } else alert('La cuenta está vacía.')
-          return
-        }
-        const resumen = foodPending
-          .map((x) => `${x.qty} × ${x.name}${x.note ? ` (${x.note})` : ''}`)
-          .join('\n')
-        if (!confirm(`Mesa ${m}\nEnviar a cocina:\n\n${resumen}\n\n(Bebidas, cafés, postres y Varios-barra no se envían)`)) return
+        return foodPending
+      }
 
+      async function dispatchToKitchen(foodPending, opts = {}) {
+        const needConfirm = opts.confirm !== false
+        const closeOnMobile = opts.closeOnMobile !== false
+        const quietOk = opts.quietOk === true
+        if (!foodPending || !foodPending.length) return false
+        if (!requireMesa()) return false
+        const m = normalizeMesa(state.mesa)
+        const notes = ($('notes')?.value || state.notes || '').trim()
+        if (needConfirm) {
+          const resumen = foodPending
+            .map((x) => `${x.qty} × ${x.name}${x.note ? ` (${x.note})` : ''}`)
+            .join('\n')
+          if (
+            !confirm(
+              `Mesa ${m}\nEnviar a cocina:\n\n${resumen}\n\n(Bebidas, cafés, postres y Varios-barra no se envían)`,
+            )
+          ) {
+            return false
+          }
+        }
         const btn = $('btnKitchen')
         if (btn) btn.disabled = true
         try {
           if (!window.CasaTorinoKitchenSync?.create) throw new Error('Sync cocina no cargado')
+          const items = foodPending.map(({ id, name, qty, catId, note }) => ({
+            id,
+            name,
+            qty,
+            catId: catId || (String(id).startsWith('extras-') ? 'extras' : ''),
+            categoryType: 'comida',
+            note,
+          }))
           await window.CasaTorinoKitchenSync.create({
             mesa: m,
             notes,
             status: 'pending_kitchen',
-            items: foodPending.map(({ id, name, qty, catId, categoryType, note }) => ({
-              id, name, qty, catId, categoryType, note,
-            })),
+            items,
           })
-          // Marcar como enviadas (siguen en la cuenta del TPV para cobrar)
           for (const l of foodPending) {
             const line = state.cart[l.key]
             if (!line) continue
             line.sentQty = Number(line.qty || 0)
             line.categoryType = 'comida'
+            if (isExtrasLine(line) && !line.catId) line.catId = 'extras'
           }
           const sendSummary = foodPending
             .map((x) => `${x.qty}× ${x.name}`)
@@ -5842,7 +5878,11 @@
           auditLog('kitchen_send', {
             mesa: m || '',
             item: sendSummary,
-            note: notes ? `Nota: ${notes}`.slice(0, 200) : `${foodPending.length} línea(s)`,
+            note: notes
+              ? `Nota: ${notes}`.slice(0, 200)
+              : quietOk
+                ? `Varios→cocina · ${foodPending.length} línea(s)`
+                : `${foodPending.length} línea(s)`,
             linesCount: foodPending.length,
             amount: Math.round((sendAmount + Number.EPSILON) * 100) / 100,
             category: 'cocina',
@@ -5850,18 +5890,44 @@
           persist()
           render()
           try { navigator.vibrate?.([20, 30, 20]) } catch {}
-          // En móvil volver a la carta tras enviar (no quedarse atrapado en Cuenta)
-          if (window.matchMedia('(max-width: 1023px)').matches) closeTicket()
+          if (closeOnMobile && window.matchMedia('(max-width: 1023px)').matches) {
+            closeTicket()
+          }
+          return true
         } catch (err) {
-          console.warn('sendToKitchen', err)
+          console.warn('dispatchToKitchen', err)
           if (err && err.status === 401) {
             lockTpvForPin('Sesión caducada — introduce el PIN')
-            return
+            return false
           }
           alert('No se pudo enviar a cocina.\n' + (err.message || err))
+          return false
         } finally {
           if (btn) btn.disabled = false
         }
+      }
+
+      async function sendToKitchen() {
+        if (!requireMesa()) return
+        const foodPending = collectFoodPending()
+        if (!foodPending.length) {
+          const hasFood = lines().some((l) => categoryTypeOf(l) === 'comida')
+          const hasDrink = lines().some((l) => categoryTypeOf(l) === 'bebida')
+          const hasExtrasBarra = lines().some(
+            (l) => isExtrasLine(l) && categoryTypeOf(l) !== 'comida',
+          )
+          if (hasFood) alert('Toda la comida de esta mesa ya está enviada a cocina.\nAñade más platos o espera.')
+          else if (hasExtrasBarra) {
+            alert(
+              'Solo hay productos de barra (o Varios marcados como barra).\n' +
+                'En Varios elige «Cocina» al añadir (se envía solo), o toca «Pasar a cocina» en la línea.',
+            )
+          } else if (hasDrink) {
+            alert('Solo hay productos de barra en la cuenta.\nBebidas, cafés y postres se preparan en barra y no van a cocina.')
+          } else alert('La cuenta está vacía.')
+          return
+        }
+        await dispatchToKitchen(foodPending, { confirm: true, closeOnMobile: true })
       }
 
       function closeFacturaModal() {
@@ -6608,60 +6674,6 @@
         })
       }
 
-      function menuLinesInCart() {
-        return lines().filter((l) => l.catId === 'menus-dia')
-      }
-
-      function updateNextCourseBtn() {
-        const btn = $('btnNextCourse')
-        if (!btn) return
-        // Comanda única: ya no se usa «Siguiente plato»
-        btn.hidden = true
-      }
-
-      async function sendNextCourse() {
-        if (!requireMesa()) return
-        const menus = menuLinesInCart()
-        if (!menus.length) {
-          alert('Siguiente plato solo aplica cuando hay un Menú del día en la cuenta.')
-          return
-        }
-        const m = normalizeMesa(state.mesa)
-        const menuName = menus.map((x) => `${x.qty} × ${x.name}`).join(', ')
-        if (!confirm(`Mesa ${m}\n¿Avisar a cocina: SIGUIENTE PLATO?\n\n${menuName}`)) return
-        const btn = $('btnNextCourse')
-        if (btn) btn.disabled = true
-        try {
-          if (!window.CasaTorinoKitchenSync?.create) throw new Error('Sync cocina no cargado')
-          await window.CasaTorinoKitchenSync.create({
-            mesa: m,
-            kind: 'siguiente_plato',
-            notes: '¡SIGUIENTE PLATO!',
-            menuName,
-            items: [{
-              id: 'siguiente-plato',
-              name: '➡️ SIGUIENTE PLATO (MENÚ)',
-              qty: 1,
-              categoryType: 'comida',
-              catId: 'menus-dia',
-              note: menuName,
-            }],
-          })
-          try { navigator.vibrate?.([30, 40, 30]) } catch {}
-          alert('Aviso enviado a cocina: Siguiente plato')
-          if (window.matchMedia('(max-width: 1023px)').matches) closeTicket()
-        } catch (err) {
-          console.warn('sendNextCourse', err)
-          if (err && err.status === 401) {
-            lockTpvForPin('Sesión caducada — introduce el PIN')
-            return
-          }
-          alert('No se pudo avisar a cocina.\n' + (err.message || err))
-        } finally {
-          if (btn) btn.disabled = false
-        }
-      }
-
       function renderProducts() {
         const items = filtered()
         const meta = CAT_META[state.cat] || CAT_META.all
@@ -6750,7 +6762,6 @@
         if ($('btnDone')) {
           $('btnDone').textContent = hasSel ? 'Cobrar selección' : 'Cobrar todo'
         }
-        updateNextCourseBtn()
         $('lines').innerHTML = ls.length
           ? ls.map((l) => {
               const ctype = categoryTypeOf(l)
@@ -7223,14 +7234,23 @@
       })
       $('extraCancel')?.addEventListener('click', () => closeExtraModal())
       $('extraBack')?.addEventListener('click', () => closeExtraModal())
-      $('extraOk')?.addEventListener('click', () => commitExtraProduct())
+      async function onExtraOk() {
+        const btn = $('extraOk')
+        if (btn) btn.disabled = true
+        try {
+          await commitExtraProduct()
+        } finally {
+          if (btn) btn.disabled = false
+        }
+      }
+      $('extraOk')?.addEventListener('click', () => { onExtraOk() })
       $('extraDestBarra')?.addEventListener('click', () => setExtraDest('barra'))
       $('extraDestCocina')?.addEventListener('click', () => setExtraDest('cocina'))
       $('extraModal')?.addEventListener('click', (e) => {
         if (e.target === $('extraModal')) closeExtraModal()
       })
       $('extraPrice')?.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); commitExtraProduct() }
+        if (e.key === 'Enter') { e.preventDefault(); onExtraOk() }
       })
       $('extraName')?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); $('extraPrice')?.focus() }
@@ -8020,7 +8040,6 @@
       $('btnClear').onclick = clearCart
       $('btnClear2').onclick = clearCart
       $('btnKitchen').onclick = sendToKitchen
-      $('btnNextCourse').onclick = sendNextCourse
       $('btnTicket').onclick = printTicketOnly
       $('btnFactura')?.addEventListener('click', () => {
         openFacturaModal()

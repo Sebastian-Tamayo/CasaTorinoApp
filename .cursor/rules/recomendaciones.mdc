@@ -17,7 +17,8 @@ Referencia para implementar sin inventar reglas distintas a las del restaurante.
 ## Varios (producto libre)
 
 - Categoría `extras` / «Varios»: la camarera elige **Barra** o **Cocina** al añadir (modal); se puede cambiar en la línea de la cuenta.
-- Solo las líneas marcadas cocina entran en el envío a cocina.
+- Si elige **Cocina** al «Añadir a cuenta» (o «Pasar a cocina» en la línea), se envía **al momento** al KDS; no hace falta un segundo toque en «Enviar a cocina».
+- Barra / bebidas no van al KDS.
 
 ## Menús del día
 
