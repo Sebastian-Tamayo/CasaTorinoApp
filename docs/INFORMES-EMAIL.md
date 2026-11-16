@@ -56,3 +56,5 @@ Forzar reenvío: `force=1` (API) o `ops-health?informeCatchup=1&force=1` en lune
 2. Informe = suma de **cierres de jornada**; día = apertura (00:30 lunes = domingo ops).
 3. Semanal solo lunes ~10:00 Madrid; semana lun–dom con domingo incluido.
 4. Cuidado con cuota CDN Hobby (polls de estáticos lentos).
+
+<!-- redeploy-domingo -->
