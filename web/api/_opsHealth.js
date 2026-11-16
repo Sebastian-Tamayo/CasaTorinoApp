@@ -8,6 +8,7 @@
  * ?informe=1 → estado del informe semanal (sin HTML ni secretos)
  * ?informeCatchup=1 → si es lunes y aún no se envió, intenta enviar ahora
  *   (idempotente; útil si el cron falló o llegó fuera de ventana)
+ * catch-up deployed
  */
 const { getJson, getBackend, hasSupabase } = require('./_opsStore')
 const { applySecurityHeaders } = require('./_securityHeaders')
