@@ -17,10 +17,7 @@ const SALES_MAX = 500
 const { getJson, setJson, updateJson } = require('./_opsStore')
 const { hasTpvSession } = require('./_tpvSession')
 const { opsDayId } = require('./_opsDay')
-const {
-  buildActivityByHour,
-  maybeTriggerWeeklyAfterSundayClose,
-} = require('./_informeReports')
+const { buildActivityByHour } = require('./_informeReports')
 const tpvVersion = require('./_tpvVersion')
 const {
   bumpJornadaLoginEpoch,
@@ -781,7 +778,6 @@ module.exports = async function handler(req, res) {
 
       // Si la jornada está cerrada (fin de sesión o corrección), sincronizar al historial ERP
       let cierre = null
-      let informeSemanal = null
       if (state.status === 'ended') {
         try {
           const full = withTotals(state)
@@ -789,33 +785,13 @@ module.exports = async function handler(req, res) {
         } catch (err) {
           console.warn('[tpv-jornada] archive', err)
         }
-        // Semanal: al cerrar caja del domingo (también lun ~00:30).
-        // Backup lunes ~08:00 en ops-daily-purge (idempotente).
-        if (action === 'end' && cierre) {
-          try {
-            informeSemanal = await maybeTriggerWeeklyAfterSundayClose({
-              startedAt: state.startedAt,
-            })
-          } catch (err) {
-            console.warn('[tpv-jornada] informe semanal', err)
-            informeSemanal = {
-              triggered: false,
-              error: String(err && err.message ? err.message : err),
-            }
-          }
-        } else if (action === 'end' && !cierre) {
-          informeSemanal = {
-            triggered: false,
-            reason: 'archive_failed_skip_informe',
-          }
-        }
+        // Informe semanal: SOLO cron lunes ~08:00 Madrid (ops-daily-purge).
+        // No enviar al cerrar caja domingo/madrugada (provocaba fallos / confusión).
       }
 
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      return res.end(
-        JSON.stringify({ ...withTotals(state), cierre, informeSemanal }),
-      )
+      return res.end(JSON.stringify({ ...withTotals(state), cierre }))
     }
 
     res.statusCode = 405
