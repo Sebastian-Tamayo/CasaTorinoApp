@@ -284,14 +284,15 @@ function foldCierreIntoDay(bucket, c) {
 /**
  * Día del informe para un cierre de jornada = día ops de cuando ABRIÓ.
  * Abren domingo, cierran lunes 00:30 → **domingo** (no lunes).
- * Preferir dayKey guardado en el cierre (fuente de verdad al archivar).
+ * Preferir startedAt (opsDay); dayKey guardado solo si no hay startedAt.
  */
 function jornadaDayKey(c) {
+  const startedAt = Number(c && c.startedAt) || 0
+  if (startedAt > 0) return opsDayId(new Date(startedAt))
   const stored = String((c && c.dayKey) || '').trim()
   if (/^\d{4}-\d{2}-\d{2}$/.test(stored)) return stored
-  const startedAt = Number(c && c.startedAt) || 0
   const endedAt = Number(c && c.endedAt) || 0
-  return opsDayId(new Date(startedAt || endedAt || Date.now()))
+  return opsDayId(new Date(endedAt || Date.now()))
 }
 
 /** Semana lun–dom que termina en el domingo de `ref` (Madrid). */
@@ -884,6 +885,7 @@ async function getInformeStatus(now = new Date()) {
     .sort()
     .slice(-12)
   let daysPreview = null
+  let cierresBrief = null
   try {
     const report = await buildPeriodReport({ kind: 'semanal', range, now })
     daysPreview = (report.buckets || []).map((b) => ({
@@ -894,6 +896,34 @@ async function getInformeStatus(now = new Date()) {
     }))
   } catch (err) {
     daysPreview = {
+      error: String(err && err.message ? err.message : err),
+    }
+  }
+  try {
+    const items = await loadCierresItems()
+    const from = addDaysKey(range.startKey, -1)
+    const to = addDaysKey(range.endKey, 2)
+    cierresBrief = items
+      .map((c) => {
+        if (!c) return null
+        const dk = jornadaDayKey(c)
+        if (!dk || dk < from || dk > to) return null
+        return {
+          id: String(c.id || '').slice(0, 40),
+          dayKey: dk,
+          storedDayKey: c.dayKey || null,
+          startedAt: Number(c.startedAt) || null,
+          endedAt: Number(c.endedAt) || null,
+          tickets: Number(c.totals?.tickets) || Number(c.salesCount) || 0,
+          total: Number(c.totals?.total) || 0,
+          weekday: weekdayOfDayKey(dk),
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) => (a.dayKey < b.dayKey ? -1 : 1))
+      .slice(0, 40)
+  } catch (err) {
+    cierresBrief = {
       error: String(err && err.message ? err.message : err),
     }
   }
@@ -919,6 +949,7 @@ async function getInformeStatus(now = new Date()) {
         : null,
     },
     daysPreview,
+    cierresBrief,
     recentSent: sentKeys.map((k) => ({
       periodKey: k,
       at: log.sent[k] && log.sent[k].at ? log.sent[k].at : null,
