@@ -4,9 +4,18 @@
  *
  * Nota Hobby: helper montado en ops-daily-purge vía rewrite
  * /api/ops-health → /api/ops-daily-purge?__mod=health
+ *
+ * ?informe=1 → estado del informe semanal (sin HTML ni secretos)
+ * ?informeCatchup=1 → si es lunes y aún no se envió, intenta enviar ahora
+ *   (idempotente; útil si el cron falló o llegó fuera de ventana)
  */
 const { getJson, getBackend, hasSupabase } = require('./_opsStore')
 const { applySecurityHeaders } = require('./_securityHeaders')
+const {
+  getInformeStatus,
+  maybeTriggerWeeklyMondayBackup,
+  madridWeekday,
+} = require('./_informeReports')
 
 module.exports = async function handler(req, res) {
   applySecurityHeaders(res)
@@ -20,6 +29,16 @@ module.exports = async function handler(req, res) {
     res.statusCode = 405
     return res.end(JSON.stringify({ error: 'method not allowed' }))
   }
+
+  const url = new URL(req.url || '/', 'http://local')
+  const wantInforme =
+    url.searchParams.get('informe') === '1' ||
+    url.searchParams.get('informeCatchup') === '1' ||
+    String(req.query?.informe || '') === '1' ||
+    String(req.query?.informeCatchup || '') === '1'
+  const wantCatchup =
+    url.searchParams.get('informeCatchup') === '1' ||
+    String(req.query?.informeCatchup || '') === '1'
 
   const report = {
     ok: true,
@@ -49,6 +68,44 @@ module.exports = async function handler(req, res) {
   } catch (err) {
     report.ok = false
     report.error = String(err && err.message ? err.message : err)
+  }
+
+  if (wantInforme) {
+    try {
+      report.informe = await getInformeStatus(new Date())
+    } catch (err) {
+      report.informe = {
+        error: String(err && err.message ? err.message : err),
+      }
+    }
+  }
+
+  if (wantCatchup) {
+    const now = new Date()
+    const wd = madridWeekday(now)
+    try {
+      if (wd !== 'Mon') {
+        report.informeCatchup = {
+          ok: true,
+          skipped: true,
+          reason: 'not_monday',
+          wd,
+        }
+      } else {
+        report.informeCatchup = await maybeTriggerWeeklyMondayBackup(now)
+      }
+      // refrescar status tras intento
+      try {
+        report.informe = await getInformeStatus(now)
+      } catch (_) {
+        /* ignore */
+      }
+    } catch (err) {
+      report.informeCatchup = {
+        ok: false,
+        error: String(err && err.message ? err.message : err),
+      }
+    }
   }
 
   res.statusCode = report.ok ? 200 : 503

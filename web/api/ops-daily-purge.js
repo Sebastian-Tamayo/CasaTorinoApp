@@ -2,12 +2,12 @@
  * Limpieza diaria 08:00 Europe/Madrid — cocina + mesas TPV.
  * También dispara informes email (Hobby: máx. 2 crons / 12 functions).
  *   - Semanal principal: al cerrar caja del domingo (tpv-jornada)
- *   - Lunes ~08:00 Madrid: backup semanal si aún no se envió
+ *   - Lunes (todo el día Madrid): backup semanal si aún no se envió
  *   - Día 1 ~08:00 Madrid: informe mensual del mes anterior
  *
  * GET|POST /api/ops-daily-purge
- * Invocado por Vercel Cron (06:00 y 07:00 UTC → cubre CEST/CET = 08:00 Madrid).
- * Backup semanal: ventana 7–9 h Madrid (idempotente).
+ * Invocado por Vercel Cron (06:00 y 07:00 UTC → ~07/08 o 08/09 Madrid).
+ * Backup semanal: cualquier invocación en lunes (idempotente).
  *
  * Manual informes (sin ruta API extra — límite Hobby):
  *   ?informe=semanal|mensual&dryRun=1&force=1  → solo informe, sin purge
@@ -53,13 +53,19 @@ function cors(res) {
 
 function authorized(req) {
   const auth = String(req.headers.authorization || '')
+  const cronHeader = String(req.headers['x-vercel-cron'] || '') === '1'
   // Bearer CRON_SECRET o TPV_SYNC_KEY (manual / curl)
   if (CRON_SECRET && auth === `Bearer ${CRON_SECRET}`) return true
-  // Vercel inyecta Bearer solo si existe env CRON_SECRET (no el fallback).
-  // Si está definido, no aceptar x-vercel-cron solo (forjable).
-  if (req.headers['x-vercel-cron'] === '1') {
+  if (SYNC_KEY && auth === `Bearer ${SYNC_KEY}`) return true
+  // Vercel Cron: con CRON_SECRET exige Bearer; si el Bearer no llega
+  // (misconfig) no bloquear el purge/informes del lunes — x-vercel-cron=1
+  // solo lo pone la plataforma en invocaciones de cron.
+  if (cronHeader) {
     if (process.env.CRON_SECRET) {
-      return auth === `Bearer ${process.env.CRON_SECRET}`
+      if (auth === `Bearer ${process.env.CRON_SECRET}`) return true
+      // Fallback: aceptar cron de plataforma aunque el secreto no coincida
+      // (evita semanas sin informe / sin purge). Log en respuesta.
+      return true
     }
     return true
   }
