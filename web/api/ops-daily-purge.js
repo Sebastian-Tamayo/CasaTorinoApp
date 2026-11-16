@@ -57,15 +57,12 @@ function authorized(req) {
   // Bearer CRON_SECRET o TPV_SYNC_KEY (manual / curl)
   if (CRON_SECRET && auth === `Bearer ${CRON_SECRET}`) return true
   if (SYNC_KEY && auth === `Bearer ${SYNC_KEY}`) return true
-  // Vercel Cron: con CRON_SECRET exige Bearer; si el Bearer no llega
-  // (misconfig) no bloquear el purge/informes del lunes — x-vercel-cron=1
-  // solo lo pone la plataforma en invocaciones de cron.
+  // Vercel Cron: con CRON_SECRET exige Bearer coincidente.
+  // Sin CRON_SECRET en env, x-vercel-cron=1 basta (Hobby / misconfig).
+  // Nunca aceptar x-vercel-cron forjado si hay secreto y el Bearer falla.
   if (cronHeader) {
     if (process.env.CRON_SECRET) {
-      if (auth === `Bearer ${process.env.CRON_SECRET}`) return true
-      // Fallback: aceptar cron de plataforma aunque el secreto no coincida
-      // (evita semanas sin informe / sin purge). Log en respuesta.
-      return true
+      return auth === `Bearer ${process.env.CRON_SECRET}`
     }
     return true
   }
