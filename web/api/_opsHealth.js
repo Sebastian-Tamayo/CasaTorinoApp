@@ -14,7 +14,7 @@ const { getJson, getBackend, hasSupabase } = require('./_opsStore')
 const { applySecurityHeaders } = require('./_securityHeaders')
 const {
   getInformeStatus,
-  maybeTriggerWeeklyMondayBackup,
+  runInforme,
   madridWeekday,
 } = require('./_informeReports')
 
@@ -93,7 +93,11 @@ module.exports = async function handler(req, res) {
           wd,
         }
       } else {
-        report.informeCatchup = await maybeTriggerWeeklyMondayBackup(now)
+        // Catch-up manual: cualquier hora del lunes (el cron solo 7–9)
+        report.informeCatchup = await runInforme('semanal', {
+          force: false,
+          now,
+        })
       }
       // refrescar status tras intento
       try {
