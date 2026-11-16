@@ -59,3 +59,5 @@ Forzar reenvío: `force=1`.
 2. Informe = suma de **cierres de jornada**; día = apertura (00:30 = día anterior ops).
 3. Semanal solo lunes ~08:00 Madrid (un correo).
 4. Cuidado con cuota CDN Hobby (polls de estáticos lentos).
+
+<!-- redeploy-solo-lunes -->
