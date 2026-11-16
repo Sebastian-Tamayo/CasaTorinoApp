@@ -14,7 +14,7 @@
  *
  * También enruta /api/ops-health (rewrite) para no gastar una función Hobby.
  *
- * Auth: header x-vercel-cron, Bearer CRON_SECRET / TPV_SYNC_KEY, o cookie TPV.
+ * Auth: header x-vercel-cron (auth-tight), Bearer CRON_SECRET / TPV_SYNC_KEY, o cookie TPV.
  */
 const { updateJson } = require('./_opsStore')
 const { hasTpvSession } = require('./_tpvSession')
