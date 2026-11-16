@@ -79,3 +79,46 @@ export async function getOpsKvJson<T = unknown>(
   const row = data[0] as { value?: T };
   return row?.value ?? null;
 }
+
+/** Escribe / actualiza una clave ops_kv (upsert). */
+export async function setOpsKvJson(key: string, value: unknown): Promise<void> {
+  const { url, key: apiKey } = supabaseConfig();
+  if (!url || !apiKey) {
+    throw new Error(
+      "Falta SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (o ANON) en el ERP",
+    );
+  }
+  const endpoint = `${url}/rest/v1/ops_kv?on_conflict=key`;
+  const r = await fetch(endpoint, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      apikey: apiKey,
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=minimal",
+    },
+    body: JSON.stringify({
+      key,
+      value,
+      updated_at: new Date().toISOString(),
+    }),
+  });
+  if (!r.ok) {
+    const text = await r.text().catch(() => "");
+    let msg = `supabase ${r.status}`;
+    try {
+      const data = text ? JSON.parse(text) : null;
+      if (data && typeof data === "object") {
+        const d = data as { message?: unknown; error?: unknown };
+        const candidate = d.message ?? d.error;
+        if (typeof candidate === "string" && candidate.trim()) msg = candidate;
+      } else if (text.trim()) {
+        msg = text;
+      }
+    } catch {
+      if (text.trim()) msg = text;
+    }
+    throw new Error(msg);
+  }
+}
