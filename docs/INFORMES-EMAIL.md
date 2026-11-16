@@ -18,21 +18,18 @@ Fuente: **cierres de jornada** TPV en Supabase `ops_kv` (`cierres`).
 
 1. Se cogen los **cierres de jornada** (uno por cada vez que cierran caja).
 2. Ese cierre cuenta en el **día operativo en que abrieron** la jornada (08:00–08:00 Madrid).
-3. Ejemplo: abren el sábado y cierran a las **00:30** → **jornada del sábado** (no del domingo).
-4. Sábado y domingo son filas distintas: cada uno suma solo sus cierres de jornada.
+3. Ejemplo: abren el **domingo** y cierran el **lunes a las 00:30** → **jornada del domingo**.
+4. La semana del informe es **lunes → domingo** (7 filas).
 
 ## Cuándo se envía
 
-1. **Semanal (único):** lunes **~08:00 Madrid** (`/api/ops-daily-purge` vía Vercel Cron).
-   - Ventana 7–9 h Madrid (los crons UTC 06:00 y 07:00 cubren CET/CEST).
-   - Cubre la semana lun–dom **anterior** (completa, domingo ya cerrado).
-   - **No** se envía al cerrar caja el domingo / madrugada.
-   - Idempotente: no reenvía si ya salió.
-   - Diagnóstico: `GET /api/ops-health?informe=1`
-   - Catch-up lunes (si el cron falló): `GET /api/ops-health?informeCatchup=1`
+1. **Semanal (único):** lunes **~10:00 Madrid** (`/api/ops-daily-purge` vía Vercel Cron `0 9 * * *` UTC).
+   - Ventana 9–12 h Madrid (así el cierre del domingo, a menudo lun ~00:30, ya está archivado).
+   - **No** se envía al cerrar caja.
+   - Idempotente vía `informe-log`.
+   - Diagnóstico: `GET /api/ops-health?informe=1` (incluye `daysPreview` con domingo).
+   - Reenviar: `GET /api/ops-health?informeCatchup=1&force=1` (solo lunes).
 2. **Mensual:** día **1** del mes ~08:00 Madrid (mes calendario anterior).
-
-Log: `informe-log` en ops_kv (guarda `totals`). Solo se marca enviado tras Resend OK (así el cron puede reintentar).
 
 ## Configurar envío (Vercel · proyecto `casa-torino-web`)
 
@@ -51,13 +48,11 @@ curl -sS "https://casa-torino-web.vercel.app/api/ops-daily-purge?informe=semanal
   -H "Authorization: Bearer $TPV_SYNC_KEY"
 ```
 
-Forzar reenvío: `force=1`.
+Forzar reenvío: `force=1` (API) o `ops-health?informeCatchup=1&force=1` en lunes.
 
 ## Checklist próximos lanzamientos
 
 1. No tocar el gate de versión de `/api/kitchen` create (TPV→cocina).
-2. Informe = suma de **cierres de jornada**; día = apertura (00:30 = día anterior ops).
-3. Semanal solo lunes ~08:00 Madrid (un correo).
+2. Informe = suma de **cierres de jornada**; día = apertura (00:30 lunes = domingo ops).
+3. Semanal solo lunes ~10:00 Madrid; semana lun–dom con domingo incluido.
 4. Cuidado con cuota CDN Hobby (polls de estáticos lentos).
-
-<!-- redeploy-solo-lunes -->

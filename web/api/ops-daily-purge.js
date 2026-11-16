@@ -1,12 +1,13 @@
 /**
  * Limpieza diaria 08:00 Europe/Madrid — cocina + mesas TPV.
  * También dispara informes email (Hobby: máx. 2 crons / 12 functions).
- *   - Semanal: **solo lunes ~08:00 Madrid** (ventana 7–9; no al cerrar caja)
+ *   - Semanal: **solo lunes ~10:00 Madrid** (ventana 9–12; no al cerrar caja)
  *   - Día 1 ~08:00 Madrid: informe mensual del mes anterior
  *
  * GET|POST /api/ops-daily-purge
- * Invocado por Vercel Cron (06:00 y 07:00 UTC → ~07/08 o 08/09 Madrid).
- * Semanal: lunes en ventana 7–9 Madrid (idempotente).
+ * Invocado por Vercel Cron (06:00 UTC purge; 09:00 UTC → ~10 CET / 11 CEST).
+ * Semanal: lunes en ventana 9–12 Madrid (idempotente; incluye domingo cerrado
+ * el lunes de madrugada).
  *
  * Manual informes (sin ruta API extra — límite Hobby):
  *   ?informe=semanal|mensual&dryRun=1&force=1  → solo informe, sin purge

@@ -240,13 +240,16 @@ try {
   assert.ok(informes.includes("reason: 'not_monday'") || informes.includes('not_monday'))
   assert.ok(informes.includes('maybeTriggerWeeklyMondayBackup'))
   assert.ok(informes.includes('getInformeStatus'))
-  assert.ok(informes.includes('not_monday_08_madrid'))
+  assert.ok(informes.includes('not_monday_10_madrid'))
   assert.ok(informes.includes('weekly_only_monday_cron'))
+  assert.ok(informes.includes('daysPreview'))
+  assert.ok(informes.includes('c.dayKey') || informes.includes('c && c.dayKey'))
   // Semanal solo cron lunes — no al cerrar caja
   assert.ok(!jornada.includes('maybeTriggerWeeklyAfterSundayClose'))
   assert.ok(jornada.includes('ops-daily-purge') || jornada.includes('SOLO cron lunes'))
   const health = fs.readFileSync(path.join(root, 'api/_opsHealth.js'), 'utf8')
   assert.ok(health.includes('informeCatchup') && health.includes('getInformeStatus'))
+  assert.ok(health.includes('forceCatchup'))
   // Fin de jornada: bloquear mesas abiertas + echar a todos (sessionEpoch)
   assert.ok(jornada.includes('pendingMesas'))
   assert.ok(jornada.includes('bumpSessionEpoch'))
@@ -254,6 +257,10 @@ try {
   const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'))
   assert.ok(Array.isArray(vercel.crons) && vercel.crons.length >= 1)
   assert.ok(vercel.crons.some((c) => c.path === '/api/ops-daily-purge'))
+  assert.ok(
+    vercel.crons.some((c) => c.schedule === '0 9 * * *'),
+    'cron 09:00 UTC (~10 Madrid) para semanal con domingo',
+  )
   ok('cron-informes-wired')
 } catch (err) {
   fail('cron-informes-wired', err)

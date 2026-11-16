@@ -5,8 +5,9 @@
  * INVARIANTES (no romper en próximos lanzamientos):
  * 1) Un cierre de jornada = un día: dayKey = opsDay del startedAt (08:00 Madrid).
  *    Si cierran sábado a las 00:30 → jornada del sábado (no del domingo).
- * 2) Semanal: **solo lunes ~08:00 Madrid** (cron ops-daily-purge, ventana 7–9).
- *    No se envía al cerrar caja. Idempotente (informe-log).
+ * 2) Semanal: **solo lunes ~10:00 Madrid** (cron ops-daily-purge, ventana 9–12).
+ *    Semana lun–dom completa; el domingo cuenta aunque cierren caja el lunes
+ *    de madrugada (dayKey = opsDay del startedAt). No se envía al cerrar caja.
  * 3) Mensual: día 1 ~08:00 Madrid.
  */
 const { getJson, setJson, updateJson } = require('./_opsStore')
@@ -282,9 +283,12 @@ function foldCierreIntoDay(bucket, c) {
 
 /**
  * Día del informe para un cierre de jornada = día ops de cuando ABRIÓ.
- * Abren sábado, cierran 00:30 → sábado (no domingo).
+ * Abren domingo, cierran lunes 00:30 → **domingo** (no lunes).
+ * Preferir dayKey guardado en el cierre (fuente de verdad al archivar).
  */
 function jornadaDayKey(c) {
+  const stored = String((c && c.dayKey) || '').trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(stored)) return stored
   const startedAt = Number(c && c.startedAt) || 0
   const endedAt = Number(c && c.endedAt) || 0
   return opsDayId(new Date(startedAt || endedAt || Date.now()))
@@ -844,9 +848,10 @@ async function maybeTriggerWeeklyAfterSundayClose() {
 }
 
 /**
- * Lunes ~08:00 Europe/Madrid: **único** envío del informe semanal (lun–dom).
- * Ventana 7–9 h Madrid: los dos crons UTC (06:00 y 07:00) cubren CET/CEST
- * sin duplicar (idempotente vía informe-log).
+ * Lunes ~10:00 Europe/Madrid: **único** envío del informe semanal (lun–dom).
+ * Ventana 9–12 h Madrid: da tiempo a que el cierre del domingo (a menudo
+ * lunes ~00:30–02:00) ya esté archivado. Crons UTC 06:00 (purge) + 09:00
+ * (envío ~10 CET / 11 CEST). Idempotente vía informe-log.
  */
 async function maybeTriggerWeeklyMondayBackup(now = new Date()) {
   const wd = madridWeekday(now)
@@ -854,11 +859,11 @@ async function maybeTriggerWeeklyMondayBackup(now = new Date()) {
   if (wd !== 'Mon') {
     return { ok: true, skipped: true, reason: 'not_monday', wd, hour }
   }
-  if (hour < 7 || hour > 9) {
+  if (hour < 9 || hour > 12) {
     return {
       ok: true,
       skipped: true,
-      reason: 'not_monday_08_madrid',
+      reason: 'not_monday_10_madrid',
       wd,
       hour,
     }
@@ -878,6 +883,21 @@ async function getInformeStatus(now = new Date()) {
   const sentKeys = Object.keys(log.sent || {})
     .sort()
     .slice(-12)
+  let daysPreview = null
+  try {
+    const report = await buildPeriodReport({ kind: 'semanal', range, now })
+    daysPreview = (report.buckets || []).map((b) => ({
+      key: b.key,
+      label: b.label,
+      tickets: b.tickets,
+      total: b.total,
+    }))
+  } catch (err) {
+    daysPreview = {
+      error: String(err && err.message ? err.message : err),
+    }
+  }
+
   return {
     emailConfigured: Boolean(RESEND_API_KEY),
     reportTo: REPORT_TO,
@@ -898,12 +918,13 @@ async function getInformeStatus(now = new Date()) {
           }
         : null,
     },
+    daysPreview,
     recentSent: sentKeys.map((k) => ({
       periodKey: k,
       at: log.sent[k] && log.sent[k].at ? log.sent[k].at : null,
       mode: log.sent[k] && log.sent[k].mode ? log.sent[k].mode : null,
     })),
-    mondayBackupWouldRun: wd === 'Mon' && hour >= 7 && hour <= 9,
+    mondayBackupWouldRun: wd === 'Mon' && hour >= 9 && hour <= 12,
   }
 }
 

@@ -24,7 +24,7 @@
     },
     {
       "path": "/api/ops-daily-purge",
-      "schedule": "0 7 * * *"
+      "schedule": "0 9 * * *"
     }
   ],
   "headers": [
