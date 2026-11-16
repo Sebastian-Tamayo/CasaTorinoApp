@@ -887,9 +887,9 @@ async function maybeTriggerWeeklyAfterSundayClose(opts = {}) {
 }
 
 /**
- * Lunes ~08:00 Europe/Madrid: backup del informe semanal (lun–dom).
- * Ventana 7–9 h Madrid: los dos crons UTC (06/07) cubren CET/CEST sin duplicar
- * (idempotente vía informe-log).
+ * Lunes Europe/Madrid: backup del informe semanal (lun–dom).
+ * Todo el lunes (no solo 7–9): si el cron llega tarde o el cierre del domingo
+ * falló, aún se envía. Idempotente vía informe-log.
  */
 async function maybeTriggerWeeklyMondayBackup(now = new Date()) {
   const wd = madridWeekday(now)
@@ -897,16 +897,48 @@ async function maybeTriggerWeeklyMondayBackup(now = new Date()) {
   if (wd !== 'Mon') {
     return { ok: true, skipped: true, reason: 'not_monday', wd, hour }
   }
-  if (hour < 7 || hour > 9) {
-    return {
-      ok: true,
-      skipped: true,
-      reason: 'not_monday_08_madrid',
-      wd,
-      hour,
-    }
-  }
   return runInforme('semanal', { force: false, now })
+}
+
+/**
+ * Estado público del informe (sin HTML ni secretos) — diagnóstico.
+ */
+async function getInformeStatus(now = new Date()) {
+  const range = weekRangeEndingSunday(now)
+  const log = await readInformeLog()
+  const prev = log.sent && log.sent[range.periodKey]
+  const wd = madridWeekday(now)
+  const hour = madridHour(now)
+  const sentKeys = Object.keys(log.sent || {})
+    .sort()
+    .slice(-12)
+  return {
+    emailConfigured: Boolean(RESEND_API_KEY),
+    reportTo: REPORT_TO,
+    madrid: { wd, hour, dayKey: madridParts(now).dayKey },
+    week: {
+      periodKey: range.periodKey,
+      label: range.label,
+      startKey: range.startKey,
+      endKey: range.endKey,
+      alreadySent: Boolean(prev),
+      previous: prev
+        ? {
+            at: prev.at || null,
+            mode: prev.mode || null,
+            resendId: prev.resendId || null,
+            to: prev.to || null,
+            subject: prev.subject || null,
+          }
+        : null,
+    },
+    recentSent: sentKeys.map((k) => ({
+      periodKey: k,
+      at: log.sent[k] && log.sent[k].at ? log.sent[k].at : null,
+      mode: log.sent[k] && log.sent[k].mode ? log.sent[k].mode : null,
+    })),
+    mondayBackupWouldRun: wd === 'Mon',
+  }
 }
 
 module.exports = {
@@ -919,6 +951,7 @@ module.exports = {
   runInforme,
   maybeTriggerWeeklyAfterSundayClose,
   maybeTriggerWeeklyMondayBackup,
+  getInformeStatus,
   weekdayOfDayKey,
   madridWeekday,
   madridHour,
