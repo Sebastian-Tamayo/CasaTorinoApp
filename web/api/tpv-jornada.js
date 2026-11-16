@@ -785,8 +785,8 @@ module.exports = async function handler(req, res) {
         } catch (err) {
           console.warn('[tpv-jornada] archive', err)
         }
-        // Informe semanal: SOLO cron lunes ~08:00 Madrid (ops-daily-purge).
-        // No enviar al cerrar caja domingo/madrugada (provocaba fallos / confusión).
+        // Informe semanal: SOLO cron lunes ~10:00 Madrid (ops-daily-purge).
+        // No enviar al cerrar caja: el domingo debe estar archivado antes del cron.
       }
 
       res.statusCode = 200

@@ -6,9 +6,8 @@
  * /api/ops-health → /api/ops-daily-purge?__mod=health
  *
  * ?informe=1 → estado del informe semanal (sin HTML ni secretos)
- * ?informeCatchup=1 → si es lunes y aún no se envió, intenta enviar ahora
- *   (idempotente; útil si el cron falló o llegó fuera de ventana)
- * catch-up deployed
+ * ?informeCatchup=1 → si es lunes, intenta enviar (idempotente)
+ * ?informeCatchup=1&force=1 → reenvía aunque ya estuviera marcado
  */
 const { getJson, getBackend, hasSupabase } = require('./_opsStore')
 const { applySecurityHeaders } = require('./_securityHeaders')
@@ -40,6 +39,9 @@ module.exports = async function handler(req, res) {
   const wantCatchup =
     url.searchParams.get('informeCatchup') === '1' ||
     String(req.query?.informeCatchup || '') === '1'
+  const forceCatchup =
+    url.searchParams.get('force') === '1' ||
+    String(req.query?.force || '') === '1'
 
   const report = {
     ok: true,
@@ -93,9 +95,9 @@ module.exports = async function handler(req, res) {
           wd,
         }
       } else {
-        // Catch-up manual: cualquier hora del lunes (el cron solo 7–9)
+        // Catch-up manual: cualquier hora del lunes (cron ~10:00)
         report.informeCatchup = await runInforme('semanal', {
-          force: false,
+          force: forceCatchup,
           now,
         })
       }
