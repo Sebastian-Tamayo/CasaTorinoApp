@@ -20,6 +20,7 @@ Fuente: **cierres de jornada** TPV en Supabase `ops_kv` (`cierres`).
 2. Ese cierre cuenta en el **día operativo en que abrieron** la jornada (08:00–08:00 Madrid).
 3. Ejemplo: abren el **domingo** y cierran el **lunes a las 00:30** → **jornada del domingo**.
 4. La semana del informe es **lunes → domingo** (7 filas).
+5. Si el domingo aún no se ha cerrado (jornada abierta o ended sin archivar), el informe **también suma esa jornada en vivo** para no dejar el domingo a 0 €.
 
 ## Cuándo se envía
 

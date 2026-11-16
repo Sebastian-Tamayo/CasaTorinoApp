@@ -210,6 +210,98 @@ async function loadCierresItems() {
   return Array.isArray(store?.items) ? store.items : []
 }
 
+/**
+ * Jornada aún abierta (o ended sin archivar): incluirla en el semanal.
+ * Caso típico: domingo con ventas, cierran caja el lunes → sin esto el
+ * domingo sale a 0 € si el cron corre antes del archive.
+ */
+async function loadLiveJornadaCierre() {
+  const j = await getJson('jornada', null, { fresh: true })
+  if (!j || typeof j !== 'object') return null
+  const status = String(j.status || '')
+  if (status !== 'open' && status !== 'ended') return null
+  const startedAt = Number(j.startedAt) || 0
+  if (!startedAt) return null
+  const dayKey = opsDayId(new Date(startedAt))
+  const sales = Array.isArray(j.sales) ? j.sales : []
+  const totals =
+    j.totals && typeof j.totals === 'object'
+      ? j.totals
+      : (() => {
+          let tickets = 0
+          let total = 0
+          let tipTotal = 0
+          const byType = {
+            comida: { qty: 0, total: 0 },
+            bebida: { qty: 0, total: 0 },
+          }
+          const byPayment = {
+            efectivo: { total: 0, tickets: 0 },
+            tarjeta: { total: 0, tickets: 0 },
+          }
+          const byProduct = {}
+          for (const sale of sales) {
+            tickets += 1
+            const saleTotal = Number(sale.total) || 0
+            total = round2(total + saleTotal)
+            tipTotal = round2(tipTotal + (Number(sale.tip) || 0))
+            const pm =
+              String(sale.paymentMethod || '').toLowerCase() === 'tarjeta'
+                ? 'tarjeta'
+                : 'efectivo'
+            byPayment[pm].total = round2(byPayment[pm].total + saleTotal)
+            byPayment[pm].tickets += 1
+            for (const l of sale.lines || []) {
+              const ctype = l.categoryType === 'bebida' ? 'bebida' : 'comida'
+              const lineTotal = round2(
+                (Number(l.qty) || 0) * (Number(l.price) || 0),
+              )
+              byType[ctype].qty += Number(l.qty) || 0
+              byType[ctype].total = round2(byType[ctype].total + lineTotal)
+              const pKey = l.id || l.name || 'p'
+              if (!byProduct[pKey]) {
+                byProduct[pKey] = {
+                  id: l.id || pKey,
+                  name: l.name || pKey,
+                  qty: 0,
+                  total: 0,
+                }
+              }
+              byProduct[pKey].qty += Number(l.qty) || 0
+              byProduct[pKey].total = round2(byProduct[pKey].total + lineTotal)
+            }
+          }
+          return {
+            tickets,
+            total,
+            tipTotal,
+            byType,
+            byPayment,
+            byProduct: Object.values(byProduct),
+          }
+        })()
+  return {
+    id: `live-cierre-${startedAt}`,
+    source: 'jornada-live',
+    startedAt,
+    endedAt: Number(j.endedAt) || Date.now(),
+    dayKey,
+    monthKey: dayKey.slice(0, 7),
+    totals,
+    salesCount: sales.length,
+    sales,
+    salesPreview: sales.slice(-30).map((s) => ({
+      id: s.id,
+      at: s.at,
+      mesa: s.mesa,
+      total: s.total,
+    })),
+    activityByHour: buildActivityByHour(sales),
+    live: true,
+    liveStatus: status,
+  }
+}
+
 function emptyDayBucket(dayKey) {
   return {
     dayKey,
@@ -383,6 +475,24 @@ async function buildPeriodReport({ kind, range, now = new Date() }) {
       if (m && hasCanonical.has(m[1])) return false
       return true
     })
+  }
+
+  // Domingo (u otro día) aún abierto / ended sin archive → incluir
+  try {
+    const live = await loadLiveJornadaCierre()
+    if (live) {
+      const liveCanon = `cierre-${live.startedAt}`
+      const already = items.some(
+        (c) =>
+          c &&
+          (String(c.id) === liveCanon ||
+            String(c.id) === `live-cierre-${live.startedAt}` ||
+            Number(c.startedAt) === Number(live.startedAt)),
+      )
+      if (!already) items = [...items, live]
+    }
+  } catch (err) {
+    console.warn('[informe] live jornada', err)
   }
 
   const dayKeySet = new Set(range.dayKeys)

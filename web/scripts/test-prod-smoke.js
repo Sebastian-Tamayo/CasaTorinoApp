@@ -243,6 +243,7 @@ try {
   assert.ok(informes.includes('not_monday_10_madrid'))
   assert.ok(informes.includes('weekly_only_monday_cron'))
   assert.ok(informes.includes('daysPreview'))
+  assert.ok(informes.includes('loadLiveJornadaCierre') || informes.includes('jornada-live'))
   assert.ok(informes.includes('c.dayKey') || informes.includes('c && c.dayKey'))
   // Semanal solo cron lunes — no al cerrar caja
   assert.ok(!jornada.includes('maybeTriggerWeeklyAfterSundayClose'))
