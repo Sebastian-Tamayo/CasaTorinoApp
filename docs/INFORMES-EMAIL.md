@@ -49,3 +49,5 @@ Reenviar (lunes): `GET /api/ops-health?informeCatchup=1&force=1`
 2. Informe = suma de **cierres de jornada**; día = apertura (00:30 lunes = domingo ops).
 3. Semanal al cerrar jornada domingo + backup lunes ~10:00.
 4. Cuidado con cuota CDN Hobby.
+
+<!-- redeploy-cierre-domingo -->
