@@ -5,9 +5,9 @@
  * INVARIANTES (no romper en próximos lanzamientos):
  * 1) Un cierre de jornada = un día: dayKey = opsDay del startedAt (08:00 Madrid).
  *    Si cierran sábado a las 00:30 → jornada del sábado (no del domingo).
- * 2) Semanal: **solo lunes ~10:00 Madrid** (cron ops-daily-purge, ventana 9–12).
- *    Semana lun–dom completa; el domingo cuenta aunque cierren caja el lunes
- *    de madrugada (dayKey = opsDay del startedAt). No se envía al cerrar caja.
+ * 2) Semanal (principal): al **cerrar la caja de la jornada abierta el domingo**
+ *    (opsDay del startedAt = domingo; p. ej. cierran lun 00:30). Semana lun–dom.
+ *    Backup: cron lunes ~10:00 Madrid (ventana 9–12). Idempotente (informe-log).
  * 3) Mensual: día 1 ~08:00 Madrid.
  */
 const { getJson, setJson, updateJson } = require('./_opsStore')
@@ -948,21 +948,62 @@ function weekdayOfDayKey(dayKey) {
 }
 
 /**
- * @deprecated El semanal ya no se envía al cerrar caja (solo cron lunes).
- * Se conserva por compatibilidad de imports / tests antiguos.
+ * Tras cerrar la **caja de la jornada abierta el domingo** (opsDay = domingo),
+ * envía el semanal lun–dom. Cubre cierre domingo noche o lunes madrugada (~00:30).
+ * force=false → no duplica si el cron / un cierre previo ya lo mandó.
+ *
+ * @param {{ now?: Date, startedAt?: number }} [opts]
  */
-async function maybeTriggerWeeklyAfterSundayClose() {
-  return {
-    triggered: false,
-    reason: 'weekly_only_monday_cron',
+async function maybeTriggerWeeklyAfterSundayClose(opts = {}) {
+  const now = opts.now || new Date()
+  const startedAt = Number(opts.startedAt) || 0
+  const wd = madridWeekday(now)
+  const hour = madridHour(now)
+
+  let isSundayJornada = false
+  let jornadaDay = ''
+  if (startedAt > 0) {
+    jornadaDay = opsDayId(new Date(startedAt))
+    isSundayJornada = weekdayOfDayKey(jornadaDay) === 'Sun'
+  }
+  // Fallback calendario: domingo, o lunes antes de las 08:00 (cierre madrugada
+  // sin startedAt fiable). La señal principal es isSundayJornada.
+  const isSundayCalendar = wd === 'Sun'
+  const isMondayEarlyClose = wd === 'Mon' && hour < 8
+
+  if (!isSundayJornada && !isSundayCalendar && !isMondayEarlyClose) {
+    return {
+      triggered: false,
+      reason: 'not_sunday_close',
+      wd,
+      hour,
+      jornadaDay: jornadaDay || null,
+    }
+  }
+
+  try {
+    const result = await runInforme('semanal', { force: false, now })
+    return {
+      triggered: true,
+      via: isSundayJornada
+        ? 'jornada_ops_sunday'
+        : isSundayCalendar
+          ? 'calendar_sunday'
+          : 'monday_early',
+      jornadaDay: jornadaDay || null,
+      ...result,
+    }
+  } catch (err) {
+    return {
+      triggered: false,
+      error: String(err && err.message ? err.message : err),
+    }
   }
 }
 
 /**
- * Lunes ~10:00 Europe/Madrid: **único** envío del informe semanal (lun–dom).
- * Ventana 9–12 h Madrid: da tiempo a que el cierre del domingo (a menudo
- * lunes ~00:30–02:00) ya esté archivado. Crons UTC 06:00 (purge) + 09:00
- * (envío ~10 CET / 11 CEST). Idempotente vía informe-log.
+ * Lunes ~10:00 Europe/Madrid: backup del informe semanal (lun–dom).
+ * Ventana 9–14 h Madrid por si el cron llega tarde. Idempotente.
  */
 async function maybeTriggerWeeklyMondayBackup(now = new Date()) {
   const wd = madridWeekday(now)
@@ -970,7 +1011,7 @@ async function maybeTriggerWeeklyMondayBackup(now = new Date()) {
   if (wd !== 'Mon') {
     return { ok: true, skipped: true, reason: 'not_monday', wd, hour }
   }
-  if (hour < 9 || hour > 12) {
+  if (hour < 9 || hour > 14) {
     return {
       ok: true,
       skipped: true,
@@ -1065,7 +1106,7 @@ async function getInformeStatus(now = new Date()) {
       at: log.sent[k] && log.sent[k].at ? log.sent[k].at : null,
       mode: log.sent[k] && log.sent[k].mode ? log.sent[k].mode : null,
     })),
-    mondayBackupWouldRun: wd === 'Mon' && hour >= 9 && hour <= 12,
+    mondayBackupWouldRun: wd === 'Mon' && hour >= 9 && hour <= 14,
   }
 }
 

@@ -20,17 +20,20 @@ Fuente: **cierres de jornada** TPV en Supabase `ops_kv` (`cierres`).
 2. Ese cierre cuenta en el **día operativo en que abrieron** la jornada (08:00–08:00 Madrid).
 3. Ejemplo: abren el **domingo** y cierran el **lunes a las 00:30** → **jornada del domingo**.
 4. La semana del informe es **lunes → domingo** (7 filas).
-5. Si el domingo aún no se ha cerrado (jornada abierta o ended sin archivar), el informe **también suma esa jornada en vivo** para no dejar el domingo a 0 €.
+5. Si el domingo aún no se ha cerrado, el informe también puede sumar la **jornada viva**.
 
 ## Cuándo se envía
 
-1. **Semanal (único):** lunes **~10:00 Madrid** (`/api/ops-daily-purge` vía Vercel Cron `0 9 * * *` UTC).
-   - Ventana 9–12 h Madrid (así el cierre del domingo, a menudo lun ~00:30, ya está archivado).
-   - **No** se envía al cerrar caja.
-   - Idempotente vía `informe-log`.
-   - Diagnóstico: `GET /api/ops-health?informe=1` (incluye `daysPreview` con domingo).
-   - Reenviar: `GET /api/ops-health?informeCatchup=1&force=1` (solo lunes).
-2. **Mensual:** día **1** del mes ~08:00 Madrid (mes calendario anterior).
+1. **Semanal (principal):** al **cerrar la caja de la jornada abierta el domingo**
+   (TPV → fin de jornada; `startedAt` con opsDay domingo).
+   - Sirve si cierran domingo noche o lunes madrugada.
+   - Idempotente: no reenvía si ya salió.
+2. **Semanal (backup):** lunes **~10:00 Madrid** (`/api/ops-daily-purge`, ventana 9–14)
+   si aún no se envió al cerrar.
+3. **Mensual:** día **1** del mes ~08:00 Madrid.
+
+Diagnóstico: `GET /api/ops-health?informe=1`  
+Reenviar (lunes): `GET /api/ops-health?informeCatchup=1&force=1`
 
 ## Configurar envío (Vercel · proyecto `casa-torino-web`)
 
@@ -40,22 +43,9 @@ Fuente: **cierres de jornada** TPV en Supabase `ops_kv` (`cierres`).
 | `REPORT_EMAIL_TO` | `cafebartorino@gmail.com` |
 | `REPORT_EMAIL_FROM` | Dominio verificado, p. ej. `Casa Torino <informes@tudominio.com>` |
 
-Sin `RESEND_API_KEY` se guarda el HTML en ops_kv y no rompe el cierre de caja.
-
-## Probar sin enviar
-
-```bash
-curl -sS "https://casa-torino-web.vercel.app/api/ops-daily-purge?informe=semanal&dryRun=1" \
-  -H "Authorization: Bearer $TPV_SYNC_KEY"
-```
-
-Forzar reenvío: `force=1` (API) o `ops-health?informeCatchup=1&force=1` en lunes.
-
 ## Checklist próximos lanzamientos
 
 1. No tocar el gate de versión de `/api/kitchen` create (TPV→cocina).
 2. Informe = suma de **cierres de jornada**; día = apertura (00:30 lunes = domingo ops).
-3. Semanal solo lunes ~10:00 Madrid; semana lun–dom con domingo incluido.
-4. Cuidado con cuota CDN Hobby (polls de estáticos lentos).
-
-<!-- redeploy-domingo -->
+3. Semanal al cerrar jornada domingo + backup lunes ~10:00.
+4. Cuidado con cuota CDN Hobby.
