@@ -241,13 +241,14 @@ try {
   assert.ok(informes.includes('maybeTriggerWeeklyMondayBackup'))
   assert.ok(informes.includes('getInformeStatus'))
   assert.ok(informes.includes('not_monday_10_madrid'))
-  assert.ok(informes.includes('weekly_only_monday_cron'))
+  assert.ok(informes.includes('maybeTriggerWeeklyAfterSundayClose'))
+  assert.ok(informes.includes('jornada_ops_sunday') || informes.includes('not_sunday_close'))
   assert.ok(informes.includes('daysPreview'))
   assert.ok(informes.includes('loadLiveJornadaCierre') || informes.includes('jornada-live'))
   assert.ok(informes.includes('c.dayKey') || informes.includes('c && c.dayKey'))
-  // Semanal solo cron lunes — no al cerrar caja
-  assert.ok(!jornada.includes('maybeTriggerWeeklyAfterSundayClose'))
-  assert.ok(jornada.includes('ops-daily-purge') || jornada.includes('SOLO cron lunes'))
+  // Semanal principal: al cerrar jornada del domingo
+  assert.ok(jornada.includes('maybeTriggerWeeklyAfterSundayClose'))
+  assert.ok(jornada.includes('informeSemanal'))
   const health = fs.readFileSync(path.join(root, 'api/_opsHealth.js'), 'utf8')
   assert.ok(health.includes('informeCatchup') && health.includes('getInformeStatus'))
   assert.ok(health.includes('forceCatchup'))
@@ -260,7 +261,7 @@ try {
   assert.ok(vercel.crons.some((c) => c.path === '/api/ops-daily-purge'))
   assert.ok(
     vercel.crons.some((c) => c.schedule === '0 9 * * *'),
-    'cron 09:00 UTC (~10 Madrid) para semanal con domingo',
+    'cron 09:00 UTC (~10 Madrid) backup semanal',
   )
   ok('cron-informes-wired')
 } catch (err) {
