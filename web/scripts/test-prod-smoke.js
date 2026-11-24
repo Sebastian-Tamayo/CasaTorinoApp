@@ -73,10 +73,18 @@ try {
   assert.ok(iva.endsWith('0,37 E'), 'iva con E: ' + iva)
   assert.strictEqual(iva.length, cols)
   const printSrc = fs.readFileSync(path.join(root, 'printService.js'), 'utf8')
-  assert.ok(printSrc.includes('Hostelería Valdés Bonilla'), 'ticket razón social')
-  assert.ok(printSrc.includes('CIF 93990562'), 'ticket CIF')
-  assert.ok(printSrc.includes('Crta Ceares 67 33209'), 'ticket dirección')
+  assert.ok(printSrc.includes('Hostelería Valdés Bonilla S.L'), 'ticket razón social')
+  assert.ok(printSrc.includes('CIF: 93990562'), 'ticket CIF')
+  assert.ok(printSrc.includes('Crta Ceares 67, 33209'), 'ticket dirección')
   assert.ok(printSrc.includes('legalLines'), 'ticket legalLines')
+  assert.ok(printSrc.includes('SIZE_TALL'), 'ticket letra algo mayor')
+  // Cada frase fiscal en una sola línea (sin wrapLines a 24)
+  assert.ok(
+    /legalLines[\s\S]*?for \(const row of BUSINESS\.legalLines[\s\S]*?\.trim\(\) \+ ESC\.LF/.test(
+      printSrc,
+    ),
+    'legal lines sin partir',
+  )
   ok('ticket-total-sameline')
 } catch (err) {
   fail('ticket-total-sameline', err)

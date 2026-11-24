@@ -3373,9 +3373,9 @@
         <label for="fiscalNif" style="display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin:.35rem 0 .25rem">NIF / CIF del local *</label>
         <input type="text" id="fiscalNif" maxlength="12" placeholder="B12345678" style="width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:#0b0f14;color:#fff;padding:.5rem .75rem;font-weight:700;font-size:1rem;text-transform:uppercase;margin-bottom:.45rem" />
         <label for="fiscalLegalName" style="display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin:.35rem 0 .25rem">Nombre / razón social</label>
-        <input type="text" id="fiscalLegalName" placeholder="Hostelería Valdés Bonilla" style="width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:#0b0f14;color:#fff;padding:.5rem .75rem;font-weight:700;font-size:1rem;margin-bottom:.45rem" />
+        <input type="text" id="fiscalLegalName" placeholder="Hostelería Valdés Bonilla S.L" style="width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:#0b0f14;color:#fff;padding:.5rem .75rem;font-weight:700;font-size:1rem;margin-bottom:.45rem" />
         <label for="fiscalAddress" style="display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin:.35rem 0 .25rem">Dirección</label>
-        <input type="text" id="fiscalAddress" placeholder="Crta Ceares 67 33209" style="width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:#0b0f14;color:#fff;padding:.5rem .75rem;font-weight:700;font-size:1rem;margin-bottom:.45rem" />
+        <input type="text" id="fiscalAddress" placeholder="Crta Ceares 67, 33209" style="width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:#0b0f14;color:#fff;padding:.5rem .75rem;font-weight:700;font-size:1rem;margin-bottom:.45rem" />
         <label for="fiscalCity" style="display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin:.35rem 0 .25rem">Localidad</label>
         <input type="text" id="fiscalCity" placeholder="Gijón" style="width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:#0b0f14;color:#fff;padding:.5rem .75rem;font-weight:700;font-size:1rem;margin-bottom:.45rem" />
         <label for="fiscalPhone" style="display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin:.35rem 0 .25rem">Teléfono</label>
@@ -3393,7 +3393,7 @@
   <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.min.js"></script>
   <script src="carta.js?v=plano-2"></script>
   <script src="tpv-data.js?v=plano-2"></script>
-  <script src="printService.js?v=fiscal-header-20261124"></script>
+  <script src="printService.js?v=fiscal-header-sl-20261124"></script>
   <script src="tpvFacturas.js?v=factura2"></script>
   <script src="tpvSessionHeartbeat.js?v=rt3"></script>
   <script src="tpvSync.js?v=rt3"></script>
@@ -3410,7 +3410,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-24-ticket-fiscal'
+      const TPV_CLIENT_VERSION = '2026-11-24-ticket-fiscal-sl'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -5966,8 +5966,8 @@
       function openFiscalModal(status) {
         const f = status?.fiscal || window.CasaTorinoPrint?.getFiscalEmitter?.() || {}
         if ($('fiscalNif')) $('fiscalNif').value = f.nif || ''
-        if ($('fiscalLegalName')) $('fiscalLegalName').value = f.legalName || 'Hostelería Valdés Bonilla'
-        if ($('fiscalAddress')) $('fiscalAddress').value = f.address || 'Crta Ceares 67 33209'
+        if ($('fiscalLegalName')) $('fiscalLegalName').value = f.legalName || 'Hostelería Valdés Bonilla S.L'
+        if ($('fiscalAddress')) $('fiscalAddress').value = f.address || 'Crta Ceares 67, 33209'
         if ($('fiscalCity')) $('fiscalCity').value = f.city || 'Gijón'
         if ($('fiscalPhone')) $('fiscalPhone').value = f.phone || '612 254 719'
         const modal = $('fiscalModal')
