@@ -52,13 +52,14 @@ try {
     return row.length > width ? row.slice(0, width) : row
   }
   const cols = 24
+  const dcols = Math.max(10, Math.floor(cols / 2))
   for (const amt of [12.5, 0.5, 99.99, 123.45, 8, 4.1]) {
-    const line = padRowWidth('TOTAL', money(amt) + ' E', cols)
+    const line = padRowWidth('TOTAL', money(amt), dcols)
     assert.ok(!line.includes('\n'), 'sin salto')
     assert.ok(line.startsWith('TOTAL'), 'label')
     assert.ok(line.includes(','), 'decimales en misma línea: ' + line)
-    assert.strictEqual(line.length, cols, 'TOTAL ancho 24: ' + line)
-    assert.ok(line.endsWith(money(amt) + ' E'), 'importe completo al final: ' + line)
+    assert.ok(line.length <= dcols, 'cabe en doble ancho: ' + line)
+    assert.ok(line.endsWith(money(amt)), 'importe completo al final: ' + line)
   }
   // Líneas de producto / base: importe entero en la misma fila
   const item = padRowWidth('1x Caña rubia', money(2.6), cols)
@@ -76,10 +77,14 @@ try {
   assert.ok(printSrc.includes('CIF: 93990562'), 'ticket CIF')
   assert.ok(printSrc.includes('Crta Ceares 67, 33209'), 'ticket dirección')
   assert.ok(printSrc.includes('legalLines'), 'ticket legalLines')
-  assert.ok(/cols:\s*24/.test(printSrc), 'ticket 24 cols (ancho real POS)')
-  assert.ok(printSrc.includes('CHAR_SPACING_FILL'), 'espaciado para llenar papel')
-  assert.ok(printSrc.includes('FONT_B'), 'Font B cabecera fiscal')
-  assert.ok(printSrc.includes('cols24-spacing-fill'), 'build ticket spacing fill')
+  assert.ok(printSrc.includes('SIZE_TALL'), 'ticket letra algo mayor')
+  // Cada frase fiscal en una sola línea (sin wrapLines a 24)
+  assert.ok(
+    /legalLines[\s\S]*?for \(const row of BUSINESS\.legalLines[\s\S]*?\.trim\(\) \+ ESC\.LF/.test(
+      printSrc,
+    ),
+    'legal lines sin partir',
+  )
   ok('ticket-total-sameline')
 } catch (err) {
   fail('ticket-total-sameline', err)
@@ -307,12 +312,7 @@ try {
   assert.ok(html.includes('unregister'))
   assert.ok(html.includes('TOTAL') || true)
   const print = fs.readFileSync(path.join(root, 'printService.js'), 'utf8')
-  assert.ok(
-    print.includes('total-sameline') ||
-      /MISMA l[ií]nea/i.test(print) ||
-      print.includes("padRow('TOTAL'") ||
-      print.includes('padRowWidth(\'TOTAL\''),
-  )
+  assert.ok(print.includes('total-sameline') || print.includes('MISMA línea') || print.includes('padRowWidth(\'TOTAL\''))
   assert.ok(!print.includes("data.push('TOTAL' + ESC.LF)\n    data.push(money(total)"))
   ok('force-reload-tpv-html')
 } catch (err) {

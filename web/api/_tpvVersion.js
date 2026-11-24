@@ -9,9 +9,9 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-24-ticket-spacing'
+const required = '2026-11-24-ticket-cif-ok'
 const message =
-  'Actualiza — ticket: S.L en 1 línea, TOTAL sin partir, ancho lleno'
+  'Actualiza — ticket CIF restaurado (sin el cambio de espaciado)'
 
 function forceInfo() {
   return { required, message }
