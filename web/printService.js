@@ -22,6 +22,12 @@
 
   const BUSINESS = {
     name: 'CASA TORINO',
+    /** Líneas bajo el nombre (razón social / CIF / dirección). */
+    legalLines: [
+      'Hostelería Valdés Bonilla',
+      'CIF 93990562',
+      'Crta Ceares 67 33209',
+    ],
     subtitle: 'Bar · Restaurante',
     footer: '¡Gracias por su visita!',
     /**
@@ -34,9 +40,9 @@
 
   /** Datos fiscales del emisor (rellenados desde /api/tpv-facturas). */
   let fiscalEmitter = {
-    nif: '',
-    legalName: BUSINESS.name,
-    address: 'Ctra. Ceares, 67',
+    nif: '93990562',
+    legalName: 'Hostelería Valdés Bonilla',
+    address: 'Crta Ceares 67 33209',
     city: 'Gijón',
     phone: '612 254 719',
   }
@@ -259,6 +265,9 @@
     data.push(BUSINESS.name + ESC.LF)
     data.push(ESC.SIZE_NORMAL)
     data.push(ESC.BOLD_OFF)
+    for (const row of BUSINESS.legalLines || []) {
+      for (const w of wrapLines(row)) data.push(w + ESC.LF)
+    }
     data.push(BUSINESS.subtitle + ESC.LF)
     data.push(when + ESC.LF)
     if (meta.mesa) data.push(`Mesa ${meta.mesa}` + ESC.LF)
