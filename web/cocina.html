@@ -200,8 +200,8 @@
     .hist-empty strong { display: block; color: #d7e0ea; font-size: 1.2rem; }
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: .9rem;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: .7rem;
       align-content: start;
     }
     .empty {
@@ -216,10 +216,10 @@
       display: flex; flex-direction: column;
       background: var(--card);
       border: 2px solid #334155;
-      border-radius: 16px;
-      min-height: 280px;
+      border-radius: 12px;
+      min-height: 0;
       overflow: hidden;
-      box-shadow: 0 10px 28px rgba(0,0,0,.35);
+      box-shadow: 0 8px 22px rgba(0,0,0,.32);
       transition: box-shadow .25s ease, border-color .25s ease, transform .25s ease;
     }
     .ticket.new {
@@ -268,81 +268,118 @@
     }
 
     .ticket-h {
-      display: flex; align-items: center; justify-content: space-between; gap: .5rem;
-      padding: .85rem 1rem;
+      display: flex; align-items: center; justify-content: space-between; gap: .4rem;
+      padding: .55rem .7rem;
       background: #0f1720;
       border-bottom: 1px solid var(--line);
     }
     .mesa-num {
-      font-size: clamp(2rem, 5vw, 2.7rem);
+      font-size: clamp(1.45rem, 3.2vw, 1.85rem);
       font-weight: 900; letter-spacing: .02em; line-height: 1;
     }
-    .mesa-num span { display: block; font-size: .72rem; color: var(--muted); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .mesa-num span { display: block; font-size: .62rem; color: var(--muted); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
     .elapsed {
-      text-align: right; font-weight: 800; font-size: 1.15rem;
+      text-align: right; font-weight: 800; font-size: .95rem;
       font-variant-numeric: tabular-nums;
     }
-    .elapsed small { display: block; color: var(--muted); font-size: .72rem; font-weight: 700; }
+    .elapsed small { display: block; color: var(--muted); font-size: .62rem; font-weight: 700; }
     .ticket.late .elapsed { color: #fbbf24; }
     .ticket.urgent .elapsed { color: #ff6b6b; }
 
-    .ticket-b { flex: 1; padding: .85rem 1rem 1rem; display: grid; gap: .55rem; align-content: start; }
+    .ticket-b { flex: 1; padding: .55rem .65rem .65rem; display: grid; gap: .35rem; align-content: start; }
     .line {
-      display: grid; grid-template-columns: auto 1fr auto; gap: .55rem .7rem;
+      display: grid; grid-template-columns: auto 1fr auto; gap: .35rem .45rem;
       align-items: center;
-      padding: .55rem .65rem; border-radius: 10px; background: var(--card2);
+      padding: .35rem .45rem; border-radius: 8px; background: var(--card2);
       border: 1px solid #243041;
     }
     .btn-line-ready {
-      border: 0; border-radius: 10px; min-width: 4.6rem; height: 44px;
-      padding: 0 .7rem; cursor: pointer; font-weight: 900; font-size: .92rem;
+      border: 0; border-radius: 8px; min-width: 3.6rem; height: 34px;
+      padding: 0 .5rem; cursor: pointer; font-weight: 900; font-size: .78rem;
       background: linear-gradient(180deg, #34d399, #16a34a);
       color: #04140a; letter-spacing: .02em;
-      box-shadow: 0 4px 12px rgba(22,163,74,.3);
+      box-shadow: 0 3px 8px rgba(22,163,74,.28);
       white-space: nowrap;
     }
     .btn-line-ready:active { transform: scale(.97); }
     .btn-line-ready:disabled { opacity: .55; cursor: wait; }
     .btn-hist-restore {
-      margin-top: .55rem; width: 100%; height: 42px; border-radius: 10px;
+      margin-top: .45rem; width: 100%; height: 36px; border-radius: 8px;
       border: 1px solid #6b4e16; background: #2a1f0f; color: var(--accent);
-      font-weight: 800; cursor: pointer;
+      font-weight: 800; cursor: pointer; font-size: .85rem;
     }
     .btn-hist-restore:active { transform: scale(.98); }
     .qty {
-      font-size: 1.45rem; font-weight: 900; color: var(--accent);
-      min-width: 1.6ch; text-align: center; align-self: start; line-height: 1.1;
+      font-size: 1.1rem; font-weight: 900; color: var(--accent);
+      min-width: 1.4ch; text-align: center; align-self: start; line-height: 1.1;
     }
-    .pname { font-size: 1.12rem; font-weight: 800; line-height: 1.25; }
+    .pname { font-size: .92rem; font-weight: 800; line-height: 1.2; }
     .pnote {
-      margin-top: .25rem; color: var(--danger);
-      font-style: italic; font-weight: 700; font-size: .95rem;
+      margin-top: .15rem; color: var(--danger);
+      font-style: italic; font-weight: 700; font-size: .78rem;
     }
     .pnote.menu-choice {
-      font-style: normal; font-weight: 900; font-size: 1.05rem;
+      font-style: normal; font-weight: 900; font-size: .85rem;
       color: #fbbf24;
       background: rgba(245,158,11,.16);
       border: 1px solid rgba(245,158,11,.4);
-      border-radius: 10px; padding: .4rem .55rem; margin-top: .4rem;
+      border-radius: 8px; padding: .28rem .4rem; margin-top: .28rem;
       letter-spacing: .01em;
     }
     .order-notes {
-      margin-top: .15rem; padding: .65rem .7rem;
-      border-radius: 10px; border: 1px dashed #7f1d1d;
+      margin-top: .1rem; padding: .45rem .5rem;
+      border-radius: 8px; border: 1px dashed #7f1d1d;
       background: rgba(255,77,79,.08);
       color: #ffb4b4; font-style: italic; font-weight: 700;
+      font-size: .82rem;
     }
+    .next-banner { font-size: .72rem; padding: .32rem .45rem; border-radius: 8px; }
 
-    .ticket-f { padding: .75rem .85rem .9rem; border-top: 1px solid var(--line); }
+    .ticket-f { padding: .5rem .55rem .6rem; border-top: 1px solid var(--line); }
     .btn-ready {
-      width: 100%; height: 58px; border: 0; border-radius: 12px;
+      width: 100%; height: 42px; border: 0; border-radius: 10px;
       background: linear-gradient(180deg, #34d399, #16a34a);
-      color: #04140a; font-size: 1.2rem; font-weight: 900;
+      color: #04140a; font-size: .95rem; font-weight: 900;
       cursor: pointer; letter-spacing: .02em;
-      box-shadow: 0 8px 18px rgba(22,163,74,.35);
+      box-shadow: 0 6px 14px rgba(22,163,74,.3);
     }
     .btn-ready:active { transform: scale(.985); }
     .btn-ready:disabled { opacity: .55; cursor: wait; }
+
+    /* Densidad automática según nº de pedidos en pantalla */
+    body.kds-dense .grid {
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: .55rem;
+    }
+    body.kds-dense .mesa-num { font-size: clamp(1.25rem, 2.6vw, 1.55rem); }
+    body.kds-dense .elapsed { font-size: .85rem; }
+    body.kds-dense .pname { font-size: .84rem; }
+    body.kds-dense .qty { font-size: .98rem; }
+    body.kds-dense .pnote { font-size: .72rem; }
+    body.kds-dense .btn-line-ready { height: 30px; min-width: 3.2rem; font-size: .72rem; }
+    body.kds-dense .ticket-h { padding: .42rem .55rem; }
+    body.kds-dense .ticket-b { padding: .42rem .5rem .5rem; gap: .28rem; }
+    body.kds-dense .line { padding: .28rem .38rem; }
+
+    body.kds-packed .grid {
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: .45rem;
+    }
+    body.kds-packed .mesa-num { font-size: clamp(1.1rem, 2.2vw, 1.35rem); }
+    body.kds-packed .mesa-num span { font-size: .55rem; }
+    body.kds-packed .elapsed { font-size: .78rem; }
+    body.kds-packed .elapsed small { font-size: .55rem; }
+    body.kds-packed .pname { font-size: .78rem; }
+    body.kds-packed .qty { font-size: .9rem; }
+    body.kds-packed .pnote { font-size: .68rem; }
+    body.kds-packed .btn-line-ready {
+      height: 28px; min-width: 2.9rem; font-size: .68rem; padding: 0 .35rem;
+    }
+    body.kds-packed .ticket-h { padding: .35rem .45rem; }
+    body.kds-packed .ticket-b { padding: .35rem .4rem .42rem; gap: .22rem; }
+    body.kds-packed .line { padding: .22rem .32rem; gap: .25rem .35rem; }
+    body.kds-packed .next-banner { font-size: .65rem; padding: .25rem .35rem; }
+    body.kds-packed .btn-ready { height: 36px; font-size: .85rem; }
 
     .toast {
       position: fixed; left: 50%; bottom: 1.1rem; transform: translateX(-50%);
@@ -392,12 +429,12 @@
       .btn-icon { width: 40px; height: 40px; }
       .btn-undo .btn-label, .btn-hist .btn-label-full { display: none; }
       .btn-hist .btn-label-short { display: inline; }
-      .grid { grid-template-columns: 1fr; gap: .7rem; }
+      .grid { grid-template-columns: 1fr; gap: .55rem; }
       .ticket { min-height: 0; }
-      .mesa-num { font-size: clamp(1.7rem, 8vw, 2.2rem); }
-      .btn-ready { height: 52px; font-size: 1.05rem; }
-      .btn-line-ready { height: 48px; min-width: 4.2rem; font-size: .88rem; }
-      .line { grid-template-columns: auto 1fr auto; gap: .45rem .55rem; }
+      .mesa-num { font-size: clamp(1.35rem, 6vw, 1.7rem); }
+      .btn-ready { height: 40px; font-size: .92rem; }
+      .btn-line-ready { height: 36px; min-width: 3.4rem; font-size: .78rem; }
+      .line { grid-template-columns: auto 1fr auto; gap: .3rem .4rem; }
     }
     @media (min-width: 721px) {
       .btn-hist .btn-label-short { display: none; }
@@ -407,7 +444,7 @@
       .top { gap: .55rem; }
     }
     @media (min-width: 1101px) {
-      .grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+      .grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
     }
     /* Portátil bajo (14"): compactar, pero NO en móvil (rompe el header) */
     @media (min-width: 721px) and (max-height: 860px) {
@@ -415,11 +452,11 @@
       .app { height: 100dvh; }
       .top { padding: .45rem .7rem; }
       .ticket { min-height: 0; }
-      .ticket-h { padding: .55rem .75rem; }
-      .ticket-b { padding: .55rem .75rem .65rem; gap: .4rem; }
-      .btn-ready { height: 48px; font-size: 1.05rem; }
-      .pname { font-size: 1rem; }
-      .qty { font-size: 1.2rem; }
+      .ticket-h { padding: .45rem .6rem; }
+      .ticket-b { padding: .45rem .55rem .55rem; gap: .3rem; }
+      .btn-ready { height: 38px; font-size: .9rem; }
+      .pname { font-size: .88rem; }
+      .qty { font-size: 1.05rem; }
     }
     @media (max-width: 420px) {
       .gate-card { padding: 1.1rem; }
@@ -513,7 +550,7 @@
      * - web/cocina-version.json → required
      * - web/api/_cocinaVersion.js → required
      */
-    const COCINA_CLIENT_VERSION = '2026-11-24-listo-plato'
+    const COCINA_CLIENT_VERSION = '2026-11-24-kds-compact'
     const COCINA_ACK_KEY = 'ct-cocina-ack-version'
     const $force = (id) => document.getElementById(id)
 
@@ -918,6 +955,9 @@
                <span class="btn-label-short">Hist. (${history.length})</span>`
         }
         document.body.classList.toggle('show-history', showHistory)
+        const n = orders.length
+        document.body.classList.toggle('kds-dense', n >= 6 && n < 10)
+        document.body.classList.toggle('kds-packed', n >= 10)
         if (showHistory) return renderHistory()
         if (!orders.length) {
           grid.innerHTML = `<div class="empty"><div><i class="fa-solid fa-kitchen-set"></i><strong>Sin pedidos de cocina</strong><div>Esperando comandas de comida desde el TPV…</div></div></div>`
@@ -1019,9 +1059,6 @@
         const key = `${orderId}::${itemIndex}`
         if (!orderId || completing.has(key)) return
         const label = String(itemName || 'este plato').trim() || 'este plato'
-        if (!window.confirm(`¿Marcar listo «${label}»?\nSe avisará a la camarera para recogerlo.`)) {
-          return
-        }
         completing.add(key)
         render()
         try {

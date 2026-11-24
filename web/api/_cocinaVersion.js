@@ -10,8 +10,8 @@
  * de /api/kitchen: el TPV envía comandas sin X-Cocina-Client-Version.
  * Si se bloquea, las comandas no llegan a cocina. El aviso va por poll/SW.
  */
-const required = '2026-11-24-listo-plato'
-const message = 'Actualiza — Listo por plato + aviso recoger a camarera'
+const required = '2026-11-24-kds-compact'
+const message = 'Actualiza — KDS más compacto; Listo sin confirmación'
 
 function forceInfo() {
   return { required, message }
