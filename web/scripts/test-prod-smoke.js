@@ -51,7 +51,7 @@ try {
     const row = L + ' '.repeat(space) + R
     return row.length > width ? row.slice(0, width) : row
   }
-  const cols = 24
+  const cols = 32
   const dcols = Math.max(10, Math.floor(cols / 2))
   for (const amt of [12.5, 0.5, 99.99, 123.45, 8, 4.1]) {
     const line = padRowWidth('TOTAL', money(amt), dcols)
@@ -61,7 +61,7 @@ try {
     assert.ok(line.length <= dcols, 'cabe en doble ancho: ' + line)
     assert.ok(line.endsWith(money(amt)), 'importe completo al final: ' + line)
   }
-  // Líneas de producto / base: importe entero en la misma fila
+  // Líneas de producto / base: importe entero en la misma fila (ancho completo)
   const item = padRowWidth('1x Caña rubia', money(2.6), cols)
   assert.ok(item.includes('2,60'), 'precio producto: ' + item)
   assert.strictEqual(item.length, cols)
@@ -77,13 +77,14 @@ try {
   assert.ok(printSrc.includes('CIF: 93990562'), 'ticket CIF')
   assert.ok(printSrc.includes('Crta Ceares 67, 33209'), 'ticket dirección')
   assert.ok(printSrc.includes('legalLines'), 'ticket legalLines')
-  assert.ok(printSrc.includes('SIZE_TALL'), 'ticket letra algo mayor')
-  // Cada frase fiscal en una sola línea (sin wrapLines a 24)
+  assert.ok(/cols:\s*32/.test(printSrc), 'ticket 32 cols ancho completo')
+  assert.ok(printSrc.includes('cols32-fullwidth'), 'build ticket fullwidth')
+  // Cada frase fiscal en una sola línea; SIZE_NORMAL tras el título
   assert.ok(
-    /legalLines[\s\S]*?for \(const row of BUSINESS\.legalLines[\s\S]*?\.trim\(\) \+ ESC\.LF/.test(
+    /SIZE_NORMAL[\s\S]*?for \(const row of BUSINESS\.legalLines[\s\S]*?\.trim\(\) \+ ESC\.LF/.test(
       printSrc,
     ),
-    'legal lines sin partir',
+    'legal lines sin partir y sin SIZE_TALL',
   )
   ok('ticket-total-sameline')
 } catch (err) {
