@@ -72,6 +72,11 @@ try {
   const iva = padRowWidth('IVA 10%', money(0.37) + ' E', cols)
   assert.ok(iva.endsWith('0,37 E'), 'iva con E: ' + iva)
   assert.strictEqual(iva.length, cols)
+  const printSrc = fs.readFileSync(path.join(root, 'printService.js'), 'utf8')
+  assert.ok(printSrc.includes('Hostelería Valdés Bonilla'), 'ticket razón social')
+  assert.ok(printSrc.includes('CIF 93990562'), 'ticket CIF')
+  assert.ok(printSrc.includes('Crta Ceares 67 33209'), 'ticket dirección')
+  assert.ok(printSrc.includes('legalLines'), 'ticket legalLines')
   ok('ticket-total-sameline')
 } catch (err) {
   fail('ticket-total-sameline', err)

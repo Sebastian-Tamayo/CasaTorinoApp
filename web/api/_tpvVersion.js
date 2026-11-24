@@ -9,9 +9,9 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-14-varios-auto'
+const required = '2026-11-24-ticket-fiscal'
 const message =
-  'Importante: actualiza — Varios Cocina se envía al añadir; sin Siguiente plato'
+  'Actualiza — ticket con razón social, CIF y dirección'
 
 function forceInfo() {
   return { required, message }
