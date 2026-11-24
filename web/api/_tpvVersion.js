@@ -9,9 +9,9 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-24-ticket-fiscal'
+const required = '2026-11-24-ticket-fiscal-sl'
 const message =
-  'Actualiza — ticket con razón social, CIF y dirección'
+  'Actualiza — ticket S.L / CIF / dirección sin partir líneas'
 
 function forceInfo() {
   return { required, message }

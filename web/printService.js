@@ -22,11 +22,15 @@
 
   const BUSINESS = {
     name: 'CASA TORINO',
-    /** Líneas bajo el nombre (razón social / CIF / dirección). */
+    /**
+     * Líneas bajo el nombre (razón social / CIF / dirección).
+     * Van en una sola fila cada una (sin wrap artificial a 24 cols);
+     * Font A en POS-58 admite ~32 caracteres a ancho normal.
+     */
     legalLines: [
-      'Hostelería Valdés Bonilla',
-      'CIF 93990562',
-      'Crta Ceares 67 33209',
+      'Hostelería Valdés Bonilla S.L',
+      'CIF: 93990562',
+      'Crta Ceares 67, 33209',
     ],
     subtitle: 'Bar · Restaurante',
     footer: '¡Gracias por su visita!',
@@ -41,8 +45,8 @@
   /** Datos fiscales del emisor (rellenados desde /api/tpv-facturas). */
   let fiscalEmitter = {
     nif: '93990562',
-    legalName: 'Hostelería Valdés Bonilla',
-    address: 'Crta Ceares 67 33209',
+    legalName: 'Hostelería Valdés Bonilla S.L',
+    address: 'Crta Ceares 67, 33209',
     city: 'Gijón',
     phone: '612 254 719',
   }
@@ -94,7 +98,11 @@
     BOLD_ON: '\x1B\x45\x01',
     BOLD_OFF: '\x1B\x45\x00',
     SIZE_NORMAL: '\x1D\x21\x00',
+    /** Altura ×2, ancho ×1 — un poco más grande sin partir líneas largas. */
+    SIZE_TALL: '\x1D\x21\x01',
     SIZE_DOUBLE: '\x1D\x21\x11',
+    /** Fuente A (más legible en 58 mm; ~32 cols a ancho normal). */
+    FONT_A: '\x1B\x4D\x00',
     CUT: '\x1D\x56\x00',
     /** Abrir cajón pin 2 (estándar ESC p) — si no hay cajón, se ignora */
     DRAWER: '\x1B\x70\x00\x19\xFA',
@@ -260,14 +268,18 @@
     data.push(ESC.LEFT_MARGIN_0)
     data.push(ESC.PRINT_WIDTH)
     data.push(ESC.ALIGN_LEFT)
+    data.push(ESC.FONT_A)
     data.push(ESC.SIZE_DOUBLE)
     data.push(ESC.BOLD_ON)
     data.push(BUSINESS.name + ESC.LF)
+    data.push(ESC.SIZE_TALL)
+    data.push(ESC.BOLD_ON)
+    for (const row of BUSINESS.legalLines || []) {
+      // Una frase = una línea (sin partir a 24 cols)
+      data.push(String(row || '').trim() + ESC.LF)
+    }
     data.push(ESC.SIZE_NORMAL)
     data.push(ESC.BOLD_OFF)
-    for (const row of BUSINESS.legalLines || []) {
-      for (const w of wrapLines(row)) data.push(w + ESC.LF)
-    }
     data.push(BUSINESS.subtitle + ESC.LF)
     data.push(when + ESC.LF)
     if (meta.mesa) data.push(`Mesa ${meta.mesa}` + ESC.LF)
