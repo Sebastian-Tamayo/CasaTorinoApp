@@ -11,7 +11,7 @@
  *    (ver assets/qz/LEEME-QUITAR-AVISO.txt)
  */
 (() => {
-  const BUILD_TICKET = 'cols32-fullwidth-20261124'
+  const BUILD_TICKET = 'cols24-spacing-fill-20261124'
   const PRINTER_NAME = 'POS-58'
   const PRINTER_ALIASES = [
     /^POS-58$/i,
@@ -24,7 +24,7 @@
     name: 'CASA TORINO',
     /**
      * Líneas bajo el nombre (razón social / CIF / dirección).
-     * Una frase = una línea a ancho normal (Font A ≈ 32 cols en POS-58).
+     * Se imprimen en Font B (más estrecha) para que quepan en 1 línea.
      */
     legalLines: [
       'Hostelería Valdés Bonilla S.L',
@@ -34,10 +34,12 @@
     subtitle: 'Bar · Restaurante',
     footer: '¡Gracias por su visita!',
     /**
-     * Ancho útil POS-58 (58 mm): Font A ≈ 32 caracteres a 384 dots.
-     * Usar 32 llena el papel (borde mínimo); el padRow alinea precios a la derecha.
+     * Esta POS-58 solo cabe ~24 caracteres Font A por línea (si se pasa,
+     * parten precios y el TOTAL: "13" / ",00").
+     * Para llenar el papel sin partir: 24 cols + ESC SP (espacio entre
+     * caracteres) hasta ~384 dots de ancho de impresión.
      */
-    cols: 32,
+    cols: 24,
   }
 
   /** Datos fiscales del emisor (rellenados desde /api/tpv-facturas). */
@@ -89,10 +91,7 @@
     CP858: '\x1B\x74\x13',
     /** Margen izquierdo 0 (GS L nL nH) */
     LEFT_MARGIN_0: '\x1D\x4C\x00\x00',
-    /**
-     * Área de impresión POS-58: 384 dots (nL=0x80, nH=0x01).
-     * Encaja con Font A (~12 dots/carácter → ~32 cols).
-     */
+    /** Área de impresión POS-58: 384 dots (nL=0x80, nH=0x01). */
     PRINT_WIDTH: '\x1D\x57\x80\x01',
     ALIGN_LEFT: '\x1B\x61\x00',
     ALIGN_CENTER: '\x1B\x61\x01',
@@ -100,8 +99,17 @@
     BOLD_OFF: '\x1B\x45\x00',
     SIZE_NORMAL: '\x1D\x21\x00',
     SIZE_DOUBLE: '\x1D\x21\x11',
-    /** Fuente A (más legible en 58 mm; ~32 cols a ancho normal). */
+    /** Fuente A (~12 dots) — cuerpo del ticket, 24 cols. */
     FONT_A: '\x1B\x4D\x00',
+    /** Fuente B (~9 dots) — cabecera fiscal larga en una sola línea. */
+    FONT_B: '\x1B\x4D\x01',
+    /** Espaciado derecho entre caracteres (ESC SP n). */
+    CHAR_SPACING_0: '\x1B\x20\x00',
+    /**
+     * Rellena el ancho de impresión con 24 chars Font A:
+     * 24 × (12 + 4) = 384 dots.
+     */
+    CHAR_SPACING_FILL: '\x1B\x20\x04',
     CUT: '\x1D\x56\x00',
     /** Abrir cajón pin 2 (estándar ESC p) — si no hay cajón, se ignora */
     DRAWER: '\x1B\x70\x00\x19\xFA',
@@ -268,15 +276,21 @@
     data.push(ESC.PRINT_WIDTH)
     data.push(ESC.ALIGN_LEFT)
     data.push(ESC.FONT_A)
+    data.push(ESC.CHAR_SPACING_0)
     data.push(ESC.SIZE_DOUBLE)
     data.push(ESC.BOLD_ON)
     data.push(BUSINESS.name + ESC.LF)
-    // Reset ancho×alto tras el título (si no, algunas POS dejan ancho×2 y parten S.L)
+    // Cabecera fiscal en Font B (más estrecha) → «… S.L» en una sola línea
     data.push(ESC.SIZE_NORMAL)
+    data.push(ESC.FONT_B)
+    data.push(ESC.CHAR_SPACING_0)
     data.push(ESC.BOLD_ON)
     for (const row of BUSINESS.legalLines || []) {
       data.push(String(row || '').trim() + ESC.LF)
     }
+    // Cuerpo: Font A + espaciado para ocupar todo el ancho útil (sin partir líneas)
+    data.push(ESC.FONT_A)
+    data.push(ESC.CHAR_SPACING_FILL)
     data.push(ESC.BOLD_OFF)
     data.push(BUSINESS.subtitle + ESC.LF)
     data.push(when + ESC.LF)
@@ -317,19 +331,10 @@
     data.push(padRow('Base', money(base) + ' E') + ESC.LF)
     data.push(padRow('IVA ' + Math.round(ivaRate * 100) + '%', money(iva) + ' E') + ESC.LF)
     data.push(ESC.BOLD_ON)
-    // TOTAL + importe en la MISMA línea (ancho doble ≈ mitad de cols)
+    // TOTAL misma línea (negrita normal): el doble ancho partía "13" / ",00" en esta POS
     const totalAmt = money(total)
-    const doubleCols = Math.max(10, Math.floor(BUSINESS.cols / 2))
-    const totalLine = padRowWidth('TOTAL', totalAmt, doubleCols)
-    if (totalLine.length <= doubleCols && totalAmt.length <= 6) {
-      data.push(ESC.SIZE_DOUBLE)
-      data.push(totalLine + ESC.LF)
-      data.push(ESC.SIZE_NORMAL)
-    } else {
-      // Importes largos o que no caben a doble: negrita normal, una sola línea
-      data.push(ESC.SIZE_NORMAL)
-      data.push(padRow('TOTAL', totalAmt + ' E') + ESC.LF)
-    }
+    data.push(ESC.SIZE_NORMAL)
+    data.push(padRow('TOTAL', totalAmt + ' E') + ESC.LF)
     data.push(ESC.BOLD_OFF)
 
     const payments = Array.isArray(meta.payments)
@@ -476,17 +481,8 @@
         ESC.LF,
     )
     data.push(ESC.BOLD_ON)
-    const totalAmt = money(total)
-    const doubleCols = Math.max(10, Math.floor(BUSINESS.cols / 2))
-    const totalLine = padRowWidth('TOTAL', totalAmt, doubleCols)
-    if (totalLine.length <= doubleCols && totalAmt.length <= 6) {
-      data.push(ESC.SIZE_DOUBLE)
-      data.push(totalLine + ESC.LF)
-      data.push(ESC.SIZE_NORMAL)
-    } else {
-      data.push(ESC.SIZE_NORMAL)
-      data.push(padRow('TOTAL', totalAmt + ' E') + ESC.LF)
-    }
+    data.push(ESC.SIZE_NORMAL)
+    data.push(padRow('TOTAL', money(total) + ' E') + ESC.LF)
     data.push(ESC.BOLD_OFF)
     data.push('(IVA incluido)' + ESC.LF)
 

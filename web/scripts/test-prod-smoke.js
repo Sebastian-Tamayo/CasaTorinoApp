@@ -51,17 +51,16 @@ try {
     const row = L + ' '.repeat(space) + R
     return row.length > width ? row.slice(0, width) : row
   }
-  const cols = 32
-  const dcols = Math.max(10, Math.floor(cols / 2))
+  const cols = 24
   for (const amt of [12.5, 0.5, 99.99, 123.45, 8, 4.1]) {
-    const line = padRowWidth('TOTAL', money(amt), dcols)
+    const line = padRowWidth('TOTAL', money(amt) + ' E', cols)
     assert.ok(!line.includes('\n'), 'sin salto')
     assert.ok(line.startsWith('TOTAL'), 'label')
     assert.ok(line.includes(','), 'decimales en misma línea: ' + line)
-    assert.ok(line.length <= dcols, 'cabe en doble ancho: ' + line)
-    assert.ok(line.endsWith(money(amt)), 'importe completo al final: ' + line)
+    assert.strictEqual(line.length, cols, 'TOTAL ancho 24: ' + line)
+    assert.ok(line.endsWith(money(amt) + ' E'), 'importe completo al final: ' + line)
   }
-  // Líneas de producto / base: importe entero en la misma fila (ancho completo)
+  // Líneas de producto / base: importe entero en la misma fila
   const item = padRowWidth('1x Caña rubia', money(2.6), cols)
   assert.ok(item.includes('2,60'), 'precio producto: ' + item)
   assert.strictEqual(item.length, cols)
@@ -77,15 +76,10 @@ try {
   assert.ok(printSrc.includes('CIF: 93990562'), 'ticket CIF')
   assert.ok(printSrc.includes('Crta Ceares 67, 33209'), 'ticket dirección')
   assert.ok(printSrc.includes('legalLines'), 'ticket legalLines')
-  assert.ok(/cols:\s*32/.test(printSrc), 'ticket 32 cols ancho completo')
-  assert.ok(printSrc.includes('cols32-fullwidth'), 'build ticket fullwidth')
-  // Cada frase fiscal en una sola línea; SIZE_NORMAL tras el título
-  assert.ok(
-    /SIZE_NORMAL[\s\S]*?for \(const row of BUSINESS\.legalLines[\s\S]*?\.trim\(\) \+ ESC\.LF/.test(
-      printSrc,
-    ),
-    'legal lines sin partir y sin SIZE_TALL',
-  )
+  assert.ok(/cols:\s*24/.test(printSrc), 'ticket 24 cols (ancho real POS)')
+  assert.ok(printSrc.includes('CHAR_SPACING_FILL'), 'espaciado para llenar papel')
+  assert.ok(printSrc.includes('FONT_B'), 'Font B cabecera fiscal')
+  assert.ok(printSrc.includes('cols24-spacing-fill'), 'build ticket spacing fill')
   ok('ticket-total-sameline')
 } catch (err) {
   fail('ticket-total-sameline', err)
@@ -313,7 +307,12 @@ try {
   assert.ok(html.includes('unregister'))
   assert.ok(html.includes('TOTAL') || true)
   const print = fs.readFileSync(path.join(root, 'printService.js'), 'utf8')
-  assert.ok(print.includes('total-sameline') || print.includes('MISMA línea') || print.includes('padRowWidth(\'TOTAL\''))
+  assert.ok(
+    print.includes('total-sameline') ||
+      /MISMA l[ií]nea/i.test(print) ||
+      print.includes("padRow('TOTAL'") ||
+      print.includes('padRowWidth(\'TOTAL\''),
+  )
   assert.ok(!print.includes("data.push('TOTAL' + ESC.LF)\n    data.push(money(total)"))
   ok('force-reload-tpv-html')
 } catch (err) {

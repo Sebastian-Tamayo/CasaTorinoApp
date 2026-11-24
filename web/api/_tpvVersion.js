@@ -9,9 +9,9 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-24-ticket-fullwidth'
+const required = '2026-11-24-ticket-spacing'
 const message =
-  'Actualiza — ticket a ancho completo (sin hueco a la derecha)'
+  'Actualiza — ticket: S.L en 1 línea, TOTAL sin partir, ancho lleno'
 
 function forceInfo() {
   return { required, message }
