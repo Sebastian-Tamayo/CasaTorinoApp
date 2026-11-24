@@ -48,7 +48,7 @@
     legalName: 'Hostelería Valdés Bonilla S.L',
     address: 'Crta Ceares 67, 33209',
     city: 'Gijón',
-    phone: '612 254 719',
+    phone: '746 082 265',
   }
 
   function setFiscalEmitter(partial = {}) {

@@ -46,7 +46,7 @@ function emptyFiscal() {
     legalName: 'CASA TORINO',
     address: 'Ctra. Ceares, 67',
     city: 'Gijón',
-    phone: '612 254 719',
+    phone: '746 082 265',
     updatedAt: 0,
   }
 }

@@ -3,8 +3,8 @@ export const BUSINESS = {
   name: 'Casa Torino',
   slogan: 'Sabor que deja huella',
   address: 'Ctra. Ceares, 67, Gijón',
-  phone: '612 254 719',
-  whatsapp: '34612254719',
+  phone: '746 082 265',
+  whatsapp: '34746082265',
   maxPartySize: 20,
   minPartySize: 1,
 } as const
