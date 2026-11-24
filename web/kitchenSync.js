@@ -398,6 +398,13 @@
     refreshSession,
     create: (order) => post('create', { order }),
     complete: (id) => post('complete', { id }),
+    completeItem: (orderId, itemIndex, itemId) =>
+      post('completeItem', {
+        orderId,
+        itemIndex,
+        ...(itemId != null && itemId !== '' ? { itemId: String(itemId) } : {}),
+      }),
+    restore: (id) => post('restore', { id }),
     undo: () => post('undo'),
     ackPickup: (id) => post('ackPickup', { id: id || '' }),
     syncJornada: (phase, payload = {}) =>

@@ -202,8 +202,16 @@ try {
 try {
   const src = fs.readFileSync(path.join(root, 'api/kitchen.js'), 'utf8')
   assert.ok(src.includes("action === 'create'") || src.includes('case \'create\'') || src.includes('create'))
+  assert.ok(src.includes("action === 'completeItem'"))
+  assert.ok(src.includes("action === 'restore'"))
+  assert.ok(src.includes('applyCompleteItem') && src.includes('platePickupMessage'))
   assert.ok(src.includes('updateJson'))
   assert.ok(src.includes('ORDERS_MAX'))
+  const cocinaHtml = fs.readFileSync(path.join(root, 'cocina.html'), 'utf8')
+  assert.ok(cocinaHtml.includes('data-complete-item') && cocinaHtml.includes('completeItem'))
+  assert.ok(cocinaHtml.includes('data-restore'))
+  const sync = fs.readFileSync(path.join(root, 'kitchenSync.js'), 'utf8')
+  assert.ok(sync.includes('completeItem:') && sync.includes('restore:'))
   ok('kitchen-api-source')
 } catch (err) {
   fail('kitchen-api-source', err)

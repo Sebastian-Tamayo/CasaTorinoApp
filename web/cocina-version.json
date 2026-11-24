@@ -1,5 +1,5 @@
 {
-  "required": "2026-11-07-cost-rt3",
-  "message": "Actualiza — poll lento con Realtime; 1 heartbeat PIN",
-  "updatedAt": "2026-11-07T07:00:00.000Z"
+  "required": "2026-11-24-listo-plato",
+  "message": "Actualiza — Listo por plato + aviso recoger a camarera",
+  "updatedAt": "2026-11-24T06:00:00.000Z"
 }

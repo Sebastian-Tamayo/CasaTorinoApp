@@ -3,7 +3,7 @@
  * Persistencia: Supabase ops_kv vía api/_opsStore.js (clave `kitchen`).
  *
  * GET  /api/kitchen
- * POST /api/kitchen  { action: create|complete|undo|clear|resetHistory|syncJornada }
+ * POST /api/kitchen  { action: create|complete|completeItem|restore|undo|clear|resetHistory|syncJornada|ackPickup }
  *
  * Escrituras con updateJson (RMW + reintento) para no perder Listo/comandas
  * concurrentes en jornada 24/7.
@@ -290,6 +290,272 @@ function removeFromHistory(history, id) {
   return (history || []).filter((h) => h && h.id !== id)
 }
 
+function bizError(status, message) {
+  const err = new Error(message)
+  err.httpStatus = status
+  return err
+}
+
+function platePickupMessage(mesa, plateName) {
+  const plate = String(plateName || '').trim() || 'plato'
+  const m = String(mesa || '').trim() || '?'
+  return `Recoger plato "${plate}" · mesa ${m}`
+}
+
+function isWaitingPlaceholderItem(it) {
+  return String(it?.id || '') === 'waiting-segundo'
+}
+
+function cloneItem(it) {
+  return {
+    id: String(it?.id || ''),
+    name: String(it?.name || '').trim(),
+    qty: Math.max(1, Math.min(99, Number(it?.qty) || 1)),
+    categoryType: 'comida',
+    catId: String(it?.catId || ''),
+    note: String(it?.note || '').trim(),
+  }
+}
+
+/**
+ * Marca listo **un plato** (o 1 ud. si qty>1). Genera pickup por plato e histórico parcial.
+ * @param {object} state
+ * @param {{ orderId: string, itemIndex: number, itemId?: string, now?: string }} opts
+ */
+function applyCompleteItem(state, opts = {}) {
+  const orderId = String(opts.orderId || '').trim()
+  const itemIndex = Number(opts.itemIndex)
+  const itemId = opts.itemId != null ? String(opts.itemId) : ''
+  const now = opts.now || new Date().toISOString()
+
+  const orders = Array.isArray(state.orders) ? state.orders.slice() : []
+  const idx = orders.findIndex((o) => o && o.id === orderId)
+  if (idx < 0) throw bizError(404, 'Pedido no encontrado')
+
+  const current = orders[idx]
+  if (current.status === 'waiting_next' || current.phase === 'waiting_segundo') {
+    throw bizError(400, 'Esperando siguiente plato de la camarera')
+  }
+
+  const items = Array.isArray(current.items) ? current.items.slice() : []
+  if (!Number.isInteger(itemIndex) || itemIndex < 0 || itemIndex >= items.length) {
+    throw bizError(400, 'Plato no encontrado')
+  }
+  const item = items[itemIndex]
+  if (itemId && String(item.id || '') !== itemId) {
+    throw bizError(400, 'Plato no coincide (comanda actualizada)')
+  }
+  if (isWaitingPlaceholderItem(item)) {
+    throw bizError(400, 'No se puede marcar listo este aviso')
+  }
+
+  const mesa = String(current.mesa || '').trim() || '?'
+  const plateName = String(item.name || '').trim() || 'plato'
+  const qty = Math.max(1, Number(item.qty) || 1)
+  const doneUnit = cloneItem({ ...item, qty: 1 })
+
+  let remaining
+  if (qty > 1) {
+    remaining = items.map((it, j) =>
+      j === itemIndex ? { ...it, qty: qty - 1 } : it,
+    )
+  } else {
+    remaining = items.filter((_, j) => j !== itemIndex)
+  }
+
+  const histId = `${current.id}::item::${Date.now()}-${Math.random().toString(16).slice(2, 8)}`
+  const histOrder = {
+    id: histId,
+    parentOrderId: current.id,
+    mesa,
+    status: 'ready',
+    kind: current.kind || 'order',
+    createdAt: current.createdAt || now,
+    completedAt: now,
+    notes: String(current.notes || '').trim(),
+    items: [doneUnit],
+    itemReady: true,
+  }
+
+  const pickup = {
+    id: histId,
+    mesa,
+    at: now,
+    message: platePickupMessage(mesa, plateName),
+    itemName: plateName,
+  }
+
+  const isMenuFirst =
+    current.kind === 'menu_dia' &&
+    Number(current.course || 1) === 1 &&
+    current.status !== 'waiting_next'
+
+  if (!remaining.length && isMenuFirst) {
+    orders[idx] = {
+      ...current,
+      status: 'waiting_next',
+      phase: 'waiting_segundo',
+      course: 2,
+      completedFirstAt: now,
+      completedAt: null,
+      items: [
+        {
+          id: 'waiting-segundo',
+          name: '⏳ 1º listo — esperando «Siguiente plato»',
+          qty: 1,
+          categoryType: 'comida',
+          catId: 'menus-dia',
+          note: 'La camarera pulsará Siguiente plato en el TPV',
+        },
+      ],
+    }
+    state.orders = orders
+    state.lastCompleted = { ...histOrder, menuPartial: true }
+    state.history = pushHistory(state.history, histOrder)
+    const prev = Array.isArray(state.pickups) ? state.pickups : []
+    state.pickups = [pickup, ...prev.filter((p) => p && p.id !== pickup.id)].slice(
+      0,
+      PICKUPS_MAX,
+    )
+    return { state, meta: { order: histOrder, pickup, orderClosed: false } }
+  }
+
+  if (!remaining.length) {
+    orders.splice(idx, 1)
+    state.orders = orders
+  } else {
+    orders[idx] = { ...current, items: remaining }
+    state.orders = orders
+  }
+
+  state.lastCompleted = histOrder
+  state.history = pushHistory(state.history, histOrder)
+
+  if (current.kind === 'siguiente_plato') {
+    return { state, meta: { order: histOrder, pickup: null, orderClosed: !remaining.length } }
+  }
+
+  const prev = Array.isArray(state.pickups) ? state.pickups : []
+  state.pickups = [pickup, ...prev.filter((p) => p && p.id !== pickup.id)].slice(
+    0,
+    PICKUPS_MAX,
+  )
+  return {
+    state,
+    meta: { order: histOrder, pickup, orderClosed: !remaining.length },
+  }
+}
+
+/**
+ * Recupera una entrada del histórico (comanda completa o un plato).
+ * Si el plato tenía parentOrderId y la comanda sigue viva, reinserta solo ese plato.
+ */
+function applyRestoreHistoryEntry(state, histId) {
+  const id = String(histId || '').trim()
+  if (!id) throw bizError(400, 'Falta id')
+
+  const history = Array.isArray(state.history) ? state.history : []
+  let source = history.find((h) => h && h.id === id) || null
+  if (
+    !source &&
+    state.lastCompleted &&
+    state.lastCompleted.id === id &&
+    state.lastCompleted.status === 'ready'
+  ) {
+    source = state.lastCompleted
+  }
+  if (!source || source.status !== 'ready') {
+    throw bizError(400, 'Nada que recuperar')
+  }
+
+  const now = new Date().toISOString()
+  const parentId = String(source.parentOrderId || source.id).trim()
+  const itemsToRestore = (Array.isArray(source.items) ? source.items : []).map(cloneItem)
+  if (!itemsToRestore.length) throw bizError(400, 'Entrada sin platos')
+
+  // Deshacer Listo del 1º plato del menú (legado)
+  if (source.menuPartial && source.kind === 'menu_dia' && !source.itemReady) {
+    const restored = {
+      ...source,
+      id: parentId,
+      status: 'pending_kitchen',
+      completedAt: null,
+      course: 1,
+      phase: 'primero',
+      restoredAt: now,
+      items: itemsToRestore,
+    }
+    delete restored.menuPartial
+    delete restored.itemReady
+    delete restored.parentOrderId
+    let orders = (state.orders || []).filter((o) => o && o.id !== restored.id)
+    orders = [restored, ...orders]
+    state.orders = orders
+    state.lastCompleted =
+      state.lastCompleted && state.lastCompleted.id === id ? null : state.lastCompleted
+    state.history = removeFromHistory(state.history, id)
+    state.pickups = (state.pickups || []).filter(
+      (p) => p && p.id !== id && p.id !== restored.id && p.id !== `${restored.id}::c1`,
+    )
+    return { state, meta: { order: restored } }
+  }
+
+  let orders = Array.isArray(state.orders) ? state.orders.slice() : []
+  const existIdx = orders.findIndex((o) => o && o.id === parentId)
+
+  if (existIdx >= 0) {
+    const cur = orders[existIdx]
+    if (cur.status === 'waiting_next' || cur.phase === 'waiting_segundo') {
+      orders[existIdx] = {
+        ...cur,
+        status: 'pending_kitchen',
+        phase: 'primero',
+        course: 1,
+        completedAt: null,
+        items: itemsToRestore,
+        restoredAt: now,
+      }
+      delete orders[existIdx].completedFirstAt
+    } else {
+      const live = (cur.items || []).filter((it) => !isWaitingPlaceholderItem(it))
+      orders[existIdx] = {
+        ...cur,
+        items: [...itemsToRestore, ...live],
+        restoredAt: now,
+      }
+    }
+  } else {
+    const restored = {
+      id: parentId,
+      mesa: String(source.mesa || '').trim() || '?',
+      status: 'pending_kitchen',
+      kind: source.kind === 'siguiente_plato' ? 'order' : source.kind || 'order',
+      createdAt: source.createdAt || now,
+      completedAt: null,
+      notes: String(source.notes || '').trim(),
+      items: itemsToRestore,
+      restoredAt: now,
+    }
+    if (source.kind === 'menu_dia' && source.itemReady) {
+      restored.kind = 'menu_dia'
+      restored.course = Number(source.course) || 1
+      restored.phase = restored.course === 2 ? 'segundo' : 'primero'
+    }
+    orders = [restored, ...orders]
+  }
+
+  state.orders = orders
+  state.history = removeFromHistory(state.history, id)
+  if (state.lastCompleted && state.lastCompleted.id === id) {
+    state.lastCompleted = null
+  }
+  state.pickups = (state.pickups || []).filter(
+    (p) => p && p.id !== id && p.id !== parentId && p.id !== `${parentId}::c1`,
+  )
+  const order = state.orders.find((o) => o && o.id === parentId) || null
+  return { state, meta: { order } }
+}
+
 /**
  * Mutación RMW. Si mutator lanza { httpStatus }, no escribe y se propaga.
  */
@@ -302,12 +568,6 @@ async function mutate(mutator) {
     return out.state
   })
   return { state: normalizeState(next), meta: resultMeta }
-}
-
-function bizError(status, message) {
-  const err = new Error(message)
-  err.httpStatus = status
-  return err
 }
 
 async function handler(req, res) {
@@ -471,6 +731,39 @@ async function handler(req, res) {
         )
       }
 
+      if (action === 'completeItem') {
+        const orderId = String(body.orderId || body.id || '').trim()
+        const itemIndex = Number(body.itemIndex)
+        const itemId =
+          body.itemId != null && body.itemId !== '' ? String(body.itemId) : ''
+        try {
+          const { state, meta } = await mutate((state) =>
+            applyCompleteItem(state, { orderId, itemIndex, itemId }),
+          )
+          if (meta.pickup || meta.order?.status === 'ready') {
+            auditKitchenReady(meta.order, meta.pickup)
+          }
+          res.statusCode = 200
+          res.setHeader('Content-Type', 'application/json')
+          return res.end(
+            JSON.stringify({
+              ok: true,
+              order: meta.order,
+              pickup: meta.pickup,
+              orderClosed: Boolean(meta.orderClosed),
+              ...publicPayload(state),
+            }),
+          )
+        } catch (err) {
+          if (err.httpStatus) {
+            res.statusCode = err.httpStatus
+            res.setHeader('Content-Type', 'application/json')
+            return res.end(JSON.stringify({ error: err.message }))
+          }
+          throw err
+        }
+      }
+
       if (action === 'complete') {
         const id = String(body.id || '').trim()
         try {
@@ -517,12 +810,15 @@ async function handler(req, res) {
                 course: 1,
               }
               state.lastCompleted = done
-              // No va al histórico hasta cerrar el 2º
+              const firstName =
+                Array.isArray(snapshot.items) && snapshot.items[0]
+                  ? snapshot.items[0].name
+                  : '1º plato'
               const pickup = {
                 id: `${done.id}::c1`,
                 mesa,
                 at: now,
-                message: `Recoger mesa ${mesa} · 1º plato`,
+                message: platePickupMessage(mesa, firstName),
               }
               const prev = Array.isArray(state.pickups) ? state.pickups : []
               state.pickups = [pickup, ...prev.filter((p) => p && p.id !== pickup.id)].slice(
@@ -546,15 +842,19 @@ async function handler(req, res) {
               return { state, meta: { order: done, pickup: null } }
             }
 
-            const isSecond =
-              done.kind === 'menu_dia' && Number(done.course || 0) === 2
+            const names = (Array.isArray(done.items) ? done.items : [])
+              .map((it) => String(it?.name || '').trim())
+              .filter(Boolean)
             const pickup = {
               id: done.id,
               mesa,
               at: done.completedAt,
-              message: isSecond
-                ? `Recoger mesa ${mesa} · 2º plato`
-                : `Recoger mesa ${mesa}`,
+              message:
+                names.length === 1
+                  ? platePickupMessage(mesa, names[0])
+                  : names.length > 1
+                    ? `Recoger platos · mesa ${mesa}`
+                    : `Recoger mesa ${mesa}`,
             }
             const prev = Array.isArray(state.pickups) ? state.pickups : []
             state.pickups = [pickup, ...prev.filter((p) => p && p.id !== pickup.id)].slice(
@@ -573,6 +873,31 @@ async function handler(req, res) {
               ok: true,
               order: meta.order,
               pickup: meta.pickup,
+              ...publicPayload(state),
+            }),
+          )
+        } catch (err) {
+          if (err.httpStatus) {
+            res.statusCode = err.httpStatus
+            res.setHeader('Content-Type', 'application/json')
+            return res.end(JSON.stringify({ error: err.message }))
+          }
+          throw err
+        }
+      }
+
+      if (action === 'restore') {
+        const id = String(body.id || '').trim()
+        try {
+          const { state, meta } = await mutate((state) =>
+            applyRestoreHistoryEntry(state, id),
+          )
+          res.statusCode = 200
+          res.setHeader('Content-Type', 'application/json')
+          return res.end(
+            JSON.stringify({
+              ok: true,
+              order: meta.order,
               ...publicPayload(state),
             }),
           )
@@ -607,42 +932,7 @@ async function handler(req, res) {
             if (!lastCompleted || lastCompleted.status !== 'ready') {
               throw bizError(400, 'Nada que deshacer')
             }
-
-            // Deshacer Listo del 1º plato del menú
-            if (lastCompleted.menuPartial && lastCompleted.kind === 'menu_dia') {
-              const restored = {
-                ...lastCompleted,
-                status: 'pending_kitchen',
-                completedAt: null,
-                course: 1,
-                phase: 'primero',
-                restoredAt: new Date().toISOString(),
-              }
-              delete restored.menuPartial
-              let orders = (state.orders || []).filter((o) => o.id !== restored.id)
-              orders = [restored, ...orders]
-              state.orders = orders
-              state.lastCompleted = null
-              state.pickups = (state.pickups || []).filter(
-                (p) => p && p.id !== restored.id && p.id !== `${restored.id}::c1`,
-              )
-              return { state, meta: { order: restored } }
-            }
-
-            const restored = {
-              ...lastCompleted,
-              status: 'pending_kitchen',
-              completedAt: null,
-              restoredAt: new Date().toISOString(),
-            }
-            let orders = (state.orders || []).filter((o) => o.id !== restored.id)
-            orders = [restored, ...orders]
-            state.orders = orders
-            state.history = removeFromHistory(state.history, restored.id)
-            state.lastCompleted = null
-            // Si se deshace el Listo, quitar aviso de recogida
-            state.pickups = (state.pickups || []).filter((p) => p && p.id !== restored.id)
-            return { state, meta: { order: restored } }
+            return applyRestoreHistoryEntry(state, lastCompleted.id)
           })
           res.statusCode = 200
           res.setHeader('Content-Type', 'application/json')
@@ -730,3 +1020,8 @@ module.exports = handler
 module.exports.sanitizeItems = sanitizeItems
 module.exports.isSpanishMenuItem = isSpanishMenuItem
 module.exports.buildMenuDiaOrderFields = buildMenuDiaOrderFields
+module.exports.applyCompleteItem = applyCompleteItem
+module.exports.applyRestoreHistoryEntry = applyRestoreHistoryEntry
+module.exports.platePickupMessage = platePickupMessage
+module.exports.emptyState = emptyState
+module.exports.normalizeState = normalizeState

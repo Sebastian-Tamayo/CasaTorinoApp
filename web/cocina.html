@@ -288,10 +288,27 @@
 
     .ticket-b { flex: 1; padding: .85rem 1rem 1rem; display: grid; gap: .55rem; align-content: start; }
     .line {
-      display: grid; grid-template-columns: auto 1fr; gap: .55rem .7rem;
+      display: grid; grid-template-columns: auto 1fr auto; gap: .55rem .7rem;
+      align-items: center;
       padding: .55rem .65rem; border-radius: 10px; background: var(--card2);
       border: 1px solid #243041;
     }
+    .btn-line-ready {
+      border: 0; border-radius: 10px; min-width: 4.6rem; height: 44px;
+      padding: 0 .7rem; cursor: pointer; font-weight: 900; font-size: .92rem;
+      background: linear-gradient(180deg, #34d399, #16a34a);
+      color: #04140a; letter-spacing: .02em;
+      box-shadow: 0 4px 12px rgba(22,163,74,.3);
+      white-space: nowrap;
+    }
+    .btn-line-ready:active { transform: scale(.97); }
+    .btn-line-ready:disabled { opacity: .55; cursor: wait; }
+    .btn-hist-restore {
+      margin-top: .55rem; width: 100%; height: 42px; border-radius: 10px;
+      border: 1px solid #6b4e16; background: #2a1f0f; color: var(--accent);
+      font-weight: 800; cursor: pointer;
+    }
+    .btn-hist-restore:active { transform: scale(.98); }
     .qty {
       font-size: 1.45rem; font-weight: 900; color: var(--accent);
       min-width: 1.6ch; text-align: center; align-self: start; line-height: 1.1;
@@ -379,6 +396,8 @@
       .ticket { min-height: 0; }
       .mesa-num { font-size: clamp(1.7rem, 8vw, 2.2rem); }
       .btn-ready { height: 52px; font-size: 1.05rem; }
+      .btn-line-ready { height: 48px; min-width: 4.2rem; font-size: .88rem; }
+      .line { grid-template-columns: auto 1fr auto; gap: .45rem .55rem; }
     }
     @media (min-width: 721px) {
       .btn-hist .btn-label-short { display: none; }
@@ -471,7 +490,7 @@
           <span class="btn-label-full">Histórico</span>
           <span class="btn-label-short">Hist.</span>
         </button>
-        <button class="btn-undo" id="btnUndo" type="button" disabled title="Recuperar último completado">
+        <button class="btn-undo" id="btnUndo" type="button" disabled title="Recuperar último plato marcado listo">
           <i class="fa-solid fa-rotate-left"></i>
           <span class="btn-label">Deshacer</span>
         </button>
@@ -494,7 +513,7 @@
      * - web/cocina-version.json → required
      * - web/api/_cocinaVersion.js → required
      */
-    const COCINA_CLIENT_VERSION = '2026-11-07-cost-rt3'
+    const COCINA_CLIENT_VERSION = '2026-11-24-listo-plato'
     const COCINA_ACK_KEY = 'ct-cocina-ack-version'
     const $force = (id) => document.getElementById(id)
 
@@ -815,15 +834,8 @@
         return ''
       }
 
-      function groupItems(items) {
-        const map = new Map()
-        for (const it of items || []) {
-          const key = `${it.name}||${it.note || ''}`
-          const prev = map.get(key)
-          if (prev) prev.qty += Number(it.qty) || 1
-          else map.set(key, { name: it.name, qty: Number(it.qty) || 1, note: it.note || '' })
-        }
-        return [...map.values()]
+      function isWaitingItem(it) {
+        return String(it?.id || '') === 'waiting-segundo'
       }
 
       function dayLabel(day) {
@@ -872,13 +884,19 @@
             .map((it) => `${it.qty}× ${escapeHtml(it.name)}${it.note ? ` <em>(${escapeHtml(it.note)})</em>` : ''}`)
             .join(' · ')
           const notes = o.notes ? `<div class="hist-note">${escapeHtml(o.notes)}</div>` : ''
+          const plateHint = o.itemReady
+            ? `<div class="hist-note">Plato suelto · recuperar solo este</div>`
+            : ''
           return `<article class="hist-item">
             <div class="hist-item-h">
               <div class="hist-mesa">Mesa ${escapeHtml(o.mesa)}</div>
               <div class="hist-time">Listo ${timeLabel(o.completedAt || o.createdAt)}</div>
             </div>
             <div class="hist-items">${items || '—'}</div>
-            ${notes}
+            ${notes}${plateHint}
+            <button type="button" class="btn-hist-restore" data-restore="${escapeHtml(o.id)}">
+              <i class="fa-solid fa-rotate-left"></i> Recuperar
+            </button>
           </article>`
         }).join('')
       }
@@ -907,14 +925,32 @@
         }
         const sorted = orders.slice().sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
         grid.innerHTML = sorted.map((o) => {
-          const lines = groupItems(o.items).map((l) => {
+          const isNext = o.kind === 'siguiente_plato'
+          const isWaiting = o.status === 'waiting_next' || o.phase === 'waiting_segundo'
+          const isMenuFirst = o.kind === 'menu_dia' && Number(o.course || 1) === 1 && !isWaiting
+          const isMenuSecond = o.kind === 'menu_dia' && Number(o.course || 0) === 2 && !isWaiting
+          const lines = (o.items || []).map((l, itemIndex) => {
             const isMenuChoice = /Primero N|Segundo N|1º PLATO|2º PLATO/i.test(String(l.note || '') + String(l.name || ''))
+            const waitingLine = isWaiting || isWaitingItem(l)
+            const readyKey = `${o.id}::${itemIndex}`
+            const busy = completing.has(readyKey)
+            const btn = waitingLine
+              ? ''
+              : `<button class="btn-line-ready" type="button"
+                    data-complete-item="${escapeHtml(o.id)}"
+                    data-item-index="${itemIndex}"
+                    data-item-id="${escapeHtml(l.id || '')}"
+                    data-item-name="${escapeHtml(l.name || '')}"
+                    ${busy ? 'disabled' : ''}>
+                    <i class="fa-solid fa-check"></i> Listo
+                  </button>`
             return `<div class="line">
               <div class="qty">${l.qty}</div>
               <div>
                 <div class="pname">${escapeHtml(l.name)}</div>
                 ${l.note ? `<div class="pnote${isMenuChoice ? ' menu-choice' : ''}">${escapeHtml(l.note)}</div>` : ''}
               </div>
+              ${btn}
             </div>`
           }).join('')
           const notes = o.notes
@@ -922,10 +958,6 @@
             : ''
           const neo = flashIds.has(o.id) ? 'new' : ''
           const urg = urgencyClass(o.createdAt)
-          const isNext = o.kind === 'siguiente_plato'
-          const isWaiting = o.status === 'waiting_next' || o.phase === 'waiting_segundo'
-          const isMenuFirst = o.kind === 'menu_dia' && Number(o.course || 1) === 1 && !isWaiting
-          const isMenuSecond = o.kind === 'menu_dia' && Number(o.course || 0) === 2 && !isWaiting
           let banner = ''
           if (isWaiting) {
             banner = `<div class="next-banner waiting"><i class="fa-solid fa-hourglass-half"></i> 1º listo · esperando «Siguiente plato»</div>`
@@ -943,23 +975,20 @@
             isWaiting ? 'waiting-next' : '',
             isMenuSecond ? 'menu-second' : '',
           ].filter(Boolean).join(' ')
-          let btnLabel = 'Listo'
-          if (isWaiting) btnLabel = 'Esperando camarera…'
-          else if (isMenuFirst) btnLabel = 'Listo 1º plato'
-          else if (isMenuSecond) btnLabel = 'Listo 2º plato'
-          else if (isNext) btnLabel = 'Enterado'
-          const btnDisabled = isWaiting ? ' disabled' : ''
+          const footer = isWaiting
+            ? `<div class="ticket-f">
+                <button class="btn-ready" type="button" disabled>
+                  <i class="fa-solid fa-hourglass-half"></i> Esperando camarera…
+                </button>
+              </div>`
+            : ''
           return `<article class="ticket ${ticketClass}" data-id="${escapeHtml(o.id)}">
             <div class="ticket-h">
               <div class="mesa-num"><span>Mesa</span>${escapeHtml(o.mesa)}</div>
               <div class="elapsed" data-created="${escapeHtml(o.createdAt)}">${elapsedLabel(o.createdAt)}<small>transcurrido</small></div>
             </div>
             <div class="ticket-b">${banner}${lines}${notes}</div>
-            <div class="ticket-f">
-              <button class="btn-ready" type="button" data-complete="${escapeHtml(o.id)}"${btnDisabled}>
-                <i class="fa-solid fa-check"></i> ${btnLabel}
-              </button>
-            </div>
+            ${footer}
           </article>`
         }).join('')
       }
@@ -986,23 +1015,30 @@
         })
       }
 
-      async function complete(id) {
-        if (!id || completing.has(id)) return
-        const btn = document.querySelector(`[data-complete="${CSS.escape(id)}"]`)
-        if (btn && btn.disabled) return
-        completing.add(id)
+      async function completeItem(orderId, itemIndex, itemId, itemName) {
+        const key = `${orderId}::${itemIndex}`
+        if (!orderId || completing.has(key)) return
+        const label = String(itemName || 'este plato').trim() || 'este plato'
+        if (!window.confirm(`¿Marcar listo «${label}»?\nSe avisará a la camarera para recogerlo.`)) {
+          return
+        }
+        completing.add(key)
         render()
         try {
-          const data = await window.CasaTorinoKitchenSync.complete(id)
-          orders = Array.isArray(data.orders) ? data.orders : orders.filter((o) => o.id !== id)
+          const data = await window.CasaTorinoKitchenSync.completeItem(
+            orderId,
+            Number(itemIndex),
+            itemId,
+          )
+          orders = Array.isArray(data.orders) ? data.orders : orders
           canUndo = Boolean(data.canUndo)
           applyHistory(data)
-          flashIds.delete(id)
-          const partial = data.order?.menuPartial
+          const plate = data.order?.items?.[0]?.name || label
+          const mesa = data.order?.mesa || ''
           toast(
-            partial
-              ? `Mesa ${data.order?.mesa || ''} · 1º listo (sigue el menú)`
-              : `Mesa ${data.order?.mesa || ''} marcada como lista`,
+            data.orderClosed
+              ? `Mesa ${mesa} · último plato «${plate}» listo`
+              : `Listo «${plate}» · mesa ${mesa}`,
           )
           render()
         } catch (err) {
@@ -1013,7 +1049,7 @@
           toast('No se pudo completar: ' + (err.message || err))
           console.warn(err)
         } finally {
-          completing.delete(id)
+          completing.delete(key)
           render()
         }
       }
@@ -1028,11 +1064,36 @@
             flashIds.add(data.order.id)
             setTimeout(() => { flashIds.delete(data.order.id); render() }, 1800)
           }
-          toast('Último pedido recuperado')
+          toast('Último plato recuperado')
           beep()
           render()
         } catch (err) {
           toast(err.message || 'Nada que deshacer')
+        }
+      }
+
+      async function restoreFromHistory(id) {
+        if (!id) return
+        if (!window.confirm('¿Recuperar este plato/comanda al panel en vivo?')) return
+        try {
+          const data = await window.CasaTorinoKitchenSync.restore(id)
+          orders = Array.isArray(data.orders) ? data.orders : orders
+          canUndo = Boolean(data.canUndo)
+          applyHistory(data)
+          if (data.order?.id) {
+            flashIds.add(data.order.id)
+            setTimeout(() => { flashIds.delete(data.order.id); render() }, 1800)
+          }
+          showHistory = false
+          toast('Recuperado al panel')
+          beep()
+          render()
+        } catch (err) {
+          if (err && err.status === 401) {
+            lockForPin('Sesión caducada — introduce el PIN')
+            return
+          }
+          toast(err.message || 'No se pudo recuperar')
         }
       }
 
@@ -1043,8 +1104,18 @@
           render()
         }
         $('grid').addEventListener('click', (e) => {
-          const btn = e.target.closest('[data-complete]')
-          if (btn) complete(btn.dataset.complete)
+          const btn = e.target.closest('[data-complete-item]')
+          if (!btn || btn.disabled) return
+          completeItem(
+            btn.dataset.completeItem,
+            btn.dataset.itemIndex,
+            btn.dataset.itemId,
+            btn.dataset.itemName,
+          )
+        })
+        $('historyPanel')?.addEventListener('click', (e) => {
+          const btn = e.target.closest('[data-restore]')
+          if (btn) restoreFromHistory(btn.dataset.restore)
         })
         window.CasaTorinoKitchenSync.start(
           (payload) => {
