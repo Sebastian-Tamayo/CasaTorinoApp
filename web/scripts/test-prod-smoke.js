@@ -305,6 +305,30 @@ try {
   fail('jornada-end-mesas-kick', err)
 }
 
+// —— 8c) Cupo menús del día (bloqueo al seleccionar, no al enviar cocina) ——
+try {
+  const html = fs.readFileSync(path.join(root, 'tpv.html'), 'utf8')
+  const jornada = fs.readFileSync(path.join(root, 'api/tpv-jornada.js'), 'utf8')
+  const client = fs.readFileSync(path.join(root, 'tpvJornada.js'), 'utf8')
+  assert.ok(jornada.includes('menuCupo'))
+  assert.ok(jornada.includes('setmenucupo') || jornada.includes("setMenuCupo"))
+  assert.ok(jornada.includes('adjustmenucupoused') || jornada.includes('adjustMenuCupoUsed'))
+  assert.ok(jornada.includes('menu_cupo_agotado'))
+  assert.ok(jornada.includes('emptyMenuCupo'))
+  assert.ok(client.includes('setMenuCupo'))
+  assert.ok(client.includes('adjustMenuCupoUsed'))
+  assert.ok(html.includes('btnMenuCupo'))
+  assert.ok(html.includes('menuCupoModal'))
+  assert.ok(html.includes('reserveMenuCupo'))
+  assert.ok(html.includes('Menús del día agotados'))
+  assert.ok(html.includes('isMenuDiaLine'))
+  // Bloqueo en add, no en sendToKitchen como puerta principal
+  assert.ok(html.includes('async function addWithNote'))
+  ok('menu-cupo-dia')
+} catch (err) {
+  fail('menu-cupo-dia', err)
+}
+
 // —— 9) Force update apunta a /tpv.html ——
 try {
   const html = fs.readFileSync(path.join(root, 'tpv.html'), 'utf8')

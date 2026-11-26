@@ -3,13 +3,15 @@
  * Persistencia: Supabase ops_kv, clave `jornada`.
  *
  * GET  /api/tpv-jornada → estado actual + totales
- * POST /api/tpv-jornada → { action: 'start'|'end'|'sale'|'updateSale'|'updateLine'|'deleteSale'|'reset' }
+ * POST /api/tpv-jornada → { action: 'start'|'end'|'sale'|'updateSale'|'updateLine'|'deleteSale'|'reset'|'setMenuCupo'|'adjustMenuCupoUsed' }
  *
  * - start: abre jornada (limpia ventas previas)
  * - end: cierra sesión y congela totales
  * - sale: registra un cobro (solo si status === 'open')
  * - updateSale / updateLine / deleteSale: corregir errores (open u ended)
  * - reset: borra jornada (tras confirmación en cliente)
+ * - setMenuCupo: cupo diario de menús del día (limit / reset used)
+ * - adjustMenuCupoUsed: ±used al añadir/quitar menú en cuenta (RMW atómico)
  */
 const SYNC_KEY = process.env.TPV_SYNC_KEY || ''
 const ITEM_KEY = 'jornada'
@@ -42,6 +44,26 @@ function cors(req, res) {
   res.setHeader('Cache-Control', 'no-store')
 }
 
+function emptyMenuCupo() {
+  return { limit: null, used: 0, updatedAt: 0 }
+}
+
+function normalizeMenuCupo(raw) {
+  const base = emptyMenuCupo()
+  if (!raw || typeof raw !== 'object') return base
+  let limit = raw.limit
+  if (limit === '' || limit === undefined || limit === null) {
+    limit = null
+  } else {
+    limit = Math.floor(Number(limit))
+    if (!Number.isFinite(limit) || limit <= 0) limit = null
+  }
+  let used = Math.floor(Number(raw.used))
+  if (!Number.isFinite(used) || used < 0) used = 0
+  const updatedAt = Number(raw.updatedAt) || 0
+  return { limit, used, updatedAt }
+}
+
 function emptyState() {
   return {
     kind: 'casa-torino-jornada',
@@ -49,6 +71,7 @@ function emptyState() {
     startedAt: null,
     endedAt: null,
     sales: [],
+    menuCupo: emptyMenuCupo(),
     updatedAt: 0,
   }
 }
@@ -200,6 +223,7 @@ async function getState() {
         ...emptyState(),
         ...remote,
         sales: Array.isArray(remote.sales) ? remote.sales : [],
+        menuCupo: normalizeMenuCupo(remote.menuCupo),
       }
     }
   } catch (err) {
@@ -521,6 +545,104 @@ module.exports = async function handler(req, res) {
       let state = await getState()
       const now = Date.now()
 
+      // Cupo menús: set límite / reiniciar contador (RMW)
+      if (action === 'setmenucupo' || action === 'set_menu_cupo') {
+        const resetUsed = Boolean(body.resetUsed)
+        let nextLimit = body.limit
+        if (nextLimit === '' || nextLimit === undefined || nextLimit === null) {
+          nextLimit = null
+        } else {
+          nextLimit = Math.floor(Number(nextLimit))
+          if (!Number.isFinite(nextLimit) || nextLimit <= 0) nextLimit = null
+        }
+        try {
+          state = await updateJson(ITEM_KEY, emptyState, (cur) => {
+            const prev = normalizeMenuCupo(cur.menuCupo)
+            const wasOff = prev.limit == null
+            let used = prev.used
+            if (nextLimit == null) {
+              used = 0
+            } else if (resetUsed || wasOff) {
+              used = 0
+            }
+            return {
+              ...cur,
+              sales: Array.isArray(cur.sales) ? cur.sales : [],
+              menuCupo: {
+                limit: nextLimit,
+                used,
+                updatedAt: Date.now(),
+              },
+              updatedAt: Date.now(),
+            }
+          })
+        } catch (err) {
+          throw err
+        }
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json')
+        return res.end(JSON.stringify(withTotals(state)))
+      }
+
+      // Cupo menús: ±used al añadir/quitar (RMW atómico entre dispositivos)
+      if (
+        action === 'adjustmenucupoused' ||
+        action === 'adjust_menu_cupo_used'
+      ) {
+        const delta = Math.trunc(Number(body.delta))
+        if (!Number.isFinite(delta) || delta === 0) {
+          res.statusCode = 400
+          res.setHeader('Content-Type', 'application/json')
+          return res.end(JSON.stringify({ error: 'delta inválido' }))
+        }
+        try {
+          state = await updateJson(ITEM_KEY, emptyState, (cur) => {
+            const cupo = normalizeMenuCupo(cur.menuCupo)
+            if (cupo.limit == null) {
+              return {
+                ...cur,
+                sales: Array.isArray(cur.sales) ? cur.sales : [],
+                menuCupo: cupo,
+              }
+            }
+            const nextUsed = cupo.used + delta
+            if (delta > 0 && nextUsed > cupo.limit) {
+              const err = new Error('Menús del día agotados')
+              err.httpStatus = 409
+              err.code = 'menu_cupo_agotado'
+              err.state = cur
+              throw err
+            }
+            return {
+              ...cur,
+              sales: Array.isArray(cur.sales) ? cur.sales : [],
+              menuCupo: {
+                limit: cupo.limit,
+                used: Math.max(0, nextUsed),
+                updatedAt: Date.now(),
+              },
+              updatedAt: Date.now(),
+            }
+          })
+        } catch (err) {
+          if (err.httpStatus) {
+            res.statusCode = err.httpStatus
+            res.setHeader('Content-Type', 'application/json')
+            return res.end(
+              JSON.stringify({
+                error: err.message,
+                code: err.code || undefined,
+                ...withTotals(err.state || emptyState()),
+              }),
+            )
+          }
+          throw err
+        }
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json')
+        return res.end(JSON.stringify(withTotals(state)))
+      }
+
       // Cobros concurrentes: mutar dentro de updateJson (no setJson a ciegas)
       if (action === 'sale') {
         const sale = normalizeSale(body.sale)
@@ -577,6 +699,7 @@ module.exports = async function handler(req, res) {
           startedAt: now,
           endedAt: null,
           sales: [],
+          menuCupo: emptyMenuCupo(),
           updatedAt: now,
         }
         try {

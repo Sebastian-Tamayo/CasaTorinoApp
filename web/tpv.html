@@ -1485,6 +1485,82 @@
       border-color: rgba(251,191,36,.5); color: #fcd34d;
       position: relative;
     }
+    .jornada-actions .btn-j.menu-cupo {
+      border-color: rgba(245,158,11,.55); color: #fbbf24;
+      position: relative;
+    }
+    .jornada-actions .btn-j.menu-cupo .notes-badge {
+      position: absolute;
+      top: -.35rem;
+      right: -.25rem;
+      min-width: 1.15rem;
+      height: 1.15rem;
+      padding: 0 .28rem;
+      border-radius: 999px;
+      background: #f59e0b;
+      color: #1c1408;
+      font-size: .65rem;
+      font-weight: 800;
+      line-height: 1.15rem;
+      text-align: center;
+    }
+    .jornada-actions .btn-j.menu-cupo .notes-badge.agotado {
+      background: #f43f5e;
+      color: #fff;
+    }
+    .jornada-actions .btn-j.menu-cupo .notes-badge[hidden] { display: none !important; }
+    .menu-cupo-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: .5rem;
+      margin: .75rem 0 1rem;
+    }
+    .menu-cupo-stats .stat {
+      border: 1px solid var(--line2);
+      border-radius: 12px;
+      padding: .65rem .5rem;
+      text-align: center;
+      background: rgba(0,0,0,.22);
+    }
+    .menu-cupo-stats .stat span {
+      display: block;
+      font-size: .68rem;
+      opacity: .75;
+      margin-bottom: .2rem;
+    }
+    .menu-cupo-stats .stat strong {
+      font-size: 1.25rem;
+      font-weight: 800;
+    }
+    .menu-cupo-row {
+      display: flex;
+      gap: .45rem;
+      align-items: center;
+      margin-top: .45rem;
+    }
+    .menu-cupo-row input {
+      flex: 1;
+      min-height: 44px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #0b0f14;
+      color: #fff;
+      -webkit-text-fill-color: #fff;
+      padding: .5rem .75rem;
+      font-weight: 800;
+      font-size: 1.1rem;
+      text-align: center;
+    }
+    .menu-cupo-row button {
+      min-width: 44px;
+      min-height: 44px;
+      border-radius: 12px;
+      border: 1px solid var(--line2);
+      background: var(--card);
+      color: var(--ink);
+      font-weight: 800;
+      font-size: 1.2rem;
+    }
     /* Plano: última opción, compacta pero destacada (uso frecuente) */
     .jornada-actions .btn-j.plano {
       margin-left: auto;
@@ -2878,6 +2954,10 @@
         <button class="btn-j end" id="btnJornadaEnd" type="button" disabled title="Fin de sesión"><i class="fa-solid fa-flag-checkered"></i> Fin</button>
         <button class="btn-j fiscal" id="btnFiscal" type="button" title="NIF y datos del local para facturas"><i class="fa-solid fa-building-columns"></i> Datos fiscales</button>
         <button class="btn-j edit-carta" id="btnEditarCarta" type="button" title="Editar carta"><i class="fa-solid fa-pen-to-square"></i> Carta</button>
+        <button class="btn-j menu-cupo" id="btnMenuCupo" type="button" title="Cupo de menús del día">
+          <i class="fa-solid fa-bowl-food"></i> Menús
+          <span class="notes-badge" id="menuCupoBadge" hidden>0</span>
+        </button>
         <button class="btn-j fichaje" id="btnFichaje" type="button" aria-label="Fichar" title="Fichar"><i class="fa-solid fa-fingerprint"></i></button>
         <button class="btn-j shift-notes" id="btnShiftNotes" type="button" title="Notas de turno">
           <i class="fa-solid fa-clipboard-list"></i> Notas
@@ -3265,6 +3345,36 @@
     </div>
   </div>
 
+  <div class="jornada-modal" id="menuCupoModal" hidden role="dialog" aria-modal="true" aria-labelledby="menuCupoModalTitle">
+    <div class="jornada-card">
+      <div class="jornada-card-h">
+        <button type="button" class="btn-modal-back" id="menuCupoBack" aria-label="Volver">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </button>
+        <h3 id="menuCupoModalTitle">Menús del día</h3>
+      </div>
+      <p class="sub">Cupo diario · al llegar al tope no se pueden añadir más menús a la cuenta</p>
+      <div class="menu-cupo-stats" aria-live="polite">
+        <div class="stat"><span>Límite</span><strong id="menuCupoLimitLabel">—</strong></div>
+        <div class="stat"><span>Usados</span><strong id="menuCupoUsedLabel">0</strong></div>
+        <div class="stat"><span>Quedan</span><strong id="menuCupoLeftLabel">—</strong></div>
+      </div>
+      <div class="jornada-sec">
+        <h4>Menús disponibles hoy</h4>
+        <div class="menu-cupo-row">
+          <button type="button" id="menuCupoMinus" aria-label="Bajar">−</button>
+          <input id="menuCupoInput" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="Sin tope" autocomplete="off" spellcheck="false" />
+          <button type="button" id="menuCupoPlus" aria-label="Subir">+</button>
+        </div>
+        <p class="sub" style="margin-top:.55rem">Vacío o 0 = sin límite. El contador cuenta desde que pones el número (o reinicias).</p>
+      </div>
+      <div class="close-row" style="gap:.5rem;flex-wrap:wrap">
+        <button type="button" id="menuCupoResetUsed" style="flex:1">Reiniciar contador</button>
+        <button type="button" id="menuCupoSave" style="flex:1;background:var(--gold);color:var(--ink);font-weight:800">Guardar</button>
+      </div>
+    </div>
+  </div>
+
   <div class="jornada-modal" id="shiftNotesModal" hidden role="dialog" aria-modal="true" aria-labelledby="shiftNotesModalTitle">
     <div class="jornada-card">
       <div class="jornada-card-h">
@@ -3410,7 +3520,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-24-ticket-cif-ok'
+      const TPV_CLIENT_VERSION = '2026-11-26-menu-cupo'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -4380,6 +4490,169 @@
           el.innerHTML = 'Jornada: <strong>sin iniciar</strong>'
           if (btnStart) btnStart.disabled = false
           if (btnEnd) btnEnd.disabled = true
+        }
+        paintMenuCupoBadge(j)
+      }
+
+      function currentMenuCupo(j) {
+        const J = window.CasaTorinoTpvJornada
+        if (J?.menuCupoOf) return J.menuCupoOf(j || state.jornada || J.last)
+        const raw = (j || state.jornada || J?.last)?.menuCupo
+        if (!raw || typeof raw !== 'object') return { limit: null, used: 0, updatedAt: 0 }
+        let limit = raw.limit
+        if (limit === '' || limit == null) limit = null
+        else {
+          limit = Math.floor(Number(limit))
+          if (!Number.isFinite(limit) || limit <= 0) limit = null
+        }
+        let used = Math.floor(Number(raw.used))
+        if (!Number.isFinite(used) || used < 0) used = 0
+        return { limit, used, updatedAt: Number(raw.updatedAt) || 0 }
+      }
+
+      function paintMenuCupoBadge(j) {
+        const badge = $('menuCupoBadge')
+        if (!badge) return
+        const cupo = currentMenuCupo(j)
+        if (cupo.limit == null) {
+          badge.hidden = true
+          badge.classList.remove('agotado')
+          badge.textContent = '0'
+          return
+        }
+        const left = Math.max(0, cupo.limit - cupo.used)
+        badge.hidden = false
+        badge.textContent = String(left)
+        badge.classList.toggle('agotado', left <= 0)
+      }
+
+      function isMenuDiaLine(itemOrLine) {
+        if (!itemOrLine) return false
+        if (
+          itemOrLine.historicoOnly === true ||
+          String(itemOrLine.id || '') === 'menu-historico' ||
+          String(itemOrLine.catId || '') === 'menus-historico'
+        ) {
+          return false
+        }
+        const catId = String(itemOrLine.catId || '').toLowerCase()
+        const id = String(itemOrLine.productId || itemOrLine.id || '').toLowerCase()
+        if (catId === 'menus-dia') return true
+        return id === 'menu-dia' || id.startsWith('menu-dia-')
+      }
+
+      function menuDiaQtyInCart(cart) {
+        let n = 0
+        for (const line of Object.values(cart || {})) {
+          if (!isMenuDiaLine(line)) continue
+          n += Math.max(0, Number(line.qty) || 0)
+        }
+        return n
+      }
+
+      async function reserveMenuCupo(delta) {
+        const n = Math.trunc(Number(delta)) || 0
+        if (n <= 0) return true
+        const J = window.CasaTorinoTpvJornada
+        if (!J?.adjustMenuCupoUsed) return true
+        const cupo = currentMenuCupo()
+        if (cupo.limit == null) return true
+        try {
+          const j = await J.adjustMenuCupoUsed(n)
+          paintJornadaStatus(j)
+          return true
+        } catch (err) {
+          const msg = String(err?.message || '')
+          if (
+            err?.status === 409 ||
+            err?.data?.code === 'menu_cupo_agotado' ||
+            /agotad/i.test(msg)
+          ) {
+            alert('Menús del día agotados')
+            if (err?.data) paintJornadaStatus(err.data)
+            return false
+          }
+          alert(msg || 'No se pudo comprobar el cupo de menús')
+          return false
+        }
+      }
+
+      async function releaseMenuCupo(delta) {
+        const n = Math.trunc(Number(delta)) || 0
+        if (n <= 0) return
+        const J = window.CasaTorinoTpvJornada
+        if (!J?.adjustMenuCupoUsed) return
+        const cupo = currentMenuCupo()
+        if (cupo.limit == null) return
+        try {
+          const j = await J.adjustMenuCupoUsed(-n)
+          paintJornadaStatus(j)
+        } catch (err) {
+          console.warn('[menuCupo] release', err)
+        }
+      }
+
+      function paintMenuCupoModal(j) {
+        const cupo = currentMenuCupo(j)
+        const limitLabel = $('menuCupoLimitLabel')
+        const usedLabel = $('menuCupoUsedLabel')
+        const leftLabel = $('menuCupoLeftLabel')
+        const input = $('menuCupoInput')
+        if (limitLabel) limitLabel.textContent = cupo.limit == null ? '—' : String(cupo.limit)
+        if (usedLabel) usedLabel.textContent = String(cupo.used || 0)
+        if (leftLabel) {
+          leftLabel.textContent =
+            cupo.limit == null ? '—' : String(Math.max(0, cupo.limit - cupo.used))
+        }
+        if (input && document.activeElement !== input) {
+          input.value = cupo.limit == null ? '' : String(cupo.limit)
+        }
+        paintMenuCupoBadge(j || { menuCupo: cupo })
+      }
+
+      async function openMenuCupoModal() {
+        const modal = $('menuCupoModal')
+        if (!modal) return
+        try {
+          const j = await window.CasaTorinoTpvJornada?.refresh?.()
+          if (j) paintJornadaStatus(j)
+        } catch (err) {
+          console.warn('[menuCupo] refresh', err)
+        }
+        paintMenuCupoModal()
+        modal.hidden = false
+      }
+
+      function closeMenuCupoModal() {
+        const modal = $('menuCupoModal')
+        if (modal) modal.hidden = true
+      }
+
+      async function saveMenuCupo(opts) {
+        const resetUsed = Boolean(opts && opts.resetUsed)
+        const raw = String($('menuCupoInput')?.value || '').trim()
+        let limit = null
+        if (raw !== '') {
+          limit = Math.floor(Number(raw.replace(',', '.')))
+          if (!Number.isFinite(limit) || limit < 0) {
+            alert('Pon un número válido (o déjalo vacío para sin tope).')
+            return
+          }
+          if (limit === 0) limit = null
+        }
+        try {
+          const j = await window.CasaTorinoTpvJornada.setMenuCupo(limit, { resetUsed })
+          paintJornadaStatus(j)
+          paintMenuCupoModal(j)
+          showTpvToast?.(
+            limit == null
+              ? 'Cupo de menús desactivado'
+              : resetUsed
+                ? `Cupo ${limit} · contador a 0`
+                : `Cupo de menús: ${limit}`,
+          )
+        } catch (err) {
+          alert(err?.message || 'No se pudo guardar el cupo')
         }
       }
 
@@ -5471,8 +5744,12 @@
         addWithNote(item, note, { primero: courseSel.primero, segundo: courseSel.segundo })
       }
 
-      function addWithNote(item, note, meta) {
+      async function addWithNote(item, note, meta) {
         if (!requireMesa()) return
+        if (isMenuDiaLine(item)) {
+          const ok = await reserveMenuCupo(1)
+          if (!ok) return
+        }
         const ctype = categoryTypeOf(item)
         const key = cartKeyFor(item.id, note)
         const now = Date.now()
@@ -5646,7 +5923,7 @@
         })
       }
 
-      function setQty(id, qty) {
+      async function setQty(id, qty) {
         if (!state.cart[id]) return
         const now = Date.now()
         if (!state.removed || typeof state.removed !== 'object') state.removed = {}
@@ -5655,6 +5932,13 @@
         const unit = Number(state.cart[id].price) || 0
         const cat = auditCategoryOf(state.cart[id])
         const noteTxt = String(state.cart[id].note || '').trim()
+        const isMenu = isMenuDiaLine(state.cart[id])
+        const nextQty = qty <= 0 ? 0 : qty
+        const delta = nextQty - prevQty
+        if (isMenu && delta > 0) {
+          const ok = await reserveMenuCupo(delta)
+          if (!ok) return
+        }
         if (qty <= 0) {
           // Tombstone: el borrado gana al merge aunque otro dispositivo aún tenga la línea
           state.removed[id] = now
@@ -5688,6 +5972,9 @@
             })
           }
         }
+        if (isMenu && delta < 0) {
+          void releaseMenuCupo(-delta)
+        }
         clampPaySelect()
         persist(); render()
       }
@@ -5695,7 +5982,7 @@
       function undo() {
         const id = state.hist.pop()
         if (!id || !state.cart[id]) return render()
-        setQty(id, state.cart[id].qty - 1)
+        void setQty(id, state.cart[id].qty - 1)
       }
 
       function resetSelSummaryUi() {
@@ -5773,6 +6060,7 @@
         }
         for (const key of Object.keys(state.cart || {})) removed[key] = now
         const vaciarSnap = auditCartSummary(state.cart)
+        const menuRelease = menuDiaQtyInCart(state.cart)
         auditLog('vaciar', {
           mesa: m || '',
           note: 'vaciar cuenta',
@@ -5791,6 +6079,7 @@
         if (m) {
           void releaseMesaAssignment(m)
         }
+        if (menuRelease > 0) void releaseMenuCupo(menuRelease)
         render(); closeTicket()
       }
 
@@ -7211,7 +7500,7 @@
         }
         if (!el.matches('button[data-act]')) return
         const line = state.cart[el.dataset.id]; if (!line) return
-        setQty(el.dataset.id, el.dataset.act === '+' ? line.qty + 1 : line.qty - 1)
+        void setQty(el.dataset.id, el.dataset.act === '+' ? line.qty + 1 : line.qty - 1)
       })
       $('lines').addEventListener('change', (e) => {
         const input = e.target.closest?.('input.line-price')
@@ -8361,6 +8650,33 @@
           shiftNotesBusy = false
         }
       }
+
+      $('btnMenuCupo')?.addEventListener('click', () => {
+        openMenuCupoModal()
+      })
+      $('menuCupoBack')?.addEventListener('click', closeMenuCupoModal)
+      $('menuCupoModal')?.addEventListener('click', (e) => {
+        if (e.target === $('menuCupoModal')) closeMenuCupoModal()
+      })
+      $('menuCupoMinus')?.addEventListener('click', () => {
+        const input = $('menuCupoInput')
+        if (!input) return
+        const cur = Math.floor(Number(String(input.value || '').trim()) || 0)
+        input.value = String(Math.max(0, cur - 1) || '')
+      })
+      $('menuCupoPlus')?.addEventListener('click', () => {
+        const input = $('menuCupoInput')
+        if (!input) return
+        const cur = Math.floor(Number(String(input.value || '').trim()) || 0)
+        input.value = String(Math.max(0, cur + 1))
+      })
+      $('menuCupoSave')?.addEventListener('click', () => {
+        void saveMenuCupo({ resetUsed: false })
+      })
+      $('menuCupoResetUsed')?.addEventListener('click', () => {
+        if (!confirm('¿Reiniciar el contador de menús usados a 0?')) return
+        void saveMenuCupo({ resetUsed: true })
+      })
 
       $('btnShiftNotes')?.addEventListener('click', () => {
         openShiftNotesModal()

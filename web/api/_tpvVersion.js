@@ -9,9 +9,9 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-24-ticket-cif-ok'
+const required = '2026-11-26-menu-cupo'
 const message =
-  'Actualiza — ticket CIF restaurado (sin el cambio de espaciado)'
+  'Actualiza — cupo de menús del día (agotados al seleccionar)'
 
 function forceInfo() {
   return { required, message }

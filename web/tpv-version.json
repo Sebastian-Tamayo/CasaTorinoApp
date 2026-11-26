@@ -1,5 +1,1 @@
-{
-  "required": "2026-11-24-ticket-cif-ok",
-  "message": "Actualiza — ticket CIF restaurado (sin el cambio de espaciado)",
-  "updatedAt": "2026-11-24T16:15:00.000Z"
-}
+{"required":"2026-11-26-menu-cupo","message":"Actualiza — cupo de menús del día (agotados al seleccionar)","updatedAt":"2026-11-26T08:00:00.000Z"}
