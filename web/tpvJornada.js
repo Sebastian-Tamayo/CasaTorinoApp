@@ -156,6 +156,33 @@
     return post('reset')
   }
 
+  function menuCupoOf(data) {
+    const raw = (data && data.menuCupo) || (last && last.menuCupo) || null
+    if (!raw || typeof raw !== 'object') {
+      return { limit: null, used: 0, updatedAt: 0 }
+    }
+    let limit = raw.limit
+    if (limit === '' || limit == null) limit = null
+    else {
+      limit = Math.floor(Number(limit))
+      if (!Number.isFinite(limit) || limit <= 0) limit = null
+    }
+    let used = Math.floor(Number(raw.used))
+    if (!Number.isFinite(used) || used < 0) used = 0
+    return { limit, used, updatedAt: Number(raw.updatedAt) || 0 }
+  }
+
+  /** Fija el cupo diario de menús. limit null/0 = sin tope. resetUsed reinicia el contador. */
+  async function setMenuCupo(limit, opts) {
+    const resetUsed = Boolean(opts && opts.resetUsed)
+    return post('setMenuCupo', { limit, resetUsed })
+  }
+
+  /** Reserva (+) o libera (−) unidades del cupo. 409 si agotado. */
+  async function adjustMenuCupoUsed(delta) {
+    return post('adjustMenuCupoUsed', { delta: Number(delta) || 0 })
+  }
+
   async function refresh() {
     const data = await pull()
     last = data
@@ -185,6 +212,9 @@
     deleteSale,
     updateLine,
     reset,
+    setMenuCupo,
+    adjustMenuCupoUsed,
+    menuCupoOf,
     startPolling,
     stopPolling,
     refreshSession,
