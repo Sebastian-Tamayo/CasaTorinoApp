@@ -341,6 +341,13 @@ try {
   assert.ok(staff.includes('type="time"') || staff.includes("type='time'"))
   assert.ok(staff.includes('isServicioHora'))
   assert.ok(!staff.includes('HORAS_RAPIDAS.map'))
+  const tpv = fs.readFileSync(path.join(root, 'tpv.html'), 'utf8')
+  assert.ok(tpv.includes('reservasQuickForm'))
+  assert.ok(tpv.includes('id="rqHora"'))
+  assert.ok(tpv.includes('type="time"') || tpv.includes("type='time'"))
+  assert.ok(tpv.includes('isServicioHoraReserva'))
+  assert.ok(tpv.includes('submitReservasQuickForm'))
+  assert.ok(!tpv.includes('HORAS_RAPIDAS'))
   ok('reserva-web-hora-libre')
 } catch (err) {
   fail('reserva-web-hora-libre', err)
