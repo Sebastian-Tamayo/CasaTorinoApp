@@ -1770,6 +1770,85 @@
       background: rgba(255,255,255,.05);
       color: var(--gold);
     }
+    .reservas-quick-form {
+      display: grid;
+      gap: .45rem;
+      margin: 0 0 .85rem;
+      padding: .7rem .75rem .8rem;
+      border-radius: 12px;
+      border: 1px solid rgba(52,211,153,.28);
+      background: rgba(16,185,129,.08);
+    }
+    .reservas-quick-form h4 {
+      margin: 0 0 .15rem;
+      font-size: .82rem;
+      font-weight: 800;
+      color: #bbf7d0;
+      letter-spacing: .02em;
+    }
+    .reservas-quick-form label {
+      display: block;
+      font-size: .72rem;
+      font-weight: 800;
+      color: var(--muted);
+      margin: 0 0 .2rem;
+    }
+    .reservas-quick-form input {
+      width: 100%;
+      min-height: 42px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #0b0f14;
+      color: #fff;
+      padding: .4rem .65rem;
+      font-weight: 700;
+      font-size: .95rem;
+      box-sizing: border-box;
+    }
+    .reservas-quick-form input[type="time"],
+    .reservas-quick-form input[type="date"],
+    .reservas-quick-form input[type="number"] {
+      color-scheme: dark;
+    }
+    .reservas-quick-form .rq-form-row {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr .7fr;
+      gap: .45rem;
+    }
+    .reservas-quick-form .rq-form-hint {
+      margin: 0;
+      font-size: .7rem;
+      font-weight: 650;
+      color: var(--muted);
+      line-height: 1.25;
+    }
+    .reservas-quick-form .rq-form-msg {
+      margin: 0;
+      font-size: .78rem;
+      font-weight: 700;
+      min-height: 1.1em;
+    }
+    .reservas-quick-form .rq-form-msg.err { color: #fecaca; }
+    .reservas-quick-form .rq-form-msg.ok { color: #86efac; }
+    .reservas-quick-form .rq-form-submit {
+      min-height: 44px;
+      border-radius: 10px;
+      border: 1px solid rgba(245,197,24,.55);
+      background: var(--gold);
+      color: var(--ink);
+      font-weight: 800;
+      font-size: .9rem;
+      cursor: pointer;
+      margin-top: .15rem;
+    }
+    .reservas-quick-form .rq-form-submit:disabled {
+      opacity: .55;
+      cursor: wait;
+    }
+    @media (max-width: 520px) {
+      .reservas-quick-form .rq-form-row { grid-template-columns: 1fr 1fr; }
+      .reservas-quick-form .rq-form-row .rq-pax { grid-column: 1 / -1; }
+    }
     .reservas-quick-summary {
       display: flex;
       flex-wrap: wrap;
@@ -3418,12 +3497,46 @@
       <p class="sub">Resumen rápido · mismo listado que la app de personal</p>
       <div class="reservas-quick-actions">
         <a class="btn-open-reservas" id="reservasQuickOpenApp" href="https://reservas-casatorino.vercel.app/" target="_blank" rel="noopener">
-          <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir / nueva reserva
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir app completa
         </a>
         <button type="button" class="btn-refresh-reservas" id="reservasQuickRefresh">
           <i class="fa-solid fa-rotate"></i> Actualizar
         </button>
       </div>
+      <form class="reservas-quick-form" id="reservasQuickForm" autocomplete="off">
+        <h4><i class="fa-solid fa-calendar-plus"></i> Nueva reserva</h4>
+        <div>
+          <label for="rqNombre">Nombre *</label>
+          <input id="rqNombre" name="nombre" type="text" required maxlength="80" placeholder="Nombre del cliente" />
+        </div>
+        <div>
+          <label for="rqTelefono">Teléfono (opcional)</label>
+          <input id="rqTelefono" name="telefono" type="tel" maxlength="20" placeholder="Opcional" inputmode="tel" />
+        </div>
+        <div class="rq-form-row">
+          <div>
+            <label for="rqFecha">Día</label>
+            <input id="rqFecha" name="fecha" type="date" required />
+          </div>
+          <div>
+            <label for="rqHora">Hora</label>
+            <input id="rqHora" name="hora" type="time" required step="300" />
+          </div>
+          <div class="rq-pax">
+            <label for="rqPersonas">Pers.</label>
+            <input id="rqPersonas" name="personas" type="number" min="1" max="20" value="2" required />
+          </div>
+        </div>
+        <p class="rq-form-hint" id="rqHoraHint">Comida 12:00–15:30 · Cena 19:00–22:30 · reloj o a mano</p>
+        <div>
+          <label for="rqNotas">Nota (opcional)</label>
+          <input id="rqNotas" name="notas" type="text" maxlength="120" placeholder="Opcional" />
+        </div>
+        <p class="rq-form-msg" id="rqFormMsg" role="status" aria-live="polite"></p>
+        <button type="submit" class="rq-form-submit" id="rqFormSubmit">
+          <i class="fa-solid fa-check"></i> Guardar reserva
+        </button>
+      </form>
       <div class="shift-notes-tabs" role="tablist" aria-label="Filtro de reservas">
         <button type="button" class="active" role="tab" aria-selected="true" data-reservas-tab="hoy" id="reservasTabHoy">
           Hoy <span id="reservasCountHoy">(0)</span>
@@ -3520,7 +3633,7 @@
        * - web/api/_tpvVersion.js → required
        * Al publicar un cambio del TPV: subir los 3 al mismo valor y desplegar.
        */
-      const TPV_CLIENT_VERSION = '2026-11-26-menu-cupo'
+      const TPV_CLIENT_VERSION = '2026-11-28-reserva-hora'
       const TPV_ACK_KEY = 'ct-tpv-ack-version'
       const $ = (id) => document.getElementById(id)
 
@@ -8696,12 +8809,13 @@
         if (!document.body.classList.contains('tpv-locked')) loadShiftNotes()
       }, 900)
 
-      // —— Reservas rápidas (resumen desde app de personal) ——
+      // —— Reservas rápidas (crear + resumen; misma API que app de personal) ——
       const RESERVAS_API = 'https://reservas-casatorino.vercel.app/api/reservas'
       const RESERVAS_APP_URL = 'https://reservas-casatorino.vercel.app/'
       let reservasQuickBusy = false
       let reservasQuickCache = []
       let reservasQuickTab = 'hoy'
+      let reservasQuickSaving = false
 
       function madridTodayYmd() {
         try {
@@ -8718,6 +8832,79 @@
         } catch {
           return new Date().toISOString().slice(0, 10)
         }
+      }
+
+      function madridNowMinutes() {
+        try {
+          const parts = new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Europe/Madrid',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          }).formatToParts(new Date())
+          const hh = Number(parts.find((p) => p.type === 'hour')?.value || 0)
+          const mm = Number(parts.find((p) => p.type === 'minute')?.value || 0)
+          return hh * 60 + mm
+        } catch {
+          const n = new Date()
+          return n.getHours() * 60 + n.getMinutes()
+        }
+      }
+
+      function minutesOfHm(hm) {
+        const m = String(hm || '').match(/^(\d{1,2}):(\d{2})$/)
+        if (!m) return NaN
+        return Number(m[1]) * 60 + Number(m[2])
+      }
+
+      function normalizeReservaHora(raw) {
+        let h = String(raw || '').trim()
+        if (/^\d{1,2}$/.test(h)) h = `${h.padStart(2, '0')}:00`
+        if (/^\d{1,2}:\d{2}:\d{2}$/.test(h)) h = h.slice(0, 5)
+        if (!/^\d{2}:\d{2}$/.test(h)) return ''
+        const [hh, mm] = h.split(':').map(Number)
+        if (hh > 23 || mm > 59) return ''
+        return h
+      }
+
+      function isServicioHoraReserva(hm) {
+        const m = minutesOfHm(hm)
+        if (!Number.isFinite(m)) return false
+        const comida = m >= minutesOfHm('12:00') && m <= minutesOfHm('15:30')
+        const cena = m >= minutesOfHm('19:00') && m <= minutesOfHm('22:30')
+        return comida || cena
+      }
+
+      function defaultReservaHora() {
+        const minutes = madridNowMinutes()
+        if (minutes < minutesOfHm('15:30')) return '14:00'
+        if (minutes < minutesOfHm('19:00')) return '19:30'
+        if (minutes <= minutesOfHm('22:30')) {
+          const hh = String(Math.floor(minutes / 60)).padStart(2, '0')
+          const mm = String(Math.floor(minutes % 60 / 5) * 5).padStart(2, '0')
+          return `${hh}:${mm}`
+        }
+        return '14:00'
+      }
+
+      function setReservasFormMsg(text, kind) {
+        const el = $('rqFormMsg')
+        if (!el) return
+        el.textContent = text || ''
+        el.classList.toggle('err', kind === 'err')
+        el.classList.toggle('ok', kind === 'ok')
+      }
+
+      function resetReservasQuickForm() {
+        const form = $('reservasQuickForm')
+        if (!form) return
+        if ($('rqNombre')) $('rqNombre').value = ''
+        if ($('rqTelefono')) $('rqTelefono').value = ''
+        if ($('rqNotas')) $('rqNotas').value = ''
+        if ($('rqFecha')) $('rqFecha').value = madridTodayYmd()
+        if ($('rqHora')) $('rqHora').value = defaultReservaHora()
+        if ($('rqPersonas')) $('rqPersonas').value = '2'
+        setReservasFormMsg('', null)
       }
 
       function formatReservaFecha(ymd) {
@@ -8876,12 +9063,91 @@
 
       async function openReservasQuickModal() {
         if ($('reservasQuickModal')) $('reservasQuickModal').hidden = false
+        resetReservasQuickForm()
         setReservasQuickTab(reservasQuickTab)
         await loadReservasQuick({ silent: true })
       }
 
       function closeReservasQuickModal() {
         if ($('reservasQuickModal')) $('reservasQuickModal').hidden = true
+      }
+
+      async function submitReservasQuickForm(e) {
+        e.preventDefault()
+        if (reservasQuickSaving) return
+        const nombre = String($('rqNombre')?.value || '').trim()
+        const telefono = String($('rqTelefono')?.value || '').trim()
+        const fecha = String($('rqFecha')?.value || '').trim()
+        const hora = normalizeReservaHora($('rqHora')?.value)
+        const personas = Math.max(
+          1,
+          Math.min(20, Number($('rqPersonas')?.value) || 2),
+        )
+        const notas = String($('rqNotas')?.value || '').trim()
+        if (!nombre) {
+          setReservasFormMsg('Pon el nombre del cliente.', 'err')
+          $('rqNombre')?.focus()
+          return
+        }
+        if (!fecha) {
+          setReservasFormMsg('Elige el día.', 'err')
+          $('rqFecha')?.focus()
+          return
+        }
+        if (!hora) {
+          setReservasFormMsg('Pon una hora válida (ej. 14:00 o 20:15).', 'err')
+          $('rqHora')?.focus()
+          return
+        }
+        if (!isServicioHoraReserva(hora)) {
+          setReservasFormMsg(
+            'Horario: comida 12:00–15:30 o cena 19:00–22:30.',
+            'err',
+          )
+          $('rqHora')?.focus()
+          return
+        }
+        const creadoPor =
+          String(tpvSessionUser?.name || '').trim() || 'TPV'
+        reservasQuickSaving = true
+        const btn = $('rqFormSubmit')
+        if (btn) btn.disabled = true
+        setReservasFormMsg('Guardando…', null)
+        try {
+          const r = await fetch(RESERVAS_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nombre,
+              telefono,
+              fecha,
+              hora,
+              personas,
+              notas,
+              creadoPor,
+            }),
+          })
+          const data = await r.json().catch(() => ({}))
+          if (!r.ok) {
+            throw new Error(data.error || 'No se pudo guardar la reserva')
+          }
+          const okMsg = `✓ ${data.codigo || 'OK'} · ${data.nombre || nombre} · ${personas}p · ${hora}`
+          showTpvToast('Reserva guardada')
+          resetReservasQuickForm()
+          setReservasFormMsg(okMsg, 'ok')
+          if (data && data.id) {
+            reservasQuickCache = [data, ...reservasQuickCache]
+            renderReservasQuick()
+          }
+          await loadReservasQuick({ silent: true })
+          if ($('rqNombre')) $('rqNombre').focus()
+        } catch (err) {
+          setReservasFormMsg(err.message || 'Error al guardar', 'err')
+          showTpvToast(err.message || 'Error al guardar reserva', true)
+        } finally {
+          reservasQuickSaving = false
+          if (btn) btn.disabled = false
+        }
       }
 
       $('btnReservasQuick')?.addEventListener('click', () => {
@@ -8899,8 +9165,12 @@
       $('reservasQuickRefresh')?.addEventListener('click', () => {
         loadReservasQuick({ silent: false })
       })
+      $('reservasQuickForm')?.addEventListener('submit', (e) => {
+        void submitReservasQuickForm(e)
+      })
       const openApp = $('reservasQuickOpenApp')
       if (openApp) openApp.href = RESERVAS_APP_URL
+      resetReservasQuickForm()
       setTimeout(() => {
         if (!document.body.classList.contains('tpv-locked')) {
           loadReservasQuick({ silent: true })

@@ -9,9 +9,9 @@
  * El aviso «Actualiza para seguir» llega solo (poll / SW / API), sin que
  * el usuario recargue a mano. Pulsar Actualizar confirma y recarga.
  */
-const required = '2026-11-26-menu-cupo'
+const required = '2026-11-28-reserva-hora'
 const message =
-  'Actualiza — cupo de menús del día (agotados al seleccionar)'
+  'Actualiza — nueva reserva en TPV con reloj / hora libre'
 
 function forceInfo() {
   return { required, message }
