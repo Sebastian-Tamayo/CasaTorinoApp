@@ -10,6 +10,10 @@ dist/
 *.log
 .vercel/.env*.local
 erp/.env.local
+scripts/node_modules/
+scripts/.wwebjs_auth/
+scripts/.env
+scripts/out/
 web/assets/qz/private-key.pem
 **/private-key.pem
 *.pem
