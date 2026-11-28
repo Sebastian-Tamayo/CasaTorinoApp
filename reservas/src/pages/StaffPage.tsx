@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useAuth } from '../auth'
-import { BUSINESS, HORAS_RAPIDAS, STATUS_LABELS } from '../config'
+import { BUSINESS, STATUS_LABELS } from '../config'
 import {
   createReservation,
   fetchStaffDirectory,
@@ -22,17 +22,43 @@ function formatFecha(iso: string) {
   return `${d}/${m}`
 }
 
-function nearestHour() {
+function pad2(n: number) {
+  return String(n).padStart(2, '0')
+}
+
+function minutesOf(hm: string) {
+  const [hh, mm] = hm.split(':').map(Number)
+  return hh * 60 + mm
+}
+
+/** Misma lógica que la web pública: reloj libre, franjas comida/cena. */
+function defaultHora() {
   const now = new Date()
-  const h = now.getHours()
-  const m = now.getMinutes()
-  const candidate =
-    m < 15
-      ? `${String(h).padStart(2, '0')}:00`
-      : m < 45
-        ? `${String(h).padStart(2, '0')}:30`
-        : `${String(Math.min(h + 1, 23)).padStart(2, '0')}:00`
-  return HORAS_RAPIDAS.includes(candidate) ? candidate : '14:00'
+  const minutes = now.getHours() * 60 + now.getMinutes()
+  if (minutes < minutesOf('15:30')) return '14:00'
+  if (minutes < minutesOf('19:00')) return '19:30'
+  if (minutes < minutesOf('22:30')) {
+    const rounded = Math.ceil(minutes / 5) * 5
+    return `${pad2(Math.floor(rounded / 60) % 24)}:${pad2(rounded % 60)}`
+  }
+  return '14:00'
+}
+
+function normalizeHora(raw: string) {
+  let h = String(raw || '').trim()
+  if (/^\d{1,2}$/.test(h)) h = `${pad2(Number(h))}:00`
+  if (/^\d{1,2}:\d{2}:\d{2}$/.test(h)) h = h.slice(0, 5)
+  if (!/^\d{2}:\d{2}$/.test(h)) return ''
+  const [hh, mm] = h.split(':').map(Number)
+  if (hh > 23 || mm > 59) return ''
+  return h
+}
+
+function isServicioHora(hm: string) {
+  const m = minutesOf(hm)
+  const comida = m >= minutesOf('12:00') && m <= minutesOf('15:30')
+  const cena = m >= minutesOf('19:00') && m <= minutesOf('22:30')
+  return comida || cena
 }
 
 export function StaffPage() {
@@ -46,7 +72,7 @@ export function StaffPage() {
   const [nombre, setNombre] = useState('')
   const [telefono, setTelefono] = useState('')
   const [fecha, setFecha] = useState(todayISO())
-  const [hora, setHora] = useState(nearestHour())
+  const [hora, setHora] = useState(defaultHora())
   const [personas, setPersonas] = useState(2)
   const [notas, setNotas] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -123,7 +149,7 @@ export function StaffPage() {
     setTelefono('')
     setNotas('')
     setPersonas(2)
-    setHora(nearestHour())
+    setHora(defaultHora())
     setFecha(todayISO())
   }
 
@@ -159,6 +185,15 @@ export function StaffPage() {
       setError('Pon el nombre del cliente.')
       return
     }
+    const horaNorm = normalizeHora(hora)
+    if (!horaNorm) {
+      setError('Pon una hora válida (ej. 14:00 o 20:15).')
+      return
+    }
+    if (!isServicioHora(horaNorm)) {
+      setError('Horario: comida 12:00–15:30 o cena 19:00–22:30.')
+      return
+    }
     setSubmitting(true)
     try {
       if (editingId) {
@@ -166,7 +201,7 @@ export function StaffPage() {
           nombre: nombre.trim(),
           telefono: telefono.trim(),
           fecha,
-          hora,
+          hora: horaNorm,
           personas,
           notas: notas.trim(),
         })
@@ -176,7 +211,7 @@ export function StaffPage() {
           nombre: nombre.trim(),
           telefono: telefono.trim(),
           fecha,
-          hora,
+          hora: horaNorm,
           personas,
           notas: notas.trim(),
           creadoPor: user?.name ?? 'personal',
@@ -318,13 +353,17 @@ export function StaffPage() {
             </label>
             <label>
               Hora
-              <select value={hora} onChange={(e) => setHora(e.target.value)} required>
-                {HORAS_RAPIDAS.map((h) => (
-                  <option key={h} value={h}>
-                    {h}
-                  </option>
-                ))}
-              </select>
+              <input
+                type="time"
+                step={300}
+                value={hora}
+                onChange={(e) => setHora(e.target.value)}
+                required
+                aria-describedby="horaHint"
+              />
+              <span id="horaHint" className="muted" style={{ display: 'block', marginTop: 4, fontSize: '0.78rem' }}>
+                Comida 12:00–15:30 · Cena 19:00–22:30 · reloj o a mano
+              </span>
             </label>
           </div>
 

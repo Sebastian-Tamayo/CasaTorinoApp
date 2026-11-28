@@ -20,6 +20,12 @@
     .reserve-page input, .reserve-page select, .reserve-page textarea {
       width: 100%; min-height: 48px; border-radius: 14px; border: 1px solid var(--line);
       background: var(--card); padding: .65rem 1rem; font: inherit; font-weight: 600;
+      color: var(--ink); color-scheme: light;
+    }
+    .reserve-page input[type="time"] {
+      min-height: 52px;
+      font-size: 1.05rem;
+      font-weight: 700;
     }
     .reserve-page textarea { min-height: 90px; resize: vertical; }
     .reserve-page .actions { display: grid; gap: .65rem; margin-top: 1.25rem; }
@@ -42,15 +48,15 @@
       <label for="nombre">Nombre</label>
       <input id="nombre" name="nombre" required autocomplete="name" maxlength="80" />
 
-      <label for="telefono">Teléfono</label>
-      <input id="telefono" name="telefono" type="tel" required autocomplete="tel" maxlength="20" />
+      <label for="telefono">Teléfono (opcional)</label>
+      <input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="20" />
 
       <label for="fecha">Fecha</label>
       <input id="fecha" name="fecha" type="date" required />
 
       <label for="hora">Hora</label>
-      <select id="hora" name="hora" required></select>
-      <p class="cap" id="capHint">Aforo por franja: comprobamos plazas al enviar.</p>
+      <input id="hora" name="hora" type="time" required step="300" />
+      <p class="cap" id="capHint">Comida 12:00–15:30 · Cena 19:00–22:30. Elige en el reloj o escribe la hora.</p>
 
       <label for="personas">Personas</label>
       <input id="personas" name="personas" type="number" min="1" max="20" value="2" required />
@@ -70,55 +76,132 @@
     (() => {
       const API = 'https://reservas-casatorino.vercel.app/api/reservas'
       const CAP_API = 'https://reservas-casatorino.vercel.app/api/reservas-capacity'
-      const HORAS = ['12:00','12:30','13:00','13:30','14:00','14:30','15:00','19:00','19:30','20:00','20:30','21:00','21:30','22:00']
-      const horaSel = document.getElementById('hora')
-      HORAS.forEach((h) => {
-        const o = document.createElement('option')
-        o.value = h
-        o.textContent = h
-        horaSel.appendChild(o)
-      })
+      const horaInput = document.getElementById('hora')
       const fecha = document.getElementById('fecha')
-      const today = new Date()
-      const iso = today.toISOString().slice(0, 10)
-      fecha.min = iso
-      fecha.value = iso
+      const CAP_FALLBACK =
+        'Comida 12:00–15:30 · Cena 19:00–22:30. Elige en el reloj o escribe la hora.'
+
+      function madridParts(d = new Date()) {
+        const parts = Object.fromEntries(
+          new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Europe/Madrid',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          })
+            .formatToParts(d)
+            .filter((p) => p.type !== 'literal')
+            .map((p) => [p.type, p.value]),
+        )
+        return {
+          day: `${parts.year}-${parts.month}-${parts.day}`,
+          hm: `${parts.hour}:${parts.minute}`,
+          minutes: Number(parts.hour) * 60 + Number(parts.minute),
+        }
+      }
+
+      function normalizeHora(raw) {
+        let h = String(raw || '').trim()
+        if (/^\d{1,2}$/.test(h)) h = `${h.padStart(2, '0')}:00`
+        if (/^\d{1,2}:\d{2}:\d{2}$/.test(h)) h = h.slice(0, 5)
+        if (!/^\d{2}:\d{2}$/.test(h)) return ''
+        const [hh, mm] = h.split(':').map(Number)
+        if (hh > 23 || mm > 59) return ''
+        return h
+      }
+
+      function minutesOf(hm) {
+        const [hh, mm] = String(hm).split(':').map(Number)
+        return hh * 60 + mm
+      }
+
+      /** Servicio real: comida + cena (sin hueco de la tarde en el selector). */
+      function isServicioHora(hm) {
+        const m = minutesOf(hm)
+        const comida = m >= minutesOf('12:00') && m <= minutesOf('15:30')
+        const cena = m >= minutesOf('19:00') && m <= minutesOf('22:30')
+        return comida || cena
+      }
+
+      function defaultHora() {
+        const { minutes } = madridParts()
+        if (minutes < minutesOf('15:30')) return '14:00'
+        if (minutes < minutesOf('19:00')) return '19:30'
+        if (minutes < minutesOf('22:30')) {
+          const rounded = Math.ceil(minutes / 5) * 5
+          const hh = String(Math.floor(rounded / 60) % 24).padStart(2, '0')
+          const mm = String(rounded % 60).padStart(2, '0')
+          const cand = `${hh}:${mm}`
+          return isServicioHora(cand) ? cand : '20:00'
+        }
+        return '14:00'
+      }
+
+      const today = madridParts()
+      fecha.min = today.day
+      fecha.value = today.day
+      horaInput.value = defaultHora()
 
       async function refreshCap() {
         const hint = document.getElementById('capHint')
+        const hora = normalizeHora(horaInput.value)
+        if (!hora || !isServicioHora(hora)) {
+          hint.textContent = CAP_FALLBACK
+          return
+        }
         try {
           const u = new URL(CAP_API)
           u.searchParams.set('fecha', fecha.value)
-          u.searchParams.set('hora', horaSel.value)
+          u.searchParams.set('hora', hora)
           const r = await fetch(u.toString(), { cache: 'no-store' })
           if (!r.ok) return
           const d = await r.json()
-          hint.textContent = `Plazas libres en ${horaSel.value}: ${d.remaining} de ${d.capacity} (ocupadas ${d.used})`
+          hint.textContent = `Plazas libres a las ${hora}: ${d.remaining} de ${d.capacity} (ocupadas ${d.used})`
         } catch {
-          hint.textContent = 'Aforo por franja: comprobamos plazas al enviar.'
+          hint.textContent = CAP_FALLBACK
         }
       }
       fecha.addEventListener('change', refreshCap)
-      horaSel.addEventListener('change', refreshCap)
+      horaInput.addEventListener('change', refreshCap)
+      horaInput.addEventListener('input', refreshCap)
       refreshCap()
 
       document.getElementById('form').addEventListener('submit', async (e) => {
         e.preventDefault()
         const msg = document.getElementById('msg')
         msg.hidden = true
+        const hora = normalizeHora(horaInput.value)
         const payload = {
           nombre: document.getElementById('nombre').value.trim(),
           telefono: document.getElementById('telefono').value.trim(),
           fecha: fecha.value,
-          hora: horaSel.value,
+          hora,
           personas: Number(document.getElementById('personas').value) || 2,
           notas: document.getElementById('notas').value.trim(),
           creadoPor: 'web',
         }
-        if (!payload.nombre || !payload.telefono) {
+        if (!payload.nombre) {
           msg.className = 'msg err'
-          msg.textContent = 'Nombre y teléfono son obligatorios.'
+          msg.textContent = 'El nombre es obligatorio.'
           msg.hidden = false
+          return
+        }
+        if (!hora) {
+          msg.className = 'msg err'
+          msg.textContent = 'Pon una hora válida (ej. 14:00 o 20:15).'
+          msg.hidden = false
+          horaInput.focus()
+          return
+        }
+        if (!isServicioHora(hora)) {
+          msg.className = 'msg err'
+          msg.textContent =
+            'Horario de reservas: comida 12:00–15:30 o cena 19:00–22:30.'
+          msg.hidden = false
+          horaInput.focus()
           return
         }
         try {
@@ -133,7 +216,8 @@
           msg.textContent = `Reserva confirmada · código ${data.codigo}. Te esperamos.`
           msg.hidden = false
           e.target.reset()
-          fecha.value = iso
+          fecha.value = madridParts().day
+          horaInput.value = defaultHora()
           refreshCap()
         } catch (err) {
           msg.className = 'msg err'
