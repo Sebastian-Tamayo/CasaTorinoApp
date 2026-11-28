@@ -34,20 +34,3 @@ export const STATUS_LABELS: Record<import('./types').ReservationStatus, string> 
   completada: 'Hecha',
   no_show: 'No vino',
 }
-
-export const HORAS_RAPIDAS = [
-  '12:00',
-  '12:30',
-  '13:00',
-  '13:30',
-  '14:00',
-  '14:30',
-  '15:00',
-  '19:00',
-  '19:30',
-  '20:00',
-  '20:30',
-  '21:00',
-  '21:30',
-  '22:00',
-]
