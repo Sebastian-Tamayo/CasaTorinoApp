@@ -329,12 +329,13 @@ try {
   fail('menu-cupo-dia', err)
 }
 
-// —— 8d) Reserva web pública + staff: hora libre (reloj) + teléfono obligatorio en web ——
+// —— 8d) Reserva web pública + staff: hora libre (reloj); teléfono opcional en web ——
 try {
   const html = fs.readFileSync(path.join(root, 'reservar.html'), 'utf8')
   assert.ok(html.includes('type="time"') || html.includes("type='time'"))
   assert.ok(html.includes('isServicioHora'))
-  assert.ok(html.includes('telefono') && html.includes('required'))
+  assert.ok(html.includes('telefono'))
+  assert.ok(html.includes('Teléfono (opcional)'))
   assert.ok(!html.includes("const HORAS = ['12:00'"))
   const staff = fs.readFileSync(path.join(root, '../reservas/src/pages/StaffPage.tsx'), 'utf8')
   assert.ok(staff.includes('type="time"') || staff.includes("type='time'"))

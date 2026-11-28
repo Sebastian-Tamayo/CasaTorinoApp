@@ -48,8 +48,8 @@
       <label for="nombre">Nombre</label>
       <input id="nombre" name="nombre" required autocomplete="name" maxlength="80" />
 
-      <label for="telefono">Teléfono</label>
-      <input id="telefono" name="telefono" type="tel" required autocomplete="tel" maxlength="20" />
+      <label for="telefono">Teléfono (opcional)</label>
+      <input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="20" />
 
       <label for="fecha">Fecha</label>
       <input id="fecha" name="fecha" type="date" required />
@@ -183,9 +183,9 @@
           notas: document.getElementById('notas').value.trim(),
           creadoPor: 'web',
         }
-        if (!payload.nombre || !payload.telefono) {
+        if (!payload.nombre) {
           msg.className = 'msg err'
-          msg.textContent = 'Nombre y teléfono son obligatorios.'
+          msg.textContent = 'El nombre es obligatorio.'
           msg.hidden = false
           return
         }
