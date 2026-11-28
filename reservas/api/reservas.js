@@ -49,6 +49,13 @@ export default async function handler(req, res) {
       if (!fields.nombre) {
         return res.status(400).json({ error: 'Nombre obligatorio' })
       }
+      // Reserva web pública: teléfono obligatorio (staff/TPV puede dejar vacío)
+      if (
+        fields.creadoPor === 'web' &&
+        !String(fields.telefono || '').replace(/\D/g, '')
+      ) {
+        return res.status(400).json({ error: 'Teléfono obligatorio' })
+      }
       const { nombre, telefono, fecha, hora, personas, notas, creadoPor, now } = fields
 
       // Aforo por franja (solo si llega desde web u omitido; staff puede forzar con force:true)
